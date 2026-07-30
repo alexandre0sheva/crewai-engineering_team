@@ -28,7 +28,9 @@ This ensures generated code always matches the version actually installed, not s
 - **`@human_feedback`** decorator on flow methods for human-in-the-loop (v1.8.0+)
 - **Flow streaming** via `stream = True` class attribute (v1.8.0+)
 - **`@persist`** decorator for SQLite-backed flow state persistence
-- **`reasoning=True`** agent parameter for reflect-then-act behavior
+- In the installed v1.15.9 runtime, `reasoning=True` emits a deprecation warning;
+  use `planning_config` for agent-level planning or `LLM(reasoning_effort=...)`
+  for provider reasoning
 - **`multimodal=True`** agent parameter for vision/image support
 - **A2A (Agent-to-Agent) protocol** support with agent cards and task execution utilities (v1.8.0+)
 - **Native OpenAI Responses API** support (v1.9.0+)
@@ -312,8 +314,8 @@ if __name__ == "__main__":
 | `verbose` | False | Detailed logging |
 | `memory` | False | Conversation history |
 | `allow_delegation` | False | Can delegate tasks to other agents |
-| `allow_code_execution` | False | Can run code |
-| `code_execution_mode` | "safe" | "safe" (Docker) or "unsafe" (direct) |
+| `allow_code_execution` | Deprecated | Built-in code execution is deprecated |
+| `code_execution_mode` | Deprecated | Use a scoped custom tool or dedicated sandbox service |
 | `respect_context_window` | True | Auto-summarize when exceeding token limits |
 | `cache` | True | Tool result caching |
 | `reasoning` | False | Reflect and plan before task execution |
@@ -776,7 +778,7 @@ def calculator(expression: str) -> str:
 ### Built-in Tools (install with `uv add crewai-tools`)
 Web/Search: SerperDevTool, ScrapeWebsiteTool, WebsiteSearchTool, EXASearchTool, FirecrawlSearchTool
 Documents: FileReadTool, DirectoryReadTool, PDFSearchTool, DOCXSearchTool, CSVSearchTool, JSONSearchTool, XMLSearchTool, MDXSearchTool
-Code: CodeInterpreterTool, CodeDocsSearchTool, GithubSearchTool
+Code: CodeDocsSearchTool, GithubSearchTool
 Media: DALL-E Tool, YoutubeChannelSearchTool, YoutubeVideoSearchTool
 Other: RagTool, ApifyActorsTool, ComposioTool, LlamaIndexTool
 
@@ -991,7 +993,8 @@ crewai run                    # Execute
 
 ## Development Best Practices
 
-1. **YAML-first configuration**: Define agents and tasks in YAML, keep crew classes minimal
+1. **Configuration-first**: New CrewAI projects default to JSONC; classic
+   Python/YAML remains supported and is intentionally used in this repository
 2. **Check built-in tools** before writing custom ones
 3. **Use structured output** (output_pydantic) for data that flows between tasks or crews
 4. **Use guardrails** to validate task outputs programmatically

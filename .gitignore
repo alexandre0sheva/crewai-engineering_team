@@ -2,4 +2,14 @@
 __pycache__/
 .DS_Store
 .venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Generated applications and legacy output from the original skeleton.
+workspace/
 sandbox/
