@@ -6,20 +6,22 @@ orchestrates lower-cost architecture, backend, frontend, and quality specialists
 
 The team is stack-agnostic. It can build web apps, APIs, CLIs, automations, data
 tools, mobile-oriented projects, or other small products when the required
-runtime is available locally. It no longer assumes Gradio, Python, a flat folder,
-or a disposable Docker sandbox.
+runtime is available locally. The generated application can use any suitable
+stack and a conventional nested project structure.
 
-## What changed from the generated skeleton
+## Capabilities
 
-- The hardcoded trading example is replaced by a product-request file or CLI
-  input.
+- Product requests can come from a Markdown file, CLI argument, or environment
+  variable.
 - A custom `engineering_lead` manages a hierarchical CrewAI process and validates
   every task.
 - Model tiers are explicit and configurable: flagship lead, lower-cost workers.
-- Four stack-agnostic specialists replace Python/Gradio-only prompts.
+- Four stack-agnostic specialists cover architecture, backend, frontend, and
+  quality.
 - Six tasks cover architecture, foundation, backend/core, frontend/experience,
   verification, and release review.
-- Generated projects use normal nested files under `workspace/<project-name>/`.
+- Generated projects use conventional nested files under
+  `workspace/<project-name>/`.
 - Workspaces persist across runs by default; reset is explicit.
 - Filesystem tools prevent traversal and symlink escapes.
 - Command execution returns stdout, stderr, exit code, and timeouts; it uses no
@@ -27,8 +29,6 @@ or a disposable Docker sandbox.
 - Local artifact guardrails require architecture, README, verification, and
   release documents before tasks can pass.
 - Tracing and remote documentation MCPs are opt-in.
-- The version-specific CrewAI MCP monkey-patch and placeholder custom tool are
-  removed.
 
 ## Requirements
 
@@ -37,7 +37,7 @@ or a disposable Docker sandbox.
 - An API key for the configured model provider
 - Any language runtimes required by the MVP you ask the team to build
 
-This repository pins CrewAI 1.15.9.
+The project uses CrewAI 1.15.9.
 
 ## Setup
 
@@ -61,9 +61,9 @@ Use any CrewAI-supported provider/model strings if you prefer another routing
 strategy. Keep the lead on your quality-first tier and workers on a balanced
 lower-cost tier.
 
-## Bundled cheap smoke project
+## Quick start
 
-`PROJECT_REQUEST.md` now contains a concrete Tiny Notes CLI project, so this
+`PROJECT_REQUEST.md` contains a concrete Tiny Notes CLI project, so this command
 works immediately:
 
 ```bash
@@ -78,7 +78,7 @@ workers: openai/gpt-5.6-luna,  reasoning none, max 14 iterations
 ```
 
 The example has no third-party runtime dependencies, web research, graphical
-interface, or integrations. It still exercises the manager, every specialist,
+interface, or integrations. The run exercises the manager, every specialist,
 filesystem tools, tests, verification, and release handoff.
 
 Standard model variables do not override smoke mode. If needed, smoke mode has
@@ -88,8 +88,8 @@ accidentally make the bundled test expensive.
 ## Define your own MVP
 
 Replace [PROJECT_REQUEST.md](PROJECT_REQUEST.md) with your real request and
-remove its `ENGINEERING_TEAM_PROFILE: smoke` marker. With no marker, the
-standard Sol/Terra routing is restored. You can also pass a different file:
+remove its `ENGINEERING_TEAM_PROFILE: smoke` marker. Requests without that
+marker use the standard Sol/Terra profile. You can also pass a different file:
 
 ```bash
 uv run engineering-team \
@@ -197,7 +197,7 @@ The worker pool contains:
 
 Tasks do not hardcode an assignee. This lets the lead route backend-free apps,
 CLI products, integration-heavy automations, or unusual stacks intelligently
-instead of forcing every request through the same engineer.
+according to the requirements and current workspace state.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for boundaries and design
 details.
@@ -293,7 +293,7 @@ the generated project's `docs/verification.md` and `docs/release-report.md`.
 
 ## CrewAI maintenance commands
 
-The generated entry points remain available:
+Use these entry points for training, replay, and evaluation:
 
 ```bash
 uv run train <iterations> <training-file> [request options]
