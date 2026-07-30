@@ -22,3 +22,8 @@ build-backend = "hatchling.build"
 
 [tool.crewai]
 type = "crew"
+
+[tool.uv.workspace]
+members = [
+    "sandbox",
+]
