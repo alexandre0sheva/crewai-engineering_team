@@ -90,10 +90,9 @@ def _optional_docs_mcps() -> list[str] | None:
 
 
 def _require_workspace_files(*required_paths: str) -> Callable[[TaskOutput], tuple[bool, Any]]:
-    # CrewAI 1.15.9 accepts an unannotated guardrail return, but rejects the
-    # modern ``tuple[bool, Any]`` spelling while looking specifically for
-    # ``typing.Tuple``. Keep the closure itself unannotated until that validator
-    # accepts PEP 585 annotations.
+    # CrewAI 1.15.23 accepts a real ``tuple[bool, Any]`` return annotation but rejects the
+    # stringified form this module produces via ``from __future__ import annotations``.
+    # Keep the closure itself unannotated; the factory's return type documents the contract.
     def validate(output: TaskOutput):
         missing = [
             relative_path
@@ -137,7 +136,7 @@ class EngineeringTeam:
                 "high",
                 "low",
             ),
-            # CrewAI 1.15.9 rejects custom hierarchical managers that are
+            # CrewAI 1.15 rejects custom hierarchical managers that are
             # constructed with project or MCP tools. During task execution it
             # supplies the lead with scoped delegation/coworker tools instead.
             allow_delegation=True,

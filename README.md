@@ -37,7 +37,7 @@ stack and a conventional nested project structure.
 - An API key for the configured model provider
 - Any language runtimes required by the MVP you ask the team to build
 
-The project uses CrewAI 1.15.9.
+The supported CrewAI version range is declared in `pyproject.toml`.
 
 ## Setup
 
@@ -182,7 +182,7 @@ CrewAI's hierarchical process gives the custom lead three responsibilities:
 3. Validate task output and require rework when acceptance criteria or required
    artifacts are missing.
 
-CrewAI 1.15.9 requires a custom hierarchical manager to start without ordinary
+CrewAI 1.15 requires a custom hierarchical manager to start without ordinary
 tools. The lead therefore receives CrewAI's scoped delegation and coworker tools,
 while specialists receive the project filesystem, command, and optional
 documentation tools. When the lead needs a file inspected or corrected, it

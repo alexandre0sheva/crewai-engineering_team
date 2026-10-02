@@ -8,7 +8,7 @@ each task to a specialist based on role and current project state, and validates
 the result before the next task starts. Specialists use the lower-cost worker
 tier.
 
-CrewAI 1.15.9 requires a custom hierarchical manager to be constructed without
+CrewAI 1.15 requires a custom hierarchical manager to be constructed without
 ordinary tools. At task execution time CrewAI supplies the lead with scoped
 delegation and coworker-question tools. Filesystem, command, and optional MCP
 tools belong only to specialists, so workspace inspection and corrections are

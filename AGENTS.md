@@ -1,5 +1,9 @@
 # AGENTS.md — CrewAI Reference for AI Coding Assistants
 
+> **Implementation workflow (read first):** this repository is being developed against
+> `docs/IMPLEMENTATION_PLAN_0.2.0.md`. For "implement task N", follow `CLAUDE.md`
+> (`uv run python scripts/plan_task.py show N`). Do not commit or push unless asked.
+
 > **Auto-generated** by `crewai create`. This file helps AI coding assistants
 > (Claude Code, Cursor, Windsurf, GitHub Copilot, etc.) write correct CrewAI code.
 > Keep it in your project root. To update, copy the latest version from the
@@ -28,7 +32,7 @@ This ensures generated code always matches the version actually installed, not s
 - **`@human_feedback`** decorator on flow methods for human-in-the-loop (v1.8.0+)
 - **Flow streaming** via `stream = True` class attribute (v1.8.0+)
 - **`@persist`** decorator for SQLite-backed flow state persistence
-- In the installed v1.15.9 runtime, `reasoning=True` emits a deprecation warning;
+- In the installed 1.15.x runtime, `reasoning=True` emits a deprecation warning;
   use `planning_config` for agent-level planning or `LLM(reasoning_effort=...)`
   for provider reasoning
 - **`multimodal=True`** agent parameter for vision/image support
