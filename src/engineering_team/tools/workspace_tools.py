@@ -12,10 +12,11 @@ import os
 import shlex
 import shutil
 import subprocess
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from crewai.tools import tool
+from crewai.tools import BaseTool, tool
 
 MAX_READ_BYTES = 250_000
 MAX_WRITE_BYTES = 1_000_000
@@ -23,8 +24,15 @@ MAX_COMMAND_OUTPUT = 40_000
 MAX_LIST_ENTRIES = 500
 MAX_COMMAND_TIMEOUT = 300
 
+GIT_DIRECTORY = ".git"
+CONTROLLER_DIRECTORY = ".engineering-team"
+# The only part of the controller directory agents may touch: scratch space that project
+# commands already use as TMPDIR.
+AGENT_SCRATCH_PARTS = (CONTROLLER_DIRECTORY, "tmp")
+
 IGNORED_LIST_DIRECTORIES = {
     ".git",
+    CONTROLLER_DIRECTORY,
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
@@ -87,14 +95,31 @@ class ProjectWorkspace:
     """A persistent filesystem root used by one generated application."""
 
     root: Path
+    # Executables allowed in addition to the defaults, and environment variable names that
+    # project commands may inherit. Both come from Settings; the workspace never reads the
+    # process environment configuration itself.
+    extra_commands: frozenset[str] = frozenset()
+    env_passthrough: frozenset[str] = frozenset()
 
     @classmethod
-    def create(cls, root: str | Path) -> ProjectWorkspace:
+    def create(
+        cls,
+        root: str | Path,
+        *,
+        extra_commands: Iterable[str] = (),
+        env_passthrough: Iterable[str] = (),
+    ) -> ProjectWorkspace:
         resolved = Path(root).expanduser().resolve()
         if resolved == Path(resolved.anchor):
             raise WorkspaceError("The filesystem root cannot be used as a project workspace.")
         resolved.mkdir(parents=True, exist_ok=True)
-        return cls(root=resolved)
+        return cls(
+            root=resolved,
+            extra_commands=frozenset(
+                item.strip().lower() for item in extra_commands if item.strip()
+            ),
+            env_passthrough=frozenset(item.strip() for item in env_passthrough if item.strip()),
+        )
 
     def resolve(self, relative_path: str, *, must_exist: bool = False) -> Path:
         if not isinstance(relative_path, str):
@@ -104,20 +129,34 @@ class ProjectWorkspace:
         supplied = Path(normalized)
         if supplied.is_absolute() or ".." in supplied.parts:
             raise WorkspaceError(f"Path must stay inside the project workspace: {relative_path}")
-        if ".git" in supplied.parts:
-            raise WorkspaceError("Direct access to .git is not allowed.")
+        self._reject_protected(supplied.parts)
 
         resolved = (self.root / supplied).resolve(strict=False)
         try:
-            resolved.relative_to(self.root)
+            relative = resolved.relative_to(self.root)
         except ValueError as exc:
             raise WorkspaceError(
                 f"Path resolves outside the project workspace: {relative_path}"
             ) from exc
+        # Check again after symlink resolution: an alias such as ``docs -> .git`` passes the
+        # lexical check above but still lands in protected storage.
+        self._reject_protected(relative.parts)
 
         if must_exist and not resolved.exists():
             raise WorkspaceError(f"Path does not exist: {relative_path}")
         return resolved
+
+    @staticmethod
+    def _reject_protected(parts: tuple[str, ...]) -> None:
+        """Reject paths in Git metadata or in the controller-owned state directory."""
+
+        lowered = tuple(part.lower() for part in parts)  # case-insensitive file systems
+        if GIT_DIRECTORY in lowered:
+            raise WorkspaceError("Direct access to .git is not allowed.")
+        if lowered and lowered[0] == CONTROLLER_DIRECTORY and lowered[:2] != AGENT_SCRATCH_PARTS:
+            raise WorkspaceError(
+                f"{CONTROLLER_DIRECTORY}/ is managed by the orchestrator and is not accessible."
+            )
 
     def relative_name(self, path: Path) -> str:
         relative = path.relative_to(self.root)
@@ -209,11 +248,16 @@ class ProjectWorkspace:
         supplied = Path(relative_path.strip())
         if not supplied.parts or str(supplied) == ".":
             raise WorkspaceError("The project workspace root cannot be deleted.")
-        if supplied.is_absolute() or ".." in supplied.parts or ".git" in supplied.parts:
+        if supplied.is_absolute() or ".." in supplied.parts:
             raise WorkspaceError("Only paths inside the project workspace can be deleted.")
+        self._reject_protected(supplied.parts)
 
         lexical_path = self.root / supplied
         if lexical_path.is_symlink():
+            # Removing a link must not follow it, but its *parent* may itself be an alias for
+            # protected storage, so resolve the parent and check where the link really lives.
+            parent = self.resolve(supplied.parent.as_posix(), must_exist=True)
+            self._reject_protected(parent.relative_to(self.root).parts)
             lexical_path.unlink()
             return f"Deleted symlink {supplied.as_posix()}."
 
@@ -249,13 +293,11 @@ class ProjectWorkspace:
             )
 
         executable = Path(arguments[0]).name.removesuffix(".exe").lower()
-        allowed = set(DEFAULT_COMMAND_ALLOWLIST)
-        configured = os.getenv("ENGINEERING_COMMAND_ALLOWLIST", "")
-        allowed.update(item.strip().lower() for item in configured.split(",") if item.strip())
+        allowed = DEFAULT_COMMAND_ALLOWLIST | self.extra_commands
         if executable not in allowed:
             raise WorkspaceError(
                 f"Command '{executable}' is not allowed. Add it explicitly with "
-                "ENGINEERING_COMMAND_ALLOWLIST if this project requires it."
+                "command_allowlist (ENGINEERING_COMMAND_ALLOWLIST) if this project requires it."
             )
 
         blocked_flags = BLOCKED_INLINE_EXECUTION.get(executable, set())
@@ -313,11 +355,12 @@ class ProjectWorkspace:
             if not path.is_absolute():
                 continue
             try:
-                path.resolve(strict=False).relative_to(self.root)
+                relative = path.resolve(strict=False).relative_to(self.root)
             except ValueError as exc:
                 raise WorkspaceError(
                     f"Absolute command argument leaves the project workspace: {candidate}"
                 ) from exc
+            self._reject_protected(relative.parts)
 
     def _command_environment(self) -> dict[str, str]:
         safe_names = {
@@ -333,11 +376,7 @@ class ProjectWorkspace:
             "https_proxy",
             "no_proxy",
         }
-        extra_names = {
-            name.strip()
-            for name in os.getenv("ENGINEERING_SUBPROCESS_ENV_ALLOWLIST", "").split(",")
-            if name.strip()
-        }
+        extra_names = self.env_passthrough
         environment = {
             name: value
             for name, value in os.environ.items()
@@ -365,11 +404,18 @@ class ProjectWorkspace:
 _active_workspace: ProjectWorkspace | None = None
 
 
-def configure_workspace(root: str | Path) -> ProjectWorkspace:
+def configure_workspace(
+    root: str | Path,
+    *,
+    extra_commands: Iterable[str] = (),
+    env_passthrough: Iterable[str] = (),
+) -> ProjectWorkspace:
     """Set the active generated-project directory for all agent tools."""
 
     global _active_workspace
-    _active_workspace = ProjectWorkspace.create(root)
+    _active_workspace = ProjectWorkspace.create(
+        root, extra_commands=extra_commands, env_passthrough=env_passthrough
+    )
     return _active_workspace
 
 
@@ -479,7 +525,7 @@ def run_project_command(
     )
 
 
-workspace_tools = [
+workspace_tools: list[BaseTool] = [
     list_project_files,
     read_project_file,
     write_project_file,

@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest an improvement or a new capability
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe your situation (for example "adding a feature to a legacy Flask app").
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like to happen? Alternatives you considered are welcome.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Agents / teammates
+        - Tools
+        - Orchestration / parallelism
+        - Verification / safety
+        - CLI / web UI
+        - Benchmarks
+        - Documentation
+        - Other
+    validations:
+      required: true

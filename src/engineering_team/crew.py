@@ -2,109 +2,74 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 from typing import Any
 
 from crewai import LLM, Agent, Crew, Process, Task
 from crewai.agents.agent_builder.base_agent import BaseAgent
+from crewai.lite_agent_output import LiteAgentOutput
 from crewai.project import CrewBase, agent, crew, task
 from crewai.tasks.task_output import TaskOutput
 
+from engineering_team.model_routing import REASONING_EFFORT_PREFIXES, ResolvedModel
+from engineering_team.settings import Settings, load_settings
 from engineering_team.tools.workspace_tools import get_workspace, workspace_tools
 
-STANDARD_PROFILE = "standard"
-SMOKE_PROFILE = "smoke"
+# CrewAI's own default context-window headroom (it uses 75% of a model's window).
+CONTEXT_WINDOW_USAGE_RATIO = 0.75
 
 
-def _env_bool(name: str, default: bool = False) -> bool:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
+def build_llm(resolved: ResolvedModel, settings: Settings) -> LLM:
+    """Construct a CrewAI LLM from a resolved model, sending only parameters it accepts."""
+
+    options: dict[str, Any] = {"model": resolved.model}
+    prefix = resolved.provider_prefix
+    if resolved.reasoning_effort is not None and prefix in REASONING_EFFORT_PREFIXES:
+        options["reasoning_effort"] = resolved.reasoning_effort
+    if resolved.temperature is not None:
+        options["temperature"] = resolved.temperature
+    if resolved.api is not None and prefix == "openai":
+        options["api"] = resolved.api
+    if resolved.context_window is not None:
+        options["context_window_size"] = int(resolved.context_window * CONTEXT_WINDOW_USAGE_RATIO)
+    if prefix == "ollama":
+        options["base_url"] = settings.ollama_base_url
+    return LLM(**options)
 
 
-def _run_profile() -> str:
-    return os.getenv("ENGINEERING_RUN_PROFILE", STANDARD_PROFILE).strip().lower()
+MIN_ARTIFACT_CHARACTERS = 40
 
 
-def _profile_setting(
-    standard_environment_name: str,
-    smoke_environment_name: str,
-    standard_default: str,
-    smoke_default: str,
-) -> str:
-    if _run_profile() == SMOKE_PROFILE:
-        return os.getenv(smoke_environment_name, smoke_default)
-    return os.getenv(standard_environment_name, standard_default)
+def _require_workspace_files(
+    *required_paths: str,
+) -> Callable[[TaskOutput | LiteAgentOutput], tuple[bool, Any]]:
+    """Interim guardrail: required artifacts must exist and hold real content.
 
+    This only rejects absent or near-empty files; it does not prove the work is correct.
+    Independent, controller-run verification replaces it later in 0.2.0.
+    """
 
-def _make_llm(
-    standard_model_environment: str,
-    smoke_model_environment: str,
-    standard_model: str,
-    smoke_model: str,
-    standard_effort_environment: str,
-    smoke_effort_environment: str,
-    standard_effort: str,
-    smoke_effort: str,
-) -> LLM:
-    return LLM(
-        model=_profile_setting(
-            standard_model_environment,
-            smoke_model_environment,
-            standard_model,
-            smoke_model,
-        ),
-        reasoning_effort=_profile_setting(  # type: ignore[arg-type]
-            standard_effort_environment,
-            smoke_effort_environment,
-            standard_effort,
-            smoke_effort,
-        ),
-    )
-
-
-def _max_iter(
-    standard_environment_name: str,
-    smoke_environment_name: str,
-    standard: int,
-    smoke: int,
-) -> int:
-    return int(
-        _profile_setting(
-            standard_environment_name,
-            smoke_environment_name,
-            str(standard),
-            str(smoke),
-        )
-    )
-
-
-def _optional_docs_mcps() -> list[str] | None:
-    if _run_profile() == SMOKE_PROFILE:
-        return None
-    configured = os.getenv("ENGINEERING_DOCS_MCP_URLS", "")
-    urls = [url.strip() for url in configured.split(",") if url.strip()]
-    return urls or None
-
-
-def _require_workspace_files(*required_paths: str) -> Callable[[TaskOutput], tuple[bool, Any]]:
     # CrewAI 1.15.23 accepts a real ``tuple[bool, Any]`` return annotation but rejects the
     # stringified form this module produces via ``from __future__ import annotations``.
     # Keep the closure itself unannotated; the factory's return type documents the contract.
-    def validate(output: TaskOutput):
-        missing = [
-            relative_path
-            for relative_path in required_paths
-            if not get_workspace().resolve(relative_path).is_file()
-        ]
-        if missing:
+    def validate(output: TaskOutput | LiteAgentOutput):
+        workspace = get_workspace()
+        problems = []
+        for relative_path in required_paths:
+            path = workspace.resolve(relative_path)
+            if not path.is_file():
+                problems.append(f"{relative_path} (missing)")
+                continue
+            content = path.read_text(encoding="utf-8", errors="replace")
+            if len("".join(content.split())) < MIN_ARTIFACT_CHARACTERS:
+                problems.append(f"{relative_path} (nearly empty)")
+        if problems:
             return (
                 False,
-                "Required project artifacts are missing: "
-                + ", ".join(missing)
-                + ". Create them with the project filesystem tools, then summarize the result.",
+                "Required project artifacts are missing or incomplete: "
+                + ", ".join(problems)
+                + ". Create or complete them with the project filesystem tools, "
+                "then summarize the result.",
             )
         return True, output.raw
 
@@ -121,58 +86,35 @@ class EngineeringTeam:
     agents_config = "config/agents.yaml"
     tasks_config = "config/tasks.yaml"
 
+    def __init__(self, settings: Settings | None = None) -> None:
+        self.settings = settings or load_settings()
+
     def engineering_lead(self) -> Agent:
         """Create the tool-free custom manager required by hierarchical crews."""
 
+        resolved = self.settings.resolve_model("engineering_lead")
         return Agent(
             config=self.agents_config["engineering_lead"],  # type: ignore[index]
-            llm=_make_llm(
-                "ENGINEERING_LEAD_MODEL",
-                "ENGINEERING_SMOKE_LEAD_MODEL",
-                "openai/gpt-5.6-sol",
-                "openai/gpt-5.6-terra",
-                "ENGINEERING_LEAD_REASONING_EFFORT",
-                "ENGINEERING_SMOKE_LEAD_REASONING_EFFORT",
-                "high",
-                "low",
-            ),
+            llm=build_llm(resolved, self.settings),
             # CrewAI 1.15 rejects custom hierarchical managers that are
             # constructed with project or MCP tools. During task execution it
             # supplies the lead with scoped delegation/coworker tools instead.
             allow_delegation=True,
-            max_iter=_max_iter(
-                "ENGINEERING_LEAD_MAX_ITER",
-                "ENGINEERING_SMOKE_LEAD_MAX_ITER",
-                standard=35,
-                smoke=18,
-            ),
-            verbose=_env_bool("ENGINEERING_VERBOSE", True),
+            max_iter=resolved.max_iter,
+            verbose=self.settings.verbose,
             inject_date=True,
         )
 
     def _specialist(self, config_name: str) -> Agent:
+        resolved = self.settings.resolve_model(config_name)
         return Agent(
             config=self.agents_config[config_name],  # type: ignore[index]
-            llm=_make_llm(
-                "ENGINEERING_WORKER_MODEL",
-                "ENGINEERING_SMOKE_WORKER_MODEL",
-                "openai/gpt-5.6-terra",
-                "openai/gpt-5.6-luna",
-                "ENGINEERING_WORKER_REASONING_EFFORT",
-                "ENGINEERING_SMOKE_WORKER_REASONING_EFFORT",
-                "low",
-                "none",
-            ),
+            llm=build_llm(resolved, self.settings),
             tools=workspace_tools,
-            mcps=_optional_docs_mcps(),
+            mcps=self.settings.docs_mcp_urls or None if self.settings.docs_mcp_enabled else None,
             allow_delegation=False,
-            max_iter=_max_iter(
-                "ENGINEERING_WORKER_MAX_ITER",
-                "ENGINEERING_SMOKE_WORKER_MAX_ITER",
-                standard=30,
-                smoke=14,
-            ),
-            verbose=_env_bool("ENGINEERING_VERBOSE", True),
+            max_iter=resolved.max_iter,
+            verbose=self.settings.verbose,
             inject_date=True,
         )
 
@@ -248,8 +190,9 @@ class EngineeringTeam:
             cache=False,
             memory=False,
             planning=False,
-            verbose=_env_bool("ENGINEERING_VERBOSE", True),
-            tracing=_env_bool("ENGINEERING_TRACING", False),
+            verbose=self.settings.verbose,
+            tracing=self.settings.tracing,
             share_crew=False,
-            output_log_file=str(workspace.resolve(".engineering-team/crew-log.json")),
+            # Controller-owned state: agents cannot reach this path through the file tools.
+            output_log_file=str(workspace.root / ".engineering-team" / "crew-log.json"),
         )

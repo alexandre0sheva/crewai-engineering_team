@@ -73,6 +73,18 @@ def rules_section(text: str) -> str:
     return text[start:stop].rstrip().removesuffix("---").rstrip() + "\n"
 
 
+def documentation_map() -> str:
+    contributing = PLAN.parents[1] / "CONTRIBUTING.md"
+    if not contributing.is_file():
+        return ""
+    text = contributing.read_text(encoding="utf-8")
+    start = text.find("## Documentation map")
+    if start == -1:
+        return ""
+    end = text.find("\n## ", start + 5)
+    return text[start : end if end != -1 else len(text)].rstrip() + "\n"
+
+
 def is_done(row: Row) -> bool:
     return row.status.lower().startswith("done")
 
@@ -112,6 +124,7 @@ def cmd_show(text: str, rows: list[Row], number: int, task_only: bool) -> None:
         print()
     if not task_only:
         print(rules_section(text))
+        print(documentation_map())
     print(task_section(text, number))
     print(f"When finished: uv run python scripts/plan_task.py done {number}   (no git commit)")
 

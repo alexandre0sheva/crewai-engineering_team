@@ -28,15 +28,23 @@ summaries are useful handoffs, while the workspace remains the source of truth.
 
 ## Filesystem model
 
-Generated applications live under `workspace/<project-name>/` by default. A run
-resumes that directory unless `--reset` is explicitly used. This supports normal
+Generated applications live under `workspace/<project-name>/` (relative to the
+directory the command is run from) by default. A run resumes that directory unless
+`--reset` is explicitly used. A project is *owned* when it contains
+`.engineering-team/owner.json`; non-empty directories without it are never written
+to, and `--reset` deletes only owned projects (`--force-reset` overrides for foreign
+directories but never for home, the current directory and its parents, the filesystem
+root, symlinks, or the engineering-team installation). This supports normal
 nested project structures and lets agents use the stack's own build and test
 tools.
 
 All specialist file APIs:
 
 - accept only relative paths;
-- reject `..`, absolute paths, `.git`, and symlink escapes;
+- reject `..`, absolute paths, and symlink escapes;
+- reject `.git` and the controller-owned `.engineering-team/` directory (except its
+  `tmp/` scratch space) **after** symlink resolution and case-insensitively, so aliases
+  cannot reach them;
 - limit text read/write sizes;
 - support exact replacement checks;
 - protect the workspace root from deletion.
@@ -52,24 +60,28 @@ This is a strong project boundary, not process isolation. Package scripts and
 generated programs are executable code. Run the orchestrator inside a container
 or VM when the request or dependency set is untrusted.
 
-## Model routing
+## Settings and model routing
 
-Defaults:
+`settings.py` is the only module that reads configuration. It builds an immutable, typed
+`Settings` object from layered sources (CLI overrides > environment > project TOML > user TOML >
+defaults), remembers which layer set every value, and never mutates `os.environ`. The profile (for
+example `smoke`, chosen by CLI, environment, config file, or the request's marker) travels inside
+`Settings`.
 
-- Lead: `openai/gpt-5.6-sol`, reasoning effort `high`
-- Specialists: `openai/gpt-5.6-terra`, reasoning effort `low`
+`model_routing.py` is pure data: provider presets mapping tiers (`max`, `lead`, `reviewer`,
+`worker`, `cheap`) to model IDs, model facts that CrewAI cannot discover (context window, whether a
+model needs the Responses API), and the profile definitions. `Settings.resolve_model(role)` layers
+preset, tier, profile, and per-role overrides into a `ResolvedModel`; `crew.build_llm` turns that
+into a CrewAI `LLM`, sending only parameters the provider accepts (reasoning effort is OpenAI/Azure
+only). The architecture preserves the quality/cost distinction: the lead runs on the quality tier
+and specialists on a cheaper one rather than using the flagship model for every tool call. Optional
+documentation MCP servers are off by default, so the crew has no hidden network dependency.
 
-Every value is configurable through environment variables. The architecture
-preserves the quality/cost distinction rather than using the flagship model for
-every tool call. Optional documentation MCP servers are disabled by default so
-the crew has no hidden network dependency.
+Defaults, tiers, profiles, and every setting are documented once in
+[CONFIGURATION.md](CONFIGURATION.md).
 
-The bundled `PROJECT_REQUEST.md` carries a smoke-profile marker. For that
-example, the lead uses Terra/low, specialists use Luna/none, iteration caps are
-lower, and documentation MCP servers stay disabled. A CLI `--profile` flag or
-`ENGINEERING_RUN_PROFILE` overrides marker detection. Standard and smoke modes
-have separate model/reasoning/iteration override variables so full-quality
-settings cannot accidentally make a smoke run expensive.
+The bundled `tiny-notes` example request (`--example tiny-notes`) carries a smoke-profile marker,
+which selects the `smoke` profile unless a profile was chosen explicitly.
 
 ## Local state
 

@@ -85,3 +85,116 @@ def test_shell_and_inline_execution_are_rejected(workspace: ProjectWorkspace) ->
 def test_workspace_root_cannot_be_deleted(workspace: ProjectWorkspace) -> None:
     with pytest.raises(WorkspaceError):
         workspace.delete_path(".")
+
+
+@pytest.fixture
+def protected_workspace(workspace: ProjectWorkspace) -> ProjectWorkspace:
+    """A workspace with real Git metadata and controller state plus aliases to both."""
+
+    (workspace.root / ".git").mkdir()
+    (workspace.root / ".git" / "config").write_text("[core]\n", encoding="utf-8")
+    (workspace.root / ".engineering-team").mkdir()
+    (workspace.root / ".engineering-team" / "owner.json").write_text("{}\n", encoding="utf-8")
+    (workspace.root / "gitlink").symlink_to(".git", target_is_directory=True)
+    (workspace.root / "statelink").symlink_to(".engineering-team", target_is_directory=True)
+    return workspace
+
+
+ALIASED_TARGETS = ["gitlink/config", "statelink/owner.json", ".GIT/config", ".Engineering-Team/x"]
+
+
+@pytest.mark.parametrize("path", ALIASED_TARGETS)
+def test_aliases_of_protected_storage_cannot_be_read_written_replaced_or_deleted(
+    protected_workspace: ProjectWorkspace, path: str
+) -> None:
+    with pytest.raises(WorkspaceError):
+        protected_workspace.read_file(path)
+    with pytest.raises(WorkspaceError):
+        protected_workspace.write_file(path, "unsafe")
+    with pytest.raises(WorkspaceError):
+        protected_workspace.replace_in_file(path, "[core]", "[evil]")
+    with pytest.raises(WorkspaceError):
+        protected_workspace.delete_path(path)
+
+    assert (protected_workspace.root / ".git" / "config").read_text(encoding="utf-8") == "[core]\n"
+    assert (protected_workspace.root / ".engineering-team" / "owner.json").exists()
+
+
+@pytest.mark.parametrize("directory", ["gitlink", "statelink", ".git", ".engineering-team"])
+def test_protected_directories_cannot_be_listed_or_used_as_command_cwd(
+    protected_workspace: ProjectWorkspace, directory: str
+) -> None:
+    with pytest.raises(WorkspaceError):
+        protected_workspace.list_files(directory)
+    with pytest.raises(WorkspaceError):
+        protected_workspace.run_command("python --version", relative_cwd=directory)
+
+
+def test_protected_directories_are_hidden_from_the_project_listing(
+    protected_workspace: ProjectWorkspace,
+) -> None:
+    listing = protected_workspace.list_files()
+
+    assert ".git" not in listing
+    assert ".engineering-team" not in listing
+
+
+def test_a_symlink_inside_protected_storage_cannot_be_unlinked_through_an_alias(
+    protected_workspace: ProjectWorkspace,
+) -> None:
+    inner = protected_workspace.root / ".git" / "inner-link"
+    inner.symlink_to("config")
+
+    with pytest.raises(WorkspaceError):
+        protected_workspace.delete_path("gitlink/inner-link")
+
+    assert inner.is_symlink()
+
+
+def test_deleting_a_symlink_removes_only_the_link(protected_workspace: ProjectWorkspace) -> None:
+    protected_workspace.delete_path("gitlink")
+
+    assert not (protected_workspace.root / "gitlink").exists()
+    assert (protected_workspace.root / ".git" / "config").exists()
+
+
+def test_absolute_command_arguments_cannot_name_protected_storage(
+    protected_workspace: ProjectWorkspace,
+) -> None:
+    protected_workspace.write_file("tool.py", "print('ok')\n")
+    target = protected_workspace.root / ".git" / "config"
+
+    with pytest.raises(WorkspaceError):
+        protected_workspace.run_command(f"python tool.py {target}")
+
+
+def test_agent_scratch_space_remains_available(workspace: ProjectWorkspace) -> None:
+    workspace.write_file(".engineering-team/tmp/scratch.txt", "ok\n")
+
+    assert workspace.read_file(".engineering-team/tmp/scratch.txt") == "ok\n"
+
+
+def test_extra_commands_come_from_the_workspace_configuration(tmp_path: Path) -> None:
+    plain = ProjectWorkspace.create(tmp_path / "plain")
+    extended = ProjectWorkspace.create(tmp_path / "extended", extra_commands=["Echo", " "])
+
+    with pytest.raises(WorkspaceError, match="command_allowlist"):
+        plain.run_command("echo hello")
+    assert "hello" in extended.run_command("echo hello")
+
+
+def test_environment_passthrough_is_limited_to_the_configured_names(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///x")
+    monkeypatch.setenv("OTHER_TOKEN", "must-not-leak")
+    open_workspace = ProjectWorkspace.create(tmp_path / "w", env_passthrough=["DATABASE_URL"])
+    open_workspace.write_file(
+        "show.py",
+        "import os\nprint(os.getenv('DATABASE_URL'), os.getenv('OTHER_TOKEN'))\n",
+    )
+
+    result = open_workspace.run_command("python show.py")
+
+    assert "sqlite:///x None" in result
+    assert "must-not-leak" not in result

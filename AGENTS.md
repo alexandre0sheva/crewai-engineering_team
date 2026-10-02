@@ -51,7 +51,7 @@ This ensures generated code always matches the version actually installed, not s
 2. All LLM references use `crewai.LLM` or string shorthand (`"openai/gpt-4o"`)
 3. All tool imports come from `crewai.tools` or `crewai_tools`
 4. Crew classes use `@CrewBase` decorator with YAML config files
-5. Python >=3.10, <3.14
+5. Python >=3.11, <3.14 (this project; CrewAI itself allows 3.10)
 6. Code matches the API from the live docs, not just this file
 
 ## Quick Reference
@@ -982,7 +982,7 @@ MODEL=gpt-4o
 ```
 
 ### Python Version
-Python >=3.10, <3.14
+Python >=3.11, <3.14 (this project; CrewAI itself allows 3.10)
 
 ### Installation
 ```bash

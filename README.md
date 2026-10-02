@@ -1,5 +1,9 @@
 # Universal MVP Engineering Team
 
+[![CI](https://github.com/alexandre0sheva/crewai-engineering_team/actions/workflows/ci.yml/badge.svg)](https://github.com/alexandre0sheva/crewai-engineering_team/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python 3.11–3.13](https://img.shields.io/badge/python-3.11%E2%80%933.13-blue.svg)
+
 A reusable CrewAI project that turns a product request into a tested MVP in a
 persistent, normal project directory. A high-capability engineering lead
 orchestrates lower-cost architecture, backend, frontend, and quality specialists.
@@ -23,16 +27,17 @@ stack and a conventional nested project structure.
 - Generated projects use conventional nested files under
   `workspace/<project-name>/`.
 - Workspaces persist across runs by default; reset is explicit.
-- Filesystem tools prevent traversal and symlink escapes.
+- Filesystem tools prevent traversal and symlink escapes, and keep agents out of `.git` and
+  the orchestrator's own `.engineering-team/` state.
 - Command execution returns stdout, stderr, exit code, and timeouts; it uses no
   shell and strips secrets from child processes.
-- Local artifact guardrails require architecture, README, verification, and
-  release documents before tasks can pass.
+- Interim artifact guardrails require architecture, README, verification, and
+  release documents to exist and contain real content before tasks can pass.
 - Tracing and remote documentation MCPs are opt-in.
 
 ## Requirements
 
-- Python 3.10–3.13
+- Python 3.11–3.13 (CrewAI does not yet support 3.14)
 - [uv](https://docs.astral.sh/uv/)
 - An API key for the configured model provider
 - Any language runtimes required by the MVP you ask the team to build
@@ -48,48 +53,37 @@ cp .env.example .env
 
 Add `OPENAI_API_KEY` to `.env`. Never commit `.env`.
 
-The defaults use:
-
-```dotenv
-ENGINEERING_LEAD_MODEL=openai/gpt-5.6-sol
-ENGINEERING_LEAD_REASONING_EFFORT=high
-ENGINEERING_WORKER_MODEL=openai/gpt-5.6-terra
-ENGINEERING_WORKER_REASONING_EFFORT=low
-```
-
-Use any CrewAI-supported provider/model strings if you prefer another routing
-strategy. Keep the lead on your quality-first tier and workers on a balanced
+Models, profiles, budgets, and every `ENGINEERING_*` variable are documented in
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md); `uv run engineering-team config show` prints what
+is in effect and where each value came from. The default provider is OpenAI; Anthropic, Google,
+Ollama, and Azure presets are available with `--provider` (or `provider = ...` in
+`engineering-team.toml`). Keep the lead on your quality-first tier and workers on a balanced
 lower-cost tier.
 
 ## Quick start
 
-`PROJECT_REQUEST.md` contains a concrete Tiny Notes CLI project, so this command
-works immediately:
+The package bundles a concrete Tiny Notes CLI request, so this command works
+immediately from any directory (projects are created under `./workspace/`):
 
 ```bash
-crewai run
+uv run engineering-team --example tiny-notes
 ```
 
-Its smoke marker selects lower-cost defaults:
-
-```text
-lead:    openai/gpt-5.6-terra, reasoning low, max 18 iterations
-workers: openai/gpt-5.6-luna,  reasoning none, max 14 iterations
-```
+Its smoke marker selects the lower-cost `smoke` profile (a cheap model for every role, low
+reasoning, and small iteration caps; see [docs/CONFIGURATION.md](docs/CONFIGURATION.md#models)).
 
 The example has no third-party runtime dependencies, web research, graphical
 interface, or integrations. The run exercises the manager, every specialist,
 filesystem tools, tests, verification, and release handoff.
 
-Standard model variables do not override smoke mode. If needed, smoke mode has
-dedicated `ENGINEERING_SMOKE_*` overrides, so production settings cannot
+Standard model variables never override smoke mode, so production settings cannot
 accidentally make the bundled test expensive.
 
 ## Define your own MVP
 
-Replace [PROJECT_REQUEST.md](PROJECT_REQUEST.md) with your real request and
-remove its `ENGINEERING_TEAM_PROFILE: smoke` marker. Requests without that
-marker use the standard Sol/Terra profile. You can also pass a different file:
+Write your real request as a Markdown file (start from the bundled example if you
+like; remove its `ENGINEERING_TEAM_PROFILE: smoke` marker). Requests without that
+marker use the `standard` profile. Pass the file explicitly:
 
 ```bash
 uv run engineering-team \
@@ -131,8 +125,14 @@ uv run engineering-team \
   --request-file path/to/habit-tracker.md
 ```
 
-`crewai run` reads `PROJECT_REQUEST.md` and uses `mvp-app` as the default
-workspace name. Set `ENGINEERING_PROJECT_NAME` in `.env` to change it.
+The request is taken from the first of these that is present: `--request`,
+`--example`, `--request-file`, `ENGINEERING_PROJECT_REQUEST`,
+`ENGINEERING_REQUEST_FILE`, then `PROJECT_REQUEST.md` in the current directory. So
+`crewai run` works when your project directory contains a `PROJECT_REQUEST.md`; its
+workspace is named `mvp-app` unless you set `ENGINEERING_PROJECT_NAME` (see
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md)).
+Relative workspace roots, including the default `workspace`, are resolved against the
+directory you run the command from.
 
 The same command resumes the existing project. To intentionally start that
 project over:
@@ -144,8 +144,15 @@ uv run engineering-team \
   --reset
 ```
 
-`--reset` deletes only `workspace/habit-tracker/`, not the workspace root or this
-orchestrator repository.
+`--reset` deletes only `workspace/habit-tracker/`, and only if this tool created it
+(it contains `.engineering-team/owner.json`; projects from 0.1.0 are recognised too).
+An existing non-empty directory that this tool did not create is never modified or
+reset by default; `--force-reset` overrides that, but your home directory, the
+current directory and its parents, the filesystem root, symlinks, and the
+engineering-team installation are always refused.
+
+Exit codes: `0` success, `2` usage or configuration error (one-line message), `1`
+runtime failure, `130` interrupted.
 
 ## Generated project layout
 
@@ -206,8 +213,10 @@ details.
 
 Specialist agents can read, create, edit, replace, list, and delete files only
 inside the active generated project. The lead coordinates these operations by
-delegation. Paths are relative and checked after symlink resolution. `.git`,
-absolute paths, traversal, and deleting the workspace root are blocked.
+delegation. Paths are relative and checked after symlink resolution, so an alias
+to a protected location is rejected too. `.git`, the orchestrator's
+`.engineering-team/` state, absolute paths, traversal, and deleting the workspace
+root are blocked.
 
 Development commands:
 
@@ -270,26 +279,6 @@ uv run engineering-team \
 An actual crew run consumes model tokens and may install dependencies selected
 for the generated MVP. The quality and release stages record exact evidence in
 the generated project's `docs/verification.md` and `docs/release-report.md`.
-
-## Useful environment variables
-
-| Variable | Purpose |
-| --- | --- |
-| `ENGINEERING_PROJECT_REQUEST` | Inline request used when CLI input is absent |
-| `ENGINEERING_REQUEST_FILE` | Default request-file path |
-| `ENGINEERING_PROJECT_NAME` | Default generated project name |
-| `ENGINEERING_WORKSPACE_ROOT` | Parent directory for generated apps |
-| `ENGINEERING_RUN_PROFILE` | `standard` or lower-cost `smoke` routing |
-| `ENGINEERING_LEAD_MODEL` | Manager model |
-| `ENGINEERING_WORKER_MODEL` | Specialist model |
-| `ENGINEERING_LEAD_REASONING_EFFORT` | Manager reasoning effort |
-| `ENGINEERING_WORKER_REASONING_EFFORT` | Specialist reasoning effort |
-| `ENGINEERING_SMOKE_*` | Optional smoke-only model, reasoning, and iteration overrides |
-| `ENGINEERING_VERBOSE` | CrewAI console detail |
-| `ENGINEERING_TRACING` | Opt-in CrewAI tracing |
-| `ENGINEERING_DOCS_MCP_URLS` | Optional comma-separated MCP URLs |
-| `ENGINEERING_COMMAND_ALLOWLIST` | Extra command executable names |
-| `ENGINEERING_SUBPROCESS_ENV_ALLOWLIST` | Environment names passed to project commands |
 
 ## CrewAI maintenance commands
 

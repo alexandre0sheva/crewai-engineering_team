@@ -16,8 +16,39 @@ as each task lands.
 
 ### Added
 
+- Layered, typed configuration (`engineering-team.toml`, user config, `ENGINEERING_*` environment, CLI) with
+  per-value provenance; `engineering-team config show` prints every setting and where it came from, with secrets
+  masked. See `docs/CONFIGURATION.md`.
+- Price-ordered provider presets (`--provider`): OpenAI `gpt-6.1-sol` + `gpt-6-luna`, Anthropic `claude-sonnet-5-5` +
+  `claude-opus-5-5`, Google `gemini-3.8-flash`, and local Ollama `qwen3.8:27b`; tiers (`max`, `lead`, `reviewer`,
+  `worker`, `cheap`), a `max-quality` profile, per-tier/profile/role model overrides, and model prices in `config show`.
+  Azure is disabled by default (`enable_azure = true`). Anthropic, Google, and Azure SDKs are optional extras
+  (`uv sync --extra anthropic`).
+- Missing credentials or provider SDKs are reported up front in one line instead of failing mid-run.
+- GitHub Actions CI (Python 3.11–3.13 on Linux, 3.12 on macOS): lint, format check, mypy,
+  tests, and a clean-venv wheel smoke test; Dependabot for `uv` and Actions.
+- `LICENSE` (MIT) and package metadata (authors, classifiers, keywords, project URLs).
+- `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and pull-request templates.
+
 ### Changed
 
+- Default OpenAI models are now `gpt-6.1-sol` (lead) and `gpt-6-luna` (specialists), called through the Responses
+  API with an explicit context window; the superseded `gpt-5.6-*` models are no longer presets. The 0.1.0
+  `ENGINEERING_*` model variables keep working (standard names configure the standard profile, `ENGINEERING_SMOKE_*`
+  the smoke profile).
+- Settings are centralised: only `settings.py` reads configuration, the profile no longer travels through
+  `os.environ`, and `EngineeringTeam` takes a `Settings` object.
+- Request precedence is now `--request` > `--example` > `--request-file` > `ENGINEERING_PROJECT_REQUEST` >
+  `ENGINEERING_REQUEST_FILE` > `PROJECT_REQUEST.md` in the current directory; blank environment values
+  count as unset and a blank `--request` is an error.
+- The default workspace root is `./workspace` relative to where you run the command (it used to be next to
+  the installed package), and relative `ENGINEERING_WORKSPACE_ROOT` values resolve against the current
+  directory.
+- The bundled Tiny Notes request moved into the package and is used with `--example tiny-notes`; the
+  repository-root `PROJECT_REQUEST.md` was removed.
+- All entry points return proper exit codes: `0` success, `2` usage/configuration error (one line, no
+  traceback), `1` runtime failure, `130` interrupted.
+- Artifact guardrails now also reject near-empty files (an interim check until independent verification).
 - Upgraded CrewAI to 1.15.23 (supported range `>=1.15.23,<1.16`) and refreshed the lockfile
   and dev tools (pytest 9.1, Ruff 0.16).
 - The test suite is hermetic: it ignores the developer's `.env`, uses throw-away framework
@@ -25,7 +56,20 @@ as each task lands.
 
 ### Fixed
 
+- An inline `ENGINEERING_PROJECT_REQUEST` no longer overrides an explicit `--request-file`.
+- Installed copies no longer look for a request file or create workspaces next to `site-packages`.
+- `engineering-team` no longer exits with status 1 after a successful run (the crew result was being
+  passed to `sys.exit`).
+
 ### Security
+
+- File tools check protected locations after resolving symlinks, so an alias such as `link -> .git`
+  can no longer read or modify Git metadata; the orchestrator's `.engineering-team/` state is protected
+  the same way.
+- `--reset` only deletes projects created by this tool (ownership marker) and always refuses your home
+  directory, the current directory and its parents, the filesystem root, symlinks, and the
+  engineering-team installation; `--force-reset` is required for foreign directories.
+- Existing non-empty directories that this tool did not create are no longer written into.
 
 ## [0.1.0] — 2026-07-30
 

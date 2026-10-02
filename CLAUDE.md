@@ -24,6 +24,6 @@ changelog, relevant docs page).
 
 ## Basics
 
-- `uv sync --group dev` · `uv run pytest -q` · `uv run ruff check .`
+- `uv sync --group dev` · `uv run pytest -q` · `uv run ruff check .` · `uv run ruff format --check .` · `uv run mypy`
 - Source in `src/engineering_team/`; tests in `tests/` must stay offline and hermetic.
 - Never read or print `.env` (it holds API keys).

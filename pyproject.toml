@@ -3,10 +3,39 @@ name = "engineering_team"
 version = "0.2.0"
 description = "A reusable, lead-managed CrewAI engineering team for building MVP applications"
 readme = "README.md"
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.11,<3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Oleksandr Shevchenko" }]
+keywords = ["crewai", "ai-agents", "multi-agent", "software-engineering", "code-generation", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "crewai[tools]>=1.15.23,<1.16",
 ]
+
+[project.optional-dependencies]
+# Native CrewAI provider SDKs; install only what you use, e.g. `uv sync --extra anthropic`.
+anthropic = ["crewai[anthropic]>=1.15.23,<1.16"]
+google = ["crewai[google-genai]>=1.15.23,<1.16"]
+azure = ["crewai[azure-ai-inference]>=1.15.23,<1.16"]
+
+[project.urls]
+Homepage = "https://github.com/alexandre0sheva/crewai-engineering_team"
+Repository = "https://github.com/alexandre0sheva/crewai-engineering_team"
+Issues = "https://github.com/alexandre0sheva/crewai-engineering_team/issues"
+Changelog = "https://github.com/alexandre0sheva/crewai-engineering_team/blob/main/CHANGELOG.md"
 
 [project.scripts]
 engineering-team = "engineering_team.main:run"
@@ -19,12 +48,14 @@ run_with_trigger = "engineering_team.main:run_with_trigger"
 
 [dependency-groups]
 dev = [
+    "mypy>=2.4.0",
     "pytest>=9.1.0",
+    "pyyaml>=6.0",
     "ruff>=0.16.10",
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.crewai]
@@ -41,7 +72,7 @@ filterwarnings = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.format]
 # Ruff 0.16 also formats fenced code in Markdown; keep docs (e.g. AGENTS.md) untouched.
@@ -49,3 +80,15 @@ exclude = ["*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+files = ["src"]
+python_version = "3.11"
+warn_unused_ignores = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# CrewAI's YAML ``config=`` pattern (required by the CrewBase decorators) passes a
+# partially-specified Task/Agent that the library's static types cannot express.
+module = "engineering_team.crew"
+disable_error_code = ["call-arg", "arg-type"]

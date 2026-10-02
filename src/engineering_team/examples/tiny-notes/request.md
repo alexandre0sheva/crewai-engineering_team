@@ -1,9 +1,9 @@
 <!-- ENGINEERING_TEAM_PROFILE: smoke -->
 # Tiny Notes CLI
 
-This is the bundled low-cost smoke project. Replace this file with your real
-product request and remove the smoke-profile marker above when you are ready to
-build a full MVP.
+This is the bundled low-cost smoke example (`--example tiny-notes`). Copy it to your
+own request file and remove the smoke-profile marker above when you are ready to build
+a full MVP.
 
 ## Product
 

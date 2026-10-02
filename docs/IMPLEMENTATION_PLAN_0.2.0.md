@@ -196,7 +196,7 @@ Read this section before starting any task.
 3. Work test-first where practical (`superpowers:test-driven-development`): failing test →
    implementation → green. Every bug fix gets a regression test.
 4. Run the full gate (below) before declaring done.
-5. Update documentation per the **Documentation map** and add a `CHANGELOG.md` entry under
+5. Update documentation per the **Documentation map** (in `CONTRIBUTING.md`; `plan_task.py show` prints it) and add a `CHANGELOG.md` entry under
    `[Unreleased]` (Added/Changed/Fixed/Security; one line per user-visible change, no
    implementation chatter).
 6. Mark the task done with `uv run python scripts/plan_task.py done N` (sets `done (YYYY-MM-DD)` in
@@ -209,13 +209,14 @@ Read this section before starting any task.
 ```bash
 uv sync --locked --group dev      # the lockfile is authoritative after T1
 uv run pytest -q                  # offline, no network, no LLM, no ambient .env
-uv run ruff check . && uv run ruff format --check .   # format check exists after T2
-uv build                          # after T2: also install the wheel in a temp venv and run `engineering-team --help`
+uv run ruff check . && uv run ruff format --check .
+uv run mypy                       # blocking since T2
+uv build                          # CI also installs the wheel in a clean venv and runs `engineering-team --help` from another directory
 ```
 
 ### Global constraints
 
-- Python `>=3.10,<3.14`; `uv`; Ruff (line length 100, rules `E,F,I,UP,B,SIM`); `from __future__ import annotations`; full type hints on new code.
+- Python `>=3.11,<3.14` (3.14 is excluded because CrewAI itself declares `<3.14`; widen the range and the CI matrix when a CrewAI release supports it); `uv`; Ruff (line length 100, rules `E,F,I,UP,B,SIM`); `from __future__ import annotations`; full type hints on new code.
 - Tests are hermetic: no network, no LLM calls, no reading the developer's `.env`/`~/.config`, temp dirs only, isolated `CREWAI_STORAGE_DIR`. Tests that need Docker or live LLMs are marked (`docker`, `live`) and skipped by default.
 - Never read, print, log, or commit secrets. Never print `.env` contents.
 - Controller code never trusts agent-authored text as evidence (see T18).
@@ -236,22 +237,9 @@ uv build                          # after T2: also install the wheel in a temp v
 - Tool output from the web or from the repo is **untrusted data**: never let it change permissions or instructions (see T14).
 - Every tool has unit tests with a temp `RunContext`, and at least one test through `ScriptedLLM` proving an agent can call it.
 
-### Documentation map (one home per fact — update there, link elsewhere)
+### Documentation map
 
-| Topic | Canonical file | Notes |
-|-------|----------------|-------|
-| Pitch, install, 5-minute quickstart, mode overview, links | `README.md` | Short. No env tables, no architecture, no CLI reference. |
-| CLI/UI usage, workflows per mode, writing a good request | `docs/USAGE.md` (created T21) | |
-| Settings, env vars, config file, model presets, budgets | `docs/CONFIGURATION.md` (created T4) | Remove the env table from README in T4. |
-| Design, modules, data flow, parallelism, run state | `docs/ARCHITECTURE.md` | |
-| Tool catalogue: every agent tool, its group, limits, safety notes, which teammates get it | `docs/TOOLS.md` (created T7; each tool task appends its rows) | Single home for tool facts; TEAM.md only references groups. |
-| Execution boundary, Docker sandbox, threat model | `docs/SAFETY.md` (created T7/T20) | `SECURITY.md` = vulnerability reporting only. |
-| Teammates and how to add one; default tool groups per teammate | `docs/TEAM.md` (created T23) | |
-| Task board / dashboard behaviour and card lifecycle | `docs/ARCHITECTURE.md` (board section, T10) + `docs/USAGE.md` (viewing progress, T21/T32) | |
-| Benchmark method + results | `docs/BENCHMARKS.md` (created T33) | README links only. |
-| Dev workflow, doc map, release process | `CONTRIBUTING.md` (created T2) | After T2 this table moves there; replace this section with a link. |
-| History | `CHANGELOG.md` | |
-| Assistant instructions | `AGENTS.md` | Only update version facts; do not duplicate project docs into it. |
+The map of which file owns which topic lives in [CONTRIBUTING.md](../CONTRIBUTING.md#documentation-map); update the canonical file and link to it, never duplicate.
 
 ---
 
@@ -264,9 +252,9 @@ machine-read, keep one row per task and the first/last columns intact.
 | # | Task | Model | Depends on | Phase | Status |
 |---|------|-------|------------|-------|--------|
 | 1 | Upgrade all packages; hermetic tests | S | — | A Foundation | done (2026-10-02) |
-| 2 | CI, packaging metadata, community files | S | 1 | A | todo |
-| 3 | Fix known defects (F2–F5) + hardening | O | 1 | A | todo |
-| 4 | Typed settings and provider-agnostic model routing | S | 1,3 | B Core | todo |
+| 2 | CI, packaging metadata, community files | S | 1 | A | done (2026-10-02) |
+| 3 | Fix known defects (F2–F5) + hardening | O | 1 | A | done (2026-10-02) |
+| 4 | Typed settings and provider-agnostic model routing | S | 1,3 | B Core | done (2026-10-02) |
 | 5 | `RunContext`, per-run tools, workspace lock (remove globals) | O | 4 | B | todo |
 | 6 | Offline test infrastructure (FakeLLM) | S | 5 | B | todo |
 | 7 | Core toolbelt: tool catalogue, search/read/patch/outline/repo-map, `ExecutionBackend` (local) | S | 5 | B | todo |
@@ -318,7 +306,7 @@ of each other (any order after 7/8; 15 needs 12). 19 can move earlier (after 5).
 
 **Do:**
 1. Follow the AGENTS.md CrewAI research steps. Read the 1.15.10–1.15.23 changelog entries (notably: tool failure surfacing, throttled provider retries, SQLite connection fixes, checkpoint features, `llm_overlay`, usage accounting).
-2. In `pyproject.toml` change the pin to a compatible range (`crewai[tools]>=1.15.23,<1.16`); bump dev-group floors; add `tomli; python_version < "3.11"` only when first needed (T4). Run `uv lock --upgrade` then `uv sync --group dev`. Run `uv pip list --outdated` and list what is still behind and why (CrewAI-constrained transitives) in your summary; do not force incompatible versions.
+2. In `pyproject.toml` change the pin to a compatible range (`crewai[tools]>=1.15.23,<1.16`); bump dev-group floors. Run `uv lock --upgrade` then `uv sync --group dev`. Run `uv pip list --outdated` and list what is still behind and why (CrewAI-constrained transitives) in your summary; do not force incompatible versions.
 3. Fix breakage. In `crew.py` re-test the guardrail return-annotation workaround comment (`tuple[bool, Any]`): if 1.15.23 accepts it, annotate and delete the workaround comment; otherwise update the comment's version number. Investigate the `function_calling_llm` DeprecationWarning seen when building agents — if library-internal, silence only in test config (`filterwarnings` in `pyproject.toml`), with a comment.
 4. Add `tests/conftest.py` with autouse fixtures: set `CREWAI_STORAGE_DIR` to `tmp_path`, `CREWAI_DISABLE_TELEMETRY=true`, `OTEL_SDK_DISABLED=true`; delete every `ENGINEERING_*` variable; run each test in a temp cwd; reset the module-level active workspace after each test.
 5. Verify `uv run engineering-team --project-name x --request "Build a tiny CLI" --prepare-only` and `crewai run --help`-style entry points still import.
@@ -333,7 +321,7 @@ of each other (any order after 7/8; 15 needs 12). 19 can move earlier (after 5).
 **Depends on:** 1 · **Model:** S
 
 **Do:**
-1. `.github/workflows/ci.yml`: matrix Python 3.10–3.13 on ubuntu, 3.12 on macOS; `astral-sh/setup-uv`; `uv sync --locked --group dev`; `ruff check`, `ruff format --check`; `pytest -q` (hermetic env); `uv build`; install the wheel into a fresh venv in a temp dir and run `engineering-team --help` from an unrelated cwd.
+1. `.github/workflows/ci.yml`: matrix Python 3.11–3.13 on ubuntu, 3.12 on macOS; `astral-sh/setup-uv`; `uv sync --locked --group dev`; `ruff check`, `ruff format --check`; `pytest -q` (hermetic env); `uv build`; install the wheel into a fresh venv in a temp dir and run `engineering-team --help` from an unrelated cwd.
 2. Add `[tool.ruff.format]`; format the repo in this task (noisy but isolated). Add a type checker (`mypy` or `pyright`, your choice — record it) scoped to our code with narrow third-party ignores; make it blocking only if it is clean after a reasonable pass, otherwise run it non-blocking and note the count in the Decision log.
 3. `pyproject.toml` metadata: `authors`, `license = "MIT"` + `license-files`, `classifiers`, `keywords`, `[project.urls]` (Homepage/Repository/Issues/Changelog → `github.com/alexandre0sheva/crewai-engineering_team`), `readme`.
 4. `CONTRIBUTING.md` (setup, gate commands, test markers, **how to work through the implementation plan with `scripts/plan_task.py`**, how tasks/commits are scoped, **the Documentation map moved from this plan** — replace section 4's table here with a link), `SECURITY.md` (private reporting via GitHub Security Advisories, scope, "generated code is untrusted" note), `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), `.github/ISSUE_TEMPLATE/{bug,feature}.yml`, `.github/pull_request_template.md`, `.github/dependabot.yml` (uv + github-actions, weekly).
@@ -369,7 +357,7 @@ of each other (any order after 7/8; 15 needs 12). 19 can move earlier (after 5).
 **Depends on:** 1,3 · **Model:** S
 
 **Do:**
-1. `settings.py`: Pydantic models `Settings`, `ModelTier(model, reasoning_effort|None, temperature|None, max_iter)`, `Profile` (`standard`, `smoke`, `max-quality`), `BudgetSettings` (fields only; enforcement in T9), `ExecutionSettings` (`backend`, `max_parallel_commands`), `ParallelSettings(max_parallel_agents, max_rpm)`. Precedence: explicit CLI/API overrides > env (`ENGINEERING_*`, all 0.1.0 names keep working) > project `engineering-team.toml` > user `~/.config/engineering-team/config.toml` > defaults. Use `tomllib` (add `tomli` for 3.10).
+1. `settings.py`: Pydantic models `Settings`, `ModelTier(model, reasoning_effort|None, temperature|None, max_iter)`, `Profile` (`standard`, `smoke`, `max-quality`), `BudgetSettings` (fields only; enforcement in T9), `ExecutionSettings` (`backend`, `max_parallel_commands`), `ParallelSettings(max_parallel_agents, max_rpm)`. Precedence: explicit CLI/API overrides > env (`ENGINEERING_*`, all 0.1.0 names keep working) > project `engineering-team.toml` > user `~/.config/engineering-team/config.toml` > defaults. Use the standard-library `tomllib` (Python ≥ 3.11).
 2. Provider presets (`openai`, `anthropic`, `google`, `ollama`, `azure`): a mapping tier → model for `lead`, `worker`, `cheap`, `reviewer`. **Verify every default model ID against the provider's current docs and CrewAI's LLM documentation** (the repo's `openai/gpt-5.6-*` IDs could not be verified while planning — keep them only if verified; never ship a model ID you did not confirm exists). Per-role overrides: `[models.roles] quality_engineer = "…"`.
 3. Delete `_profile_setting`, `_make_llm`, `_max_iter`, `_env_bool`, `_optional_docs_mcps` from `crew.py` in favour of `Settings`. `EngineeringTeam(settings)`; stop mutating `os.environ` anywhere (profile travels in settings).
 4. `Settings.describe()` returns each value with its *source* and masks secrets; expose `engineering-team config show` as a minimal subcommand (full CLI is T21).
@@ -885,7 +873,7 @@ Quality bar as T31, plus: card focus order is column-then-row with arrow-key nav
 **Do:**
 1. **README rewrite** for a portfolio/open-source audience: one-sentence pitch, 30-second demo (GIF/asciinema path `docs/assets/demo.*` — generate with `vhs`/`asciinema` if installed, otherwise leave a documented TODO in this task's summary for you to record), mode table (new/feature/fix/maintain/review/analyze), install via `uv tool install`/`pipx` from Git (and PyPI once published), quickstart (CLI + UI), team roster, architecture diagram (Mermaid), a **kanban dashboard screenshot/GIF** (from T32 demo mode), a short "what tools do the agents have" line linking `docs/TOOLS.md`, measured results link, honest limitations, contributing/license. No env tables, no CLI reference (those live in CONFIGURATION/USAGE).
 2. `examples/`: three curated, runnable examples — greenfield request, feature-on-legacy fixture, bug-fix scenario — each with request, expected outcome, and one **sanitised committed HTML run report**.
-3. **Consistency audit:** every setting documented exactly once (script `scripts/check_docs.py`: env vars in code ⊆ CONFIGURATION.md, relative links resolve; run it in CI), duplicates removed, ARCHITECTURE matches reality (module map, parallelism, run state, decisions + rejected alternatives), `AGENTS.md` version facts refreshed, `.env.example` current.
+3. **Consistency audit:** if the then-current CrewAI supports Python 3.14, widen `requires-python`, the classifiers, ruff/mypy targets, CI matrix and README badge; remove plan task numbers (`(created T..)`) from CONTRIBUTING's documentation map; every setting documented exactly once (script `scripts/check_docs.py`: env vars in code ⊆ CONFIGURATION.md, relative links resolve; run it in CI), duplicates removed, ARCHITECTURE matches reality (module map, parallelism, run state, decisions + rejected alternatives), `AGENTS.md` version facts refreshed, `.env.example` current.
 4. **Release:** `pyproject` version `0.2.0` (already set — verify), CHANGELOG `[Unreleased]` → `[0.2.0] — <date>` with a **Migration from 0.1.0** subsection (CLI, workspace default location, removed root `PROJECT_REQUEST.md`, env var compatibility, new run directory layout), compare links; `.github/workflows/release.yml` (tag `v*` → build → GitHub Release with changelog notes; PyPI publish via trusted publishing, disabled until you enable it); a "Releasing" section in CONTRIBUTING; final gate including wheel smoke on all CI platforms.
 5. Print the exact commands for you to run (not run by Claude): `git tag -a v0.2.0 -m "0.2.0"`, `git push --tags`.
 
@@ -912,3 +900,24 @@ Quality bar as T31, plus: card focus order is column-then-row with arrow-key nav
 | 2026-10-02 | plan | Web and browser tools are off/optional by default; browser only reaches loopback | Network/prompt-injection and sandbox surface; opt-in keeps the default run offline-safe |
 | 2026-10-02 | plan | Code intelligence = `ast` + tree-sitter (optional extra) + regex fallback; LSP bridge deferred | Zero-setup default, accurate when the extra is installed; Type Check (T11) covers diagnostics |
 | 2026-10-02 | plan | Dashboard replay computed server-side from `events.jsonl` | One implementation of board logic (Python), thin JS client |
+| 2026-10-02 | 2 | Type checker = mypy (blocking); initial run had 23 errors, almost all CrewAI's untyped YAML `config=` pattern in `crew.py` → fixed real ones, narrow per-module override (`call-arg`, `arg-type`) for `engineering_team.crew` | pure-Python, no Node needed; clean after a reasonable pass |
+| 2026-10-02 | 2 | Dev deps added: `mypy`, `pyyaml` (tests parse workflow/YAML; also a CrewAI dependency), `tomli` was added for Python 3.10 and removed again when 3.10 was dropped (stdlib `tomllib` suffices) | metadata/CI tests need TOML and YAML parsing |
+| 2026-10-02 | 2 | `astral-sh/setup-uv` pinned to `v10.2.0` (no floating major tag exists), `actions/checkout@v7`; Dependabot keeps both current | verified against the GitHub API |
+| 2026-10-02 | 2 | Documentation map moved to CONTRIBUTING.md; `plan_task.py show` prints it | single home for the map |
+| 2026-10-02 | 2 | Supported Python = 3.11–3.13 (3.10 dropped by request; 3.14 not possible yet because CrewAI 1.15.23 declares `<3.14`) | Revisit when CrewAI supports 3.14 (Task 36 audit item) |
+| 2026-10-02 | 3 | Bundled example lives in the package (`src/engineering_team/examples/tiny-notes/request.md`), not repo-root `examples/` + Hatch `force-include` | Works identically when installed, editable, and from a source checkout with no build magic; repo-root `examples/` stays free for T36's curated showcases |
+| 2026-10-02 | 3 | `--force-reset` implies `--reset`; `--adopt` exists as a hidden flag that errors "not implemented yet" (T25 implements it); 0.1.0 projects (`.engineering-team/run.json`) are treated as owned and upgraded with `owner.json` | Fewer flags to combine; keeps existing user workspaces working |
+| 2026-10-02 | 3 | Entry points return int exit codes (was: crew result → `sys.exit(obj)` ⇒ status 1 on success). Only the *prepare* phase maps `ValueError` to exit 2; any failure inside the crew run is exit 1 with traceback | Pydantic `ValidationError` is a `ValueError`; framework errors must not be reported as usage errors |
+| 2026-10-02 | 3 | Workspace preparation moved from `main.py` to `engineering_team/workspaces.py` | `main.py` was growing; T5 builds on this module |
+| 2026-10-02 | 3 | Protected-path check is case-insensitive and also rejects absolute command arguments into `.git`/`.engineering-team/`; the crew log path is built from `workspace.root` (controller-owned), not via the agent-facing `resolve()` | macOS/Windows are case-insensitive; the controller must not use the agent boundary for its own files |
+| 2026-10-02 | 4 | **Model defaults changed to the GPT-6 family**; after review the presets use *only* `gpt-6.1-sol` and `gpt-6-luna` (no Astra, no `gpt-5.6-*`) | OpenAI's model page (developers.openai.com/api/docs/models) lists only GPT-6; `gpt-5.6-*` could not be verified. **Not live-tested** (no paid calls were made) — Task 34's evaluation must confirm these IDs work end to end |
+| 2026-10-02 | 4 | OpenAI GPT-6 models use `api="responses"` + explicit `context_window_size` (75 % of 1.05M) | docs: `gpt-6.1-sol` has no tool calling on Chat Completions (luna only with effort `none`); CrewAI 1.15.23 does not know GPT-6 IDs and would assume ~7K context |
+| 2026-10-02 | 4 | `reasoning_effort` is sent only to OpenAI/Azure; Anthropic/Gemini ignore it (adaptive thinking) | CrewAI 1.15.23 provider code: only OpenAI/Azure read it; its type also rejects `max` (accepts none…xhigh) |
+| 2026-10-02 | 4 | `max_iter` lives on the resolved role (profile slot / override), not on the tier; tiers extended with `max` and `reviewer` | iteration caps differ per profile, not per model; `max-quality` and T24's reviewers need the extra tiers |
+| 2026-10-02 | 4 | Optional extras `anthropic`, `google`, `azure` in `pyproject.toml` | CrewAI ships these native SDKs as extras; declared rather than relying on transitive installs |
+| 2026-10-02 | 4 | `resolve_run_profile` removed; smoke marker handled by `Settings.for_request` (only when no layer chose a profile); CLI gains `--provider`, `--config`, and `config show` (dispatched before argument parsing until T21) | profile must live in `Settings`, not `os.environ` |
+| 2026-10-02 | 4 | Credential pre-flight runs for real runs but not for `--prepare-only` | preparation must work without credentials |
+| 2026-10-02 | 4 | **Final model set (by request):** OpenAI `gpt-6.1-sol` + `gpt-6-luna`; Anthropic `claude-sonnet-5-5` + `claude-opus-5-5`; Google `gemini-3.8-flash` only; Ollama `qwen3.8:27b` (best open model ≤30B in the library: 18 GB, 256K ctx, tools + thinking). Removed Astra, Fable, Haiku, other Gemini models, qwen3-coder | Price ladder: luna $0.1/$0.5 < gemini-3.8-flash $0.75/$3.75 (promo to 2026-12-31) < sol = sonnet-5.5 $2/$10 < opus-5.5 $4/$20; a test enforces that tiers never get cheaper as they get more capable |
+| 2026-10-02 | 4 | Tier mapping: `max` = most expensive available (Opus; Sol at xhigh for OpenAI), `lead`/`reviewer` = mid price (Sol/Sonnet), `worker`/`cheap` = cheapest (Luna; Sonnet for Anthropic, which has nothing cheaper) | cost-aware routing: expensive models only where judgement matters |
+| 2026-10-02 | 4 | **Azure disabled by default** (`enable_azure = false`): `provider = "azure"` and `azure/...` models are rejected until enabled | requested; keeps accidental Azure configuration from reaching a run |
+
