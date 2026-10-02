@@ -50,6 +50,7 @@ from engineering_team.model_routing import (
     facts_for,
     provider_prefix,
 )
+from engineering_team.pricing import PriceTable, build_table, format_price
 
 AZURE_DISABLED = (
     "Azure is disabled by default. Enable it with enable_azure = true in engineering-team.toml "
@@ -109,8 +110,17 @@ class ProfileOverrides(_Frozen):
     worker: ModelOverride = ModelOverride()
 
 
+class PriceOverride(_Frozen):
+    """Your own price for a model, in USD per million tokens. It replaces the shipped price."""
+
+    input: float = Field(ge=0)
+    output: float = Field(ge=0)
+    cached_input: float | None = Field(default=None, ge=0)
+    cache_write: float | None = Field(default=None, ge=0)
+
+
 class BudgetSettings(_Frozen):
-    """Limits for one run. Fields only for now; enforcement arrives with usage accounting."""
+    """Limits for one run; unset limits are not enforced. See docs/CONFIGURATION.md."""
 
     max_cost_usd: float | None = Field(default=None, gt=0)
     max_tokens: int | None = Field(default=None, ge=1)
@@ -146,12 +156,24 @@ class Settings(_Frozen):
     models: ModelsSettings = ModelsSettings()
     profiles: dict[str, ProfileOverrides] = {}
     budget: BudgetSettings = BudgetSettings()
+    pricing: dict[str, PriceOverride] = {}
     execution: ExecutionSettings = ExecutionSettings()
     parallel: ParallelSettings = ParallelSettings()
 
     _layers: list[tuple[str, dict[str, Any]]] = PrivateAttr(default_factory=list)
     _sources: dict[str, str] = PrivateAttr(default_factory=dict)
     _credential_names: frozenset[str] = PrivateAttr(default_factory=frozenset)
+
+    @field_validator("pricing")
+    @classmethod
+    def _qualified_price_keys(cls, value: dict[str, PriceOverride]) -> dict[str, PriceOverride]:
+        for key in value:
+            if not re.fullmatch(r"[A-Za-z0-9_.-]+/(\*|\S+)", key):
+                raise ValueError(
+                    f"price override {key!r} must look like 'provider/model-id' "
+                    "(or 'provider/*' for every model of a provider)"
+                )
+        return value
 
     @field_validator("profiles")
     @classmethod
@@ -305,6 +327,13 @@ class Settings(_Frozen):
         if problems:
             raise SettingsError(" ".join(problems))
 
+    def price_table(self) -> PriceTable:
+        """The shipped prices with this configuration's ``[pricing]`` overrides applied."""
+
+        return build_table(
+            {model: override.model_dump() for model, override in self.pricing.items()}
+        )
+
     # -- explanation ------------------------------------------------------------------------
 
     def describe(self) -> list[SettingRow]:
@@ -312,8 +341,20 @@ class Settings(_Frozen):
 
         rows = [
             SettingRow(key, mask_value(key, value), self.source_of(key))
-            for key, value in _flatten(self.model_dump(exclude={"models", "profiles"}))
+            for key, value in _flatten(self.model_dump(exclude={"models", "profiles", "pricing"}))
         ]
+        rows.extend(
+            SettingRow(
+                f"pricing.{model}",
+                format_price(price) + " (override)",
+                self.source_of(f"pricing.{model}.input"),
+            )
+            for model, price in (
+                (model, self.price_table().lookup(model)) for model in sorted(self.pricing)
+            )
+            if price is not None
+        )
+        table = self.price_table()
         for resolved in self.resolved_models():
             label = "lead" if resolved.slot == "lead" else resolved.role
             if resolved.role == "worker":
@@ -323,10 +364,8 @@ class Settings(_Frozen):
             )
             if resolved.api:
                 detail += f", api {resolved.api}"
-            if resolved.price:
-                detail += f", ${resolved.price[0]:g}/${resolved.price[1]:g} per MTok"
-            elif resolved.provider == "ollama":
-                detail += ", local (free)"
+            price = table.lookup(resolved.model)
+            detail += f", {format_price(price)}" if price else ", price unknown"
             rows.append(SettingRow(f"model.{label}", detail, resolved.sources["model"]))
         for provider in sorted(self.used_providers()):
             names = CREDENTIAL_ENV.get(provider, ())
@@ -583,6 +622,19 @@ def user_config_path(env: Mapping[str, str], home: Path) -> Path:
     config_home = env.get("XDG_CONFIG_HOME")
     base = Path(config_home) if config_home else home / ".config"
     return base / "engineering-team" / "config.toml"
+
+
+SECRET_ENV_NAME = re.compile(r"(KEY|TOKEN|SECRET|PASSWORD)", re.IGNORECASE)
+
+
+def secret_values(env: Mapping[str, str] | None = None) -> frozenset[str]:
+    """Values of environment variables whose names look like credentials (``*KEY*``,
+    ``*TOKEN*``, ``*SECRET*``, ``*PASSWORD*``), for scrubbing them out of logs and events."""
+
+    environment = os.environ if env is None else env
+    return frozenset(
+        value for name, value in environment.items() if value and SECRET_ENV_NAME.search(name)
+    )
 
 
 def load_settings(

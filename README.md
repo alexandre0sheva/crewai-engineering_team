@@ -162,9 +162,7 @@ Each MVP owns a conventional project root:
 workspace/
 └── habit-tracker/
     ├── .engineering-team/
-    │   ├── request.md
-    │   ├── run.json
-    │   └── crew-log.json
+    │   └── runs/<run-id>/        # manifest, event log, request, logs per run
     ├── docs/
     │   ├── architecture.md
     │   ├── implementation-plan.md
@@ -211,40 +209,21 @@ details.
 
 ## Filesystem and command safety
 
-Specialist agents can read, create, edit, replace, list, and delete files only
-inside the active generated project. The lead coordinates these operations by
-delegation. Paths are relative and checked after symlink resolution, so an alias
-to a protected location is rejected too. `.git`, the orchestrator's
-`.engineering-team/` state, absolute paths, traversal, and deleting the workspace
-root are blocked.
+Agents work only inside the generated project: paths are relative and checked after symlink
+resolution, `.git` and the orchestrator's `.engineering-team/` state are off limits, and
+commands run without a shell from an executable allowlist with a scrubbed environment and a
+timeout that kills the whole process tree. This reduces accidental damage; it is not a VM
+boundary, so run the orchestrator in a container or VM for untrusted requests or dependencies.
+See [docs/SAFETY.md](docs/SAFETY.md) for the full model and
+[docs/TOOLS.md](docs/TOOLS.md) for every tool.
 
-Development commands:
-
-- run from the generated project;
-- use an executable allowlist;
-- do not use a shell;
-- reject pipes, redirection, chaining, and inline code flags;
-- cap execution time;
-- return stdout, stderr, and exit status;
-- use local caches under `.engineering-team/`;
-- do not inherit API keys or tokens by default.
-
-Add a required executable narrowly:
+Add a required executable narrowly, and pass an environment variable to generated programs only
+when necessary:
 
 ```dotenv
 ENGINEERING_COMMAND_ALLOWLIST=just,flutter
-```
-
-Allow a generated program to receive a specific environment variable only when
-necessary:
-
-```dotenv
 ENGINEERING_SUBPROCESS_ENV_ALLOWLIST=DATABASE_URL
 ```
-
-This boundary reduces accidental damage; it is not a VM security boundary.
-Package lifecycle scripts and generated programs are executable code. Run the
-whole orchestrator in a container or VM for untrusted requests or dependencies.
 
 ## Optional documentation tools
 

@@ -1,9 +1,15 @@
 """Project-scoped tools exposed to the engineering agents."""
 
-from engineering_team.tools.workspace_tools import (
-    configure_workspace,
-    get_workspace,
-    workspace_tools,
-)
+from engineering_team.tools.registry import CATALOGUE, GROUPS, ToolSpec, build_tools
+from engineering_team.tools.scope import WriteScope
+from engineering_team.tools.workspace import ProjectWorkspace, WorkspaceError
 
-__all__ = ["configure_workspace", "get_workspace", "workspace_tools"]
+__all__ = [
+    "CATALOGUE",
+    "GROUPS",
+    "ProjectWorkspace",
+    "ToolSpec",
+    "WorkspaceError",
+    "WriteScope",
+    "build_tools",
+]

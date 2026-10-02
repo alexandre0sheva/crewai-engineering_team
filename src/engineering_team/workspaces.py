@@ -10,7 +10,8 @@ from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
 
-from engineering_team.tools.workspace_tools import ProjectWorkspace, configure_workspace
+from engineering_team.runtime.locks import WorkspaceLock
+from engineering_team.tools.workspace import ProjectWorkspace
 
 DEFAULT_WORKSPACE_ROOT = "workspace"
 STATE_DIRECTORY = ".engineering-team"
@@ -147,6 +148,9 @@ def prepare_workspace(
                 f"Refusing to reset {project_path}: it was not created by engineering-team. "
                 "Check the path, then pass --force-reset to delete it anyway."
             )
+        # Never delete a workspace another run is writing to. Taking and dropping the lock
+        # raises WorkspaceBusy if one is held; the next run takes it for real afterwards.
+        WorkspaceLock(project_path).acquire("reset").release()
         shutil.rmtree(project_path)
         exists = False
     elif exists and not _is_ours(project_path) and any(project_path.iterdir()):
@@ -156,7 +160,7 @@ def prepare_workspace(
             "or an empty directory. (Working on existing projects is not supported yet.)"
         )
 
-    workspace = configure_workspace(
+    workspace = ProjectWorkspace.create(
         project_path,
         extra_commands=command_allowlist,
         env_passthrough=subprocess_env_allowlist,

@@ -255,11 +255,11 @@ machine-read, keep one row per task and the first/last columns intact.
 | 2 | CI, packaging metadata, community files | S | 1 | A | done (2026-10-02) |
 | 3 | Fix known defects (F2–F5) + hardening | O | 1 | A | done (2026-10-02) |
 | 4 | Typed settings and provider-agnostic model routing | S | 1,3 | B Core | done (2026-10-02) |
-| 5 | `RunContext`, per-run tools, workspace lock (remove globals) | O | 4 | B | todo |
-| 6 | Offline test infrastructure (FakeLLM) | S | 5 | B | todo |
-| 7 | Core toolbelt: tool catalogue, search/read/patch/outline/repo-map, `ExecutionBackend` (local) | S | 5 | B | todo |
-| 8 | Contracts, run store, event log | O | 5 | B | todo |
-| 9 | Usage accounting, price table, budgets | S | 8 | B | todo |
+| 5 | `RunContext`, per-run tools, workspace lock (remove globals) | O | 4 | B | done (2026-10-02) |
+| 6 | Offline test infrastructure (FakeLLM) | S | 5 | B | done (2026-10-02) |
+| 7 | Core toolbelt: tool catalogue, search/read/patch/outline/repo-map, `ExecutionBackend` (local) | S | 5 | B | done (2026-10-02) |
+| 8 | Contracts, run store, event log | O | 5 | B | done (2026-10-02) |
+| 9 | Usage accounting, price table, budgets | S | 8 | B | done (2026-10-02) |
 | 10 | Task board (kanban model) + coordination tools: board, notes, ask-human, progress | O | 7,8 | B | todo |
 | 11 | Developer tools: structured test/lint/typecheck/build/format/coverage runners | S | 7,8 | B | todo |
 | 12 | Runtime tools: background processes, ports, HTTP client, SQLite inspect, environment info | S | 7 | B | todo |
@@ -894,6 +894,42 @@ Quality bar as T31, plus: card focus order is column-then-row with arrow-key nav
 | 2026-10-02 | plan | Default strategy stays `hierarchical` until T34 measures `pipeline` | Avoid shipping an unmeasured default |
 | 2026-10-02 | plan | Keep `train`/`replay`/`test`/`run_with_trigger` script names | The `crewai` CLI invokes them by name |
 | 2026-10-02 | plan | Default sandbox = `local`, Docker recommended | Zero-setup first run; revisit after T34 |
+| 2026-10-02 | T5 | `run_command` moved from a `ProjectWorkspace` method to `tools/commands.run_command(workspace, …, gate=)`; `ProjectWorkspace._reject_protected` became public `reject_protected` | The plan splits command running out of `workspace.py`; `commands.py` needs the protected-path check without importing a private name |
+| 2026-10-02 | T5 | `WriteScope` lives in `tools/scope.py` with its own gitignore-style matcher (no `pathspec` dependency); no `!` negation, `deny` wins | Plan names no file for it; avoids a new dependency; deny list covers exceptions |
+| 2026-10-02 | T5 | Lock uses `fcntl.flock` only (macOS/Linux, the supported platforms); stale detection is the kernel dropping the lock on holder exit, with pid liveness used only to word the `WorkspaceBusy` message | `flock` makes a crashed holder's lock free automatically, so a pid check cannot be needed to recover |
+| 2026-10-02 | T5 | `WorkspaceBusy` subclasses `ValueError`; `--reset` probes the lock before deleting; the CLI holds the lock from workspace preparation until the run ends (including `--prepare-only`, `replay`, `train`, `test`) | Reports as exit 2 through the existing usage-error path; never delete a workspace another run is writing to |
+| 2026-10-02 | T5 | Tools honour `ctx.cancel_event` now (return an `ERROR:` and do nothing); `read_only=True` returns only list/read tools (the command tool is excluded) | Cheap to do while the factory is rewritten; T7's groups will refine what read-only means |
+| 2026-10-02 | T5 | `request.md`/`run.json` stay at `.engineering-team/` for now; only `crew-log.json` moved to `runs/<run-id>/` | The plan scopes only the log to `run_dir`; T8 replaces the other two with the run store |
+| 2026-10-02 | T6 | `ScriptedLLM` is a `crewai.BaseLLM` subclass supporting both native tool calls (default) and text ReAct (`native_tools=False`); items are strings, `ToolCall`s, callables, or `Turn` (usage); a bare string in ReAct mode is wrapped as `Final Answer:` | Covers both executor paths in CrewAI 1.15.23 without a second fake |
+| 2026-10-02 | T6 | Test agents are built with `max_retry_limit=0` | CrewAI otherwise retries a failed agent execution three times, hiding `ScriptExhausted` behind a later call number |
+| 2026-10-02 | T6 | Added an autouse guard failing non-loopback socket connects in tests (not in the plan) | Makes "zero network" enforced rather than assumed; `live` tests are exempt |
+| 2026-10-02 | T6 | `live` tests still get the dummy `OPENAI_API_KEY` from the hermetic fixture | No live test exists yet; the first one must opt out of that scrub (decide when T33 adds it) |
+| 2026-10-02 | T7 | Search Project Files has one pure-Python implementation; no `rg` fast path | `rg` output would pass through the backend's bounded log window, so results would differ by machine and be truncated; Python searches 5,000 files in well under a second. Revisit if a real tree is slow |
+| 2026-10-02 | T7 | Only the root `.gitignore` is read (with `!` negation, last rule wins); nested `.gitignore` files are not | Keeps the walker simple; heavy directories are always skipped anyway |
+| 2026-10-02 | T7 | Windows `taskkill /T` not implemented; `LocalBackend` is POSIX (macOS/Linux) only | pyproject classifiers list only macOS and Linux; matches the T5 `flock` decision |
+| 2026-10-02 | T7 | `ToolSpec.factory` builds all tools of its module (`Mapping[name, tool]`); `build_tools` calls each distinct factory once per run | Tools of a module share closures; avoids rebuilding a bundle per tool |
+| 2026-10-02 | T7 | `read_only=True` now means "only tools whose spec is read-only" across all groups (was: list/read only in T5) | Read-only teammates need search/outline/repo-map/changes; the spec flag is the single source of truth |
+| 2026-10-02 | T7 | Command stdout and stderr are merged into one stream and one log | One ordered log is what an agent needs; the backend cannot interleave two pipes reliably |
+| 2026-10-02 | T7 | Agents may read (never write) `.engineering-team/runs/<id>/commands/*.log` through `resolve(readonly=True)`; all other controller state stays hidden | Plan requires `full log:` to be readable with Read File Range |
+| 2026-10-02 | T7 | `RunContext` gained `backend`, `baseline` (workspace snapshot, text kept for files <= 200 KB, 20 MB total), `events` (no-op sink) and `tool_gate`; `execution.backend` setting still unused (T20 selects Docker) | Plan: telemetry hook is a no-op sink until T8; budget hook until T9; snapshot taken by `RunContext` |
+| 2026-10-02 | T7 | `List Project Files` and `Read Project File` kept next to the new `Project Tree` / `Read File Range` | Plan says existing tools stay; the new ones add annotation and ranges |
+| 2026-10-02 | T7 | `just` is not in the default command allowlist, so `Run Script` on justfile recipes needs `ENGINEERING_COMMAND_ALLOWLIST=just` (the error says so) | Allowlist stays a deliberate decision; `make`, `npm`, `pnpm`, `yarn`, `bun`, `uv` are already allowed |
+| 2026-10-02 | T7 | `docs/SAFETY.md` now holds the boundary text; README and ARCHITECTURE link to it | Single home per fact (Documentation map) |
+| 2026-10-02 | T8 | `Event` has a `seq` field (per-run counter in file order) beyond the plan's list | The dashboard needs `Last-Event-ID` resume and `?at=<seq>` replay (T21/T32); CrewAI delivers events from a thread pool, so timestamps alone do not give a stable order |
+| 2026-10-02 | T8 | `ProjectCommands` fields are `list[str]` (several command lines per category); `Plan.stack` is a free-text string; `AcceptanceCriterion.kind` is a free string | Real stacks need more than one setup/test command; plan gave no enums and LLM output should not fail validation on a new label |
+| 2026-10-02 | T8 | Contracts ignore unknown fields (`extra="ignore"`) rather than preserving them | Forward compatibility for readers; rewriting a newer manifest with an older version would drop its extra fields, which resume (T18) must not do across versions |
+| 2026-10-02 | T8 | `RunContext.create` defaults `events` to a `JsonlSink` (scrubbing ambient secrets), so every context writes `events.jsonl`; `settings.secret_values()` in `settings.py` reads the env | settings.py stays the only configuration reader; tests and CLI get the log without extra wiring |
+| 2026-10-02 | T8 | Added `request.md` and `settings.json` to the run directory, and every CLI invocation (including `--prepare-only`, `train`, `test`, `replay`) creates a manifest with its `mode` | The manifest holds only hashes, so the request and effective settings must live beside it to "fully describe" a run |
+| 2026-10-02 | T8 | CrewAI's `tool_usage_*` events are bridged as `tool.finished`/`tool.error` next to our own `tool.call` | `tool.call` covers project tools with duration; CrewAI's events also cover delegation tools. Consumers should count `tool.call` for project-tool activity |
+| 2026-10-02 | T8 | Bridge tagging relies on `contextvars` being copied into CrewAI's handler threads, but not into threads CrewAI creates elsewhere (e.g. `max_execution_time`) | Verified in 1.15.23 for sequential crews (hierarchical not exercised offline); T19's workers must use `copy_context()` |
+| 2026-10-02 | T9 | Price data is `data/pricing.toml`, not `pricing.yaml` | `tomllib` is stdlib; YAML would need a declared runtime dependency (`pyyaml` is only a dev dependency), and user overrides already live in TOML config |
+| 2026-10-02 | T9 | Prices re-checked against the providers' pages on 2026-10-02 (OpenAI developers.openai.com/api/docs/pricing, Anthropic platform.claude.com/docs/en/about-claude/pricing, Google ai.google.dev/gemini-api/docs/pricing); they matched the T4 numbers. `ModelFacts.price`/`price_note` were removed so prices have one home | Single source of truth; Gemini's 2027 price change is a second dated row |
+| 2026-10-02 | T9 | `BudgetGuard.check()` takes no `ctx` argument: the guard is bound to the run's usage tracker, cancel event, and event sink when `RunContext` is created | The guard needs those objects before the frozen context exists; a ctx parameter would only be read back from them |
+| 2026-10-02 | T9 | A limit is "exceeded" when usage is strictly greater than the limit; the tool-call gate refuses the call that would pass it | Reaching a limit exactly is allowed to finish; refusing the over-limit call keeps `max_tool_calls` exact for sequential work |
+| 2026-10-02 | T9 | A budget stop ends the run `failed` with `BudgetExceeded`, not `cancelled`; the CLI prints `Engineering team run stopped: ...` without a traceback (exit 1) | `cancelled` is for user cancellation (T18); a budget stop is an error the caller must act on |
+| 2026-10-02 | T9 | Added `RunRecorder.stage(name)` (events, stage tag via `contextvar`, `StageRecord` upsert, budget check at both boundaries) | The plan needs stage boundaries for budget checks; T18 builds the stage runner on top of it |
+| 2026-10-02 | T9 | An unpriced model makes `estimated_cost_usd` `null` for the whole run (the known part is in `known_cost_usd`) and a cost budget unenforceable (reported via `budget.warning`) | A partial sum shown as the total would understate cost |
+| 2026-10-02 | T9 | The bridge emits `llm.call` models as `provider/model` (taken from the agent's LLM) | CrewAI's event carries the bare name; prices are keyed by provider-qualified IDs. Lookup also accepts a unique bare name |
 | 2026-10-02 | plan | Root `PROJECT_REQUEST.md` replaced by `examples/tiny-notes/request.md` + `--example` | Wheels cannot see repo-root files; avoids two copies |
 | 2026-10-02 | plan | Task board is controller-owned truth; agents may request transitions but only the controller can mark `done`/`failed` | A kanban that agents can fake would be worse than none (same principle as T18) |
 | 2026-10-02 | plan | No interactive shell/PTY tool | Background processes + log reading cover the real needs; keeps execution deterministic and auditable |

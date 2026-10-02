@@ -33,8 +33,36 @@ Test rules:
 - Tests run offline: no network, no LLM calls, no reading your `.env` or `~/.config`.
   `tests/conftest.py` isolates the environment, framework storage, and the working directory.
 - Tests that need Docker or a live model must be marked (`docker`, `live`) and are skipped by
-  default.
+  default (`tests/conftest.py`): `live` runs only with `ENGINEERING_LIVE_TESTS=1` and a provider
+  API key in the environment, `docker` only when `docker info` succeeds. A guard in the same file
+  fails any other test that connects to a non-loopback address.
 - Every bug fix gets a regression test that fails without the fix.
+
+### Testing agents offline
+
+`engineering_team.testing` (shipped in the wheel) runs a real CrewAI `Agent` on a scripted model,
+so agent flows are deterministic and free:
+
+```python
+from engineering_team.testing import ScriptedLLM, ToolCall, run_agent_task
+
+llm = ScriptedLLM([
+    ToolCall("Write Project File", {"path": "app.py", "content": "print('hi')\n"}),
+    ToolCall("Run Project Command", {"command": "python app.py"}),
+    "Wrote and ran app.py.",  # a plain string is the final answer
+])
+answer = run_agent_task(ctx, llm)  # ctx: a RunContext over a temp workspace
+llm.assert_exhausted()
+```
+
+- Script items are strings (final answer), `ToolCall`s (a list means parallel calls), callables
+  `(messages, tools) -> reply` that react to the conversation, or `Turn(reply, prompt_tokens=,
+  completion_tokens=)` to script token usage. Running out of script raises `ScriptExhausted`.
+- `ScriptedLLM(..., native_tools=False)` exercises CrewAI's text ReAct protocol instead of native
+  function calling. `llm.calls` records every prompt and the tool schemas sent.
+- `build_agent`/`build_task`/`run_agent_task` in `engineering_team.testing.fakes` bind the real
+  tools to a `RunContext`; the `make_context` fixture in `tests/conftest.py` builds one.
+  `tests/test_fake_llm_integration.py` is the reference example.
 
 Before changing CrewAI-specific code, follow the research steps in [AGENTS.md](AGENTS.md)
 (installed version, PyPI, changelog, live docs): CrewAI changes quickly.

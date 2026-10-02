@@ -1,0 +1,78 @@
+# USD per 1,000,000 tokens, standard (non-batch, non-priority) tier.
+#
+# Checked against each provider's own pricing page on `as_of`. Prices change often: update this
+# file (and `as_of`) rather than hard-coding numbers elsewhere. Users can override any model in
+# their own config (`[pricing."provider/model"]`, see docs/CONFIGURATION.md).
+#
+#   input         fresh (uncached) prompt tokens
+#   cached_input  prompt tokens served from the provider's cache (falls back to `input`)
+#   cache_write   prompt tokens written to a cache (falls back to `input`)
+#   output        completion tokens, including reasoning/thinking tokens
+#   valid_from / valid_until   inclusive dates; several rows can cover one model over time
+#
+# A model with no row has an *unknown* cost, which is reported as "unknown", never $0.
+
+[[price]]
+model = "openai/gpt-6.1-sol"
+input = 2.0
+cached_input = 0.10
+output = 10.0
+source_url = "https://developers.openai.com/api/docs/pricing"
+as_of = 2026-10-02
+note = "Standard tier. Long-context (>272K) variants and regional-processing uplift are not modelled."
+
+[[price]]
+model = "openai/gpt-6-luna"
+input = 0.10
+cached_input = 0.01
+output = 0.50
+source_url = "https://developers.openai.com/api/docs/pricing"
+as_of = 2026-10-02
+note = "Standard tier. Long-context (>272K) variants and regional-processing uplift are not modelled."
+
+[[price]]
+model = "anthropic/claude-opus-5-5"
+input = 4.0
+cached_input = 0.20
+cache_write = 5.0
+output = 20.0
+source_url = "https://platform.claude.com/docs/en/about-claude/pricing"
+as_of = 2026-10-02
+note = "5-minute cache writes; cache hits cost 0.05x input. US-only inference adds 10%, fast mode doubles the price (neither modelled)."
+
+[[price]]
+model = "anthropic/claude-sonnet-5-5"
+input = 2.0
+cached_input = 0.20
+cache_write = 2.5
+output = 10.0
+source_url = "https://platform.claude.com/docs/en/about-claude/pricing"
+as_of = 2026-10-02
+note = "5-minute cache writes. US-only inference adds 10% (not modelled)."
+
+[[price]]
+model = "gemini/gemini-3.8-flash"
+input = 0.75
+cached_input = 0.075
+output = 3.75
+valid_until = 2026-12-31
+source_url = "https://ai.google.dev/gemini-api/docs/pricing"
+as_of = 2026-10-02
+note = "Introductory price through 2026-12-31. Context-cache storage fees are not modelled."
+
+[[price]]
+model = "gemini/gemini-3.8-flash"
+input = 1.50
+cached_input = 0.15
+output = 7.50
+valid_from = 2027-01-01
+source_url = "https://ai.google.dev/gemini-api/docs/pricing"
+as_of = 2026-10-02
+note = "Standard price from 2027-01-01. Context-cache storage fees are not modelled."
+
+[[price]]
+model = "ollama/qwen3.8:27b"
+input = 0.0
+output = 0.0
+as_of = 2026-10-02
+note = "Runs locally: no per-token charge (hardware and electricity are not counted)."

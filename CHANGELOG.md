@@ -28,9 +28,39 @@ as each task lands.
 - GitHub Actions CI (Python 3.11–3.13 on Linux, 3.12 on macOS): lint, format check, mypy,
   tests, and a clean-venv wheel smoke test; Dependabot for `uv` and Actions.
 - `LICENSE` (MIT) and package metadata (authors, classifiers, keywords, project URLs).
+- Tool catalogue (`docs/TOOLS.md`, `tools/registry.py`) with groups, and a much richer toolbelt for agents:
+  Search Project Files, Find Files, Read File Range, Read Many Files, File Info, Project Tree, Project
+  Outline, Repo Map (a token-budgeted, reference-ranked overview), Apply Patch (atomic unified diff or edit
+  list), Move/Copy Path, Make Directory, Workspace Changes (a diff of the run's edits, with or without Git),
+  List Scripts and Run Script (package.json, Makefile, justfile, pyproject scripts).
+- Every tool call emits a redacted `tool.call` event and honours cancellation and a tool-call gate.
+- Execution backend abstraction (`ExecutionBackend`, local implementation) that streams command output to a
+  capped log under `.engineering-team/runs/<run-id>/commands/`; `docs/SAFETY.md` describes the boundary.
+- Offline FakeLLM test utilities (`engineering_team.testing`: `ScriptedLLM`, agent/task helpers) and `live`/`docker`
+  pytest markers that skip by default; tests now fail if they try to reach a non-loopback host.
+- Run records: every run gets a sortable run ID and a `runs/<run-id>/` directory with `manifest.json` (status,
+  request/settings hashes, versions, stages) and an `events.jsonl` log of tool calls, model calls with token
+  usage, tasks, and agents; secrets are scrubbed from the log. See `docs/ARCHITECTURE.md`.
+- Usage and cost reporting: every run prints exact token counts and an estimated cost (or `unknown` when a model
+  has no price, never `$0`) and records `usage.json` by stage, agent, and model. Prices ship in
+  `data/pricing.toml` with their source and the date they were checked; override them with a `[pricing]` table.
+- Run budgets: `budget.max_cost_usd`, `max_tokens`, `max_wall_seconds`, and `max_tool_calls` now stop an
+  overspending run (warning at 80%). See `docs/CONFIGURATION.md` for how in-flight overrun is handled.
+- Typed contracts (`engineering_team.contracts`) for specs, plans, checks, findings, manifests, and events.
+- Workspace lock: one run per workspace. A second run (or `--reset`) against a workspace that is in use stops
+  with a clear message naming the holder; the lock is released automatically if the holder crashes.
 - `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and pull-request templates.
 
 ### Changed
+
+- `config show` takes model prices from the price table (and marks models without one as `price unknown`).
+
+- The request and run metadata moved from `.engineering-team/request.md` and `run.json` into each run's directory
+  (`request.md`, `settings.json`, `manifest.json`).
+
+- Run Project Command now returns the exit code with the duration, the combined stdout/stderr (head and tail
+  when long), and a `full log:` path that Read File Range can page through. Read-only mode now keeps every
+  read-only tool (search, outline, repo map, changes) rather than just list/read.
 
 - Default OpenAI models are now `gpt-6.1-sol` (lead) and `gpt-6-luna` (specialists), called through the Responses
   API with an explicit context window; the superseded `gpt-5.6-*` models are no longer presets. The 0.1.0
@@ -51,10 +81,16 @@ as each task lands.
 - Artifact guardrails now also reject near-empty files (an interim check until independent verification).
 - Upgraded CrewAI to 1.15.23 (supported range `>=1.15.23,<1.16`) and refreshed the lockfile
   and dev tools (pytest 9.1, Ruff 0.16).
+- Internal: tools are built per run from a `RunContext` instead of module globals, so concurrent runs and
+  parallel agents no longer share a workspace; each run's CrewAI log is now
+  `.engineering-team/runs/<run-id>/crew-log.json`, and `EngineeringTeam` takes a `RunContext`.
 - The test suite is hermetic: it ignores the developer's `.env`, uses throw-away framework
   storage and a dummy API key, and runs from a temporary directory.
 
 ### Fixed
+
+- Commands that time out now have their whole process tree killed (SIGTERM, then SIGKILL), so grandchildren
+  no longer survive; command output is streamed to a capped log instead of being buffered without limit.
 
 - An inline `ENGINEERING_PROJECT_REQUEST` no longer overrides an explicit `--request-file`.
 - Installed copies no longer look for a request file or create workspaces next to `site-packages`.

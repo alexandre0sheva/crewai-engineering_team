@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import re
 import tomllib
+from datetime import date
 from pathlib import Path
 
 from engineering_team.model_routing import MODEL_FACTS, PROVIDER_PRESETS
+from engineering_team.pricing import build_table, default_prices
 from engineering_team.settings import (
     ENV_SETTINGS,
     BudgetSettings,
@@ -27,7 +29,14 @@ def test_every_environment_variable_is_documented() -> None:
 
 
 def test_every_setting_is_documented() -> None:
-    keys = set(Settings.model_fields) - {"models", "profiles", "budget", "execution", "parallel"}
+    keys = set(Settings.model_fields) - {
+        "models",
+        "profiles",
+        "budget",
+        "execution",
+        "parallel",
+        "pricing",
+    }
     for section, model in (
         ("budget", BudgetSettings),
         ("execution", ExecutionSettings),
@@ -38,6 +47,7 @@ def test_every_setting_is_documented() -> None:
     missing = [key for key in sorted(keys) if f"`{key}`" not in DOC]
 
     assert not missing, missing
+    assert "[pricing." in DOC  # the override table is documented with an example
 
 
 def test_every_preset_model_is_documented() -> None:
@@ -62,7 +72,7 @@ def test_toml_examples_in_the_docs_are_valid_settings() -> None:
 
 
 def test_only_settings_and_subprocess_code_read_the_process_environment() -> None:
-    allowed = {"settings.py", "workspace_tools.py"}
+    allowed = {"settings.py", "commands.py"}
     offenders = []
     for path in (ROOT / "src" / "engineering_team").rglob("*.py"):
         text = path.read_text(encoding="utf-8")
@@ -72,9 +82,13 @@ def test_only_settings_and_subprocess_code_read_the_process_environment() -> Non
     assert not offenders, offenders
 
 
-def test_documented_prices_match_the_code() -> None:
-    for model, facts in MODEL_FACTS.items():
-        if facts.price:
-            row = next(line for line in DOC.splitlines() if line.startswith(f"| `{model}` |"))
-            for amount in facts.price:
-                assert f"${amount:.2f}" in row or f"${amount:g}" in row, (model, row)
+def test_documented_prices_match_the_price_table() -> None:
+    table = build_table()
+    for model in {price.model for price in default_prices()}:
+        price = table.lookup(model, on=date(2026, 10, 2))
+        assert price is not None
+        if price.is_free:
+            continue
+        row = next(line for line in DOC.splitlines() if line.startswith(f"| `{model}` |"))
+        for amount in (price.input, price.output):
+            assert f"${amount:.2f}" in row or f"${amount:g}" in row, (model, row)

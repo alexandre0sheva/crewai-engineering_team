@@ -180,3 +180,16 @@ def test_force_reset_still_refuses_the_orchestrator_installation(
         prepare_workspace("demo", tmp_path / "ws", reset=True, force_reset=True)
 
     assert (fake_package / "workspaces.py").exists()
+
+
+def test_reset_refuses_a_workspace_another_run_is_using(tmp_path: Path) -> None:
+    from engineering_team.runtime.locks import WorkspaceBusy, WorkspaceLock
+
+    project = _owned_project(tmp_path / "ws")
+    holder = WorkspaceLock(project).acquire("active-run")
+
+    with pytest.raises(WorkspaceBusy, match="active-run"):
+        prepare_workspace("demo", tmp_path / "ws", reset=True)
+
+    holder.release()
+    assert (project / "keep.txt").read_text(encoding="utf-8") == "generated"

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-import importlib
 import os
+import shutil
+import socket
+import subprocess
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import dotenv
 import pytest
@@ -14,7 +18,64 @@ import pytest
 # crewai is imported anywhere; pytest imports this conftest first.
 dotenv.load_dotenv = lambda *args, **kwargs: False  # type: ignore[assignment]
 
+if TYPE_CHECKING:
+    from engineering_team.runtime.context import RunContext
+    from engineering_team.settings import Settings
+
 TEST_API_KEY = "test-key-not-real"
+
+PROVIDER_KEY_NAMES = (
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+    "AZURE_API_KEY",
+)
+
+
+def docker_is_available() -> bool:
+    """True when a Docker daemon answers ``docker info`` quickly."""
+
+    if shutil.which("docker") is None:
+        return False
+    try:
+        return subprocess.run(["docker", "info"], capture_output=True, timeout=15).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def skip_reason(
+    keywords: Iterable[str], environ: Mapping[str, str], docker_available: Callable[[], bool]
+) -> str | None:
+    """Why a test with these marker names must be skipped by default, or ``None``."""
+
+    names = set(keywords)
+    if "live" in names:
+        if environ.get("ENGINEERING_LIVE_TESTS") != "1":
+            return "live test: set ENGINEERING_LIVE_TESTS=1 to run"
+        if not any(environ.get(name) for name in PROVIDER_KEY_NAMES):
+            return "live test: no provider API key in the environment"
+    if "docker" in names and not docker_available():
+        return "docker test: no running Docker daemon"
+    return None
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Skip ``live`` and ``docker`` tests unless their requirements are met."""
+
+    docker_state: list[bool] = []  # probe the daemon at most once, and only if a test needs it
+
+    def docker_available() -> bool:
+        if not docker_state:
+            docker_state.append(docker_is_available())
+        return docker_state[0]
+
+    for item in items:
+        reason = skip_reason(
+            (marker.name for marker in item.iter_markers()), os.environ, docker_available
+        )
+        if reason is not None:
+            item.add_marker(pytest.mark.skip(reason=reason))
 
 
 @pytest.fixture(autouse=True)
@@ -31,7 +92,7 @@ def hermetic_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pat
     monkeypatch.setenv("CREWAI_DISABLE_TELEMETRY", "true")
     monkeypatch.setenv("OTEL_SDK_DISABLED", "true")
     monkeypatch.setenv("OPENAI_API_KEY", TEST_API_KEY)
-    for name in ("ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "AZURE_API_KEY"):
+    for name in PROVIDER_KEY_NAMES[1:]:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("HOME", str(sandbox / "home"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(sandbox / "xdg-config"))
@@ -41,10 +102,81 @@ def hermetic_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pat
 
 
 @pytest.fixture(autouse=True)
-def reset_active_workspace(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The workspace is still a module global until RunContext replaces it."""
+def no_external_network(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail any test that tries to reach a non-loopback address (``live`` tests are exempt)."""
 
-    # ``engineering_team.tools`` re-exports a list called ``workspace_tools`` that shadows
-    # the submodule attribute, so import the module by its full path.
-    module = importlib.import_module("engineering_team.tools.workspace_tools")
-    monkeypatch.setattr(module, "_active_workspace", None)
+    if request.node.get_closest_marker("live"):
+        return
+    real_connect = socket.socket.connect
+
+    def guarded_connect(self: socket.socket, address: object) -> None:
+        host = address[0] if isinstance(address, tuple) else None
+        if self.family in (socket.AF_INET, socket.AF_INET6) and host not in (
+            "127.0.0.1",
+            "::1",
+            "localhost",
+        ):
+            raise RuntimeError(f"Tests must stay offline; blocked a connection to {address!r}.")
+        real_connect(self, address)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(socket.socket, "connect", guarded_connect)
+
+
+@pytest.fixture
+def make_context(tmp_path: Path) -> Callable[..., RunContext]:
+    """Build a RunContext over a fresh workspace under ``tmp_path``."""
+
+    # Imported here so the dotenv neutralisation above happens before crewai loads.
+    from engineering_team.runtime.context import RunContext
+    from engineering_team.settings import load_settings
+    from engineering_team.tools.workspace import ProjectWorkspace
+
+    def build(
+        name: str = "project",
+        *,
+        settings: Settings | None = None,
+        extra_commands: Iterable[str] = (),
+        env_passthrough: Iterable[str] = (),
+    ) -> RunContext:
+        workspace = ProjectWorkspace.create(
+            tmp_path / name, extra_commands=extra_commands, env_passthrough=env_passthrough
+        )
+        return RunContext.create(settings or load_settings(), workspace)
+
+    return build
+
+
+class Toolbox:
+    """A RunContext plus its built tools, callable by tool name."""
+
+    def __init__(self, ctx: RunContext, tools: list) -> None:  # type: ignore[type-arg]
+        self.ctx = ctx
+        self.workspace = ctx.workspace
+        self.tools = {tool.name: tool for tool in tools}
+
+    def __call__(self, name: str, /, **arguments: object) -> str:
+        return self.tools[name].run(**arguments)
+
+    def write(self, path: str, content: str) -> None:
+        self.workspace.write_file(path, content)
+
+    def read(self, path: str) -> str:
+        return (self.workspace.root / path).read_text(encoding="utf-8")
+
+
+@pytest.fixture
+def make_toolbox(make_context: Callable[..., RunContext]) -> Callable[..., Toolbox]:
+    """Build tools for a fresh workspace; options go to ``build_tools``."""
+
+    from engineering_team.tools import build_tools
+
+    def build(name: str = "project", **options: object) -> Toolbox:
+        ctx = make_context(name)
+        return Toolbox(ctx, build_tools(ctx, **options))  # type: ignore[arg-type]
+
+    return build
+
+
+@pytest.fixture
+def toolbox(make_toolbox: Callable[..., Toolbox]) -> Toolbox:
+    return make_toolbox()

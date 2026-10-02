@@ -48,11 +48,13 @@ a profile.
 | `execution.max_parallel_commands` | `ENGINEERING_MAX_PARALLEL_COMMANDS` | `2` | Concurrent project commands |
 | `parallel.max_parallel_agents` | `ENGINEERING_MAX_PARALLEL` | `3` | Concurrent agents (used once parallel execution lands) |
 | `parallel.max_rpm` | `ENGINEERING_MAX_RPM` | – | Requests-per-minute cap shared by agents |
-| `budget.max_cost_usd` | `ENGINEERING_BUDGET_MAX_COST_USD` | – | Reserved: enforcement arrives with usage accounting |
-| `budget.max_tokens` | `ENGINEERING_BUDGET_MAX_TOKENS` | – | Reserved |
-| `budget.max_wall_seconds` | `ENGINEERING_BUDGET_MAX_WALL_SECONDS` | – | Reserved |
-| `budget.max_tool_calls` | `ENGINEERING_BUDGET_MAX_TOOL_CALLS` | – | Reserved |
-| `budget.max_repair_rounds` | `ENGINEERING_BUDGET_MAX_REPAIR_ROUNDS` | `3` | Reserved |
+| `budget.max_cost_usd` | `ENGINEERING_BUDGET_MAX_COST_USD` | – | Stop the run after this many USD of estimated model cost (see [Budgets](#budgets-usage-and-cost)) |
+| `budget.max_tokens` | `ENGINEERING_BUDGET_MAX_TOKENS` | – | Stop after this many prompt + completion tokens |
+| `budget.max_wall_seconds` | `ENGINEERING_BUDGET_MAX_WALL_SECONDS` | – | Stop after this much wall-clock time |
+| `budget.max_tool_calls` | `ENGINEERING_BUDGET_MAX_TOOL_CALLS` | – | Stop after this many agent tool calls |
+| `budget.max_repair_rounds` | `ENGINEERING_BUDGET_MAX_REPAIR_ROUNDS` | `3` | Fix-and-verify rounds a stage may attempt (used by the verification loop) |
+
+`pricing` (config file only) overrides model prices; see [Budgets, usage, and cost](#budgets-usage-and-cost).
 
 Provider credentials are read by the model SDKs from their usual variables and are **not** settings:
 `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` (or `GEMINI_API_KEY`); Azure uses its own
@@ -166,3 +168,67 @@ not list any more.
 
 Other settings for command safety and the run directory are described in the
 [README](../README.md#filesystem-and-command-safety) and [ARCHITECTURE](ARCHITECTURE.md).
+
+## Budgets, usage, and cost
+
+Every run records its token usage, and prints it when it finishes:
+
+```text
+Usage: 5,310 tokens (prompt 4,200, of which 300 cached; completion 1,110) in 14 model call(s) and 22 tool call(s)
+Estimated cost: $0.0123
+```
+
+The same numbers are in `.engineering-team/runs/<run-id>/usage.json` (totals and a breakdown by
+stage, agent, and model, with per-model cost) and in the manifest's `summary`. The cost uses the
+price table in `src/engineering_team/data/pricing.toml`: USD per million tokens for each shipped
+model, each row with its `source_url` and the date it was checked (`as_of`). Cached prompt tokens
+and cache writes use their own rates where the provider has them; reasoning tokens are part of the
+completion price. Prices change, so treat the cost as an estimate. **A model without a price has an
+unknown cost**: the report says `Estimated cost: unknown (no price for ...)` and never shows `$0`.
+If one of several models is unpriced the total is unknown too (`usage.json` still has the known part).
+
+### Override or add a price
+
+Prices belong to the model ID the run uses. Override one (or add a model that has none) in
+`engineering-team.toml`, in USD per million tokens; `cached_input` and `cache_write` are optional and
+fall back to `input`. An override beats the shipped price, and `provider/*` covers every model of a
+provider (handy for a local server):
+
+```toml
+[pricing."openai/gpt-6-luna"]
+input = 0.08
+output = 0.40
+cached_input = 0.008
+
+[pricing."ollama/*"]
+input = 0
+output = 0
+```
+
+`config show` lists the price of every resolved model and any override.
+
+### Budgets
+
+Set any of `budget.max_cost_usd`, `max_tokens`, `max_wall_seconds`, `max_tool_calls` (unset means
+unlimited). The run records a `budget.warning` event at 80% of a limit. When a limit is **passed** the
+run is stopped cooperatively: tools answer "run cancelled" so agents wind down, and at the next safe
+point (a stage boundary, or the end of the run) the run fails with `Budget exceeded: ...` and exit
+code 1. `budget.max_repair_rounds` is separate: it caps fix-and-verify rounds and is asked by the
+verification loop before each repair.
+
+```toml
+[budget]
+max_cost_usd = 5.0
+max_wall_seconds = 3600
+max_tool_calls = 800
+```
+
+Budgets are a safety net, not a to-the-cent cap:
+
+- Usage is read from each model call's event *after* the call finishes, so a call already in flight
+  when a limit trips still completes and is billed. With several agents running at once the overrun
+  can be one in-flight call per agent.
+- The tool-call limit is exact for sequential work; concurrent tool calls can overshoot by a few.
+- A cost limit needs a known price for every model used. With an unpriced model it cannot be
+  enforced; the run says so (`budget.warning`, and a note in the end-of-run report). Add a price
+  override or use a token budget instead.

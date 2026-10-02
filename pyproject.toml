@@ -64,6 +64,10 @@ type = "crew"
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+    "live: calls a real model provider; runs only with ENGINEERING_LIVE_TESTS=1 and an API key",
+    "docker: needs a running Docker daemon; skipped when `docker info` fails",
+]
 filterwarnings = [
     # CrewAI's own validators read deprecated Agent/Crew defaults while building agents;
     # this project never sets allow_code_execution, reasoning, or function_calling_llm.

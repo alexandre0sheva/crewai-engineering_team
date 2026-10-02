@@ -221,7 +221,7 @@ def test_workspace_safety_errors_are_usage_errors(capsys, tmp_path: Path) -> Non
 
 def test_runtime_failure_exits_with_one_and_reports_the_cause(capsys, monkeypatch) -> None:
     class ExplodingTeam:
-        def __init__(self, settings=None) -> None:
+        def __init__(self, ctx=None) -> None:
             pass
 
         def crew(self):
@@ -243,7 +243,7 @@ def test_validation_errors_inside_the_crew_are_runtime_failures_not_usage_errors
     monkeypatch,
 ) -> None:
     class ValidatingTeam:
-        def __init__(self, settings=None) -> None:
+        def __init__(self, ctx=None) -> None:
             pass
 
         def crew(self):
@@ -260,7 +260,7 @@ def test_validation_errors_inside_the_crew_are_runtime_failures_not_usage_errors
 
 def test_keyboard_interrupt_exits_with_130(capsys, monkeypatch) -> None:
     class InterruptedTeam:
-        def __init__(self, settings=None) -> None:
+        def __init__(self, ctx=None) -> None:
             pass
 
         def crew(self):
@@ -282,7 +282,7 @@ def test_successful_run_returns_zero_so_console_scripts_exit_cleanly(monkeypatch
     calls = []
 
     class FakeTeam:
-        def __init__(self, settings=None) -> None:
+        def __init__(self, ctx=None) -> None:
             pass
 
         def crew(self):
@@ -351,8 +351,8 @@ def test_cli_profile_and_environment_reach_the_crew_via_settings(monkeypatch) ->
     seen = []
 
     class FakeTeam:
-        def __init__(self, settings) -> None:
-            seen.append(settings)
+        def __init__(self, ctx) -> None:
+            seen.append(ctx.settings)
 
         def crew(self):
             return SimpleNamespace(kickoff=lambda inputs: None)
@@ -411,3 +411,66 @@ def test_config_show_reports_invalid_configuration_as_a_usage_error(capsys, monk
 
     assert main.run(["config", "show"]) == 2
     assert "ENGINEERING_MAX_PARALLEL" in capsys.readouterr().err
+
+
+# --- workspace lock and run context --------------------------------------------------------
+
+
+def test_a_workspace_in_use_by_another_run_is_a_usage_error(capsys, monkeypatch) -> None:
+    from engineering_team.runtime.locks import WorkspaceLock
+
+    monkeypatch.setattr(main, "EngineeringTeam", lambda *_: pytest.fail("crew must not be built"))
+    argv = ["--request", "Build a thing", "--project-name", "demo"]
+    assert main.run([*argv, "--prepare-only"]) == 0
+    holder = WorkspaceLock(Path.cwd() / "workspace" / "demo").acquire("other-run")
+
+    code = main.run(argv)
+
+    holder.release()
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "in use by run other-run" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_the_run_context_points_at_a_fresh_run_directory(monkeypatch) -> None:
+    contexts = []
+
+    class FakeTeam:
+        def __init__(self, ctx) -> None:
+            contexts.append(ctx)
+
+        def crew(self):
+            return SimpleNamespace(kickoff=lambda inputs: None)
+
+    monkeypatch.setattr(main, "EngineeringTeam", FakeTeam)
+
+    assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 0
+    assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 0
+
+    first, second = contexts
+    assert first.run_id != second.run_id
+    assert first.run_dir.parent == first.workspace.root / ".engineering-team" / "runs"
+    assert first.run_dir.is_dir() and second.run_dir.is_dir()
+
+
+@pytest.mark.parametrize("failure", [None, RuntimeError("model unavailable"), KeyboardInterrupt()])
+def test_the_workspace_lock_is_released_however_the_run_ends(monkeypatch, failure) -> None:
+    from engineering_team.runtime.locks import WorkspaceLock
+
+    def kickoff(inputs):
+        if failure is not None:
+            raise failure
+
+    class FakeTeam:
+        def __init__(self, ctx=None) -> None:
+            pass
+
+        def crew(self):
+            return SimpleNamespace(kickoff=kickoff)
+
+    monkeypatch.setattr(main, "EngineeringTeam", FakeTeam)
+
+    main.run(["--request", "Build a thing", "--project-name", "demo"])
+
+    WorkspaceLock(Path.cwd() / "workspace" / "demo").acquire("next-run").release()

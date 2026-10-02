@@ -57,24 +57,14 @@ class ModelFacts:
     context_window: int | None = None
     # "responses" when the model cannot use tools over Chat Completions.
     api: str | None = None
-    # USD per million input/output tokens (None: free/local or unknown) and a caveat, so that
-    # `config show` and the tier ordering tests can reason about cost.
-    price: tuple[float, float] | None = None
-    price_note: str = ""
 
 
 # GPT-6 models call tools through the Responses API (gpt-6.1-sol has no tool calling on Chat
-# Completions; gpt-6-luna only with reasoning_effort="none"). Prices: OpenAI model docs.
+# Completions; gpt-6-luna only with reasoning_effort="none"). Prices live in data/pricing.toml.
 MODEL_FACTS: Final[dict[str, ModelFacts]] = {
-    "openai/gpt-6.1-sol": ModelFacts(1_050_000, "responses", (2.0, 10.0)),
-    "openai/gpt-6-luna": ModelFacts(1_050_000, "responses", (0.1, 0.5)),
-    "anthropic/claude-opus-5-5": ModelFacts(price=(4.0, 20.0)),
-    "anthropic/claude-sonnet-5-5": ModelFacts(price=(2.0, 10.0)),
-    "gemini/gemini-3.8-flash": ModelFacts(
-        price=(0.75, 3.75), price_note="introductory price until 2026-12-31; $1.50/$7.50 after"
-    ),
-    # A conservative window: Ollama's server-side num_ctx is usually far below the model's
-    # 256K. Local models are free, so no price.
+    "openai/gpt-6.1-sol": ModelFacts(1_050_000, "responses"),
+    "openai/gpt-6-luna": ModelFacts(1_050_000, "responses"),
+    # A conservative window: Ollama's server-side num_ctx is usually far below the model's 256K.
     "ollama/qwen3.8:27b": ModelFacts(context_window=32_768),
 }
 
@@ -177,10 +167,6 @@ class ResolvedModel:
     @property
     def provider(self) -> str | None:
         return PREFIX_TO_PROVIDER.get(self.provider_prefix)
-
-    @property
-    def price(self) -> tuple[float, float] | None:
-        return facts_for(self.model).price
 
 
 def provider_prefix(model: str) -> str:

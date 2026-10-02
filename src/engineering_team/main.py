@@ -13,6 +13,7 @@ import sys
 import traceback
 import warnings
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import date
 from importlib import resources
 from pathlib import Path
@@ -20,12 +21,16 @@ from typing import TypeVar
 
 from engineering_team.crew import EngineeringTeam
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
+from engineering_team.runtime.budget import BudgetExceeded
+from engineering_team.runtime.context import RunContext, new_run_id
+from engineering_team.runtime.locks import WorkspaceLock
+from engineering_team.runtime.session import RunRecorder, format_summary
 from engineering_team.settings import (
     SMOKE_PROFILE_MARKER,
     Settings,
     load_settings,
 )
-from engineering_team.tools.workspace_tools import ProjectWorkspace
+from engineering_team.tools import ProjectWorkspace
 from engineering_team.workspaces import (
     prepare_workspace,
     slugify_project_name,
@@ -145,23 +150,11 @@ def build_inputs(
     workspace: ProjectWorkspace,
     run_profile: str,
 ) -> dict[str, str]:
-    """Create the interpolation inputs shared by every agent and task."""
+    """Create the interpolation inputs shared by every agent and task.
 
-    metadata_dir = workspace.root / ".engineering-team"
-    (metadata_dir / "request.md").write_text(requirements.rstrip() + "\n", encoding="utf-8")
-    (metadata_dir / "run.json").write_text(
-        json.dumps(
-            {
-                "project_name": project_name,
-                "workspace_path": str(workspace.root),
-                "date": date.today().isoformat(),
-                "run_profile": run_profile,
-            },
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    The request itself is recorded in the run directory by :class:`RunRecorder`.
+    """
+
     return {
         "project_name": project_name,
         "requirements": requirements,
@@ -240,28 +233,24 @@ def _cli_overrides(args: argparse.Namespace) -> dict[str, str]:
     return {key: value for key, value in names.items() if value is not None}
 
 
-def _prepare_from_args(
-    args: argparse.Namespace,
-) -> tuple[dict[str, str], ProjectWorkspace, Settings]:
-    if args.adopt:
-        raise ValueError("--adopt is not implemented yet.")
-    settings = load_settings(overrides=_cli_overrides(args), config_file=args.config)
-    requirements = load_requirements(
-        inline_request=args.request,
-        request_file=args.request_file,
-        example=args.example,
-        settings=settings,
-    )
-    settings = settings.for_request(requirements)
-    settings.check_ready(require_credentials=not getattr(args, "prepare_only", False))
-    workspace = _prepare_workspace(settings, reset=args.reset, force_reset=args.force_reset)
-    inputs = build_inputs(
-        project_name=settings.project_name,
-        requirements=requirements,
-        workspace=workspace,
-        run_profile=settings.profile,
-    )
-    return inputs, workspace, settings
+@dataclass
+class PreparedRun:
+    """A prepared workspace, its run context, crew inputs, and the lock held on the workspace."""
+
+    ctx: RunContext
+    inputs: dict[str, str]
+    lock: WorkspaceLock
+    recorder: RunRecorder
+
+    def release(self) -> None:
+        """Report what the run used and cost, then drop the workspace lock."""
+
+        try:
+            summary = self.recorder.manifest.summary
+            if summary is not None and (summary.usage.calls or summary.tool_calls):
+                print(f"\n{format_summary(summary)}")
+        finally:
+            self.lock.release()
 
 
 def _prepare_workspace(
@@ -277,12 +266,76 @@ def _prepare_workspace(
     )
 
 
-def _execute(prepare: Callable[[], T], work: Callable[[T], object]) -> int:
+def _open_run(
+    settings: Settings,
+    *,
+    mode: str = "build",
+    requirements: str | None = None,
+    reset: bool = False,
+    force_reset: bool = False,
+) -> PreparedRun:
+    """Prepare the workspace, take its write lock, and build the run context and inputs.
+
+    Also creates the run's manifest (``pending``); the caller wraps the work in
+    ``recorder.running()`` and releases the lock (``_execute`` does) once the run is over. A
+    workspace that another run holds raises ``WorkspaceBusy``, which the CLI reports as a
+    usage error.
+    """
+
+    workspace = _prepare_workspace(settings, reset=reset, force_reset=force_reset)
+    run_id = new_run_id()
+    lock = WorkspaceLock(workspace.root).acquire(run_id)
+    try:
+        ctx = RunContext.create(settings, workspace, run_id=run_id)
+        recorder = RunRecorder.begin(ctx, mode=mode, request=requirements or "")
+        inputs = (
+            build_inputs(
+                project_name=settings.project_name,
+                requirements=requirements,
+                workspace=workspace,
+                run_profile=settings.profile,
+            )
+            if requirements is not None
+            else {}
+        )
+    except BaseException:
+        lock.release()
+        raise
+    return PreparedRun(ctx=ctx, inputs=inputs, lock=lock, recorder=recorder)
+
+
+def _prepare_from_args(args: argparse.Namespace, mode: str = "build") -> PreparedRun:
+    if args.adopt:
+        raise ValueError("--adopt is not implemented yet.")
+    settings = load_settings(overrides=_cli_overrides(args), config_file=args.config)
+    requirements = load_requirements(
+        inline_request=args.request,
+        request_file=args.request_file,
+        example=args.example,
+        settings=settings,
+    )
+    settings = settings.for_request(requirements)
+    settings.check_ready(require_credentials=not getattr(args, "prepare_only", False))
+    return _open_run(
+        settings,
+        mode="prepare" if getattr(args, "prepare_only", False) else mode,
+        requirements=requirements,
+        reset=args.reset,
+        force_reset=args.force_reset,
+    )
+
+
+def _execute(
+    prepare: Callable[[], T],
+    work: Callable[[T], object],
+    release: Callable[[T], None] | None = None,
+) -> int:
     """Run an entry point in two phases and map failures to exit codes.
 
     ``prepare`` validates input and sets up the workspace; a ``ValueError`` there is a usage
     or configuration problem (exit 2, one line). ``work`` calls the crew; any failure there
-    is a runtime failure (exit 1, with traceback).
+    is a runtime failure (exit 1, with traceback). ``release`` always runs after a successful
+    ``prepare`` so the workspace lock is dropped however ``work`` ends.
     """
 
     try:
@@ -299,10 +352,16 @@ def _execute(prepare: Callable[[], T], work: Callable[[T], object]) -> int:
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         return EXIT_INTERRUPTED
+    except BudgetExceeded as exc:
+        print(f"Engineering team run stopped: {exc}", file=sys.stderr)
+        return EXIT_FAILURE
     except Exception as exc:
         traceback.print_exc()
         print(f"Engineering team run failed: {exc}", file=sys.stderr)
         return EXIT_FAILURE
+    finally:
+        if release is not None:
+            release(prepared)
     return 0
 
 
@@ -349,79 +408,80 @@ def run(argv: Sequence[str] | None = None) -> int:
         return _config_command(arguments[1:])
     args = _run_parser().parse_args(arguments)
 
-    def work(prepared: tuple[dict[str, str], ProjectWorkspace, Settings]) -> None:
-        inputs, workspace, settings = prepared
-        if args.prepare_only:
-            print(f"Prepared project workspace: {workspace.root}")
-            return
-        EngineeringTeam(settings).crew().kickoff(inputs=inputs)
-        print(f"\nProject workspace: {workspace.root}")
+    def work(prepared: PreparedRun) -> None:
+        workspace = prepared.ctx.workspace
+        with prepared.recorder.running():
+            if args.prepare_only:
+                print(f"Prepared project workspace: {workspace.root}")
+                return
+            EngineeringTeam(prepared.ctx).crew().kickoff(inputs=prepared.inputs)
+            print(f"\nProject workspace: {workspace.root}")
 
-    return _execute(lambda: _prepare_from_args(args), work)
+    return _execute(lambda: _prepare_from_args(args), work, PreparedRun.release)
 
 
 def train() -> int:
     """Train the crew using the current request and workspace."""
 
-    def prepare() -> tuple[int, str, dict[str, str], Settings]:
+    def prepare() -> tuple[int, str, PreparedRun]:
         if len(sys.argv) < 3:
             raise ValueError("Usage: train <iterations> <training-file>")
         iterations = int(sys.argv[1])
         args = _run_parser().parse_args(sys.argv[3:])
-        inputs, _workspace, settings = _prepare_from_args(args)
-        return iterations, sys.argv[2], inputs, settings
+        return iterations, sys.argv[2], _prepare_from_args(args, "train")
 
-    def work(prepared: tuple[int, str, dict[str, str], Settings]) -> None:
-        iterations, filename, inputs, settings = prepared
-        EngineeringTeam(settings).crew().train(
-            n_iterations=iterations, filename=filename, inputs=inputs
-        )
+    def work(prepared: tuple[int, str, PreparedRun]) -> None:
+        iterations, filename, run_state = prepared
+        with run_state.recorder.running():
+            EngineeringTeam(run_state.ctx).crew().train(
+                n_iterations=iterations, filename=filename, inputs=run_state.inputs
+            )
 
-    return _execute(prepare, work)
+    return _execute(prepare, work, lambda prepared: prepared[2].release())
 
 
 def replay() -> int:
     """Replay the latest crew run from a task ID."""
 
-    def prepare() -> tuple[str, Settings]:
+    def prepare() -> tuple[str, PreparedRun]:
         if len(sys.argv) < 2:
             raise ValueError("Usage: replay <task-id>")
         settings = load_settings()
         settings.check_ready(require_credentials=True)
-        _prepare_workspace(settings)
-        return sys.argv[1], settings
+        return sys.argv[1], _open_run(settings, mode="replay")
 
-    def work(prepared: tuple[str, Settings]) -> None:
-        task_id, settings = prepared
-        EngineeringTeam(settings).crew().replay(task_id=task_id)
+    def work(prepared: tuple[str, PreparedRun]) -> None:
+        task_id, run_state = prepared
+        with run_state.recorder.running():
+            EngineeringTeam(run_state.ctx).crew().replay(task_id=task_id)
 
-    return _execute(prepare, work)
+    return _execute(prepare, work, lambda prepared: prepared[1].release())
 
 
 def test() -> int:
     """Run CrewAI's iterative crew evaluation command."""
 
-    def prepare() -> tuple[int, str, dict[str, str], Settings]:
+    def prepare() -> tuple[int, str, PreparedRun]:
         if len(sys.argv) < 3:
             raise ValueError("Usage: test <iterations> <evaluation-model>")
         iterations = int(sys.argv[1])
         args = _run_parser().parse_args(sys.argv[3:])
-        inputs, _workspace, settings = _prepare_from_args(args)
-        return iterations, sys.argv[2], inputs, settings
+        return iterations, sys.argv[2], _prepare_from_args(args, "test")
 
-    def work(prepared: tuple[int, str, dict[str, str], Settings]) -> None:
-        iterations, eval_llm, inputs, settings = prepared
-        EngineeringTeam(settings).crew().test(
-            n_iterations=iterations, eval_llm=eval_llm, inputs=inputs
-        )
+    def work(prepared: tuple[int, str, PreparedRun]) -> None:
+        iterations, eval_llm, run_state = prepared
+        with run_state.recorder.running():
+            EngineeringTeam(run_state.ctx).crew().test(
+                n_iterations=iterations, eval_llm=eval_llm, inputs=run_state.inputs
+            )
 
-    return _execute(prepare, work)
+    return _execute(prepare, work, lambda prepared: prepared[2].release())
 
 
 def run_with_trigger() -> int:
     """Run from a CrewAI trigger payload containing requirements and project_name."""
 
-    def prepare() -> tuple[dict[str, str], Settings]:
+    def prepare() -> PreparedRun:
         if len(sys.argv) < 2:
             raise ValueError("No trigger JSON payload provided.")
         try:
@@ -444,21 +504,15 @@ def run_with_trigger() -> int:
         settings = load_settings().with_overrides(overrides, source="trigger payload")
         settings = settings.for_request(requirements)
         settings.check_ready(require_credentials=True)
-        workspace = _prepare_workspace(settings)
-        inputs = build_inputs(
-            project_name=settings.project_name,
-            requirements=requirements,
-            workspace=workspace,
-            run_profile=settings.profile,
-        )
-        inputs["crewai_trigger_payload"] = json.dumps(payload)
-        return inputs, settings
+        prepared = _open_run(settings, requirements=requirements)
+        prepared.inputs["crewai_trigger_payload"] = json.dumps(payload)
+        return prepared
 
-    def work(prepared: tuple[dict[str, str], Settings]) -> None:
-        inputs, settings = prepared
-        EngineeringTeam(settings).crew().kickoff(inputs=inputs)
+    def work(prepared: PreparedRun) -> None:
+        with prepared.recorder.running():
+            EngineeringTeam(prepared.ctx).crew().kickoff(inputs=prepared.inputs)
 
-    return _execute(prepare, work)
+    return _execute(prepare, work, PreparedRun.release)
 
 
 if __name__ == "__main__":

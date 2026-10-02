@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import importlib.util
+from datetime import date
 from pathlib import Path
 
 import pytest
 
-from engineering_team.model_routing import MODEL_FACTS, PROVIDER_PRESETS, TIER_NAMES
+from engineering_team.model_routing import PROVIDER_PRESETS, TIER_NAMES
+from engineering_team.pricing import build_table, default_prices
 from engineering_team.settings import (
     SMOKE_PROFILE_MARKER,
     Settings,
@@ -134,7 +136,16 @@ def test_presets_contain_only_the_approved_models() -> None:
         "gemini/gemini-3.8-flash",
         "ollama/qwen3.8:27b",
     }
-    assert set(MODEL_FACTS) == models
+    assert {price.model for price in default_prices()} == models  # every preset model is priced
+
+
+PRICE_DAY = date(2026, 10, 2)
+
+
+def _output_price(model: str) -> float:
+    price = build_table().lookup(model, on=PRICE_DAY)
+    assert price is not None, model
+    return price.output  # local models are priced at zero
 
 
 def test_tiers_never_get_cheaper_as_they_get_more_capable() -> None:
@@ -144,18 +155,12 @@ def test_tiers_never_get_cheaper_as_they_get_more_capable() -> None:
     for provider, tiers in PROVIDER_PRESETS.items():
         if not tiers:
             continue
-        prices = []
-        for name in order:
-            price = MODEL_FACTS[tiers[name].model].price
-            prices.append(price[1] if price else 0.0)  # output price; local models are free
+        prices = [_output_price(tiers[name].model) for name in order]
         assert prices == sorted(prices), (provider, prices)
 
 
 def test_documented_price_ordering() -> None:
-    def output_price(model: str) -> float:
-        price = MODEL_FACTS[model].price
-        assert price is not None
-        return price[1]
+    output_price = _output_price
 
     luna = output_price("openai/gpt-6-luna")
     flash = output_price("gemini/gemini-3.8-flash")

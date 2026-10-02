@@ -4,7 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from engineering_team.tools.workspace_tools import ProjectWorkspace, WorkspaceError
+from engineering_team.execution.local import LocalBackend
+from engineering_team.tools.commands import run_command
+from engineering_team.tools.workspace import ProjectWorkspace, WorkspaceError
+
+
+def run(workspace: ProjectWorkspace, command: str, **options: object) -> str:
+    backend = LocalBackend(workspace.root / ".engineering-team" / "logs")
+    return run_command(workspace, command, backend=backend, **options)  # type: ignore[arg-type]
 
 
 @pytest.fixture
@@ -52,7 +59,7 @@ def test_command_reports_stdout_stderr_and_exit_code(workspace: ProjectWorkspace
         "import sys\nprint('hello')\nprint('warning', file=sys.stderr)\n",
     )
 
-    result = workspace.run_command("python check.py")
+    result = run(workspace, "python check.py")
 
     assert "Exit code: 0" in result
     assert "hello" in result
@@ -69,7 +76,7 @@ def test_project_commands_do_not_inherit_api_keys(
         "import os\nprint(os.getenv('OPENAI_API_KEY', 'missing'))\n",
     )
 
-    result = workspace.run_command("python environment_check.py")
+    result = run(workspace, "python environment_check.py")
 
     assert "missing" in result
     assert "do-not-inherit" not in result
@@ -77,9 +84,9 @@ def test_project_commands_do_not_inherit_api_keys(
 
 def test_shell_and_inline_execution_are_rejected(workspace: ProjectWorkspace) -> None:
     with pytest.raises(WorkspaceError):
-        workspace.run_command("python check.py | make")
+        run(workspace, "python check.py | make")
     with pytest.raises(WorkspaceError):
-        workspace.run_command("python -c \"print('unsafe')\"")
+        run(workspace, "python -c \"print('unsafe')\"")
 
 
 def test_workspace_root_cannot_be_deleted(workspace: ProjectWorkspace) -> None:
@@ -127,7 +134,7 @@ def test_protected_directories_cannot_be_listed_or_used_as_command_cwd(
     with pytest.raises(WorkspaceError):
         protected_workspace.list_files(directory)
     with pytest.raises(WorkspaceError):
-        protected_workspace.run_command("python --version", relative_cwd=directory)
+        run(protected_workspace, "python --version", relative_cwd=directory)
 
 
 def test_protected_directories_are_hidden_from_the_project_listing(
@@ -165,7 +172,7 @@ def test_absolute_command_arguments_cannot_name_protected_storage(
     target = protected_workspace.root / ".git" / "config"
 
     with pytest.raises(WorkspaceError):
-        protected_workspace.run_command(f"python tool.py {target}")
+        run(protected_workspace, f"python tool.py {target}")
 
 
 def test_agent_scratch_space_remains_available(workspace: ProjectWorkspace) -> None:
@@ -179,8 +186,8 @@ def test_extra_commands_come_from_the_workspace_configuration(tmp_path: Path) ->
     extended = ProjectWorkspace.create(tmp_path / "extended", extra_commands=["Echo", " "])
 
     with pytest.raises(WorkspaceError, match="command_allowlist"):
-        plain.run_command("echo hello")
-    assert "hello" in extended.run_command("echo hello")
+        run(plain, "echo hello")
+    assert "hello" in run(extended, "echo hello")
 
 
 def test_environment_passthrough_is_limited_to_the_configured_names(
@@ -194,7 +201,7 @@ def test_environment_passthrough_is_limited_to_the_configured_names(
         "import os\nprint(os.getenv('DATABASE_URL'), os.getenv('OTHER_TOKEN'))\n",
     )
 
-    result = open_workspace.run_command("python show.py")
+    result = run(open_workspace, "python show.py")
 
     assert "sqlite:///x None" in result
     assert "must-not-leak" not in result

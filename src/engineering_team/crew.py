@@ -12,8 +12,9 @@ from crewai.project import CrewBase, agent, crew, task
 from crewai.tasks.task_output import TaskOutput
 
 from engineering_team.model_routing import REASONING_EFFORT_PREFIXES, ResolvedModel
-from engineering_team.settings import Settings, load_settings
-from engineering_team.tools.workspace_tools import get_workspace, workspace_tools
+from engineering_team.runtime.context import RunContext
+from engineering_team.settings import Settings
+from engineering_team.tools import ProjectWorkspace, build_tools
 
 # CrewAI's own default context-window headroom (it uses 75% of a model's window).
 CONTEXT_WINDOW_USAGE_RATIO = 0.75
@@ -41,6 +42,7 @@ MIN_ARTIFACT_CHARACTERS = 40
 
 
 def _require_workspace_files(
+    workspace: ProjectWorkspace,
     *required_paths: str,
 ) -> Callable[[TaskOutput | LiteAgentOutput], tuple[bool, Any]]:
     """Interim guardrail: required artifacts must exist and hold real content.
@@ -53,7 +55,6 @@ def _require_workspace_files(
     # stringified form this module produces via ``from __future__ import annotations``.
     # Keep the closure itself unannotated; the factory's return type documents the contract.
     def validate(output: TaskOutput | LiteAgentOutput):
-        workspace = get_workspace()
         problems = []
         for relative_path in required_paths:
             path = workspace.resolve(relative_path)
@@ -86,8 +87,9 @@ class EngineeringTeam:
     agents_config = "config/agents.yaml"
     tasks_config = "config/tasks.yaml"
 
-    def __init__(self, settings: Settings | None = None) -> None:
-        self.settings = settings or load_settings()
+    def __init__(self, ctx: RunContext) -> None:
+        self.ctx = ctx
+        self.settings = ctx.settings
 
     def engineering_lead(self) -> Agent:
         """Create the tool-free custom manager required by hierarchical crews."""
@@ -110,7 +112,7 @@ class EngineeringTeam:
         return Agent(
             config=self.agents_config[config_name],  # type: ignore[index]
             llm=build_llm(resolved, self.settings),
-            tools=workspace_tools,
+            tools=build_tools(self.ctx),
             mcps=self.settings.docs_mcp_urls or None if self.settings.docs_mcp_enabled else None,
             allow_delegation=False,
             max_iter=resolved.max_iter,
@@ -139,6 +141,7 @@ class EngineeringTeam:
         return Task(
             config=self.tasks_config["architecture_task"],  # type: ignore[index]
             guardrail=_require_workspace_files(
+                self.ctx.workspace,
                 "docs/architecture.md",
                 "docs/implementation-plan.md",
             ),
@@ -149,7 +152,7 @@ class EngineeringTeam:
     def foundation_task(self) -> Task:
         return Task(
             config=self.tasks_config["foundation_task"],  # type: ignore[index]
-            guardrail=_require_workspace_files("README.md"),
+            guardrail=_require_workspace_files(self.ctx.workspace, "README.md"),
             guardrail_max_retries=2,
         )
 
@@ -165,7 +168,7 @@ class EngineeringTeam:
     def quality_task(self) -> Task:
         return Task(
             config=self.tasks_config["quality_task"],  # type: ignore[index]
-            guardrail=_require_workspace_files("docs/verification.md"),
+            guardrail=_require_workspace_files(self.ctx.workspace, "docs/verification.md"),
             guardrail_max_retries=2,
         )
 
@@ -173,7 +176,7 @@ class EngineeringTeam:
     def release_task(self) -> Task:
         return Task(
             config=self.tasks_config["release_task"],  # type: ignore[index]
-            guardrail=_require_workspace_files("docs/release-report.md"),
+            guardrail=_require_workspace_files(self.ctx.workspace, "docs/release-report.md"),
             guardrail_max_retries=2,
         )
 
@@ -181,7 +184,6 @@ class EngineeringTeam:
     def crew(self) -> Crew:
         """Build a hierarchical crew whose manager delegates and validates."""
 
-        workspace = get_workspace()
         return Crew(
             agents=self.agents,
             tasks=self.tasks,
@@ -194,5 +196,5 @@ class EngineeringTeam:
             tracing=self.settings.tracing,
             share_crew=False,
             # Controller-owned state: agents cannot reach this path through the file tools.
-            output_log_file=str(workspace.root / ".engineering-team" / "crew-log.json"),
+            output_log_file=str(self.ctx.run_dir / "crew-log.json"),
         )
