@@ -139,6 +139,82 @@ class ParallelSettings(_Frozen):
     max_rpm: int | None = Field(default=None, ge=1)
 
 
+class DevToolsSettings(_Frozen):
+    """The structured developer tools (Run Tests, Run Linter, ...). Timeouts are in seconds."""
+
+    test_timeout: int = Field(default=300, ge=1, le=3600)
+    lint_timeout: int = Field(default=120, ge=1, le=3600)
+    typecheck_timeout: int = Field(default=180, ge=1, le=3600)
+    format_timeout: int = Field(default=120, ge=1, le=3600)
+    build_timeout: int = Field(default=300, ge=1, le=3600)
+    coverage_timeout: int = Field(default=600, ge=1, le=3600)
+    audit_timeout: int = Field(default=180, ge=1, le=3600)
+    install_timeout: int = Field(default=900, ge=1, le=3600)
+    max_failures: int = Field(default=20, ge=1, le=200)
+    max_diagnostics: int = Field(default=50, ge=1, le=500)
+    extra_executables: list[str] = []
+    allow_network: bool = True
+
+
+class ToolsSettings(_Frozen):
+    dev: DevToolsSettings = DevToolsSettings()
+
+
+class RuntimeSettings(_Frozen):
+    """Background processes and the HTTP tool. Times are in seconds."""
+
+    max_background_processes: int = Field(default=4, ge=1, le=32)
+    process_lifetime_seconds: int = Field(default=1800, ge=1, le=86400)
+    max_http_response_chars: int = Field(default=20000, ge=1000, le=200000)
+
+
+class NetworkSettings(_Frozen):
+    """Where agents' tools may reach beyond this run's own processes."""
+
+    http_allowlist: list[str] = []
+
+
+SEARCH_PROVIDERS = ("serper", "brave", "tavily")
+# Environment variable each web search provider's API key is read from. Only the names appear
+# in settings output; the values are kept in a private attribute and are never printed.
+WEB_KEY_ENV = {"serper": "SERPER_API_KEY", "brave": "BRAVE_API_KEY", "tavily": "TAVILY_API_KEY"}
+
+
+class WebSettings(_Frozen):
+    """The opt-in web tools (Web Search, Fetch URL, Package Info). Off unless ``enabled``."""
+
+    enabled: bool = False
+    roles: list[str] = []  # only these teammates get the web tools; empty = every teammate
+    search_provider: Literal["serper", "brave", "tavily"] | None = None
+    allow_domains: list[str] = []  # when set, Fetch URL may only reach these hosts
+    deny_domains: list[str] = []
+    max_requests_per_run: int = Field(default=40, ge=1, le=1000)
+    timeout_seconds: int = Field(default=15, ge=1, le=120)
+    max_download_bytes: int = Field(default=2_000_000, ge=10_000, le=20_000_000)
+    max_page_chars: int = Field(default=20_000, ge=1000, le=200_000)
+
+    @field_validator("roles", "allow_domains", "deny_domains")
+    @classmethod
+    def _lowercase(cls, value: list[str]) -> list[str]:
+        return [item.strip().lower() for item in value if item.strip()]
+
+
+class KnowledgeSettings(_Frozen):
+    """Where Search Docs looks besides the project's own markdown and the run's web cache."""
+
+    context_dirs: list[str] = []
+
+
+class BrowserSettings(_Frozen):
+    """The headless-browser tools (optional ``browser`` extra). Times are in seconds."""
+
+    channel: Literal["chromium", "chrome", "msedge"] = "chromium"
+    max_contexts: int = Field(default=2, ge=1, le=8)
+    page_timeout_seconds: int = Field(default=30, ge=1, le=120)
+    max_snapshot_chars: int = Field(default=20000, ge=1000, le=200000)
+    max_console_entries: int = Field(default=100, ge=10, le=1000)
+
+
 class Settings(_Frozen):
     provider: Literal["openai", "anthropic", "google", "ollama", "azure"] = "openai"
     profile: Literal["standard", "smoke", "max-quality"] = "standard"
@@ -159,10 +235,17 @@ class Settings(_Frozen):
     pricing: dict[str, PriceOverride] = {}
     execution: ExecutionSettings = ExecutionSettings()
     parallel: ParallelSettings = ParallelSettings()
+    tools: ToolsSettings = ToolsSettings()
+    runtime: RuntimeSettings = RuntimeSettings()
+    network: NetworkSettings = NetworkSettings()
+    web: WebSettings = WebSettings()
+    knowledge: KnowledgeSettings = KnowledgeSettings()
+    browser: BrowserSettings = BrowserSettings()
 
     _layers: list[tuple[str, dict[str, Any]]] = PrivateAttr(default_factory=list)
     _sources: dict[str, str] = PrivateAttr(default_factory=dict)
     _credential_names: frozenset[str] = PrivateAttr(default_factory=frozenset)
+    _web_secrets: dict[str, str] = PrivateAttr(default_factory=dict)
 
     @field_validator("pricing")
     @classmethod
@@ -199,7 +282,12 @@ class Settings(_Frozen):
         """A new Settings with one more, highest-precedence layer."""
 
         layers = [*self._layers, (source, _nest(overrides))]
-        return _build(layers, self._credential_names)
+        return _build(layers, self._credential_names, self._web_secrets)
+
+    def web_api_key(self, provider: str) -> str | None:
+        """The API key of a web search provider (from its environment variable), if set."""
+
+        return self._web_secrets.get(WEB_KEY_ENV[provider])
 
     def for_request(self, requirements: str) -> Settings:
         """Apply the request's smoke marker, but only when no layer chose a profile."""
@@ -378,6 +466,17 @@ class Settings(_Frozen):
                         "environment",
                     )
                 )
+        if self.web.enabled:
+            keys_set = [name for name in WEB_KEY_ENV.values() if name in self._web_secrets]
+            rows.extend(
+                SettingRow(f"credentials.{name}", "set", "environment") for name in keys_set
+            )
+            if not keys_set:
+                rows.append(
+                    SettingRow(
+                        f"credentials.{'/'.join(WEB_KEY_ENV.values())}", "MISSING", "environment"
+                    )
+                )
         return rows
 
 
@@ -480,6 +579,7 @@ def _build_env_table() -> dict[str, tuple[str, Callable[[str], Any]]]:
         "ENGINEERING_SUBPROCESS_ENV_ALLOWLIST": ("subprocess_env_allowlist", _list),
         "ENGINEERING_OLLAMA_BASE_URL": ("ollama_base_url", _text),
         "ENGINEERING_ENABLE_AZURE": ("enable_azure", _bool),
+        "ENGINEERING_ALLOW_WEB": ("web.enabled", _bool),
         "ENGINEERING_EXECUTION_BACKEND": ("execution.backend", _text),
         "ENGINEERING_MAX_PARALLEL_COMMANDS": ("execution.max_parallel_commands", _int),
         "ENGINEERING_MAX_PARALLEL": ("parallel.max_parallel_agents", _int),
@@ -550,7 +650,11 @@ def _merge(
             sources[path] = label
 
 
-def _build(layers: list[tuple[str, dict[str, Any]]], credential_names: frozenset[str]) -> Settings:
+def _build(
+    layers: list[tuple[str, dict[str, Any]]],
+    credential_names: frozenset[str],
+    web_secrets: Mapping[str, str] | None = None,
+) -> Settings:
     merged: dict[str, Any] = {}
     sources: dict[str, str] = {}
     for label, layer in layers:
@@ -562,6 +666,7 @@ def _build(layers: list[tuple[str, dict[str, Any]]], credential_names: frozenset
     settings._layers = layers
     settings._sources = sources
     settings._credential_names = credential_names
+    settings._web_secrets = dict(web_secrets or {})
     return settings
 
 
@@ -688,7 +793,12 @@ def load_settings(
         for name in names
         if (environment.get(name) or "").strip()
     )
-    return _build(layers, credential_names)
+    web_secrets = {
+        name: value
+        for name in WEB_KEY_ENV.values()
+        if (value := (environment.get(name) or "").strip())
+    }
+    return _build(layers, credential_names, web_secrets)
 
 
 __all__ = [

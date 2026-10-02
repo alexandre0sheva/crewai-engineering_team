@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import date
 from importlib import resources
 from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from engineering_team.crew import EngineeringTeam
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
@@ -217,14 +217,21 @@ def _run_parser() -> argparse.ArgumentParser:
         help="Model provider preset (default: openai).",
     )
     parser.add_argument(
+        "--allow-web",
+        action="store_true",
+        help="Let the team use the web tools (search, fetch, package info). Off by default; "
+        "see docs/SAFETY.md.",
+    )
+    parser.add_argument(
         "--config",
         help="Path to a config file (default: ./engineering-team.toml if present).",
     )
     return parser
 
 
-def _cli_overrides(args: argparse.Namespace) -> dict[str, str]:
-    names = {
+def _cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
+    names: dict[str, Any] = {
+        "web.enabled": True if args.allow_web else None,
         "provider": args.provider,
         "profile": args.profile,
         "project_name": args.project_name,

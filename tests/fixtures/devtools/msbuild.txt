@@ -1,0 +1,4 @@
+Determining projects to restore...
+/work/project/Calc/Program.cs(7,13): error CS0103: The name 'nope' does not exist in the current context [/work/project/Calc/Calc.csproj]
+/work/project/Calc/Program.cs(9,1): warning CS0168: The variable 'e' is declared but never used [/work/project/Calc/Calc.csproj]
+Build FAILED.

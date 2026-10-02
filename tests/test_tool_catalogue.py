@@ -9,10 +9,28 @@ from pathlib import Path
 import pytest
 
 from engineering_team.runtime.context import RunContext
-from engineering_team.tools import CATALOGUE, GROUPS, build_tools
+from engineering_team.settings import load_settings
+from engineering_team.tools import CATALOGUE, GROUPS, browser_tools, build_tools
 
 ROOT = Path(__file__).resolve().parent.parent
 MakeContext = Callable[..., RunContext]
+
+
+@pytest.fixture(autouse=True)
+def browser_extra_installed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The catalogue lists the browser tools whether or not the optional extra is installed."""
+
+    monkeypatch.setattr(browser_tools, "available", lambda: True)
+
+
+@pytest.fixture
+def web_context(make_context: MakeContext) -> MakeContext:
+    """Contexts with the opt-in web tools enabled (the catalogue lists them, a default run not)."""
+
+    def build(**options: object) -> RunContext:
+        return make_context(settings=load_settings(overrides={"web.enabled": True}), **options)
+
+    return build
 
 
 def _documented_rows() -> dict[str, list[str]]:
@@ -43,31 +61,31 @@ def test_the_documentation_rows_agree_with_the_catalogue() -> None:
         assert cells[4] == yes_no[spec.needs_command_gate], spec.name
 
 
-def test_each_spec_builds_a_tool_of_the_same_name(make_context: MakeContext) -> None:
-    built = {tool.name for tool in build_tools(make_context())}
+def test_each_spec_builds_a_tool_of_the_same_name(web_context: MakeContext) -> None:
+    built = {tool.name for tool in build_tools(web_context())}
 
     assert built == {spec.name for spec in CATALOGUE}
 
 
-def test_tool_names_are_unique_and_catalogue_order_is_stable(make_context: MakeContext) -> None:
+def test_tool_names_are_unique_and_catalogue_order_is_stable(web_context: MakeContext) -> None:
     names = [spec.name for spec in CATALOGUE]
 
     assert len(names) == len(set(names))
-    assert [tool.name for tool in build_tools(make_context())] == names
+    assert [tool.name for tool in build_tools(web_context())] == names
 
 
 @pytest.mark.parametrize("group", GROUPS)
-def test_groups_select_exactly_their_tools(make_context: MakeContext, group: str) -> None:
-    selected = [tool.name for tool in build_tools(make_context(), groups=[group])]
+def test_groups_select_exactly_their_tools(web_context: MakeContext, group: str) -> None:
+    selected = [tool.name for tool in build_tools(web_context(), groups=[group])]
 
     assert selected == [spec.name for spec in CATALOGUE if spec.group == group]
     assert selected
 
 
 def test_read_only_mode_excludes_write_and_command_tools_in_every_group(
-    make_context: MakeContext,
+    web_context: MakeContext,
 ) -> None:
-    ctx = make_context()
+    ctx = web_context()
     read_only = {tool.name for tool in build_tools(ctx, read_only=True)}
 
     assert read_only == {spec.name for spec in CATALOGUE if spec.read_only}
@@ -79,17 +97,69 @@ def test_read_only_mode_excludes_write_and_command_tools_in_every_group(
     }
 
 
+def test_a_default_run_has_no_network_tool_registered_at_all(make_context: MakeContext) -> None:
+    ctx = make_context()
+    web = {spec.name for spec in CATALOGUE if spec.group == "web"}
+
+    default = {tool.name for tool in build_tools(ctx)}
+    asked_for = build_tools(ctx, groups=["web"])
+
+    assert web and not (web & default)
+    assert asked_for == []
+    assert "Search Docs" in default  # local retrieval needs no network
+
+
+def test_web_roles_limit_which_teammates_get_the_web_tools(make_context: MakeContext) -> None:
+    ctx = make_context(
+        settings=load_settings(overrides={"web.enabled": True, "web.roles": ["Researcher"]})
+    )
+
+    def names(agent: str | None) -> set[str]:
+        return {tool.name for tool in build_tools(ctx, groups=["web"], agent=agent)}
+
+    assert names("researcher") == {"Web Search", "Fetch URL", "Package Info"}
+    assert names("Researcher") == names("researcher")
+    assert names("backend") == set() and names(None) == set()
+
+
+def test_browser_tools_exist_only_when_the_playwright_extra_is_installed(
+    make_context: MakeContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ctx = make_context()
+    group = [spec.name for spec in CATALOGUE if spec.group == "browser"]
+
+    present = [tool.name for tool in build_tools(ctx, groups=["browser"])]
+    monkeypatch.setattr(browser_tools, "available", lambda: False)
+    absent = build_tools(ctx)
+
+    assert present == group and len(group) == 12
+    assert not {tool.name for tool in absent} & set(group)
+    assert build_tools(ctx, groups=["browser"]) == []
+
+
 def test_unknown_groups_are_rejected(make_context: MakeContext) -> None:
     with pytest.raises(ValueError, match="Unknown tool group.*nope"):
         build_tools(make_context(), groups=["nope"])
 
 
-def test_only_command_tools_need_the_command_gate_and_none_need_the_network() -> None:
-    assert {spec.name for spec in CATALOGUE if spec.needs_command_gate} == {
-        "Run Project Command",
-        "Run Script",
+def test_the_command_gate_and_network_flags_are_where_they_belong() -> None:
+    gated = {spec.name for spec in CATALOGUE if spec.needs_command_gate}
+
+    assert {"Run Project Command", "Run Script"} <= gated
+    assert gated == {
+        spec.name for spec in CATALOGUE if spec.group in ("command", "dev") and not spec.read_only
     }
-    assert not any(spec.needs_network for spec in CATALOGUE)
+    # The two dev tools that reach a package registry, and the opt-in web tools.
+    assert {spec.name for spec in CATALOGUE if spec.needs_network} == {
+        "Install Dependencies",
+        "Dependency Audit",
+        "Web Search",
+        "Fetch URL",
+        "Package Info",
+    }
+    assert {spec.name for spec in CATALOGUE if spec.group == "web"} == {
+        spec.name for spec in CATALOGUE if spec.needs_network and spec.group == "web"
+    }
     assert {spec.name for spec in CATALOGUE if spec.group == "command" and spec.read_only} == {
         "List Scripts"
     }

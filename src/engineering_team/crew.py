@@ -14,7 +14,7 @@ from crewai.tasks.task_output import TaskOutput
 from engineering_team.model_routing import REASONING_EFFORT_PREFIXES, ResolvedModel
 from engineering_team.runtime.context import RunContext
 from engineering_team.settings import Settings
-from engineering_team.tools import ProjectWorkspace, build_tools
+from engineering_team.tools import PROJECT_GROUPS, ProjectWorkspace, build_tools
 
 # CrewAI's own default context-window headroom (it uses 75% of a model's window).
 CONTEXT_WINDOW_USAGE_RATIO = 0.75
@@ -112,7 +112,7 @@ class EngineeringTeam:
         return Agent(
             config=self.agents_config[config_name],  # type: ignore[index]
             llm=build_llm(resolved, self.settings),
-            tools=build_tools(self.ctx),
+            tools=build_tools(self.ctx, groups=PROJECT_GROUPS),
             mcps=self.settings.docs_mcp_urls or None if self.settings.docs_mcp_enabled else None,
             allow_delegation=False,
             max_iter=resolved.max_iter,

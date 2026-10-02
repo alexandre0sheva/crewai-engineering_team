@@ -36,7 +36,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
       - name: Install locked dependencies
-        run: uv sync --locked --group dev
+        run: uv sync --locked --group dev --extra browser
       - name: Lint
         run: uv run ruff check .
       - name: Format check
@@ -45,6 +45,22 @@ jobs:
         run: uv run mypy
       - name: Tests
         run: uv run pytest -q
+
+  browser:
+    name: Browser tests (Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install locked dependencies with the browser extra
+        run: uv sync --locked --group dev --extra browser
+      - name: Install Chromium
+        run: uv run playwright install --with-deps chromium
+      - name: Browser tests
+        run: uv run pytest -q -m browser
 
   package:
     name: Build and smoke-test the wheel

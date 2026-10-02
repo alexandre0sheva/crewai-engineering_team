@@ -1,0 +1,5 @@
+Diff in /work/project/src/lib.rs:5:
+ fn  main() {
+-    let x=1;
++    let x = 1;
+Diff in /work/project/src/lib.rs:9:

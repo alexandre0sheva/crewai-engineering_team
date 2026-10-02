@@ -16,6 +16,24 @@ as each task lands.
 
 ### Added
 
+- Optional headless-browser tools (`uv sync --extra browser`, then `playwright install chromium` or
+  `browser.channel = "chrome"`): `Browser Open`, `Browser Snapshot` (accessibility tree with element refs),
+  `Browser Screenshot`, `Browser Click`, `Browser Type`, `Browser Select`, `Browser Press Key`,
+  `Browser Wait For`, `Browser Console & Errors`, `Set Viewport`, `Accessibility Check`, and `Browser Close`.
+  The browser may open only this run's own localhost ports (every request, redirect hop, and WebSocket is
+  checked by a filtering proxy), gets an incognito context per teammate, and is closed with its stage or the
+  run. New `[browser]` settings and a `browser` test marker.
+- Opt-in web tools (`--allow-web`, `ENGINEERING_ALLOW_WEB`, or `[web] enabled`): `Web Search` (Serper, Brave, or
+  Tavily), `Fetch URL` (readable Markdown, SSRF-safe: private, loopback, and metadata addresses are refused after
+  DNS resolution and on every redirect), and `Package Info` (PyPI, npm, crates.io, Go: latest version, license,
+  deprecation). Off by default and not registered at all unless enabled; per-role allow, request cap, domain
+  lists, every request logged as a `web.request` event, all results labelled as untrusted external content.
+- `Search Docs`: offline BM25 search over project docs, `knowledge.context_dirs`, and pages fetched this run.
+- Code intelligence tools (group `code_intel`, read-only): `Find Symbol`, `Show Symbol`, `Find References`
+  (definition/import/call/other), `Who Imports` (reverse and transitive dependencies), `Imports Of`,
+  `Find Related Tests`, `Find TODOs` (author and age from Git blame), `Hotspots` (Git churn x complexity),
+  and `Inspect Dependencies` (manifests and lockfiles) for Python, JS/TS, Go, Java/Kotlin, C#, Rust, Ruby,
+  and PHP. See `docs/TOOLS.md`.
 - Layered, typed configuration (`engineering-team.toml`, user config, `ENGINEERING_*` environment, CLI) with
   per-value provenance; `engineering-team config show` prints every setting and where it came from, with secrets
   masked. See `docs/CONFIGURATION.md`.
@@ -46,6 +64,23 @@ as each task lands.
   `data/pricing.toml` with their source and the date they were checked; override them with a `[pricing]` table.
 - Run budgets: `budget.max_cost_usd`, `max_tokens`, `max_wall_seconds`, and `max_tool_calls` now stop an
   overspending run (warning at 80%). See `docs/CONFIGURATION.md` for how in-flight overrun is handled.
+- Task board: a controller-enforced kanban of the run (`board.json` and `board.md` in the run directory) where
+  agents cannot mark their own work done, with weighted progress, a WIP limit, and a history of every move. Agents
+  get board tools (list, get, add subtask, move, block, unblock, comment, report progress), shared notes, a
+  project decision log, and Ask Human (which tells them to proceed on an assumption when nobody can answer).
+  Comments from the human reach the assignee's next prompt, and a run can be paused. See `docs/ARCHITECTURE.md`.
+- Structured developer tools (`dev` group): Run Tests, Rerun Failed Tests, Run Single Test, Run Linter, Type Check,
+  Format Code, Build Project, Coverage Report, Install Dependencies, and Dependency Audit. They detect the stack
+  (Python, JavaScript/TypeScript, Go, Rust, Java, C#, Ruby, PHP), run the right tool, and return a compact result: a
+  failing test run is a short list of failing tests with file, line, and message rather than a long log. A missing tool is
+  reported as `UNAVAILABLE` with an install hint, never as a pass. Timeouts, result caps, and extra allowed executables
+  are settings under `[tools.dev]`. See `docs/TOOLS.md` and `docs/CONFIGURATION.md`.
+- Runtime tools (`runtime` group): Start Background Process (wait for a port, URL, log line, or delay), List
+  Processes, Read Process Logs, Stop Process, Wait For Service, HTTP Request, Check Port, Find Free Port,
+  Environment Info, Query SQLite, and Inspect Database Schema. An agent can start a dev server, check an endpoint's
+  response, and leave nothing running: background processes are killed when their stage ends, the run is cancelled,
+  their lifetime passes, or the run ends or crashes. HTTP requests may only reach this run's own loopback ports
+  unless `network.http_allowlist` names a host. Settings: `[runtime]` and `[network]`. See `docs/TOOLS.md`.
 - Typed contracts (`engineering_team.contracts`) for specs, plans, checks, findings, manifests, and events.
 - Workspace lock: one run per workspace. A second run (or `--reset`) against a workspace that is in use stops
   with a clear message naming the holder; the lock is released automatically if the holder crashes.
@@ -92,6 +127,10 @@ as each task lands.
 - Commands that time out now have their whole process tree killed (SIGTERM, then SIGKILL), so grandchildren
   no longer survive; command output is streamed to a capped log instead of being buffered without limit.
 
+- A running command's log file now shows its output as it is produced instead of when 8 KB has been written or the
+  command ends.
+- Python commands no longer write bytecode caches, so an edit followed by a re-run within the same second is not
+  served from stale bytecode.
 - An inline `ENGINEERING_PROJECT_REQUEST` no longer overrides an explicit `--request-file`.
 - Installed copies no longer look for a request file or create workspaces next to `site-packages`.
 - `engineering-team` no longer exits with status 1 after a successful run (the crew result was being

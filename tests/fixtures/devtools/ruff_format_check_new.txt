@@ -1,0 +1,8 @@
+unformatted: File would be reformatted
+ --> ugly.py:1:6
+  |
+  - x = {  "a":1 }
+1 + x = {"a": 1}
+  |
+
+1 file would be reformatted, 1 file already formatted

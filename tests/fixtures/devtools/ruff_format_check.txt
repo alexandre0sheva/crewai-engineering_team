@@ -1,0 +1,2 @@
+Would reformat: lint_me.py
+1 file would be reformatted, 1 file already formatted

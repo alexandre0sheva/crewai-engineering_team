@@ -9,7 +9,7 @@ welcome as issues, discussions, and pull requests. By participating you agree to
 Requirements: Python 3.11–3.13 (3.14 once CrewAI supports it) and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-uv sync --group dev
+uv sync --group dev --extra browser   # the extra adds Playwright for the browser tools
 ```
 
 The repository's `.env` (API keys) is never needed for development: the test suite is
@@ -20,7 +20,7 @@ hermetic and must stay that way.
 Every change must pass the same checks CI runs:
 
 ```bash
-uv sync --locked --group dev
+uv sync --locked --group dev --extra browser
 uv run ruff check .
 uv run ruff format --check .      # `uv run ruff format .` fixes formatting
 uv run mypy
@@ -32,9 +32,11 @@ Test rules:
 
 - Tests run offline: no network, no LLM calls, no reading your `.env` or `~/.config`.
   `tests/conftest.py` isolates the environment, framework storage, and the working directory.
-- Tests that need Docker or a live model must be marked (`docker`, `live`) and are skipped by
-  default (`tests/conftest.py`): `live` runs only with `ENGINEERING_LIVE_TESTS=1` and a provider
-  API key in the environment, `docker` only when `docker info` succeeds. A guard in the same file
+- Tests that need Docker, a real browser, or a live model must be marked (`docker`, `browser`,
+  `live`) and are skipped by default (`tests/conftest.py`): `live` runs only with
+  `ENGINEERING_LIVE_TESTS=1` and a provider API key in the environment, `docker` only when
+  `docker info` succeeds, `browser` only when Playwright can launch Chromium (`uv run playwright
+  install chromium`) or an installed Google Chrome. A guard in the same file
   fails any other test that connects to a non-loopback address.
 - Every bug fix gets a regression test that fails without the fix.
 

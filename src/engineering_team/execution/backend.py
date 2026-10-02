@@ -16,7 +16,13 @@ from typing import Protocol, runtime_checkable
 
 @dataclass(frozen=True)
 class CommandSpec:
-    """What to run. ``network=False`` is a request: only sandboxing backends can enforce it."""
+    """What to run. ``network=False`` is a request: only sandboxing backends can enforce it.
+
+    ``ports`` is the extension point for container backends: the TCP ports the process will
+    listen on. A sandboxing backend must publish each one only as ``127.0.0.1:<port>`` (never on
+    all interfaces) so the host-side HTTP and browser tools can reach it and nothing else can.
+    The local backend runs on the host's loopback already and ignores it.
+    """
 
     argv: tuple[str, ...]
     cwd: Path
@@ -24,6 +30,7 @@ class CommandSpec:
     timeout: float = 120.0
     label: str = ""
     network: bool = False
+    ports: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)

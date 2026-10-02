@@ -30,6 +30,8 @@ dependencies = [
 anthropic = ["crewai[anthropic]>=1.15.23,<1.16"]
 google = ["crewai[google-genai]>=1.15.23,<1.16"]
 azure = ["crewai[azure-ai-inference]>=1.15.23,<1.16"]
+# Headless-browser tools for UI verification (then `playwright install chromium`).
+browser = ["playwright>=1.63,<2"]
 
 [project.urls]
 Homepage = "https://github.com/alexandre0sheva/crewai-engineering_team"
@@ -67,6 +69,7 @@ testpaths = ["tests"]
 markers = [
     "live: calls a real model provider; runs only with ENGINEERING_LIVE_TESTS=1 and an API key",
     "docker: needs a running Docker daemon; skipped when `docker info` fails",
+    "browser: drives a real headless browser; skipped without Playwright and Chromium (or Chrome)",
 ]
 filterwarnings = [
     # CrewAI's own validators read deprecated Agent/Crew defaults while building agents;
@@ -84,6 +87,10 @@ exclude = ["*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# The JavaScript run inside the page is one string; wrapping it would only hurt readability.
+"src/engineering_team/browsertools/scripts.py" = ["E501"]
 
 [tool.mypy]
 files = ["src"]

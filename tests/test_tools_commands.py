@@ -196,3 +196,17 @@ def test_concurrent_commands_are_limited_by_the_gate(
     gate.release()
     thread.join(timeout=30)
     assert results and "ok" in results[0]
+
+
+def test_an_edit_and_an_immediate_rerun_run_the_new_code(toolbox: Toolbox) -> None:
+    """Regression: bytecode is keyed on whole-second mtime and size, so a same-size edit made
+    within the second of the first run used to execute the old module."""
+
+    toolbox.write("mod.py", "VALUE = 'a'\n")
+    toolbox.write("run.py", "import mod\nprint(mod.VALUE)\n")
+
+    assert "a" in toolbox("Run Project Command", command="python run.py")
+    toolbox.write("mod.py", "VALUE = 'b'\n")  # same size, same second
+
+    assert "b" in toolbox("Run Project Command", command="python run.py")
+    assert not list(toolbox.workspace.root.rglob("*.pyc"))

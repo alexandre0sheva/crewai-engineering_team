@@ -6,13 +6,12 @@ from pathlib import Path
 
 import pytest
 
+from engineering_team.atomic_io import atomic_write_json, atomic_write_text
 from engineering_team.contracts import RunManifest, StageRecord
 from engineering_team.runtime.run_store import (
     InvalidTransition,
     RunNotFound,
     RunStore,
-    atomic_write_json,
-    atomic_write_text,
     list_runs,
 )
 

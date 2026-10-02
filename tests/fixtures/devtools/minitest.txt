@@ -1,0 +1,23 @@
+Ignoring ffi-1.16.3 because its extensions are not built. Try: gem pristine ffi --version 1.16.3
+Ignoring json-2.7.1 because its extensions are not built. Try: gem pristine json --version 2.7.1
+Run options: --seed 21288
+
+# Running:
+
+E.SF
+
+Finished in 0.000539s, 7421.1507 runs/s, 3710.5753 assertions/s.
+
+  1) Error:
+CalcTest#test_boom:
+ArgumentError: boom
+    calc_test.rb:14:in `test_boom'
+
+  2) Failure:
+CalcTest#test_add_wrong [calc_test.rb:10]:
+Expected: 4
+  Actual: 3
+
+4 runs, 2 assertions, 1 failures, 1 errors, 1 skips
+
+You have skipped tests. Run with --verbose for details.

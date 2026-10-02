@@ -44,6 +44,7 @@ a profile.
 | `subprocess_env_allowlist` | `ENGINEERING_SUBPROCESS_ENV_ALLOWLIST` | – | Environment variable names project commands may inherit |
 | `ollama_base_url` | `ENGINEERING_OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server |
 | `enable_azure` | `ENGINEERING_ENABLE_AZURE` | `false` | Allow the Azure provider and `azure/...` models |
+| `web.enabled` | `ENGINEERING_ALLOW_WEB` | `false` | Register the web tools (Web Search, Fetch URL, Package Info). Also `--allow-web`. Off means no network tool exists in the run; see [Web tools](#web-tools-web-and-knowledge) |
 | `execution.backend` | `ENGINEERING_EXECUTION_BACKEND` | `local` | `local` (Docker arrives later in 0.2.0) |
 | `execution.max_parallel_commands` | `ENGINEERING_MAX_PARALLEL_COMMANDS` | `2` | Concurrent project commands |
 | `parallel.max_parallel_agents` | `ENGINEERING_MAX_PARALLEL` | `3` | Concurrent agents (used once parallel execution lands) |
@@ -54,11 +55,114 @@ a profile.
 | `budget.max_tool_calls` | `ENGINEERING_BUDGET_MAX_TOOL_CALLS` | – | Stop after this many agent tool calls |
 | `budget.max_repair_rounds` | `ENGINEERING_BUDGET_MAX_REPAIR_ROUNDS` | `3` | Fix-and-verify rounds a stage may attempt (used by the verification loop) |
 
+### Developer tools (`[tools.dev]`, config file only)
+
+Applies to Run Tests, Run Linter, Type Check, Format Code, Build Project, Coverage Report, Install
+Dependencies, and Dependency Audit ([TOOLS.md](TOOLS.md#developer-tools)). Timeouts are in seconds;
+a tool call may ask for less but never more.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `tools.dev.test_timeout` | `300` | Run Tests, Rerun Failed Tests, Run Single Test |
+| `tools.dev.lint_timeout` | `120` | Run Linter |
+| `tools.dev.typecheck_timeout` | `180` | Type Check |
+| `tools.dev.format_timeout` | `120` | Format Code |
+| `tools.dev.build_timeout` | `300` | Build Project |
+| `tools.dev.coverage_timeout` | `600` | Coverage Report (tests plus the report) |
+| `tools.dev.audit_timeout` | `180` | Dependency Audit |
+| `tools.dev.install_timeout` | `900` | Install Dependencies |
+| `tools.dev.max_failures` | `20` | Failing tests a report lists (the rest are counted) |
+| `tools.dev.max_diagnostics` | `50` | Diagnostics a lint, type-check, or build report lists (the rest are counted) |
+| `tools.dev.extra_executables` | – | Extra executables the dev tools may run, on top of `command_allowlist` and the built-in dev tools (`eslint`, `prettier`, `golangci-lint`, `rubocop`, ...) |
+| `tools.dev.allow_network` | `true` | Allow the two dev tools that need the network: Install Dependencies and Dependency Audit. Set `false` to refuse both |
+
+```toml
+[tools.dev]
+test_timeout = 600
+extra_executables = ["bazel"]
+```
+
+### Runtime tools and network (`[runtime]`, `[network]`, config file only)
+
+Applies to the background-process, HTTP, port, and SQLite tools ([TOOLS.md](TOOLS.md#runtime-tools)).
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `runtime.max_background_processes` | `4` | Background processes running at once in a run (a start beyond it is refused) |
+| `runtime.process_lifetime_seconds` | `1800` | Hard lifetime of a background process; it is killed when it passes |
+| `runtime.max_http_response_chars` | `20000` | Characters of an HTTP response body shown to the agent |
+| `network.http_allowlist` | – | Hosts the HTTP Request tool may call besides this run's own loopback ports: a name (`api.example.com`), `host:port`, or `*.example.com`. Each such request is logged as an `http.request` event with `external = true`. Allowlisted names are trusted; they are not checked for private addresses |
+
+```toml
+[runtime]
+max_background_processes = 6
+
+[network]
+http_allowlist = ["staging.example.com", "localhost:11434"]
+```
+
 `pricing` (config file only) overrides model prices; see [Budgets, usage, and cost](#budgets-usage-and-cost).
 
 Provider credentials are read by the model SDKs from their usual variables and are **not** settings:
 `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` (or `GEMINI_API_KEY`); Azure uses its own
 variables. A missing key is reported before a run starts (preparation with `--prepare-only` needs none).
+
+### Web tools (`[web]` and `[knowledge]`)
+
+Applies to `Web Search`, `Fetch URL`, `Package Info`, and `Search Docs` ([TOOLS.md](TOOLS.md#web-and-knowledge-tools)).
+**Off by default**: with `web.enabled = false` the three web tools are not even registered. Turn
+them on per run with `--allow-web` or `ENGINEERING_ALLOW_WEB=true`, or in the config file.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `web.enabled` | `false` | The switch described above (environment variable `ENGINEERING_ALLOW_WEB`, flag `--allow-web`) |
+| `web.roles` | – | Only these teammates get the web tools (names such as `researcher`, case-insensitive); empty means every teammate |
+| `web.search_provider` | – | `serper`, `brave`, or `tavily`; unset picks the first provider whose key is set, in that order |
+| `web.allow_domains` | – | When set, `Fetch URL` may only reach these hosts (`docs.python.org` or `*.example.com`; the wildcard is for subdomains) |
+| `web.deny_domains` | – | Hosts `Fetch URL` never reaches (checked on every redirect hop; deny beats allow) |
+| `web.max_requests_per_run` | `40` | Outbound web requests the whole run may make; every redirect hop counts |
+| `web.timeout_seconds` | `15` | Total time for one tool call, redirects included |
+| `web.max_download_bytes` | `2000000` | Bytes read from a response (compressed data is decoded within the same cap) |
+| `web.max_page_chars` | `20000` | Characters of a fetched page returned to the agent (a call may ask for fewer or up to 200,000) |
+| `knowledge.context_dirs` | – | Extra directories `Search Docs` indexes (markdown, text, rst, adoc; symlinks are not followed; relative paths use the current directory) |
+
+```toml
+[web]
+enabled = true
+search_provider = "brave"
+roles = ["researcher"]
+allow_domains = ["docs.python.org", "*.readthedocs.io"]
+max_requests_per_run = 25
+
+[knowledge]
+context_dirs = ["company-docs"]
+```
+
+**API keys are never settings.** Web Search reads its key from the environment, by these
+names only: `SERPER_API_KEY`, `BRAVE_API_KEY`, `TAVILY_API_KEY`. `config show` lists which are
+`set` (or `MISSING` when the web tools are enabled and none is), never a value, and the run's event
+log scrubs them. A key is sent only to its own provider, in a request header.
+
+### Browser tools (`[browser]`, config file only)
+
+Applies to the headless-browser tools ([TOOLS.md](TOOLS.md#browser-tools)). They exist only when the
+optional extra is installed (`uv sync --extra browser`, then `uv run playwright install chromium`).
+Which pages the browser may open is not a setting of its own: this run's localhost ports by
+default, and external sites only through `web.enabled` and `web.allow_domains` (above).
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `browser.channel` | `chromium` | `chromium` (Playwright's own download), `chrome`, or `msedge` (an installed browser, nothing to download) |
+| `browser.max_contexts` | `2` | Browsers (one incognito context per teammate) open at once; another teammate's `Browser Open` is refused until one closes |
+| `browser.page_timeout_seconds` | `30` | Time one navigation or action may take |
+| `browser.max_snapshot_chars` | `20000` | Characters of a `Browser Snapshot` returned (a call may ask for fewer) |
+| `browser.max_console_entries` | `100` | Console and network log entries kept per browser (the counts are not capped) |
+
+```toml
+[browser]
+channel = "chrome"
+max_contexts = 3
+```
 
 ## Models
 

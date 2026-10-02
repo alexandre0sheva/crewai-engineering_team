@@ -11,10 +11,16 @@ from engineering_team.model_routing import MODEL_FACTS, PROVIDER_PRESETS
 from engineering_team.pricing import build_table, default_prices
 from engineering_team.settings import (
     ENV_SETTINGS,
+    BrowserSettings,
     BudgetSettings,
+    DevToolsSettings,
     ExecutionSettings,
+    KnowledgeSettings,
+    NetworkSettings,
     ParallelSettings,
+    RuntimeSettings,
     Settings,
+    WebSettings,
     _build,
 )
 
@@ -36,11 +42,23 @@ def test_every_setting_is_documented() -> None:
         "execution",
         "parallel",
         "pricing",
+        "tools",
+        "runtime",
+        "network",
+        "web",
+        "knowledge",
+        "browser",
     }
     for section, model in (
         ("budget", BudgetSettings),
         ("execution", ExecutionSettings),
         ("parallel", ParallelSettings),
+        ("tools.dev", DevToolsSettings),
+        ("runtime", RuntimeSettings),
+        ("network", NetworkSettings),
+        ("web", WebSettings),
+        ("knowledge", KnowledgeSettings),
+        ("browser", BrowserSettings),
     ):
         keys |= {f"{section}.{name}" for name in model.model_fields}
 

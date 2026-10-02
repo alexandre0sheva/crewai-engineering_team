@@ -1,0 +1,4 @@
+{"reason": "compiler-message", "package_id": "calc 0.1.0", "message": {"level": "error", "code": {"code": "E0308"}, "message": "mismatched types", "spans": [{"file_name": "src/lib.rs", "line_start": 4, "column_start": 5, "is_primary": true}, {"file_name": "src/lib.rs", "line_start": 3, "column_start": 20, "is_primary": false}]}}
+{"reason": "compiler-message", "message": {"level": "warning", "code": {"code": "unused_variables"}, "message": "unused variable: `x`", "spans": [{"file_name": "src/main.rs", "line_start": 2, "column_start": 9, "is_primary": true}]}}
+{"reason": "compiler-message", "message": {"level": "error", "code": null, "message": "aborting due to 1 previous error", "spans": []}}
+{"reason": "build-finished", "success": false}

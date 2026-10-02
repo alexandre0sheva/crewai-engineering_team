@@ -62,11 +62,78 @@ logic modules (`search.py`, `navigation.py`, `symbols.py`, `patching.py`, `chang
 `scripts.py`, `ignore.py`), and `tools/registry.py`, the catalogue.
 
 The catalogue is data: each `ToolSpec` names a tool, its group (`fs_read`, `search`, `fs_write`,
-`command`), whether it is read-only, needs the network, or needs the command gate, and the factory
+`command`, the `dev`, `code_intel`, and `runtime` groups, and the coordination groups `board`,
+`notes`, `human`), whether it is read-only, needs the network, or needs the command gate, and the factory
 that builds it. `build_tools(ctx, groups=, write_scope=, read_only=)` assembles a run's tools from
 it. Every call passes through `ToolEnv.run`, which applies cancellation, the run's `tool_gate`
 (the hook the budget guard uses to refuse calls), write-scope checks, the `ERROR:` convention, and
 emits a redacted `tool.call` event to the run's event sink (a no-op sink until the run store lands).
+
+### Developer tools
+
+`devtools/` turns "run the tests" into data. `detect.py` finds a directory's stack from its
+manifests (shared with the verifier and the repository analyzer); `plans.py`, `plans_static.py`,
+and `plans_deps.py` build the command for each framework or tool, asking it for a machine-readable
+report (JUnit XML, JSON, `go test -json`, TRX, LCOV) in a scratch directory; `parsers/` are pure
+functions from that report to the shapes in `models.py` (`TestReport`, `DiagnosticReport`,
+`CoverageReport`, `InstallReport`, `AuditReport`); `runner*.py` (`DevRunner`) runs a plan through
+`ctx.backend`, applies the timeout, and reads the report back; `render.py` writes the compact text
+the tools return. A tool that is not installed is `unavailable` (with an install hint) and a run
+that produced no usable result is `error`; neither can read as a pass. The agent tools in
+`tools/dev_tools.py` are thin wrappers, and the verifier (T18) calls `DevRunner` directly.
+
+### Code intelligence
+
+`codeintel/` answers "where is it, and who depends on it" without a language server. `index.py`
+reads the project's source files once per call (`SourceIndex`: `.gitignore` honoured, 200 KB and
+5,000-file caps; it always covers the whole project because dependents live outside the directory
+a caller asks about). `definitions.py` extracts definitions with their line extent (`ast` for
+Python, indentation for Ruby, declaration regexes plus brace counting for the rest);
+`imports.py`, `imports_base.py`, and `imports_langs.py` build the forward and reverse
+`ImportGraph`, resolving specifiers to project files per language; `references.py` classifies uses
+(definition, import, call, other); `related.py` pairs files and symbols with tests;
+`dependencies.py` parses manifests and lockfiles; `git.py` reads `git log`/`git blame` through
+`ctx.backend` (fixed argv, no pager or external programs) for `hotspots.py` and `todos.py`, and
+raises `GitUnavailable` when there is no history so the tools degrade to a plain answer;
+`render.py` writes the compact text. The agent tools in `tools/codeintel_tools.py` are thin
+wrappers; the repository analyzer (T25) calls these modules directly. `codeintel/__init__.py`
+imports `engineering_team.tools` first so the two packages, which import each other's modules,
+load in a fixed order whichever one is imported first.
+
+### Browser tools
+
+`RunContext.browsers` (`runtime/browsers.py`, a `BrowserRegistry`) owns the run's headless browser:
+one worker thread (Playwright's sync API is bound to the thread that started it), one session per
+agent up to `browser.max_contexts`, sessions closed by `RunRecorder.stage` (their stage) and
+`RunRecorder._finish` (the run), and an `atexit` hook. Nothing starts, and `playwright` is not
+imported, until the first browser call. `browsertools/driver.py` is the Playwright driver and
+session (page events become the console log), `guard.py` decides which URLs are allowed (this run's
+localhost ports, plus allowlisted external hosts), `proxy.py` enforces it on every request,
+`actions.py` is what each tool does to a page, `a11y.py` the accessibility heuristics, and
+`tools/browser_tools.py` the thin tool wrappers; `build_tools` leaves the `browser` group out when
+the extra is not installed. See [SAFETY.md](SAFETY.md#browser-tools-sandbox-scope).
+
+### Web and knowledge tools
+
+`webtools/` holds everything that touches the internet or documents. `safenet.py` is the only HTTP
+client: a `WebFetcher` that validates and pins addresses, follows redirects by hand, and applies the
+domain rules, the caps, and the run's `RequestLimiter` (`runtime/requests.py`, a field of
+`RunContext`); `search.py` has the `SearchProvider` interface and the Serper, Brave, and Tavily
+providers; `packages.py` parses PyPI, npm, crates.io, and Go proxy responses; `htmltext.py` turns HTML
+into Markdown (standard library only); `docsearch.py` is the BM25 index over repo docs, context
+directories, and `run_dir/web-cache/`; `untrusted.py` labels everything the tools return. The agent
+tools in `tools/web_tools.py` and `tools/knowledge_tools.py` are thin wrappers, and
+`registry.build_tools` leaves the `web` group out unless `web.enabled` allows it for the teammate.
+Network access in tests is a fake (`safenet.NETWORK` is the one seam). See [SAFETY.md](SAFETY.md#web-tools-network-model).
+
+### Runtime tools and processes
+
+`RunContext.processes` (`runtime/processes.py`, a `ProcessRegistry`) owns every background process
+of the run and the loopback ports handed out to it. Processes start through `ctx.backend.start`,
+are tagged with the stage they were started in, and are stopped by `RunRecorder.stage` (its stage),
+`RunRecorder.running` (the run ends or crashes), a reaper thread (cancellation and lifetime limits),
+and an `atexit` hook; the tools in `tools/process_tools.py` and `tools/network_tools.py` are thin
+wrappers, and `tools/net.py` holds the HTTP policy and client. See [SAFETY.md](SAFETY.md).
 
 ### Execution backend
 
@@ -106,6 +173,8 @@ from reading `commands/` logs. This is the single description of its layout:
 | `request.md` | `RunRecorder` | The request exactly as given |
 | `usage.json` | `RunRecorder` | `UsageReport`: token totals and a breakdown by stage, agent, and model, with per-model cost (`null` when the price is unknown) |
 | `settings.json` | `RunRecorder` | The effective `Settings` (no secrets: credentials are read from the environment, never stored) |
+| `board.json`, `board.md` | `BoardStore` | The task board: every card with its history (`BoardState`), and a Markdown view of it ([Task board](#task-board)) |
+| `notes/<key>.md` | `NoteStore` | Shared notes agents wrote with `Write Note` |
 | `crew-log.json` | CrewAI | CrewAI's own execution log |
 | `commands/<n>.log` | `LocalBackend` | Full output of each project command |
 
@@ -132,6 +201,8 @@ by `read_events`. Event types today: `run.started`/`run.finished`; `tool.call` (
 redacted args, duration, ok); and, bridged from CrewAI, `crew.*`, `task.*`, `agent.*`,
 `tool.finished`/`tool.error` (CrewAI's view of tool use, including delegation) and `llm.call`
 (model as `provider/model`, call id, token usage) / `llm.failed`; `stage.started`/`stage.finished`;
+`board.*` (card created, moved, commented, updated; pause and resume; steering delivered);
+`question`, `question.answered`, `question.unanswered`; `note.written`, `decision.logged`;
 `budget.warning`/`budget.exceeded`.
 
 **The CrewAI bridge** (`runtime/bridge.py`). CrewAI has one process-wide event bus. The bridge
@@ -159,6 +230,66 @@ at 80%.
 **Secrets never enter events.** Before a line is written, every value of an environment
 variable whose name contains `KEY`, `TOKEN`, `SECRET`, or `PASSWORD` (at least 8 characters) is
 replaced with `[REDACTED]`, anywhere in the event, including nested data.
+
+## Task board
+
+The board is the run's kanban: what is planned, who is doing it, and whether it is really done.
+**The controller is the source of truth.** It creates cards and moves them from stage, work-package,
+and check events (the pipeline, T16, drives this), so the board is correct even when an agent
+forgets to update it. Agents use the board tools ([TOOLS.md](TOOLS.md)) to add subtasks to their
+own cards, start and hand over their own work, flag blockers, comment, and report progress; every
+move is validated.
+
+**Cards** (`board/models.py`) have an id (`K-001`, …), a `kind` (`stage`, `work_package`,
+`subtask`, `repair`, `finding`, `check`, `user_note`), a `status`, an assignee (teammate key), lane,
+stage, parent, dependencies, criteria, owned paths, artifacts, an attempt count, a blocked reason,
+comments, the ids of the checks that justify `done`, tokens and cost, timestamps, and a `history`
+of every move (who, from, to, why, with which evidence). **Columns** are `backlog · ready ·
+in_progress · verifying · blocked · done · failed`; `cancelled` cards are kept, shown apart, and
+leave the totals.
+
+**Who may move what** (one table, `board/rules.py`):
+
+| Move | Agent (own cards only) | Controller |
+|------|------------------------|------------|
+| `ready → in_progress` (start; counts an attempt) | yes | yes |
+| `in_progress → verifying` ("I'm done, please verify") | yes | yes |
+| any open state `→ blocked` (reason required) | yes | yes |
+| `blocked → in_progress` (resume) | yes | yes |
+| `backlog → ready`, `blocked → ready` | no | yes |
+| `verifying → in_progress` (failed checks; attempt +1) | no | yes |
+| `→ done` (needs check ids as evidence, or `stage_success` for a stage) | **no** | yes |
+| `→ failed` (reason required), `→ cancelled` | **no** | yes |
+
+`done`, `failed`, and `cancelled` are final. A refused move returns an `ERROR:` that lists the
+allowed next states. The in-progress column has a WIP limit, `parallel.max_parallel_agents`,
+counted over work packages and repairs (stage cards are containers and subtasks belong to their
+parent's agent); the controller sending a card back after failed checks is exempt.
+
+**Persistence and events.** `BoardStore` (`board/store.py`) is thread-safe: every mutation runs
+under one lock, rewrites `board.json` atomically (the file alone explains the run: each card carries
+its history), and emits a `board.*` event in the same order: `card_created`, `card_moved`,
+`card_commented`, `card_updated`, `paused`/`unpaused`, `steering_delivered`. `board.md`
+(`board/render.py`) is a Markdown view with one section per column, rewritten shortly after a change
+(debounced) and when the run ends; `board.json` is the machine format the CLI and web UI read.
+
+**Progress** (`board.progress()`) is cards done over cards total by weight (stage 1, work package 2,
+check 1, subtask 0.5; repairs, findings, and notes weigh nothing, so a late discovery never makes
+progress go backwards), per stage (a done stage card means 100%), the count per column, the blocked
+cards with their reasons, and the age of the oldest card in progress. There is no ETA.
+
+**Steering.** A card comment authored by `user`, or a run-level note (`add_user_note`), is handed to
+the assignee by `take_steering(agent)` as "User note on K-004: …" for the agent's next prompt, once
+per recipient; the pipeline calls it at each stage and agent boundary. `pause()` makes every tool
+call wait (the safe point between agent steps) until `unpause()` or cancellation. These are library
+calls now; the CLI and the web UI use them later.
+
+**Notes and questions.** `RunContext` also carries `notes` (run-scoped notes under
+`run_dir/notes/`, plus the project's append-only `.engineering-team/decisions.md`) and `human`
+(`runtime/interaction.py`). `HumanChannel.ask` blocks until `answer(question_id, text)` arrives, the
+timeout passes, or the run is cancelled; it emits `question` events. It starts non-interactive,
+where `ask` returns at once and the agent is told to proceed on an assumption; a front end calls
+`enable()` and answers `pending()` questions.
 
 ## Settings and model routing
 

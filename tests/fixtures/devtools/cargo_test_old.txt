@@ -1,0 +1,14 @@
+running 1 test
+test it_fails ... FAILED
+
+failures:
+
+---- it_fails stdout ----
+thread 'it_fails' panicked at 'explicit failure', src/lib.rs:5:5
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    it_fails
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

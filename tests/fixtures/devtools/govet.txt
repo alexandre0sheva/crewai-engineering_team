@@ -1,0 +1,4 @@
+# example.com/calc
+./bad.go:4:9: undefined: undefinedName
+./bad.go:4:9: invalid operation: operator + not defined on "x" (untyped string constant)
+vet: ./other.go:7:2: declared and not used: y

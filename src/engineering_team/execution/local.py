@@ -101,12 +101,14 @@ class LocalProcess:
         room = self._max_log_bytes - self._log_bytes
         if len(chunk) <= room:
             self._log.write(chunk)
+            self._log.flush()  # a reader of the log file (a background process) sees it now
             self._log_bytes += len(chunk)
             return
         self._log.write(chunk[: max(room, 0)])
         self._log.write(
             f"\n[log capped at {self._max_log_bytes} bytes; later output discarded]\n".encode()
         )
+        self._log.flush()
         self._log_capped = True
 
     def _remember(self, text: str) -> None:

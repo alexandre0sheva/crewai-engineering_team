@@ -81,3 +81,9 @@ def test_loopback_connections_are_still_allowed() -> None:
         server.listen(1)
         with socket.create_connection(server.getsockname(), timeout=2):
             pass
+
+
+def test_browser_tests_are_skipped_without_a_usable_browser() -> None:
+    assert "browser" in str(skip_reason(["browser"], {}, _docker, lambda: False))
+    assert skip_reason(["browser"], {}, _docker, lambda: True) is None
+    assert skip_reason(["browser"], {}, _docker) is None  # not asked: nothing is probed

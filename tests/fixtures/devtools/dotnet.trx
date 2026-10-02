@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="00000000-0000-0000-0000-000000000001" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Results>
+    <UnitTestResult testName="Calc.Tests.AddTests.Adds" outcome="Passed" duration="00:00:00.0012000" />
+    <UnitTestResult testName="Calc.Tests.AddTests.AddsWrong" outcome="Failed" duration="00:00:00.0100000">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Equal() Failure
+Expected: 4
+Actual:   3</Message>
+          <StackTrace>   at Calc.Tests.AddTests.AddsWrong() in /work/project/Calc.Tests/AddTests.cs:line 14</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult testName="Calc.Tests.AddTests.Later" outcome="NotExecuted" duration="00:00:00" />
+  </Results>
+</TestRun>

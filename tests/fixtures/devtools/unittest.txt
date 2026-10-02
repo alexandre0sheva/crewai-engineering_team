@@ -1,0 +1,27 @@
+test_add (tests.test_ut.CalcTests) ... ok
+test_add_wrong (tests.test_ut.CalcTests) ... FAIL
+test_div_zero (tests.test_ut.CalcTests) ... ERROR
+test_skip (tests.test_ut.CalcTests) ... skipped 'later'
+
+======================================================================
+ERROR: test_div_zero (tests.test_ut.CalcTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/project/tests/test_ut.py", line 14, in test_div_zero
+    div(1, 0)
+  File "/work/project/calc.py", line 6, in div
+    return a / b
+ZeroDivisionError: division by zero
+
+======================================================================
+FAIL: test_add_wrong (tests.test_ut.CalcTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/project/tests/test_ut.py", line 11, in test_add_wrong
+    self.assertEqual(add(1, 2), 4, "one plus two should be three")
+AssertionError: 3 != 4 : one plus two should be three
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.000s
+
+FAILED (failures=1, errors=1, skipped=1)

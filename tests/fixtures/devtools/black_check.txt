@@ -1,0 +1,4 @@
+would reformat /work/project/app.py
+
+Oh no! 💥 💔 💥
+1 file would be reformatted, 2 files would be left unchanged.

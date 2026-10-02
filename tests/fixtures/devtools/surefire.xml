@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.acme.CalcTest" tests="3" errors="0" skipped="1" failures="1" time="0.045">
+  <testcase name="adds" classname="com.acme.CalcTest" time="0.003"/>
+  <testcase name="addsWrong" classname="com.acme.CalcTest" time="0.012">
+    <failure message="expected: &lt;4&gt; but was: &lt;3&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;4&gt; but was: &lt;3&gt;
+	at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:55)
+	at com.acme.CalcTest.addsWrong(CalcTest.java:17)
+</failure>
+  </testcase>
+  <testcase name="later" classname="com.acme.CalcTest" time="0"><skipped/></testcase>
+</testsuite>

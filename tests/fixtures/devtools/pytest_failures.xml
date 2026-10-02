@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="3" skipped="1" tests="6" time="0.036" timestamp="2026-10-02T20:50:32.279018" hostname="Aleksandrs-MacBook-Pro.local"><testcase classname="tests.test_calc" name="test_add" time="0.000" /><testcase classname="tests.test_calc" name="test_add_wrong" time="0.000"><failure message="AssertionError: one plus two should be three&#10;assert 3 == 4&#10; +  where 3 = add(1, 2)">def test_add_wrong():
+&gt;       assert add(1, 2) == 4, "one plus two should be three"
+E       AssertionError: one plus two should be three
+E       assert 3 == 4
+E        +  where 3 = add(1, 2)
+
+tests/test_calc.py:11: AssertionError</failure></testcase><testcase classname="tests.test_calc" name="test_div_by_zero" time="0.000"><failure message="ZeroDivisionError: division by zero">def test_div_by_zero():
+&gt;       assert div(1, 0) == 0
+
+tests/test_calc.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+a = 1, b = 0
+
+    def div(a, b):
+&gt;       return a / b
+E       ZeroDivisionError: division by zero
+
+calc.py:6: ZeroDivisionError</failure></testcase><testcase classname="tests.test_calc" name="test_skipped" time="0.000"><skipped type="pytest.skip" message="not ready">/work/project/tests/test_calc.py:18: not ready</skipped></testcase><testcase classname="tests.test_calc" name="test_param[1-1]" time="0.000" /><testcase classname="tests.test_calc" name="test_param[2-3]" time="0.000"><failure message="assert 2 == 3">a = 2, b = 3
+
+    @pytest.mark.parametrize("a,b", [(1, 1), (2, 3)])
+    def test_param(a, b):
+&gt;       assert a == b
+E       assert 2 == 3
+
+tests/test_calc.py:25: AssertionError</failure></testcase></testsuite></testsuites>

@@ -5,20 +5,29 @@ from __future__ import annotations
 import secrets
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from engineering_team.execution.backend import ExecutionBackend
 from engineering_team.execution.local import LocalBackend
 from engineering_team.pricing import PriceTable
+from engineering_team.runtime.browsers import BrowserDriver, BrowserRegistry
 from engineering_team.runtime.budget import Budget, BudgetGuard
 from engineering_team.runtime.events import EventSink, FanoutSink, JsonlSink, Scrubber
+from engineering_team.runtime.interaction import HumanChannel
+from engineering_team.runtime.processes import ProcessRegistry
+from engineering_team.runtime.requests import RequestLimiter
 from engineering_team.runtime.run_store import EVENTS_FILENAME
 from engineering_team.runtime.snapshot import Snapshot
 from engineering_team.runtime.usage import UsageTracker
 from engineering_team.settings import Settings, secret_values
 from engineering_team.tools.workspace import CONTROLLER_DIRECTORY, ProjectWorkspace
+
+if TYPE_CHECKING:  # imported when a context is created: ``board`` itself imports ``runtime``
+    from engineering_team.board.notes import NoteStore
+    from engineering_team.board.store import BoardStore
 
 # Called with a tool's name before it runs; returning a message refuses the call (the tool
 # returns it as an ``ERROR:``). The budget guard installs one to stop runaway tool use.
@@ -31,6 +40,16 @@ def new_run_id() -> str:
     return f"{datetime.now(UTC):%Y%m%d-%H%M%S}-{secrets.token_hex(3)}"
 
 
+def _browser_driver(
+    settings: Settings, processes: ProcessRegistry, events: EventSink, run_dir: Path
+) -> BrowserDriver:
+    """Start the Playwright driver (imported here so a run without the extra never loads it)."""
+
+    from engineering_team.browsertools.driver import create_driver
+
+    return create_driver(settings, processes, events, run_dir)
+
+
 @dataclass(frozen=True, eq=False)
 class RunContext:
     """Everything one run needs: settings, workspace, state directory, and shared controls.
@@ -41,7 +60,12 @@ class RunContext:
     ``baseline`` is the workspace as it was when the run started (for change reports),
     ``events`` receives structured events such as ``tool.call`` and also feeds ``usage`` (token
     and tool-call accounting) and ``budget`` (the guard that stops an overspending run);
-    ``tool_gate`` is how the guard refuses tool calls.
+    ``tool_gate`` is how the guard refuses tool calls. ``board`` is the run's task board
+    (controller-owned; see ``docs/ARCHITECTURE.md``), ``notes`` its shared notes and decision
+    log, ``human`` the line to the person running it, and ``processes`` the run's background
+    processes and ports (all stopped when their stage or the run ends), ``browsers`` the run's
+    headless browser (closed with its stage or the run), and ``web_requests`` the run's shared
+    cap on outbound web requests.
     """
 
     run_id: str
@@ -56,7 +80,13 @@ class RunContext:
     usage: UsageTracker
     budget: BudgetGuard
     prices: PriceTable
+    board: BoardStore
+    notes: NoteStore
+    human: HumanChannel
+    processes: ProcessRegistry
+    browsers: BrowserRegistry
     tool_gate: ToolGate | None = None
+    web_requests: RequestLimiter = field(default_factory=lambda: RequestLimiter(40))
 
     @classmethod
     def create(
@@ -74,6 +104,9 @@ class RunContext:
         commands locally, logging to ``run_dir/commands/``.
         """
 
+        from engineering_team.board.notes import NoteStore
+        from engineering_team.board.store import BoardStore
+
         run_id = run_id or new_run_id()
         run_dir = workspace.root / CONTROLLER_DIRECTORY / "runs" / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
@@ -89,6 +122,15 @@ class RunContext:
             guard,
         )
         guard.attach(sink)
+        controller_dir = workspace.root / CONTROLLER_DIRECTORY
+        run_backend = backend or LocalBackend(run_dir / "commands", cancel_event)
+        processes = ProcessRegistry(
+            run_backend,
+            cancel_event,
+            sink,
+            max_processes=settings.runtime.max_background_processes,
+            max_lifetime=settings.runtime.process_lifetime_seconds,
+        )
         return cls(
             run_id=run_id,
             settings=settings,
@@ -96,11 +138,28 @@ class RunContext:
             run_dir=run_dir,
             command_gate=threading.BoundedSemaphore(settings.execution.max_parallel_commands),
             cancel_event=cancel_event,
-            backend=backend or LocalBackend(run_dir / "commands", cancel_event),
+            backend=run_backend,
             baseline=Snapshot.take(workspace),
             events=sink,
             usage=usage,
             budget=guard,
             prices=prices,
+            board=BoardStore(
+                run_dir,
+                sink,
+                run_id=run_id,
+                max_in_progress=settings.parallel.max_parallel_agents,
+            ),
+            notes=NoteStore(run_dir / "notes", controller_dir / "decisions.md", sink),
+            human=HumanChannel(sink),
+            processes=processes,
+            browsers=BrowserRegistry(
+                max_contexts=settings.browser.max_contexts,
+                driver_factory=lambda: _browser_driver(settings, processes, sink, run_dir),
+                cancel_event=cancel_event,
+                events=sink,
+                name=run_id,
+            ),
             tool_gate=guard.tool_gate,
+            web_requests=RequestLimiter(settings.web.max_requests_per_run),
         )

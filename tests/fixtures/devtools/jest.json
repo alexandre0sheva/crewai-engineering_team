@@ -1,0 +1,32 @@
+{
+  "numTotalTests": 4,
+  "numPassedTests": 2,
+  "numFailedTests": 1,
+  "numPendingTests": 1,
+  "success": false,
+  "testResults": [
+    {
+      "name": "/work/project/src/calc.test.js",
+      "status": "failed",
+      "assertionResults": [
+        {"ancestorTitles": ["calc"], "fullName": "calc adds", "status": "passed", "title": "adds", "duration": 3, "failureMessages": []},
+        {"ancestorTitles": ["calc"], "fullName": "calc adds wrong", "status": "failed", "title": "adds wrong", "duration": 12,
+         "failureMessages": ["\u001b[31mError: expect(received).toBe(expected)\u001b[39m\n\nExpected: 4\nReceived: 3\n    at Object.<anonymous> (/work/project/src/calc.test.js:9:21)\n    at Promise.then.completed (/work/project/node_modules/jest-circus/build/utils.js:298:28)"]},
+        {"ancestorTitles": ["calc"], "fullName": "calc later", "status": "pending", "title": "later", "duration": null, "failureMessages": []}
+      ]
+    },
+    {
+      "name": "/work/project/src/ok.test.js",
+      "status": "passed",
+      "assertionResults": [
+        {"ancestorTitles": [], "fullName": "works", "status": "passed", "title": "works", "duration": 1, "failureMessages": []}
+      ]
+    },
+    {
+      "name": "/work/project/src/broken.test.js",
+      "status": "failed",
+      "message": "\u001b[1m\u001b[31m  \u001b[1m● \u001b[22m\u001b[1mTest suite failed to run\u001b[39m\u001b[22m\n\n    Cannot find module './missing' from 'src/broken.test.js'",
+      "assertionResults": []
+    }
+  ]
+}

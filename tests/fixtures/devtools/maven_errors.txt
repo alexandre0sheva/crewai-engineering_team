@@ -1,0 +1,5 @@
+[INFO] Compiling 3 source files
+[ERROR] COMPILATION ERROR :
+[ERROR] /work/project/src/main/java/com/acme/Calc.java:[12,5] cannot find symbol
+[ERROR] /work/project/src/main/java/com/acme/Calc.java:[20,9] incompatible types: int cannot be converted to String
+[INFO] BUILD FAILURE

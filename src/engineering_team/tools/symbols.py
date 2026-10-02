@@ -71,14 +71,14 @@ _RUST = [
     for kind in ("fn", "struct", "enum", "trait", "mod", "type")
 ]
 
-_REGEX_LANGUAGES: dict[str, list[tuple[str, re.Pattern[str]]]] = {
+REGEX_RULES: dict[str, list[tuple[str, re.Pattern[str]]]] = {
     **dict.fromkeys((".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"), _JS),
     ".go": _GO,
     ".java": _JAVA,
     ".kt": _JAVA,
     ".rs": _RUST,
 }
-SUPPORTED_SUFFIXES = frozenset({".py", *_REGEX_LANGUAGES})
+SUPPORTED_SUFFIXES = frozenset({".py", *REGEX_RULES})
 
 _PY_FALLBACK = [
     ("class", re.compile(r"^class\s+([A-Za-z_]\w*)")),
@@ -130,5 +130,5 @@ def extract_symbols(path: str, text: str) -> list[Symbol]:
     if suffix == ".py":
         found = _python_symbols(text)
         return found if found is not None else _regex_symbols(text, _PY_FALLBACK)
-    rules = _REGEX_LANGUAGES.get(suffix)
+    rules = REGEX_RULES.get(suffix)
     return _regex_symbols(text, rules) if rules else []

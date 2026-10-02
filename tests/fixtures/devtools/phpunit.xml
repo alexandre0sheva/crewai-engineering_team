@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="Calc" tests="2" assertions="2" errors="0" failures="1" skipped="0" time="0.01">
+    <testcase name="testAdd" class="CalcTest" classname="CalcTest" file="/work/project/tests/CalcTest.php" line="8" assertions="1" time="0.001"/>
+    <testcase name="testAddWrong" class="CalcTest" classname="CalcTest" file="/work/project/tests/CalcTest.php" line="13" assertions="1" time="0.002">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">CalcTest::testAddWrong
+Failed asserting that 3 matches expected 4.
+
+/work/project/tests/CalcTest.php:15</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -11,11 +11,12 @@ from importlib import metadata
 
 import crewai
 
+from engineering_team.atomic_io import atomic_write_json, atomic_write_text
 from engineering_team.contracts import RunManifest, RunStatus, RunSummary, StageRecord, utc_now
 from engineering_team.runtime.bridge import bind_run, flush_bridge
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import stage_scope
-from engineering_team.runtime.run_store import RunStore, atomic_write_json, atomic_write_text
+from engineering_team.runtime.run_store import RunStore
 
 
 def _sha256(text: str) -> str:
@@ -133,6 +134,8 @@ class RunRecorder:
             status = "failed"
             raise
         finally:
+            ctx.processes.stop_stage(name)  # a server started in this stage does not outlive it
+            ctx.browsers.stop_stage(name)  # nor does a browser context opened in it
             record = record.model_copy(update={"status": status, "finished": utc_now()})
             self.store.record_stage(ctx.run_id, record)
             ctx.events.emit("stage.finished", stage=name, status=status)
@@ -154,6 +157,9 @@ class RunRecorder:
 
     def _finish(self, outcome: RunStatus, error: str | None) -> None:
         ctx = self.ctx
+        ctx.processes.stop_all("the run ended")  # nothing the run started may keep running
+        ctx.browsers.close_all("the run ended")
+        ctx.board.flush()  # board.json and board.md as the run ended
         report = ctx.usage.report(ctx.prices)
         atomic_write_json(ctx.run_dir / "usage.json", report.model_dump(mode="json"))
         summary = self.summary(outcome)

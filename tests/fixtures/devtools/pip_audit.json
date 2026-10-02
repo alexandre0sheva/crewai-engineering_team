@@ -1,0 +1,26 @@
+{
+ "dependencies": [
+  {
+   "name": "requests",
+   "version": "2.19.0",
+   "vulns": [
+    {
+     "id": "PYSEC-2018-28",
+     "fix_versions": [
+      "2.20.0"
+     ],
+     "aliases": [
+      "CVE-2018-18074"
+     ],
+     "description": "The Requests package before 2.20.0 sends an HTTP Authorization header to an http URI upon receiving a same-hostname https-to-http redirect."
+    }
+   ]
+  },
+  {
+   "name": "flask",
+   "version": "3.0.0",
+   "vulns": []
+  }
+ ],
+ "fixes": []
+}

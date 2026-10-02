@@ -44,8 +44,38 @@ def docker_is_available() -> bool:
         return False
 
 
+_BROWSER_PROBE: list[str | None] = []  # the usable Playwright channel (or None), probed once
+
+
+def usable_browser_channel() -> str | None:
+    """The Playwright channel that can launch headless here (``chromium`` or ``chrome``), if any."""
+
+    if _BROWSER_PROBE:
+        return _BROWSER_PROBE[0]
+    found: str | None = None
+    try:
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as playwright:
+            for channel in ("chromium", "chrome"):
+                try:
+                    options = {} if channel == "chromium" else {"channel": channel}
+                    playwright.chromium.launch(headless=True, timeout=30_000, **options).close()
+                    found = channel
+                    break
+                except Exception:
+                    continue
+    except Exception:
+        found = None
+    _BROWSER_PROBE.append(found)
+    return found
+
+
 def skip_reason(
-    keywords: Iterable[str], environ: Mapping[str, str], docker_available: Callable[[], bool]
+    keywords: Iterable[str],
+    environ: Mapping[str, str],
+    docker_available: Callable[[], bool],
+    browser_available: Callable[[], bool] | None = None,
 ) -> str | None:
     """Why a test with these marker names must be skipped by default, or ``None``."""
 
@@ -57,6 +87,8 @@ def skip_reason(
             return "live test: no provider API key in the environment"
     if "docker" in names and not docker_available():
         return "docker test: no running Docker daemon"
+    if "browser" in names and browser_available is not None and not browser_available():
+        return "browser test: Playwright with Chromium or Chrome is not available"
     return None
 
 
@@ -72,7 +104,10 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
     for item in items:
         reason = skip_reason(
-            (marker.name for marker in item.iter_markers()), os.environ, docker_available
+            (marker.name for marker in item.iter_markers()),
+            os.environ,
+            docker_available,
+            lambda: usable_browser_channel() is not None,
         )
         if reason is not None:
             item.add_marker(pytest.mark.skip(reason=reason))

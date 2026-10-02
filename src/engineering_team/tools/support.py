@@ -100,6 +100,7 @@ class ToolEnv:
 
     ctx: RunContext
     write_scope: WriteScope | None = None
+    agent: str | None = None  # the teammate these tools belong to; board tools act as it
 
     @property
     def workspace(self) -> ProjectWorkspace:
@@ -119,8 +120,10 @@ class ToolEnv:
         Order: cancellation, the tool-call gate, write-scope checks for ``changes`` (paths
         written) and ``deletes`` (paths removed), the operation itself. Every outcome emits a
         ``tool.call`` event with redacted arguments, the duration, and whether it succeeded.
+        A paused run holds the call (before anything else) until it is resumed or cancelled.
         """
 
+        self.ctx.board.wait_while_paused(self.ctx.cancel_event)
         started = time.monotonic()
         result = self._guarded(tool, operation, changes, deletes)
         self.ctx.events.emit(
@@ -129,6 +132,7 @@ class ToolEnv:
             args=_loggable(arguments or {}),
             duration=round(time.monotonic() - started, 4),
             ok=not result.startswith("ERROR:"),
+            agent=self.agent,
         )
         return result
 

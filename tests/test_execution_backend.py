@@ -202,3 +202,27 @@ def test_a_started_process_can_be_polled_and_waited_on(
 
     assert record.exit_code == 0 and "late" in record.output_tail
     assert handle.poll() == 0
+
+
+def test_a_running_processes_log_file_shows_its_output_before_it_exits(tmp_path: Path) -> None:
+    """Regression: the log was a buffered file, so Read File Range / Read Process Logs saw
+    nothing until 8 KB had been written or the process ended."""
+
+    script = _script(
+        tmp_path,
+        "talk.py",
+        "import time\nprint('hello from the child', flush=True)\ntime.sleep(30)\n",
+    )
+    handle = LocalBackend(tmp_path / "logs").start(_spec(tmp_path, str(script)))
+    try:
+        deadline = time.monotonic() + 10
+        while (
+            time.monotonic() < deadline
+            and "hello from the child" not in handle.log_path.read_text(encoding="utf-8")
+        ):
+            time.sleep(0.05)
+
+        assert "hello from the child" in handle.log_path.read_text(encoding="utf-8")
+        assert handle.poll() is None
+    finally:
+        handle.stop()

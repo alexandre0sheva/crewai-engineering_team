@@ -82,8 +82,12 @@ def prepare_command(
     command: str,
     relative_cwd: str = ".",
     timeout_seconds: int = 120,
+    *,
+    max_timeout: int = MAX_COMMAND_TIMEOUT,
 ) -> CommandSpec:
     """Validate ``command`` (allowlist, no shell, no inline code, no outside paths).
+
+    ``max_timeout`` caps ``timeout_seconds`` (the developer tools allow longer runs).
 
     Returns the spec to run, or raises :class:`WorkspaceError` with a message saying how to
     fix the call.
@@ -125,7 +129,7 @@ def prepare_command(
         raise WorkspaceError(f"Command working directory is not a directory: {relative_cwd}")
     _reject_external_path_arguments(workspace, arguments[1:])
 
-    timeout = max(1, min(int(timeout_seconds), MAX_COMMAND_TIMEOUT))
+    timeout = max(1, min(int(timeout_seconds), max_timeout))
     if shutil.which(arguments[0]) is None and not (
         arguments[0].startswith("./") and (cwd / arguments[0]).is_file()
     ):
@@ -214,6 +218,9 @@ def command_environment(workspace: ProjectWorkspace) -> dict[str, str]:
         {
             "HOME": str(tool_home),
             "TMPDIR": str(temp_root),
+            # An edit and a re-run within the same second would otherwise load stale bytecode
+            # (the cache is keyed on mtime in whole seconds and the size).
+            "PYTHONDONTWRITEBYTECODE": "1",
             "UV_CACHE_DIR": str(cache_root / "uv"),
             "PIP_CACHE_DIR": str(cache_root / "pip"),
             "npm_config_cache": str(cache_root / "npm"),
