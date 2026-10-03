@@ -19,16 +19,17 @@ Only the latest released version receives fixes.
 
 In scope: flaws in this project's own code that let a request, a generated project, or an
 agent act outside its intended boundary — for example escaping the project workspace,
-reading protected files, leaking credentials into child processes, or deleting data it does
-not own.
+reading protected files, leaking credentials into child processes, deleting data it does
+not own, or a Docker sandbox (`--sandbox docker`) that mounts, passes, or allows more than
+[docs/SAFETY.md](docs/SAFETY.md#docker-backend) says.
 
 Out of scope:
 
 - **Code written by the agents is untrusted.** Generated programs, package install scripts,
-  and test commands run with your user's privileges unless you use a sandbox. The
+  and test commands run with your user's privileges unless you use the Docker sandbox. The
   command allowlist and path checks reduce accidents; they are not a security boundary
-  against hostile code. Run the orchestrator in a container or VM for untrusted requests
-  or repositories.
+  against hostile code, and a container shares your kernel (a kernel or Docker vulnerability
+  is out of scope). Run the orchestrator in a VM for untrusted requests or repositories.
 - Vulnerabilities in CrewAI, model providers, or other dependencies (report those upstream;
   Dependabot tracks our dependency updates).
 - Prompt-injection that only changes what a model says without crossing a boundary above.

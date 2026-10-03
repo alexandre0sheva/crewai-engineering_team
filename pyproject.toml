@@ -24,6 +24,7 @@ classifiers = [
 dependencies = [
     "crewai[tools]>=1.15.23,<1.16",
     "pyyaml>=6.0,<7",  # recipes and stage prompts (also a CrewAI dependency; declared, not assumed)
+    "pydantic>=2.7,<3",  # settings and contracts (also a CrewAI dependency; declared, not assumed)
 ]
 
 [project.optional-dependencies]

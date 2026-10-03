@@ -66,7 +66,7 @@ the `execution.docker` table (config file only) and apply only to that backend.
 |---------|---------|---------|
 | `execution.docker.image` | – | Use this image for every command. Unset: one image per language, chosen from the program being run (`npm` → Node) and otherwise from the project's detected stack |
 | `execution.docker.setup_image` | – | Image for commands that need the network (installs, audits). Unset: the same image as everything else |
-| `execution.docker.git_image` | `alpine/git:latest` | Image for the controller's Git commands (the language images lack Git) |
+| `execution.docker.git_image` | `alpine/git:2.54.0` | Image for the controller's Git commands (the language images lack Git) |
 | `execution.docker.network` | `setup` | `setup`: only install-type commands (and servers that publish a port) get a network. `none`: no network for anything that does not publish a port, so installs fail |
 | `execution.docker.memory` | `2g` | Memory limit per command (swap disabled); a number with `b`, `k`, `m`, or `g` |
 | `execution.docker.cpus` | `2.0` | CPU limit per command |

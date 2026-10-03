@@ -119,7 +119,7 @@ What it does **not** protect against:
   tools run on the host. Anyone who can use your Docker daemon is effectively root on the host.
 - **Image trust.** Images come from the registries named in `execution.docker`; the defaults are the
   official Docker Hub, MCR, and `astral/uv` images, pulled on first use. `execution.docker.git_image`
-  is a third-party image (`alpine/git`); pin another if that matters to you.
+  is a third-party image (`alpine/git`, pinned to a version); choose another if that matters to you.
 
 Operational notes: the daemon must run on this machine (a remote `DOCKER_HOST` is refused because
 the project is bind-mounted); running as root is refused; a hard kill of the controller can leave a

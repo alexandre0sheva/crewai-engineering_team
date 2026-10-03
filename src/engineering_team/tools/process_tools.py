@@ -171,7 +171,8 @@ def make_process_tools(env: ToolEnv) -> dict[str, BaseTool]:
 
         ready_when: 'port' (ready_target='8000'), 'url' (ready_target='http://127.0.0.1:8000/'),
         'log_regex' (a pattern in its output) or 'delay' (seconds); empty returns at once. Also
-        list ports= it serves (comma-separated). It is stopped when your stage or the run ends.
+        list ports= it serves (comma-separated; in the Docker sandbox it must listen on 0.0.0.0).
+        It is stopped when your stage or the run ends.
         """
 
         def operation() -> str:

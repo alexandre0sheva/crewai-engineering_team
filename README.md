@@ -30,7 +30,9 @@ stack and a conventional nested project structure.
 - Filesystem tools prevent traversal and symlink escapes, and keep agents out of `.git` and
   the orchestrator's own `.engineering-team/` state.
 - Command execution returns stdout, stderr, exit code, and timeouts; it uses no
-  shell and strips secrets from child processes.
+  shell and strips secrets from child processes. `--sandbox docker` runs every command in a
+  hardened container instead (no network except installs, only the project mounted; see
+  [docs/SAFETY.md](docs/SAFETY.md#docker-backend)).
 - Interim artifact guardrails require architecture, README, verification, and
   release documents to exist and contain real content before tasks can pass.
 - Tracing and remote documentation MCPs are opt-in.

@@ -305,7 +305,7 @@ def test_images_follow_the_command_and_the_settings(
 ) -> None:
     default = make_backend()
     assert default.image_for(command(project, "npm", "test")) == "node:22-slim"
-    assert default.image_for(command(project, "git", "status", label="git")) == "alpine/git:latest"
+    assert default.image_for(command(project, "git", "status", label="git")) == "alpine/git:2.54.0"
 
     custom = make_backend(
         DockerSettings(image="my/image:1", setup_image="my/setup:1", git_image="my/git:1")
@@ -461,7 +461,7 @@ def test_git_runs_in_the_git_image_with_a_trusted_mount(
     ctx.git.head()  # type: ignore[attr-defined]
 
     [argv] = run_calls(fake)
-    assert "alpine/git:latest" in argv
+    assert "alpine/git:2.54.0" in argv
     env_file = str(next(c for c in calls(fake) if c["args"][0] == "run")["env_file"])  # type: ignore[index]
     assert "GIT_CONFIG_VALUE_0=*" in env_file and "GIT_CONFIG_NOSYSTEM=1" in env_file
 
@@ -475,3 +475,14 @@ def test_the_sandbox_flag_overrides_the_backend_setting() -> None:
     assert "execution.backend" not in main._cli_overrides(main._run_parser().parse_args([]))
     with pytest.raises(SystemExit):
         main._run_parser().parse_args(["--sandbox", "vm"])
+
+
+def test_a_run_that_cannot_get_its_backend_leaves_no_run_directory(
+    make_context: Callable[..., object], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PATH", "")
+
+    with pytest.raises(ExecutionUnavailable):
+        make_context("empty", settings=settings_for("docker"))
+
+    assert not list((tmp_path / "empty" / ".engineering-team" / "runs").glob("*"))

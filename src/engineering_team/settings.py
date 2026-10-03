@@ -139,7 +139,7 @@ class DockerSettings(_Frozen):
 
     image: str | None = None
     setup_image: str | None = None
-    git_image: str = "alpine/git:latest"
+    git_image: str = "alpine/git:2.54.0"
     network: Literal["setup", "none"] = "setup"
     memory: str = Field(default="2g", pattern=r"^[1-9][0-9]*[bkmgBKMG]?$")
     cpus: float = Field(default=2.0, gt=0, le=64)

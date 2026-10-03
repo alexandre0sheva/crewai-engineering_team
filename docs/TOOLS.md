@@ -280,8 +280,9 @@ For verifying a user interface: load the app, read it, use it, and check what it
   opened in, and everything closes when the run ends, fails, or crashes.
 - **Defaults per teammate.** The frontend and quality teammates get the `browser` group by default
   once teammates are configurable (T23); `build_tools(..., groups=["browser"])` selects it today.
-- **Not included.** Downloads, file uploads, credential storage, and a Playwright test runner. The
-  Verifier's `browser_script` check type arrives with the Verifier (T18).
+- **Not included.** Downloads, file uploads, credential storage, and a Playwright test runner as a tool.
+  The Verifier can run your own Playwright script as a `browser_script` check
+  ([CONFIGURATION.md](CONFIGURATION.md#verification-verify-and---checks)).
 
 ## Conventions every tool follows
 

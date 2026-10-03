@@ -35,7 +35,7 @@ Test rules:
 - Tests that need Docker, a real browser, or a live model must be marked (`docker`, `browser`,
   `live`) and are skipped by default (`tests/conftest.py`): `live` runs only with
   `ENGINEERING_LIVE_TESTS=1` and a provider API key in the environment, `docker` only when
-  `docker info` succeeds, `browser` only when Playwright can launch Chromium (`uv run playwright
+  `docker info` succeeds (they pull small `alpine` and `python:3.12-alpine` images on first use), `browser` only when Playwright can launch Chromium (`uv run playwright
   install chromium`) or an installed Google Chrome. A guard in the same file
   fails any other test that connects to a non-loopback address.
 - Every bug fix gets a regression test that fails without the fix.

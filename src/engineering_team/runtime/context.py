@@ -127,8 +127,13 @@ class RunContext:
 
         run_id = run_id or new_run_id()
         run_dir = workspace.root / CONTROLLER_DIRECTORY / "runs" / run_id
-        run_dir.mkdir(parents=True, exist_ok=True)
         cancel_event = threading.Event()
+        # Before the run directory exists: a backend that cannot start (Docker missing) must
+        # leave no empty run behind.
+        run_backend = backend or create_backend(
+            settings, workspace.root, run_dir / "commands", run_id, cancel_event
+        )
+        run_dir.mkdir(parents=True, exist_ok=True)
         usage = (
             UsageTracker.from_events(read_events(run_dir / EVENTS_FILENAME))
             if resume
@@ -145,9 +150,6 @@ class RunContext:
         )
         guard.attach(sink)
         controller_dir = workspace.root / CONTROLLER_DIRECTORY
-        run_backend = backend or create_backend(
-            settings, workspace.root, run_dir / "commands", run_id, cancel_event
-        )
         processes = ProcessRegistry(
             run_backend,
             cancel_event,
