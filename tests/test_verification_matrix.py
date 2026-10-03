@@ -103,7 +103,7 @@ def test_a_run_whose_checks_pass_is_verified_with_a_report_the_controller_wrote(
     # The result is stored with the revision it ran against and a log the controller kept.
     saved = json.loads((run_dir(manifest) / "verification" / "round-0.json").read_text("utf-8"))
     assert saved["results"][0]["exit_code"] == 0 and saved["results"][0]["revision"]
-    assert "Project workspace" in capsys.readouterr().out
+    assert "Workspace: " in capsys.readouterr().out
 
 
 # -- false successes ---------------------------------------------------------------------------

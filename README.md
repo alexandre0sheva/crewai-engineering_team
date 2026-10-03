@@ -64,116 +64,22 @@ lower-cost tier.
 
 ## Quick start
 
-The package bundles a concrete Tiny Notes CLI request, so this command works
-immediately from any directory (projects are created under `./workspace/`):
-
 ```bash
-uv run engineering-team --example tiny-notes
+uv run engineering-team doctor                       # is this machine ready?
+uv run engineering-team new --example tiny-notes     # a cheap bundled example
+uv run engineering-team new --request-file my-idea.md --project-name my-idea
 ```
 
-Its smoke marker selects the lower-cost `smoke` profile (a cheap model for every role, low
-reasoning, and small iteration caps; see [docs/CONFIGURATION.md](docs/CONFIGURATION.md#models)).
+In a terminal you get a live view of the run: progress, the task board as a kanban, parallel lanes, and
+cost against your budget. Steer it from another terminal with `board --watch`, `note`, `pause`, and
+`cancel`; continue an interrupted run with `resume`. Everything, including exit codes, `--json` output,
+and how to write a request the team can succeed with, is in [docs/USAGE.md](docs/USAGE.md).
 
-The example has no third-party runtime dependencies, web research, graphical
-interface, or integrations. The run exercises the manager, every specialist,
-filesystem tools, tests, verification, and release handoff.
+Projects are created under `./workspace/<project-name>/`; reset is explicit (`--reset`) and only deletes
+projects this tool created. The bundled example selects the lower-cost `smoke` profile (see
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md#models)), so a first run stays cheap.
 
-Standard model variables never override smoke mode, so production settings cannot
-accidentally make the bundled test expensive.
-
-## Define your own MVP
-
-Write your real request as a Markdown file (start from the bundled example if you
-like; remove its `ENGINEERING_TEAM_PROFILE: smoke` marker). Requests without that
-marker use the `standard` profile. Pass the file explicitly:
-
-```bash
-uv run engineering-team \
-  --project-name habit-tracker \
-  --request-file path/to/habit-tracker.md \
-  --profile standard
-```
-
-You can also pass a short request inline:
-
-```bash
-uv run engineering-team \
-  --project-name webhook-inspector \
-  --request "Build a local web app that receives, stores, filters, and replays webhook payloads."
-```
-
-For a strong result, include the problem, primary user and journey, must-have
-scope, non-goals, acceptance criteria, data/privacy rules, integrations, and
-deployment target. Technical choices are optional—the architect will choose
-simple defaults when they are not specified.
-
-## Run
-
-Validate the request and prepare its project directory without spending model
-tokens:
-
-```bash
-uv run engineering-team \
-  --project-name habit-tracker \
-  --request-file path/to/habit-tracker.md \
-  --prepare-only
-```
-
-Run the full team:
-
-```bash
-uv run engineering-team \
-  --project-name habit-tracker \
-  --request-file path/to/habit-tracker.md
-```
-
-The request is taken from the first of these that is present: `--request`,
-`--example`, `--request-file`, `ENGINEERING_PROJECT_REQUEST`,
-`ENGINEERING_REQUEST_FILE`, then `PROJECT_REQUEST.md` in the current directory. So
-`crewai run` works when your project directory contains a `PROJECT_REQUEST.md`; its
-workspace is named `mvp-app` unless you set `ENGINEERING_PROJECT_NAME` (see
-[docs/CONFIGURATION.md](docs/CONFIGURATION.md)).
-Relative workspace roots, including the default `workspace`, are resolved against the
-directory you run the command from.
-
-The same command resumes the existing project. To intentionally start that
-project over:
-
-```bash
-uv run engineering-team \
-  --project-name habit-tracker \
-  --request-file path/to/habit-tracker.md \
-  --reset
-```
-
-`--reset` deletes only `workspace/habit-tracker/`, and only if this tool created it
-(it contains `.engineering-team/owner.json`; projects from 0.1.0 are recognised too).
-An existing non-empty directory that this tool did not create is never modified or
-reset by default; `--force-reset` overrides that, but your home directory, the
-current directory and its parents, the filesystem root, symlinks, and the
-engineering-team installation are always refused.
-
-Exit codes: `0` success (verified, for a pipeline run), `2` usage or configuration error (one-line
-message), `1` runtime failure, `3` the controller's own checks failed, `4` verification was partial (a
-required check could not run), `130` interrupted or cancelled.
-
-### Staged runs: resume and cancel
-
-`--strategy pipeline` (or `ENGINEERING_STRATEGY=pipeline`) runs the team as a staged,
-resumable pipeline (spec, plan, foundation, implement, verify, release) instead of the default
-manager-led crew; `--strategy single` runs one agent with every tool, the baseline the other
-strategies are measured against. In a pipeline run the controller, not an agent, runs the tests and checks
-(`--checks FILE` adds your own; see [Configuration](docs/CONFIGURATION.md#verification-verify-and---checks)) and
-writes `docs/verification.md` from what it saw. A pipeline run that was cancelled (Ctrl-C), interrupted, or failed
-continues where it stopped, without redoing finished stages:
-
-```bash
-uv run engineering-team resume <run_id> --project-name habit-tracker
-uv run engineering-team cancel <run_id> --project-name habit-tracker   # from another terminal
-```
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#pipeline-recipes-and-resume) for how stages,
-recipes, and resume work.
+The 0.1.0 form (`engineering-team --request-file FILE`) still works and prints a deprecation notice.
 
 ## Generated project layout
 
@@ -271,10 +177,8 @@ uv run ruff check .
 Validate CLI setup without an LLM call:
 
 ```bash
-uv run engineering-team \
-  --project-name smoke-test \
-  --request "Build a CLI that stores and lists notes in a local JSON file." \
-  --prepare-only
+uv run engineering-team new --project-name smoke-test --prepare-only \
+  --request "Build a CLI that stores and lists notes in a local JSON file."
 ```
 
 An actual crew run consumes model tokens and may install dependencies selected
@@ -288,7 +192,7 @@ Use these entry points for training, replay, and evaluation:
 
 ```bash
 uv run train <iterations> <training-file> [request options]
-uv run replay <task-id>
+uv run replay <task-id> --run <run-id>
 uv run test <iterations> <evaluation-model> [request options]
 ```
 

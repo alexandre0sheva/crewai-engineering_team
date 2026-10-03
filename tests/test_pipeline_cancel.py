@@ -221,7 +221,7 @@ def test_the_cancel_command_reports_usage_errors_on_one_line(
     )
 
     assert code == 2
-    assert "No project workspace" in capsys.readouterr().err
+    assert "No runs found" in capsys.readouterr().err
 
 
 def test_a_cancelled_run_keeps_a_truthful_board(monkeypatch: pytest.MonkeyPatch) -> None:

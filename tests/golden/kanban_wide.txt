@@ -1,0 +1,11 @@
+Backlog (1)                Ready (1)                In progress (2)          Verifying (1)            Blocked (1)              Done (2)               
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+K-005 Integration          K-006 Release report     K-003 Storage layer      K-007 Project tests      K-008 Web front end      K-001 Specification    
+                                                    backend_engineer · 12m   1m                       frontend_engineer · 9m   5m                     
+                                                    · lane 1                                          ⛔ needs the API                                
+                                                                                                      contract from K-003      K-002 Architecture and 
+                                                    K-004 Command line                                                         plan                   
+                                                    interface                                                                  5m                     
+                                                    backend_engineer · 3m                                                                             
+                                                    · lane 2                                                                                          
+                                                                                                                                                      

@@ -23,6 +23,7 @@ from engineering_team.pipeline.state import (
 from engineering_team.pipeline.strategies import Strategy, get_strategy
 from engineering_team.runtime.cancel import cancellation, request_cancel
 from engineering_team.runtime.context import RunContext
+from engineering_team.runtime.inbox import inbox_watch
 from engineering_team.runtime.locks import WorkspaceBusy, WorkspaceLock
 from engineering_team.runtime.run_store import RunStore
 from engineering_team.runtime.session import RunRecorder
@@ -46,7 +47,7 @@ def execute_run(
     """
 
     recorder = RunRecorder.attach(ctx)
-    with cancellation(ctx), recorder.running():
+    with cancellation(ctx), inbox_watch(ctx), recorder.running():
         result = strategy.run(ctx, recipe, bundle)
         if result.verdict is not None:
             recorder.set_verdict(result.verdict)
@@ -167,7 +168,12 @@ def _check_same_checks(settings: Settings, saved: PipelineState | None) -> None:
 def request_run_cancel(settings: Settings, run_id: str) -> str:
     """Ask a run in another process to stop; returns what to tell the user."""
 
-    root = _workspace_dir(settings)
+    return cancel_run(_workspace_dir(settings), run_id)
+
+
+def cancel_run(root: Path, run_id: str) -> str:
+    """Ask the run in project directory ``root`` to stop; returns what to tell the user."""
+
     manifest = RunStore(root).load(run_id)
     if manifest.status not in ("pending", "running"):
         return f"Run {run_id} is already {manifest.status}; nothing to cancel."

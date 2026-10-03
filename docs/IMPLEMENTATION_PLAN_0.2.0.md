@@ -271,7 +271,7 @@ machine-read, keep one row per task and the first/last columns intact.
 | 18 | Independent verification + bounded repair | O | 7,11,16 | B | done (2026-10-03) |
 | 19 | Git integration (`GitPort`) + Git Info tool | S | 5 | B | done (2026-10-03) |
 | 20 | Docker execution backend | O | 7,12,18 | B | done (2026-10-03) |
-| 21 | CLI v2 (Typer/Rich), live kanban, `doctor`, `init`, runs | S | 10,16,18 | C Product | todo |
+| 21 | CLI v2 (Typer/Rich), live kanban, `doctor`, `init`, runs | S | 10,16,18 | C Product | done (2026-10-03) |
 | 22 | Requirements intake + Product Analyst | S | 21 | C | todo |
 | 23 | Team registry, custom teammates, tool groups per teammate | S | 10,16 | C | todo |
 | 24 | New teammates + reviewer fan-out | S | 17,18,23 | C | todo |

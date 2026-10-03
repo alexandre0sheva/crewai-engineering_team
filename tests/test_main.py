@@ -199,7 +199,7 @@ def test_prepare_only_succeeds_without_calling_the_crew(capsys, monkeypatch) -> 
 
 
 def test_missing_request_is_a_usage_error_without_a_traceback(capsys) -> None:
-    code = main.run(["--prepare-only"])
+    code = main.run(["new", "--prepare-only"])
 
     captured = capsys.readouterr()
     assert code == 2
@@ -332,7 +332,7 @@ def test_trigger_payload_that_is_not_json_is_a_usage_error(monkeypatch) -> None:
 def test_settings_error_is_a_one_line_usage_error(capsys, monkeypatch) -> None:
     monkeypatch.setenv("ENGINEERING_PROVIDER", "nonsense")
 
-    code = main.run(["--example", "tiny-notes", "--prepare-only"])
+    code = main.run(["new", "--example", "tiny-notes", "--prepare-only"])
 
     captured = capsys.readouterr()
     assert code == 2

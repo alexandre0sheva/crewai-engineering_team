@@ -134,9 +134,11 @@ as each task lands.
   install commands) and the container is removed on exit, timeout, cancel, and run end. An image is chosen per
   language and configurable under `[execution.docker]`. With Docker missing or stopped a `docker` run refuses to
   start; it never falls back to running on your machine. `local` stays the default. See `docs/SAFETY.md`.
+- New command-line interface (Typer and Rich): `new`, `resume`, `status`, `runs`, `board`, `cancel`, `note`, `pause`, `unpause`, `config show`, `doctor`, `init`, `examples`, `team`, with `--json`, `--quiet`, `-v`, `--no-color`, and `--workspace-root`. A run shows a live view (progress, kanban board, parallel lanes, activity, cost against budget) and ends with a summary; `note`, `pause`, and `unpause` steer a run from another terminal; runs are found by id across projects. See `docs/USAGE.md`.
 
 ### Changed
 
+- The 0.1.0 invocation (`engineering-team --request-file FILE`) now runs `new` and prints a deprecation notice (removed in 0.3.0); CrewAI's console output is off unless you pass `-v`; `replay` takes `--run RUN_ID` or `--project-name` instead of guessing the project from the environment.
 - `Hotspots` and `Find TODOs` now read history through `GitPort`: a project inside some other repository no longer reads
   that repository's history, only a repository of its own.
 - The pipeline's `verify` stage no longer relies on an agent writing a verification record: `docs/verification.md` is

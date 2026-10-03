@@ -598,9 +598,8 @@ def test_the_strategy_comes_from_the_flag_the_environment_or_defaults_to_hierarc
 
 
 def test_an_unknown_strategy_is_rejected(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit) as exit_info:
-        main.run(["--request", REQUEST, "--strategy", "swarm"])
-    assert exit_info.value.code == 2
+    assert main.run(["new", "--request", REQUEST, "--strategy", "swarm"]) == 2
+    assert "swarm" in capsys.readouterr().err
     with pytest.raises(ValueError, match="Unknown strategy 'swarm'"):
         strategies.get_strategy("swarm")
 

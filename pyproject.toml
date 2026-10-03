@@ -25,6 +25,8 @@ dependencies = [
     "crewai[tools]>=1.15.23,<1.16",
     "pyyaml>=6.0,<7",  # recipes and stage prompts (also a CrewAI dependency; declared, not assumed)
     "pydantic>=2.7,<3",  # settings and contracts (also a CrewAI dependency; declared, not assumed)
+    "typer>=0.15,<1",  # the command-line interface
+    "rich>=13.7,<15",  # its live progress view, tables, and panels
 ]
 
 [project.optional-dependencies]

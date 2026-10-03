@@ -86,3 +86,13 @@ class WorkspaceLock:
             f"This workspace is in use by {holder}; only one run can write to it at a time. "
             f"Wait for it to finish or stop it (lock: {self.path})."
         )
+
+
+def workspace_in_use(workspace_root: Path) -> bool:
+    """Whether some process holds the workspace right now (the lock is taken and dropped)."""
+
+    try:
+        WorkspaceLock(workspace_root).acquire("probe").release()
+    except WorkspaceBusy:
+        return True
+    return False

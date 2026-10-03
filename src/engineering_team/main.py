@@ -28,7 +28,6 @@ from engineering_team.pipeline.runner import (
     execute_run,
     open_resume,
     read_request,
-    request_run_cancel,
 )
 from engineering_team.pipeline.state import RunBundle, RunResult, request_hash
 from engineering_team.pipeline.strategies import (
@@ -40,6 +39,7 @@ from engineering_team.pipeline.strategies import (
 from engineering_team.runtime.budget import BudgetExceeded
 from engineering_team.runtime.context import RunContext, new_run_id
 from engineering_team.runtime.locks import WorkspaceLock
+from engineering_team.runtime.run_index import locate_run
 from engineering_team.runtime.session import RunRecorder, format_summary
 from engineering_team.settings import (
     SMOKE_PROFILE_MARKER,
@@ -278,7 +278,7 @@ def _absolute(path: str | None) -> str | None:
     return str(Path(path).expanduser().resolve()) if path else None
 
 
-def _cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
+def _cli_overrides(args: Any) -> dict[str, Any]:
     """Settings overrides from the options a command defines (each command defines some)."""
 
     names: dict[str, Any] = {
@@ -289,6 +289,7 @@ def _cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
         "verify.checks_file": _absolute(getattr(args, "checks", None)),
         "git.enabled": False if getattr(args, "no_git", False) else None,
         "execution.backend": getattr(args, "sandbox", None),
+        "verbose": getattr(args, "verbose", None),
         "project_name": getattr(args, "project_name", None),
         "workspace_root": getattr(args, "workspace_root", None),
     }
@@ -307,12 +308,13 @@ class PreparedRun:
     strategy: Strategy
     recipe: Recipe | None = None
 
-    def release(self) -> None:
-        """Report what the run used and cost, then drop the workspace lock."""
+    def release(self, *, quiet: bool = False) -> None:
+        """Report what the run used and cost (unless ``quiet``: the CLI shows its own summary),
+        then drop the workspace lock."""
 
         try:
             summary = self.recorder.manifest.summary
-            if summary is not None and (summary.usage.calls or summary.tool_calls):
+            if not quiet and summary is not None and (summary.usage.calls or summary.tool_calls):
                 print(f"\n{format_summary(summary)}")
         finally:
             self.lock.release()
@@ -404,7 +406,7 @@ def _pin_checks(settings: Settings, ctx: RunContext, mode: str, strategy: str) -
     return pin_checks(ctx, Path(source))
 
 
-def _prepare_from_args(args: argparse.Namespace, mode: str = "build") -> PreparedRun:
+def _prepare_from_args(args: Any, mode: str = "build") -> PreparedRun:
     if args.adopt:
         raise ValueError("--adopt is not implemented yet.")
     settings = load_settings(overrides=_cli_overrides(args), config_file=args.config)
@@ -466,81 +468,54 @@ def _execute(
     return code or 0
 
 
-def _config_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="engineering-team config",
-        description="Inspect the effective configuration.",
-    )
-    parser.add_argument("action", choices=["show"], help="Print every setting with its source.")
-    parser.add_argument("--provider", choices=list(PROVIDERS))
-    parser.add_argument("--profile", choices=list(PROFILE_NAMES))
-    parser.add_argument("--config", help="Path to a config file.")
-    parser.add_argument("--json", action="store_true", help="Machine-readable output.")
-    return parser
-
-
-def _config_command(argv: Sequence[str]) -> int:
-    args = _config_parser().parse_args(argv)
-
-    def prepare() -> Settings:
-        overrides = {k: v for k, v in (("provider", args.provider), ("profile", args.profile)) if v}
-        return load_settings(overrides=overrides, config_file=args.config)
-
-    def work(settings: Settings) -> None:
-        rows = settings.describe()
-        if args.json:
-            print(json.dumps([row.__dict__ for row in rows], indent=2))
-            return
-        width = max(len(row.key) for row in rows)
-        value_width = min(max(len(row.value) for row in rows), 70)
-        for row in rows:
-            print(f"{row.key:<{width}}  {row.value:<{value_width}}  [{row.source}]")
-        for note in [*settings.sdk_problems(), *settings.missing_credentials()]:
-            print(f"Note: {note}.", file=sys.stderr)
-
-    return _execute(prepare, work)
-
-
 def run(argv: Sequence[str] | None = None) -> int:
-    """Build or resume an MVP from command-line inputs."""
+    """The ``engineering-team`` command: ``new``, ``resume``, ``status``, ``runs``, ``board``, ...
 
-    arguments = list(sys.argv[1:] if argv is None else argv)
-    if arguments and arguments[0] == "config":
-        return _config_command(arguments[1:])
-    if arguments and arguments[0] == "resume":
-        return _resume_command(arguments[1:])
-    if arguments and arguments[0] == "cancel":
-        return _cancel_command(arguments[1:])
-    args = _run_parser().parse_args(arguments)
+    The 0.1.0 form (``engineering-team --request-file FILE``) still works: it runs ``new`` and
+    prints a deprecation notice. See :mod:`engineering_team.cli.app`.
+    """
 
-    def work(prepared: PreparedRun) -> int | None:
-        if args.prepare_only:
-            with prepared.recorder.running():
-                print(f"Prepared project workspace: {prepared.ctx.workspace.root}")
-            return None
-        return _run_prepared(prepared)
+    from engineering_team.cli.app import main
 
-    return _execute(lambda: _prepare_from_args(args), work, PreparedRun.release)
+    return main(list(sys.argv[1:] if argv is None else argv))
+
+
+def exit_code_for(result: RunResult) -> int:
+    """The process exit code for how a run ended (see the module docstring)."""
+
+    if result.status == "succeeded":
+        return 0
+    if result.status == "cancelled":
+        return EXIT_INTERRUPTED
+    if result.verdict == "failed":
+        return EXIT_VERIFICATION_FAILED
+    if result.verdict == "partial":
+        return EXIT_PARTIAL
+    return EXIT_FAILURE
+
+
+def failure_line(result: RunResult, *, resumable: bool) -> str | None:
+    """One line saying how a run that did not succeed ended (``None`` for a success)."""
+
+    hint = f" Continue it with: engineering-team resume {result.run_id}" if resumable else ""
+    if result.status == "succeeded":
+        return None
+    if result.status == "cancelled":
+        return f"Run {result.run_id} was cancelled.{hint}"
+    if result.verdict in ("failed", "partial"):
+        return f"Run {result.run_id} is not verified: {result.error.rstrip('.')}.{hint}"
+    return f"Engineering team run failed: {result.error.rstrip('.')}.{hint}"
 
 
 def _report(result: RunResult, *, resumable: bool) -> int:
     """Say how a run ended (one line each) and return the matching exit code."""
 
-    hint = f" Continue it with: engineering-team resume {result.run_id}" if resumable else ""
-    if result.status == "succeeded":
+    line = failure_line(result, resumable=resumable)
+    if line is None:
         print(f"\nProject workspace: {result.workspace}")
-        return 0
-    if result.status == "cancelled":
-        print(f"\nRun {result.run_id} was cancelled.{hint}", file=sys.stderr)
-        return EXIT_INTERRUPTED
-    if result.verdict in ("failed", "partial"):
-        print(
-            f"\nRun {result.run_id} is not verified: {result.error.rstrip('.')}.{hint}",
-            file=sys.stderr,
-        )
-        return EXIT_VERIFICATION_FAILED if result.verdict == "failed" else EXIT_PARTIAL
-    print(f"\nEngineering team run failed: {result.error.rstrip('.')}.{hint}", file=sys.stderr)
-    return EXIT_FAILURE
+    else:
+        print(f"\n{line}", file=sys.stderr)
+    return exit_code_for(result)
 
 
 def _run_prepared(prepared: PreparedRun) -> int:
@@ -599,62 +574,6 @@ def resume(
         prepared.lock.release()
 
 
-def _project_parser(prog: str, description: str) -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog=prog, description=description)
-    parser.add_argument("run_id", help="The run id (see .engineering-team/runs/ in the project).")
-    parser.add_argument("--project-name", help="Project of the run (default: mvp-app).")
-    parser.add_argument("--workspace-root", help="Parent directory of generated projects.")
-    parser.add_argument("--config", help="Path to a config file.")
-    return parser
-
-
-def _resume_command(argv: Sequence[str]) -> int:
-    parser = _project_parser(
-        "engineering-team resume",
-        "Continue a run that was cancelled, interrupted, or failed, without redoing finished "
-        "stages. Only runs of the pipeline and single strategies can be resumed.",
-    )
-    source = parser.add_mutually_exclusive_group()
-    source.add_argument("--request", help="Inline requirements; if changed, a new run starts.")
-    source.add_argument("--request-file", help="Requirements file; if changed, a new run starts.")
-    parser.add_argument("--provider", choices=list(PROVIDERS))
-    parser.add_argument("--profile", choices=list(PROFILE_NAMES))
-    parser.add_argument("--allow-web", action="store_true", help="Enable the web tools.")
-    parser.add_argument("--sandbox", choices=["local", "docker"], help="Where commands run.")
-    parser.add_argument(
-        "--checks", help="Your checks file again (it must be the one the run started with)."
-    )
-    args = parser.parse_args(argv)
-
-    def prepare() -> PreparedRun:
-        settings = load_settings(overrides=_cli_overrides(args), config_file=args.config)
-        request = (
-            load_requirements(
-                inline_request=args.request, request_file=args.request_file, settings=settings
-            )
-            if args.request is not None or args.request_file is not None
-            else None
-        )
-        return _prepare_resume(settings, args.run_id, request)
-
-    return _execute(prepare, _run_prepared, PreparedRun.release)
-
-
-def _cancel_command(argv: Sequence[str]) -> int:
-    args = _project_parser(
-        "engineering-team cancel", "Ask a run in another process to stop at its next safe point."
-    ).parse_args(argv)
-
-    def prepare() -> str:  # unknown runs and workspaces are usage errors, so they belong here
-        settings = load_settings(overrides=_cli_overrides(args), config_file=args.config)
-        return request_run_cancel(settings, args.run_id)
-
-    def work(message: str) -> None:
-        print(message)
-
-    return _execute(prepare, work)
-
-
 def train() -> int:
     """Train the crew using the current request and workspace."""
 
@@ -675,15 +594,35 @@ def train() -> int:
     return _execute(prepare, work, lambda prepared: prepared[2].release())
 
 
+def _replay_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="replay",
+        description="Replay a crew run from a task id. The project is named explicitly (a run "
+        "id or a project name), not guessed from the environment.",
+    )
+    parser.add_argument("task_id", help="The CrewAI task id to replay from.")
+    parser.add_argument("--run", help="A run id (or unambiguous prefix); its project is used.")
+    parser.add_argument("--project-name", help="The project to replay in.")
+    parser.add_argument("--workspace-root", help="Parent directory of generated projects.")
+    parser.add_argument("--config", help="Path to a config file.")
+    return parser
+
+
 def replay() -> int:
-    """Replay the latest crew run from a task ID."""
+    """Replay a crew run: ``replay <task-id> [--run RUN_ID | --project-name NAME]``."""
 
     def prepare() -> tuple[str, PreparedRun]:
         if len(sys.argv) < 2:
-            raise ValueError("Usage: replay <task-id>")
-        settings = load_settings()
+            raise ValueError("Usage: replay <task-id> [--run RUN_ID | --project-name NAME]")
+        args = _replay_parser().parse_args(sys.argv[1:])
+        settings = load_settings(overrides=_cli_overrides(args), config_file=args.config)
+        if args.run:
+            ref = locate_run(settings.workspace_root, args.run, args.project_name)
+            settings = settings.with_overrides(
+                {"project_name": ref.project}, source=f"run {ref.run_id}"
+            )
         settings.check_ready(require_credentials=True)
-        return sys.argv[1], _open_run(settings, mode="replay")
+        return args.task_id, _open_run(settings, mode="replay")
 
     def work(prepared: tuple[str, PreparedRun]) -> None:
         task_id, run_state = prepared

@@ -260,7 +260,7 @@ For verifying a user interface: load the app, read it, use it, and check what it
 
 - **Optional.** The group exists only when the `browser` extra (Playwright) is installed. Install a
   browser once with `uv run playwright install chromium`, or set `browser.channel = "chrome"` to use an
-  installed Google Chrome. `engineering-team doctor` (CLI v2) will explain what is missing.
+  installed Google Chrome. `engineering-team doctor` says whether Playwright is installed.
 - **How an agent "sees".** `Browser Snapshot` returns the accessibility tree with stable refs
   (`[ref=e12]`) that `Browser Click`, `Browser Type`, and `Browser Select` take. It is cheap, exact,
   and deterministic; take a new one after the page changes, because refs are valid for the state
