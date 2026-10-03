@@ -36,6 +36,11 @@ BUILTINS = {
     "frontend_engineer",
     "quality_engineer",
     "generalist_engineer",
+    "code_reviewer",
+    "security_engineer",
+    "devops_engineer",
+    "technical_writer",
+    "debugger",
 }
 DATA_ENGINEER = """\
 data_engineer:
@@ -237,6 +242,8 @@ def test_a_stage_nobody_can_work_is_an_error_that_says_how_to_fix_it() -> None:
             quality_engineer=off,
             generalist_engineer=off,
             solution_architect=off,
+            devops_engineer=off,
+            debugger=off,
         )  # fmt: skip
     )
 
@@ -465,7 +472,7 @@ def test_doctor_checks_the_team_and_names_missing_tools() -> None:
     team_file("backend_engineer:\n  tool_groups: [telepathy]\n")
     broken = next(c for c in run_checks(load_settings()) if c.name == "Team")
 
-    assert healthy.status in {"ok", "warn"} and "7 of 7 teammates enabled" in healthy.detail
+    assert healthy.status in {"ok", "warn"} and "12 of 12 teammates enabled" in healthy.detail
     assert broken.status == "fail" and "telepathy" in broken.detail
 
 

@@ -19,9 +19,10 @@ from typing import Any, Protocol, cast
 
 import yaml
 from crewai import Agent, Crew, CrewOutput, Process, Task
+from crewai.tools import BaseTool
 from pydantic import BaseModel
 
-from engineering_team.contracts import Contract, Plan, Spec, WorkPackage
+from engineering_team.contracts import Contract, Plan, ReviewReport, Spec, WorkPackage
 from engineering_team.crew import build_llm
 from engineering_team.intake.context_docs import context_note
 from engineering_team.pipeline.recipes import StageSpec
@@ -54,9 +55,10 @@ class StageRequest:
     lane: int | str | None = None  # the parallel lane this unit works in
     write_scope: WriteScope | None = None  # the paths its agent may change (None: any)
     failures: str = ""  # a repair stage: the checks the controller found failing
-    roles: tuple[
-        str, ...
-    ] = ()  # teammates a work package may be given to (the plan stage lists them)
+    # Teammates work packages may go to (the plan stage lists them).
+    roles: tuple[str, ...] = ()
+    findings: str = ""  # a repair stage: the review findings the controller wants fixed
+    tools: tuple[BaseTool, ...] | None = None  # prebuilt (read-only job); None: build
 
     @property
     def label(self) -> str:
@@ -156,6 +158,8 @@ class CrewStageRunner:
         ctx, stage = request.ctx, request.stage
         prompts = _yaml("stages.yaml")
         key = {"parallel": "implement", "verify": "repair"}.get(stage.kind, stage.name)
+        if stage.kind == "verify" and request.findings:
+            key = "repair_review"  # a repair round for review findings, not for failing checks
         if key not in prompts:
             raise StageError(
                 f"No prompt for stage '{stage.name}' in config/stages.yaml (known: "
@@ -163,7 +167,11 @@ class CrewStageRunner:
             )
         prompt = prompts[key]
         agent = self._agent(request)
-        wanted = {name: CONTRACT_MODELS[name] for name in stage.contract_outputs}
+        wanted: dict[str, type[Contract]] = {
+            name: CONTRACT_MODELS[name] for name in stage.contract_outputs
+        }
+        if stage.kind == "review":  # each reviewer returns its own report; the controller merges
+            wanted = {"review": ReviewReport}
         if len(wanted) > 1:
             raise StageError(
                 f"Stage '{stage.name}' asks for several contracts ({', '.join(wanted)}); "
@@ -216,7 +224,9 @@ class CrewStageRunner:
             goal=member.goal,
             backstory=member.backstory,
             llm=llm,
-            tools=build_tools(
+            tools=list(request.tools)
+            if request.tools is not None
+            else build_tools(
                 ctx,
                 groups=stage_groups(ctx, teammate),
                 write_scope=request.write_scope,
@@ -273,4 +283,5 @@ class CrewStageRunner:
             "notes": notes,
             "resume_note": request.note,
             "failures": request.failures,
+            "findings": request.findings,
         }

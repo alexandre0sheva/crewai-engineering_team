@@ -34,6 +34,7 @@ a profile.
 | `provider` | `ENGINEERING_PROVIDER` | `openai` | Model preset: `openai`, `anthropic`, `google`, `ollama` (`azure` needs `enable_azure`) |
 | `profile` | `ENGINEERING_RUN_PROFILE` | `standard` | `standard`, `smoke` (cheap end-to-end check), `max-quality` |
 | `strategy` | `ENGINEERING_STRATEGY` | `hierarchical` | How the team is orchestrated: `hierarchical` (the 0.1.0 manager-led crew), `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)), or `single` (one agent with every tool, the benchmark baseline). `--strategy` overrides it. The default stays `hierarchical` until the benchmarks decide. |
+| `team_profile` | `ENGINEERING_TEAM_PROFILE` | `full` | `full` runs every stage of the `new` recipe; `minimal` leaves out the optional ones (review, DevOps, docs), as `--profile smoke` does. See [Review](#review-review-and-team_profile) |
 | `project_name` | `ENGINEERING_PROJECT_NAME` | `mvp-app` | Workspace directory name |
 | `workspace_root` | `ENGINEERING_WORKSPACE_ROOT` | `workspace` | Parent of generated projects (relative → current directory) |
 | `request` | `ENGINEERING_PROJECT_REQUEST` | – | Inline request used when no `--request`/`--example`/`--request-file` is given |
@@ -308,6 +309,17 @@ stages = ["implement"]
 [team.frontend_engineer]
 enabled = false
 ```
+
+### Review (`[review]` and `team_profile`)
+
+After verification the `new` recipe runs read-only reviewers (the code reviewer and the security
+engineer, side by side), then optional DevOps and documentation stages ([TEAM.md](TEAM.md)). Their
+findings go to `docs/review.md`; see [Review and optional stages](ARCHITECTURE.md#review-and-optional-stages).
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `review.fail_on` | `high` | Findings of this severity or higher (`low`, `medium`, `high`, `critical`) are sent to the repair agent (one round of `budget.max_repair_rounds`), then the project is verified again. Lower findings are only reported. |
+| `team_profile` | `full` | `minimal` skips the review, DevOps, and docs stages (the smoke profile does too). To drop one of them, disable its teammates instead: `[team.code_reviewer] enabled = false` (the stage is skipped when none of its teammates is enabled). |
 
 ## Models
 

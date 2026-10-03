@@ -109,7 +109,16 @@ class PipelineFlow(Flow[PipelineState]):
             if entry.action == "reuse":
                 self._ctx.events.emit("stage.reused", stage=stage.name, reason=entry.reason)
                 return "next_stage"
-            reason = next((name for name in stage.skip_if if CONDITIONS[name](self.state)), None)
+            settings = self._ctx.settings
+            reason = next(
+                (name for name in stage.skip_if if CONDITIONS[name](self.state, settings)), None
+            )
+            if (
+                reason is None
+                and stage.optional
+                and not any(self._ctx.team.usable(key) for key in stage.teammates)
+            ):
+                reason = "no_enabled_teammate"
             if reason is not None:
                 self._skip(stage.name, reason)
                 return "next_stage"

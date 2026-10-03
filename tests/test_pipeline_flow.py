@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 import pytest
-from pipeline_fakes import PLAN, REQUEST, STAGES, FakeRunner, write_checks
+from pipeline_fakes import PLAN, REQUEST, STAGES, TAIL, FakeRunner, write_checks
 
 from engineering_team import main
 from engineering_team.board.store import BoardStore
@@ -112,7 +112,7 @@ def test_a_scripted_six_stage_run_goes_through_every_stage_in_order(
         ("implement", "WP-1"),
         ("implement", "WP-2"),
         ("integrate", None),
-        ("release", None),  # the controller ran verify itself: no agent was called
+        *TAIL,  # the controller ran verify itself: no agent was called
     ]
     manifest = only_run()
     assert manifest.status == "succeeded" and manifest.strategy == "pipeline"
@@ -169,6 +169,9 @@ def test_stages_get_a_board_card_and_the_plan_adds_work_package_cards(
         "Implement": "backlog",
         "Integrate": "backlog",
         "Verify": "backlog",
+        "Review": "backlog",
+        "Devops": "backlog",
+        "Docs": "backlog",
         "Release": "backlog",
     }
     at_wp2 = seen["implement/WP-2"]
@@ -178,7 +181,7 @@ def test_stages_get_a_board_card_and_the_plan_adds_work_package_cards(
     board = BoardStore(run_dir(only_run()))
     stages = board.cards(kind="stage")
     packages = board.cards(kind="work_package")
-    assert [card.status for card in stages] == ["done"] * 7
+    assert [card.status for card in stages] == ["done"] * 10
     assert [card.status for card in packages] == ["done", "done"]
     implement = next(card for card in stages if card.stage == "implement")
     assert {card.parent_id for card in packages} == {implement.id}
@@ -200,7 +203,7 @@ def test_a_plan_without_work_packages_skips_the_implement_stage(
         "spec",
         "plan",
         "foundation",
-        "release",
+        *[stage for stage, _ in TAIL],
     ]
     manifest = only_run()
     implement = next(record for record in manifest.stages if record.name == "implement")
@@ -221,19 +224,22 @@ def test_user_notes_reach_each_teammate_once(monkeypatch: pytest.MonkeyPatch) ->
     runner = use_runner(monkeypatch, FakeRunner(on_call=note_during_spec))
     start()
 
-    steering = {
-        (stage, package): request.steering
-        for (stage, package), request in zip(runner.calls, runner.requests, strict=True)
-    }
+    steering = [
+        (call, request.steering)
+        for call, request in zip(runner.calls, runner.requests, strict=True)
+    ]
     note = "User note: Prefer sqlite over files."
-    assert steering[("spec", None)] == ""  # it arrived while the architect was working
+    assert steering[0] == (("spec", None), "")  # it arrived while the analyst was working
     # The first stage each teammate works on after the note carries it, and no later one does.
-    assert [call for call, text in steering.items() if text == note] == [
+    assert [call for call, text in steering if text == note] == [
         ("plan", None),  # solution_architect
         ("foundation", None),  # backend_engineer
+        *[("review", None)] * 2,  # code_reviewer and security_engineer
+        ("devops", None),  # devops_engineer
+        ("docs", None),  # technical_writer
         ("release", None),  # quality_engineer
     ]
-    assert all(text in ("", note) for text in steering.values())
+    assert all(text in ("", note) for _, text in steering)
 
 
 def test_a_paused_run_waits_at_the_stage_boundary_until_resumed(
@@ -256,7 +262,7 @@ def test_a_paused_run_waits_at_the_stage_boundary_until_resumed(
 
 # -- failure and resume --------------------------------------------------------------------------
 
-FAIL_POINTS = ["spec", "plan", "foundation", "implement:WP-2", "integrate", "release"]
+FAIL_POINTS = ["spec", "plan", "foundation", "implement:WP-2", "integrate", "devops", "release"]
 
 
 def _expected_rerun(point: str) -> list[tuple[str, str | None]]:
@@ -267,7 +273,7 @@ def _expected_rerun(point: str) -> list[tuple[str, str | None]]:
         ("implement", "WP-1"),
         ("implement", "WP-2"),
         ("integrate", None),
-        ("release", None),
+        *TAIL,
     ]
     stage, _, package = point.partition(":")
     first = full.index((stage, package or None))
@@ -297,7 +303,7 @@ def test_a_run_that_fails_at_any_stage_resumes_without_redoing_finished_work(
     # The agent that continues is told to inspect the workspace and not redo finished work.
     assert "do not redo" in resumed_runner.requests[0].note.lower() or point == "release"
     board = BoardStore(run_dir(final))
-    assert [card.status for card in board.cards(kind="stage")] == ["done"] * 7
+    assert [card.status for card in board.cards(kind="stage")] == ["done"] * 10
 
 
 @pytest.mark.parametrize("point", FAIL_POINTS)
@@ -437,7 +443,10 @@ def test_a_stage_whose_files_were_edited_after_it_finished_runs_again(
 
     # Nothing started after "implement", so the tree it left must still be there. It is not, so
     # "implement" runs again (with the inspect-first note) and so does everything after it.
-    assert [call[0] for call in runner.calls] == ["implement"] * 2 + ["integrate", "release"]
+    assert [call[0] for call in runner.calls] == ["implement"] * 2 + [
+        "integrate",
+        *[stage for stage, _ in TAIL],
+    ]
     assert "do not redo" in runner.requests[0].note
     plans = [
         e for e in read_events(run_dir(only_run()) / "events.jsonl") if e.type == "resume.plan"

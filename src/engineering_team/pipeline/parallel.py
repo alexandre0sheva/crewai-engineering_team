@@ -259,11 +259,21 @@ class JobResult:
 ReadOnlyRunner = Callable[[ReadOnlyJob, list[BaseTool], int], str]
 
 
-def readonly_tools(ctx: RunContext, job: ReadOnlyJob, lane: int | None = None) -> list[BaseTool]:
-    """The tools of a read-only job: every read-only tool, plus write tools that can touch
-    nothing but the job's own report path (the write scope refuses every other path)."""
+# Tools that run a vetted command but only look: a read-only job may use them if it has ``dev``.
+INSPECTION_TOOLS = frozenset({"Dependency Audit"})
 
-    reading = build_tools(ctx, read_only=True, agent=job.teammate, lane=lane)
+
+def readonly_tools(ctx: RunContext, job: ReadOnlyJob, lane: int | None = None) -> list[BaseTool]:
+    """The tools of a read-only job: the read-only tools of the teammate's groups (every group for
+    a teammate the roster does not know), plus write tools that can touch nothing but the job's
+    own report path (the write scope refuses every other path)."""
+
+    member = ctx.team.members.get(job.teammate)
+    groups = member.groups if member is not None else None  # None: every group
+    reading = build_tools(ctx, groups=groups, read_only=True, agent=job.teammate, lane=lane)
+    if member is not None and "dev" in member.groups:  # inspection that changes no file
+        wanted = build_tools(ctx, groups=["dev"], agent=job.teammate, lane=lane)
+        reading += [t for t in wanted if t.name in INSPECTION_TOOLS]
     have = {tool.name for tool in reading}
     writing = build_tools(
         ctx,

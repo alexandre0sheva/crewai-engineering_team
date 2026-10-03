@@ -68,7 +68,7 @@ class CheckCards:
                 assignee=teammate,
                 stage=self.stage,
                 parent_id=self.parent,
-                description="Fix what the controller's independent checks found failing.",
+                description="Fix what the controller's checks or the reviewers found.",
             )
             holder.append(card.id)
             self.board.move(card.id, "in_progress", actor=CONTROLLER)
@@ -90,6 +90,27 @@ class CheckCards:
                 self.board.move(card_id, "failed", actor=CONTROLLER, reason=reason[:MAX_REASON])
             else:
                 self.board.move(card_id, "done", actor=CONTROLLER, evidence=fixed)
+
+        self._guard("repair", move)
+
+    def close_findings_repair(
+        self, card_id: str | None, *, evidence: list[str], reason: str = ""
+    ) -> None:
+        """A repair round for review findings, closed after the project was verified again: done
+        with the ids of the checks that then passed as evidence, or failed with ``reason``. (The
+        controller cannot prove a finding itself fixed; the checks are what it re-runs.)"""
+
+        if card_id is None:
+            return
+
+        def move() -> None:
+            self.board.move(card_id, "verifying", actor=CONTROLLER)
+            if reason or not evidence:
+                self.board.move(
+                    card_id, "failed", actor=CONTROLLER, reason=(reason or "no check passed")
+                )
+            else:
+                self.board.move(card_id, "done", actor=CONTROLLER, evidence=evidence)
 
         self._guard("repair", move)
 

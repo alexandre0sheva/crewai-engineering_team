@@ -20,8 +20,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 if TYPE_CHECKING:
     from engineering_team.pipeline.state import PipelineState
+    from engineering_team.settings import Settings
 
-StageKind = Literal["agent", "controller", "parallel", "verify"]
+StageKind = Literal["agent", "controller", "parallel", "verify", "review"]
 VerificationPolicy = Literal["none", "artifacts"]
 
 # Contracts a stage can read or write; anything else must be ``file:<path>`` (outputs only) or
@@ -30,9 +31,13 @@ CONTRACTS = ("spec", "plan")
 FILE_PREFIX = "file:"
 NAME_PATTERN = re.compile(r"[a-z][a-z0-9_]*")
 
-# Named conditions a stage can be skipped on; each looks at the pipeline's state.
-CONDITIONS: dict[str, Callable[[PipelineState], bool]] = {
-    "no_work_packages": lambda state: state.plan is not None and not state.plan.work_packages,
+# Named conditions a stage can be skipped on; each looks at the pipeline's state and settings.
+CONDITIONS: dict[str, Callable[[PipelineState, Settings], bool]] = {
+    "no_work_packages": lambda state, _: state.plan is not None and not state.plan.work_packages,
+    # The smoke profile and ``team_profile = "minimal"`` run only the essential stages.
+    "minimal_team": lambda _, settings: (
+        settings.profile == "smoke" or settings.team_profile == "minimal"
+    ),
 }
 
 
@@ -50,6 +55,9 @@ class StageSpec(BaseModel):
     teammate to repair (``budget.max_repair_rounds``). ``retry`` is how many extra attempts a
     failed stage gets.
     ``verification_policy`` ``artifacts`` makes the controller require every ``file:`` output.
+    ``review`` runs its teammates side by side as read-only reviewers; the controller merges their
+    findings into ``docs/review.md`` and sends serious ones to repair (``review.fail_on``).
+    ``optional`` stages are skipped when none of their teammates is enabled.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -62,6 +70,7 @@ class StageSpec(BaseModel):
     skip_if: list[str] = Field(default_factory=list)
     retry: int = Field(default=0, ge=0, le=3)
     verification_policy: VerificationPolicy = "none"
+    optional: bool = False
     action: str | None = None
     description: str = ""
 
@@ -84,7 +93,7 @@ class StageSpec(BaseModel):
 
     @model_validator(mode="after")
     def _consistent(self) -> StageSpec:
-        if self.kind in ("agent", "parallel", "verify") and not self.teammates:
+        if self.kind in ("agent", "parallel", "verify", "review") and not self.teammates:
             raise ValueError(f"stage {self.name!r} ({self.kind}) needs at least one teammate")
         if self.kind == "controller" and not self.action:
             raise ValueError(f"controller stage {self.name!r} needs an action")

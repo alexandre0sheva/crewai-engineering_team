@@ -11,6 +11,7 @@ from engineering_team.runtime.snapshot import workspace_revision
 
 RECIPE = load_recipe("new")
 NAMES = [stage.name for stage in RECIPE.stages]
+N = len(NAMES)
 
 
 def _state(*, spec: bool = True, plan: bool = True) -> PipelineState:
@@ -42,13 +43,13 @@ def actions(plan: dict) -> list[str]:
 def test_a_fresh_run_runs_everything() -> None:
     plan = plan_resume(RECIPE, [], _state(spec=False, plan=False), "h0")
 
-    assert actions(plan) == ["run"] * 7
+    assert actions(plan) == ["run"] * N
 
 
 def test_finished_stages_are_reused_while_the_workspace_matches() -> None:
     plan = plan_resume(RECIPE, _chain(3), _state(), "h3")
 
-    assert actions(plan) == ["reuse"] * 3 + ["run"] * 4
+    assert actions(plan) == ["reuse"] * 3 + ["run"] * (N - 3)
 
 
 def test_an_interrupted_stage_continues_and_earlier_ones_stay_reused() -> None:
@@ -58,7 +59,7 @@ def test_an_interrupted_stage_continues_and_earlier_ones_stay_reused() -> None:
     # because the stage that follows started from exactly that state.
     plan = plan_resume(RECIPE, records, _state(), "partial-work")
 
-    assert actions(plan) == ["reuse"] * 3 + ["continue", "run", "run", "run"]
+    assert actions(plan) == ["reuse"] * 3 + ["continue"] + ["run"] * (N - 4)
     assert plan["implement"].note == RESUME_NOTE
     assert plan["verify"].note is None
 
@@ -75,7 +76,7 @@ def test_a_workspace_edited_after_the_last_stage_reruns_that_stage() -> None:
     # Nothing started after "foundation", so the workspace must still be its end state.
     plan = plan_resume(RECIPE, _chain(3), _state(), "edited-by-someone")
 
-    assert actions(plan) == ["reuse", "reuse", "rerun", "run", "run", "run", "run"]
+    assert actions(plan) == ["reuse", "reuse", "rerun"] + ["run"] * (N - 3)
     assert "changed after it ended" in plan["foundation"].reason
     assert plan["foundation"].note == RESUME_NOTE
 
@@ -107,13 +108,13 @@ def test_a_skipped_stage_counts_as_finished() -> None:
 
     plan = plan_resume(RECIPE, records, _state(), "h3")
 
-    assert actions(plan) == ["reuse"] * 4 + ["run", "run", "run"]
+    assert actions(plan) == ["reuse"] * 4 + ["run"] * (N - 4)
 
 
 def test_everything_finished_and_matching_is_all_reuse() -> None:
-    plan = plan_resume(RECIPE, _chain(7), _state(), "h7")
+    plan = plan_resume(RECIPE, _chain(N), _state(), f"h{N}")
 
-    assert actions(plan) == ["reuse"] * 7
+    assert actions(plan) == ["reuse"] * N
 
 
 def test_stale_records_after_the_frontier_run_again() -> None:

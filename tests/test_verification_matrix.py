@@ -10,7 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from pipeline_fakes import FakeRunner, write_checks
+from pipeline_fakes import TAIL, FakeRunner, write_checks
 from test_pipeline_crews import scripts, write
 from test_pipeline_flow import ROOT, only_run, project, resume, run_dir, use_runner
 
@@ -234,6 +234,9 @@ def test_a_harmless_edit_after_verification_runs_the_checks_again_and_still_veri
 def test_nothing_changed_after_verification_means_no_second_run_of_the_checks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # The optional DevOps and docs stages edit the project after verifying, which the final
+    # re-verify then (rightly) runs again; this is about a run where nothing edits it.
+    monkeypatch.setenv("ENGINEERING_TEAM_PROFILE", "minimal")
     use_runner(monkeypatch, FakeRunner(on_call=seed()))
 
     assert launch() == 0
@@ -301,6 +304,7 @@ def test_a_failing_check_is_repaired_by_the_agent_and_then_verified_by_the_contr
         if request.stage.name == "verify":
             request.ctx.workspace.write_file("flag.txt", "fixed\n")
 
+    monkeypatch.setenv("ENGINEERING_TEAM_PROFILE", "minimal")  # no later stage edits the project
     runner = use_runner(
         monkeypatch,
         FakeRunner(on_call=seed(flag=False, also=fix), says={"verify": "Created flag.txt."}),
@@ -311,7 +315,7 @@ def test_a_failing_check_is_repaired_by_the_agent_and_then_verified_by_the_contr
     manifest = only_run()
     assert manifest.verdict == "verified" and manifest.status == "succeeded"
     (request,) = repairs(runner)
-    assert request.teammate == "quality_engineer"
+    assert request.teammate == "debugger"
     # The agent is handed structured failures: the check, its command, what it printed.
     assert "check `tests`" in request.failures and "python check.py" in request.failures
     assert "check.py:3: flag.txt is missing" in request.failures
@@ -326,7 +330,7 @@ def test_a_failing_check_is_repaired_by_the_agent_and_then_verified_by_the_contr
     (check,) = [c for c in board.cards(kind="check")]
     assert check.status == "done" and check.evidence == ["tests"]
     (repair,) = board.cards(kind="repair")
-    assert repair.status == "done" and repair.assignee == "quality_engineer"
+    assert repair.status == "done" and repair.assignee == "debugger"
     assert repair.history[-1].actor == "controller"
 
 
@@ -418,7 +422,7 @@ def test_a_run_that_failed_verification_resumes_with_fresh_repair_rounds(
     assert (
         manifest.status == "succeeded" and manifest.verdict == "verified" and manifest.resumes == 1
     )
-    assert [call[0] for call in runner.calls] == ["verify", "release"]  # earlier stages reused
+    assert [call[0] for call in runner.calls] == ["verify", *[s for s, _ in TAIL]]  # reused earlier
     assert state().verification.rounds == 1
 
 
@@ -490,9 +494,9 @@ def test_the_real_repair_crew_is_briefed_with_the_failures_and_its_tokens_are_co
     """The verify stage's agent is an ordinary CrewAI crew (scripted model, real tools)."""
 
     models = scripts()
-    # The foundation stage leaves a project whose check fails; the quality engineer repairs it.
+    # The foundation stage leaves a project whose check fails; the debugger repairs it.
     models["backend_engineer"]._script.appendleft(write("check.py", CHECK_PY))
-    models["quality_engineer"]._script.extendleft(
+    models["debugger"]._script.extendleft(
         reversed([write("flag.txt", "ok\n"), "Created flag.txt, which check.py needs."])
     )
     monkeypatch.setattr(
@@ -501,7 +505,7 @@ def test_the_real_repair_crew_is_briefed_with_the_failures_and_its_tokens_are_co
 
     assert launch() == 0
 
-    brief = models["quality_engineer"].calls[0]
+    brief = models["debugger"].calls[0]
     assert "Repair round 1 of 3" in brief.prompt and "check `tests`" in brief.prompt
     assert "check.py:3: flag.txt is missing" in brief.prompt
     assert "Never weaken, delete, skip" in brief.prompt

@@ -14,7 +14,8 @@ from engineering_team.tools.workspace import ProjectWorkspace
 REPORT_FILE = "docs/verification.md"  # written by the controller from the check results
 NOTES_FILE = "docs/qa-notes.md"  # the quality agent's narrative; never evidence
 RELEASE_FILE = "docs/release-report.md"  # the release stage's write-up, a document
-UNTRACKED = (REPORT_FILE, NOTES_FILE, RELEASE_FILE)
+REVIEW_FILE = "docs/review.md"  # the controller's write-up of the reviewers' findings
+UNTRACKED = (REPORT_FILE, NOTES_FILE, RELEASE_FILE, REVIEW_FILE)
 
 
 def verification_revision(workspace: ProjectWorkspace) -> str:

@@ -253,6 +253,14 @@ class VerifySettings(_Frozen):
     timeout: int = Field(default=300, ge=1, le=3600)  # for commands the plan declares
 
 
+class ReviewSettings(_Frozen):
+    """The review stage: reviewers read the finished project and report findings."""
+
+    # Findings at or above this severity are handed to the repair agent (one round, from the
+    # shared ``budget.max_repair_rounds``) and the project is verified again.
+    fail_on: Literal["low", "medium", "high", "critical"] = "high"
+
+
 TEAM_KEY = re.compile(r"[a-z][a-z0-9_]*")
 
 
@@ -316,6 +324,8 @@ class Settings(_Frozen):
     verify: VerifySettings = VerifySettings()
     git: GitSettings = GitSettings()
     intake: IntakeSettings = IntakeSettings()
+    review: ReviewSettings = ReviewSettings()
+    team_profile: Literal["full", "minimal"] = "full"  # minimal: no review, DevOps, or docs stage
     team: dict[str, TeamOverride] = {}
     team_file: str | None = None  # default: ./.engineering-team/team.yaml when it exists
 
@@ -671,6 +681,7 @@ def _build_env_table() -> dict[str, tuple[str, Callable[[str], Any]]]:
         "ENGINEERING_PROVIDER": ("provider", _text),
         "ENGINEERING_RUN_PROFILE": ("profile", _text),
         "ENGINEERING_STRATEGY": ("strategy", _text),
+        "ENGINEERING_TEAM_PROFILE": ("team_profile", _text),
         "ENGINEERING_PROJECT_NAME": ("project_name", _text),
         "ENGINEERING_WORKSPACE_ROOT": ("workspace_root", _text),
         "ENGINEERING_PROJECT_REQUEST": ("request", _text),

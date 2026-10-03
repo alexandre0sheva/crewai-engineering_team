@@ -92,8 +92,13 @@ any terminal; a note for a run that is not running waits until it is resumed.
 
 ### Strategies, resume, and starting over
 
+The full `pipeline` recipe also reviews the result (two read-only reviewers; `docs/review.md`), adds delivery
+files (`docs/devops.md`) and documentation (`docs/usage.md`). For a quicker, cheaper run use `--profile smoke`
+or `team_profile = "minimal"`, which keep only the essential stages ([TEAM.md](TEAM.md)).
+
+
 `--strategy pipeline` (or `ENGINEERING_STRATEGY=pipeline`) runs the team as a staged, resumable
-pipeline (spec, plan, foundation, implement, verify, release); `--strategy single` runs one agent with
+pipeline (spec, plan, foundation, implement, integrate, verify, review, devops, docs, release); `--strategy single` runs one agent with
 every tool, the baseline the other strategies are measured against; the default `hierarchical` is the
 manager-led crew. In a pipeline run the controller, not an agent, runs the tests and checks (`--checks
 FILE` adds your own) and writes `docs/verification.md` from what it saw. A pipeline run that was

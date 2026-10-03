@@ -11,7 +11,7 @@ from test_pipeline_flow import ROOT, only_run, project, run_dir
 
 from engineering_team import main
 from engineering_team.board.store import BoardStore
-from engineering_team.contracts import Plan, Spec, WorkPackage
+from engineering_team.contracts import Finding, Plan, ReviewReport, Spec, WorkPackage
 from engineering_team.pipeline import strategies
 from engineering_team.pipeline.recipes import StageSpec, load_recipe
 from engineering_team.pipeline.stages import (
@@ -50,6 +50,13 @@ def scripts() -> dict[str, ScriptedLLM]:
                 "Integrated.",
             ]
         ),
+        "debugger": ScriptedLLM([]),  # only called when a check fails
+        "code_reviewer": ScriptedLLM([ReviewReport(summary="Reads well.").model_dump_json()]),
+        "security_engineer": ScriptedLLM(
+            [ReviewReport(summary="Nothing found.").model_dump_json()]
+        ),
+        "devops_engineer": ScriptedLLM([write("docs/devops.md"), "Delivery files added."]),
+        "technical_writer": ScriptedLLM([write("docs/usage.md"), "Documentation written."]),
         "quality_engineer": ScriptedLLM(
             [
                 write("docs/release-report.md"),
@@ -102,6 +109,9 @@ def test_real_crews_on_scripted_models_build_the_project_stage_by_stage(
         ("implement", "succeeded"),
         ("integrate", "succeeded"),
         ("verify", "succeeded"),
+        ("review", "succeeded"),
+        ("devops", "succeeded"),
+        ("docs", "succeeded"),
         ("release", "succeeded"),
     ]
     for path in (
@@ -176,6 +186,50 @@ def test_the_analyst_only_reads_and_is_told_about_the_context_documents(
     assert "1 reference document(s)" in models["solution_architect"].calls[0].prompt
 
 
+def test_reviewers_only_read_and_the_debugger_fixes_what_they_find(
+    models: dict[str, ScriptedLLM],
+) -> None:
+    found = Finding(
+        severity="high",
+        summary="The storage module returns a constant instead of reading the notes.",
+        file="src/storage/main.py",
+        line=1,
+        suggested_fix="Read the notes file.",
+    )
+    models["code_reviewer"] = ScriptedLLM(
+        [ReviewReport(summary="One real problem.", findings=[found]).model_dump_json()]
+    )
+    models["debugger"] = ScriptedLLM(
+        [write("src/storage/main.py", "VALUE = 3\n"), "F-1 confirmed and fixed in storage."]
+    )
+
+    assert run_cli() == 0
+
+    for llm in models.values():
+        llm.assert_exhausted()
+
+    def tools_of(key: str) -> set[str]:
+        tools = models[key].calls[0].tools
+        assert tools is not None
+        return {tool["function"]["name"] for tool in tools}
+
+    for reviewer in ("code_reviewer", "security_engineer"):
+        names = tools_of(reviewer)
+        assert {"read_project_file", "search_project_files", "find_symbol"} <= names
+        # The write tools they have are limited to their one report path (see parallel.py).
+        assert not {"run_project_command", "run_tests", "install_dependencies"} & names
+    assert "dependency_audit" in tools_of("security_engineer")
+    assert "dependency_audit" not in tools_of("code_reviewer")
+    repair = models["debugger"].calls[0]
+    assert "Review findings to fix" in repair.prompt and "F-1 [high]" in repair.prompt
+    assert "src/storage/main.py:1" in repair.prompt
+    assert {"write_project_file", "run_tests"} <= tools_of("debugger")
+    assert (project() / "src/storage/main.py").read_text(encoding="utf-8") == "VALUE = 3\n"
+    review = (project() / "docs" / "review.md").read_text(encoding="utf-8")
+    assert "F-1" in review and "Sent to repair and verified again" in review
+    assert only_run().verdict == "verified"
+
+
 def test_without_context_documents_the_prompts_say_nothing_about_them(
     models: dict[str, ScriptedLLM],
 ) -> None:
@@ -197,9 +251,12 @@ def test_token_usage_is_attributed_to_the_stage_that_spent_it(
         "foundation",
         "implement",
         "integrate",
+        "review",
+        "devops",
+        "docs",
         "release",
     }  # the controller's verify stage spends no tokens
-    assert usage["totals"]["calls"] == 13  # every scripted turn was one model call
+    assert usage["totals"]["calls"] == 19  # every scripted turn was one model call
     assert usage["by_agent"]
     events = list(read_events(run_dir(only_run()) / "events.jsonl"))
     assert {e.stage for e in events if e.type == "llm.call"} == set(usage["by_stage"])
@@ -212,7 +269,7 @@ def test_the_board_shows_every_stage_done_and_the_packages_the_architect_planned
 
     board = BoardStore(run_dir(only_run()))
 
-    assert [c.status for c in board.cards(kind="stage")] == ["done"] * 7
+    assert [c.status for c in board.cards(kind="stage")] == ["done"] * 10
     assert [(c.title, c.assignee) for c in board.cards(kind="work_package")] == [
         ("WP-1: Storage", "backend_engineer"),
         ("WP-2: CLI", "backend_engineer"),

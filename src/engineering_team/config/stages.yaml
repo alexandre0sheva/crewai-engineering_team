@@ -1,10 +1,11 @@
 # Task prompts for the pipeline's stages (strategy "pipeline" and "single"). Roles, goals, and
 # backstories live in agents.yaml; nothing here repeats them. Placeholders are interpolated per
 # stage: {project_name} {requirements} {workspace_path} {current_date} {spec} {plan} {package}
-# {card} {notes} {resume_note} {failures} {context} {teammates}. {spec}, {plan} and {package} are
-# JSON; the others are text; {context} is empty unless the user supplied reference documents
-# (--context-dir); {teammates} lists who work packages can go to. The ``repair`` prompt is the
-# verify stage's: the controller's failing checks are {failures}.
+# {card} {notes} {resume_note} {failures} {findings} {context} {teammates}. {spec}, {plan} and
+# {package} are JSON; the others are text; {context} is empty unless the user supplied reference
+# documents (--context-dir); {teammates} lists who work packages can go to. The ``repair`` prompt is
+# the verify stage's: the controller's failing checks are {failures}; ``repair_review`` is its
+# prompt for review findings ({findings}). ``review`` is run once per reviewer.
 
 spec:
   description: >
@@ -208,6 +209,116 @@ repair:
   expected_output: >
     The failing checks fixed in the workspace, and a short summary of the root cause, the files
     changed, and what is still failing.
+
+review:
+  description: >
+    Review the finished project {project_name} in {workspace_path}. You can only read it: do
+    not write or change any file, and do not report anything you have not seen in the code.
+
+    Specification:
+
+    {spec}
+
+    Read the specification, then the source files, tests, configuration, and documentation
+    (use the search, symbol, and Git history tools to find your way), and judge the project
+    against your own checklist. Report each real defect once, with the file and line, a
+    severity (critical, high, medium, low, info) that reflects its impact on the product, and
+    a concrete suggested fix. Leave out style preferences and anything that is not a defect.
+    If you find nothing, say so with an empty list. If you ran a tool, name it and what it
+    reported; if a tool could not run, say that instead of guessing.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON review report: a one- or two-sentence summary and a findings list (each finding has
+    severity, summary, file, line, and suggested_fix).
+
+repair_review:
+  description: >
+    Independent reviewers read {project_name} in {workspace_path} and found problems the
+    controller wants fixed. What you report does not change the outcome: the controller runs
+    its checks again when you finish, and only passing checks count.
+
+    Specification:
+
+    {spec}
+
+    Plan:
+
+    {plan}
+
+    Review findings to fix:
+
+    {findings}
+
+    For each finding, confirm it in the code first (a finding can be wrong; if it is, leave
+    the code alone and say why), then make the smallest correct fix. Never weaken, delete, skip,
+    or special-case a test or a check to get it green, and do not edit docs/verification.md or
+    docs/review.md (the controller writes them). Run the project's tests again before you
+    finish. Reply with a short summary: for each finding id, fixed or not and why, and the files
+    you changed. The controller records it in docs/qa-notes.md; do not write that file yourself.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The confirmed findings fixed in the workspace, and a short summary per finding id.
+
+devops:
+  description: >
+    Prepare {project_name} in {workspace_path} to be run and shipped.
+
+    Specification:
+
+    {spec}
+
+    Plan (it has the project's commands):
+
+    {plan}
+
+    Read the project and its README first, then add only what fits: a Dockerfile when the
+    project is a service or would benefit from one (pinned base image, non-root user, no
+    secrets baked in) and a .dockerignore; a CI workflow (for example .github/workflows/ci.yml)
+    that runs the project's own install, test, lint, and build commands; a complete
+    .env.example listing every environment variable the code reads, with placeholder values;
+    and short run scripts only where they save steps. Do not change application code. Run
+    whatever you can to check your files (the project commands, a Docker build if Docker is
+    available) and record what you could not run. Write docs/devops.md: each file you added or
+    changed and why, the commands you ran with their outcome, and what is unchecked.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The delivery files in the workspace and docs/devops.md recording them and what was run.
+
+docs:
+  description: >
+    Write the documentation of {project_name} in {workspace_path}.
+
+    Specification:
+
+    {spec}
+
+    Plan:
+
+    {plan}
+
+    Read the code, the tests, and the existing README first. Then: make README.md accurate (what
+    it is and who it is for, install, run, test, configuration, limitations); write
+    docs/usage.md (how to use every feature with real, verified examples); and add or update
+    CHANGELOG.md (Keep a Changelog style, one entry for this release). Run each command you
+    document and mark any step you could not check as unchecked rather than presenting it as
+    working. Change documentation files only, never application code, and do not edit
+    docs/verification.md, docs/review.md, or docs/release-report.md.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    An accurate README.md, docs/usage.md, and CHANGELOG.md, and a short summary of what was
+    checked.
 
 release:
   description: >

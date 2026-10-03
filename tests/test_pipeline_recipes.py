@@ -13,6 +13,7 @@ from engineering_team.pipeline.recipes import (
     parse_recipe,
 )
 from engineering_team.pipeline.state import PipelineState
+from engineering_team.settings import load_settings
 
 
 def test_the_new_recipe_has_the_six_stages_in_order() -> None:
@@ -25,13 +26,21 @@ def test_the_new_recipe_has_the_six_stages_in_order() -> None:
         "implement",
         "integrate",
         "verify",
+        "review",
+        "devops",
+        "docs",
         "release",
     ]
     assert [stage.kind for stage in recipe.stages] == (
-        ["agent"] * 3 + ["parallel", "agent", "verify", "agent"]
+        ["agent"] * 3 + ["parallel", "agent", "verify", "review", "agent", "agent", "agent"]
     )
-    # The controller runs the checks; the quality agent is only the one who repairs failures.
-    assert recipe.stage("verify").teammates == ["quality_engineer"]
+    # The controller runs the checks; the debugger is only the one who repairs what they find.
+    assert recipe.stage("verify").teammates == ["debugger"]
+    # Review, DevOps, and docs are optional: a minimal team or no enabled teammate skips them.
+    optional = [stage.name for stage in recipe.stages if stage.optional]
+    assert optional == ["review", "devops", "docs"]
+    assert all(recipe.stage(name).skip_if == ["minimal_team"] for name in optional)
+    assert recipe.stage("review").teammates == ["code_reviewer", "security_engineer"]
     assert recipe.stage("verify").file_outputs == []
     assert recipe.stage("plan").contract_outputs == ["plan"]
     assert recipe.stage("plan").file_outputs == ["docs/architecture.md"]
@@ -53,6 +62,10 @@ def test_every_teammate_of_the_new_recipe_exists_in_agents_yaml() -> None:
         "implement",
         "integrate",
         "repair",  # the verify stage's agent only repairs
+        "repair_review",  # ... and repairs review findings
+        "review",
+        "devops",
+        "docs",
         "release",
         "build",
     } <= prompts
@@ -123,8 +136,19 @@ def test_an_unknown_recipe_name_lists_the_bundled_ones() -> None:
 def test_the_no_work_packages_condition_looks_at_the_plan() -> None:
     check = CONDITIONS["no_work_packages"]
 
-    assert check(PipelineState(plan=Plan())) is True
-    assert check(PipelineState()) is False  # no plan yet: not a reason to skip
+    settings = load_settings()
+
+    assert check(PipelineState(plan=Plan()), settings) is True
+    assert check(PipelineState(), settings) is False  # no plan yet: not a reason to skip
+
+
+def test_the_minimal_team_condition_follows_the_smoke_profile_and_the_team_profile() -> None:
+    check = CONDITIONS["minimal_team"]
+    state = PipelineState()
+
+    assert check(state, load_settings()) is False
+    assert check(state, load_settings(env={"ENGINEERING_RUN_PROFILE": "smoke"})) is True
+    assert check(state, load_settings(env={"ENGINEERING_TEAM_PROFILE": "minimal"})) is True
 
 
 def test_a_verify_stage_is_the_controllers_and_has_its_own_rules() -> None:

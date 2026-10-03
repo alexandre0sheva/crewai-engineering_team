@@ -180,13 +180,24 @@ class VerificationRecord(Contract):
 
 
 class Finding(Contract):
-    id: str
+    """One review finding. Reviewers leave ``id`` empty; the controller numbers the consolidated
+    findings ``F-1``, ``F-2``, ... and sets ``source_role`` itself (an agent's claim is not
+    trusted); a finding two reviewers both made lists both roles."""
+
+    id: str = ""
     severity: Severity
     summary: str
     file: str | None = None
     line: int | None = None
     suggested_fix: str | None = None
     source_role: str | None = None
+
+
+class ReviewReport(Contract):
+    """What one reviewer returns: a short summary and its findings."""
+
+    summary: str = ""
+    findings: list[Finding] = Field(default_factory=list)
 
 
 # -- run bookkeeping ---------------------------------------------------------------------

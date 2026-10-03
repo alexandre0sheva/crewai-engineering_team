@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import threading
 
+from crewai.tools import BaseTool
+
 from engineering_team.artifacts import missing_artifacts
-from engineering_team.contracts import Plan, Spec, VerificationRecord, WorkPackage
+from engineering_team.contracts import Finding, Plan, Spec, VerificationRecord, WorkPackage
 from engineering_team.pipeline.actions import CONTROLLER_ACTIONS
 from engineering_team.pipeline.board_sync import StageBoard
 from engineering_team.pipeline.checkpoints import Checkpoints
@@ -19,6 +21,8 @@ from engineering_team.pipeline.packages import SHARED_DENY, PlanError, plan_prob
 from engineering_team.pipeline.parallel import PackageOutcome, run_work_packages
 from engineering_team.pipeline.recipes import Recipe, StageSpec
 from engineering_team.pipeline.resume import RESUME_NOTE, StagePlan
+from engineering_team.pipeline.review import repair_brief
+from engineering_team.pipeline.review_stage import run_review
 from engineering_team.pipeline.spec_stage import (
     SPEC_FILE,
     Clarifier,
@@ -42,7 +46,7 @@ from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import stage_scope
 from engineering_team.runtime.session import RunRecorder
 from engineering_team.tools import WriteScope
-from engineering_team.verification.loop import RepairCall, VerificationLoop
+from engineering_team.verification.loop import RepairCall, VerificationError, VerificationLoop
 
 MAX_SUMMARY = 2000
 MAX_NOTE_ERROR = 600
@@ -129,6 +133,8 @@ class StageExecutor:
             self._packages(stage, entry, note)
         elif stage.kind == "verify":
             self._verify(stage)
+        elif stage.kind == "review":
+            self._review(stage)
         else:
             self._agent(stage, note)
         self._check_artifacts(stage)
@@ -139,13 +145,16 @@ class StageExecutor:
         Raises ``VerificationError`` unless every required check passed on the current tree.
         """
 
+        self.state.summaries[stage.name] = self._loop(stage).run()[:MAX_SUMMARY]
+
+    def _loop(self, stage: StageSpec) -> VerificationLoop:
         teammate = lead_teammate(self.ctx, stage)
 
         def repair(call: RepairCall) -> str:
             output = self._call(stage, teammate, "", failures=call.failures, card_id=call.card_id)
             return output.summary
 
-        loop = VerificationLoop(
+        return VerificationLoop(
             self.ctx,
             self.state,
             stage=stage.name,
@@ -154,7 +163,42 @@ class StageExecutor:
             repair=repair,
             save=self._save,
         )
-        self.state.summaries[stage.name] = loop.run()[:MAX_SUMMARY]
+
+    def _review(self, stage: StageSpec) -> None:
+        """Reviewers in parallel lanes; serious findings go to the repair agent of the verify
+        stage (one round from the shared budget) and the project is verified again."""
+
+        verify = next((s for s in self.recipe.stages if s.kind == "verify"), None)
+
+        def call(teammate: str, tools: list[BaseTool], lane: int) -> StageOutput:
+            return self._call(stage, teammate, "", lane=lane, tools=tuple(tools))
+
+        def repair(findings: list[Finding]) -> str:
+            assert verify is not None
+            loop = self._loop(verify)
+
+            def agent(call: RepairCall) -> str:
+                return self._call(
+                    verify, loop.teammate, "", findings=call.failures, card_id=call.card_id
+                ).summary
+
+            with stage_scope(verify.name):
+                ran = loop.repair_findings(repair_brief(findings), [f.id for f in findings], agent)
+                if ran is None:
+                    return (
+                        "No repair round was left (budget.max_repair_rounds), so these "
+                        "findings were not fixed."
+                    )
+                try:
+                    self._verify(verify)  # raises VerificationError if the project is not OK
+                except VerificationError as exc:
+                    loop.close_findings_repair(ran, f"not verified after the repair: {exc}"[:300])
+                    raise
+                loop.close_findings_repair(ran)
+            return "Sent to repair and verified again; the findings were not reviewed again."
+
+        summary = run_review(self.ctx, self.state, stage, call, repair if verify else None)
+        self.state.summaries[stage.name] = summary[:MAX_SUMMARY]
 
     def final_gate(self) -> None:
         """After the last stage: the project must still be what was verified.
@@ -219,6 +263,8 @@ class StageExecutor:
         lane: int | None = None,
         scope: WriteScope | None = None,
         failures: str = "",
+        findings: str = "",
+        tools: tuple[BaseTool, ...] | None = None,
         card_id: str | None = None,
     ) -> StageOutput:
         self.ctx.board.wait_while_paused(self.ctx.cancel_event)
@@ -241,6 +287,8 @@ class StageExecutor:
             lane=lane,
             write_scope=scope,
             failures=failures,
+            findings=findings,
+            tools=tools,
             roles=self._roles(),
         )
         output = self.runner.run(request)
@@ -357,6 +405,8 @@ def reset_for(stage: StageSpec, entry: StagePlan, state: PipelineState) -> None:
     for name in stage.contract_outputs:
         setattr(state, name, None)
     state.summaries.pop(stage.name, None)
+    if stage.kind == "review":
+        state.findings = []
     if stage.kind == "verify":  # a fresh verification gets its own repair rounds
         kept = state.verification
         state.checks = []

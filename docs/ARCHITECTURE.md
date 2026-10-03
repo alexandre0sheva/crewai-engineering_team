@@ -355,9 +355,9 @@ controller-side action, no model; `verify`: the controller's own verification, [
 or `file:<path>` for a promised file), `skip_if` conditions (`no_work_packages`), `retry`, and a
 `verification_policy` (`artifacts`: the controller requires every promised file to exist and hold
 real content; it never takes the agent's word). The `new` recipe is `spec` → `plan` → `foundation` →
-`implement` → `integrate` → `verify` → `release`; the architect's `Plan` decides which work packages exist, so a
+`implement` → `integrate` → `verify` → `review` → `devops` → `docs` → `release`; the architect's `Plan` decides which work packages exist, so a
 CLI- or API-only project simply has no frontend package and a plan with none skips `implement`.
-`verify` is run by the controller, not an agent. A
+`verify` is run by the controller, not an agent; `review` is [below](#review-and-optional-stages). A
 recipe is validated when loaded (unknown conditions, inputs no earlier stage produces, missing
 teammates, duplicate names are one-line errors).
 
@@ -556,6 +556,31 @@ the now-passing check ids as evidence, or `failed`.
 `VerificationError`, the run ends `failed`, the manifest's `verdict` is `failed`, exit code **3**. `partial`:
 the same with exit code **4**. Both are resumable (`resume` gives the stage fresh repair rounds) and both
 leave `docs/verification.md` with the reason. Budget and cancel stops are unchanged (exit 1 and 130).
+
+### Review and optional stages
+
+`review` is a stage kind of its own. Its teammates (`code_reviewer`, `security_engineer`) run through
+`run_parallel_readonly` ([Parallel execution](#parallel-execution)): one lane each, with the read-only tools of the
+teammate's groups (plus `Dependency Audit`, the one command-running tool that only inspects) and a write tool that can
+touch nothing but a report path. Each agent returns a `ReviewReport` (a summary and `Finding`s) as its structured
+answer; `pipeline/review.py` then validates the findings (a real severity, text, a path inside the project; the
+reviewer's role is set by the controller), merges duplicates (same file, lines within three of each other, at least half
+the words in common: one finding at the higher severity naming both reviewers), sorts them by severity and numbers them
+`F-1...`, so the result does not depend on which reviewer finished first. The controller writes `docs/review.md`
+itself (it does not count towards the verification revision, like the other controller-written reports).
+
+Findings at or above `review.fail_on` go to the repair agent of the `verify` stage (the `debugger`), with the
+`repair_review` prompt: one repair round from the shared `budget.max_repair_rounds` (`VerificationLoop.repair_findings`;
+none left means the findings are reported, not fixed), then the verify stage runs again (`VerificationError` fails the
+review stage if the project no longer verifies). The repair card closes with the checks that then passed as its evidence,
+or fails if the agent changed nothing. The findings are not reviewed again, and the verdict is the checks' alone: a
+review finding never makes a verified project unverified. One reviewer failing is noted in `docs/review.md` and the stage
+carries on; all failing fails the stage (no retry, as a retry would pay for the reviewers again).
+
+`review`, `devops`, and `docs` are `optional` stages with `skip_if: [minimal_team]`: the `smoke` profile and
+`team_profile = "minimal"` skip them, and so does a stage whose teammates are all disabled. Conditions take the
+pipeline state and the settings (`CONDITIONS[name](state, settings)`). Whatever `devops` and `docs` change is covered by the
+final gate.
 
 **Final gate.** After the last stage, if the recipe has a `verify` stage, the controller compares the
 workspace to the verified revision; if a later stage (release, documentation) changed anything, it runs

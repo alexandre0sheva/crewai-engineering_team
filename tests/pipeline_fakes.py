@@ -5,7 +5,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from engineering_team.contracts import AcceptanceCriterion, Contract, Plan, Spec, WorkPackage
+from engineering_team.contracts import (
+    AcceptanceCriterion,
+    Contract,
+    Plan,
+    ReviewReport,
+    Spec,
+    WorkPackage,
+)
 from engineering_team.pipeline.stages import StageOutput, StageRequest
 from engineering_team.settings import Settings, load_settings
 
@@ -41,6 +48,12 @@ PLAN = Plan(
     ],
 )
 
+# What the agent stages after ``verify`` call, in order: two reviewers (side by side, so their
+# order is not fixed, and both are ("review", None)), DevOps, the writer, then the release.
+TAIL: list[tuple[str, str | None]] = [
+    ("review", None), ("review", None), ("devops", None), ("docs", None), ("release", None),
+]  # fmt: skip
+
 PASSING_CHECKS = "- {id: tests, name: Project tests, kind: test, command: 'true'}\n"
 
 
@@ -52,7 +65,10 @@ def write_checks(text: str = PASSING_CHECKS, name: str = "checks.yaml") -> Path:
     return path
 
 
-STAGES = ("spec", "plan", "foundation", "implement", "integrate", "verify", "release")
+STAGES = (
+    "spec", "plan", "foundation", "implement", "integrate", "verify", "review", "devops", "docs",
+    "release",
+)  # fmt: skip
 BODY = "A concrete sentence that is long enough to count as real content. " * 2
 
 
@@ -89,8 +105,10 @@ class FakeRunner:
         on_call: Callable[[StageRequest], None] | None = None,
         says: dict[str, str] | None = None,
         specs: list[Spec] | None = None,
+        reviews: dict[str, ReviewReport] | None = None,
     ) -> None:
         self.plan = PLAN if plan is None else plan
+        self.reviews = dict(reviews or {})  # teammate -> the report that reviewer returns
         self.specs = list(specs or [SPEC])  # what the spec stage returns; the last one repeats
         self.fail = dict(fail or {})
         self.cancel_at = cancel_at
@@ -126,6 +144,12 @@ class FakeRunner:
             write(f"src/{package.id.lower()}.py", f"# {package.title}\nVALUE = 1\n")
         elif stage == "integrate":
             write("docs/integration.md", "# Integration\n" + BODY)
+        elif stage == "review":
+            contracts["review"] = self.reviews.get(request.teammate, ReviewReport(summary="Clean."))
+        elif stage == "devops":
+            write("docs/devops.md", "# DevOps\n" + BODY)
+        elif stage == "docs":
+            write("docs/usage.md", "# Usage\n" + BODY)
         elif stage == "release":
             write("docs/release-report.md", "# Release\n" + BODY)
         elif stage == "build":  # the single-agent strategy's one stage

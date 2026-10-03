@@ -15,7 +15,10 @@ from engineering_team.git.port import DEFAULT_EMAIL, DEFAULT_NAME, GitError, Git
 from engineering_team.pipeline.stages import StageRequest
 from engineering_team.runtime.events import read_events
 
-STAGES = ["spec", "plan", "foundation", "implement", "integrate", "verify", "release"]
+STAGES = [
+    "spec", "plan", "foundation", "implement", "integrate", "verify", "review", "devops", "docs",
+    "release",
+]  # fmt: skip
 
 
 pytestmark = pytest.mark.git
@@ -56,9 +59,9 @@ def test_a_greenfield_run_leaves_a_repository_with_one_commit_per_stage(
     assert git("status", "--porcelain") == ""
     assert not [f for f in git("ls-files").splitlines() if f.startswith(".engineering-team")]
     # stage(spec): the analyst wrote nothing; the controller wrote the spec from its contract.
-    assert git("show", "--name-only", "--format=", "HEAD~6") == "docs/spec.md"
-    assert "docs/architecture.md" in git("show", "--name-only", "--format=", "HEAD~5")
-    assert "docs/verification.md" in git("show", "--name-only", "--format=", "HEAD~1")
+    assert git("show", "--name-only", "--format=", "HEAD~9") == "docs/spec.md"
+    assert "docs/architecture.md" in git("show", "--name-only", "--format=", "HEAD~8")
+    assert "docs/verification.md" in git("show", "--name-only", "--format=", "HEAD~4")
     events = [e.type for e in read_events(run_dir(only_run()) / "events.jsonl")]
     assert events.count("git.checkpoint") == len(STAGES) and events.count("git.init") == 1
 
@@ -87,6 +90,9 @@ def test_a_skipped_stage_gets_no_commit(monkeypatch: pytest.MonkeyPatch) -> None
         "stage(plan)",
         "stage(foundation)",
         "stage(verify)",
+        "stage(review)",
+        "stage(devops)",
+        "stage(docs)",
         "stage(release)",
     ]
 

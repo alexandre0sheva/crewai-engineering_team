@@ -18,6 +18,7 @@ from engineering_team.atomic_io import atomic_write_json
 from engineering_team.contracts import (
     CheckResult,
     Contract,
+    Finding,
     Plan,
     RunStatus,
     Spec,
@@ -57,6 +58,7 @@ class PipelineState(Contract):
     summaries: dict[str, str] = Field(default_factory=dict)  # stage name -> what its agent said
     checks: list[CheckResult] = Field(default_factory=list)  # the verifier's latest results
     verification: VerificationRecord = Field(default_factory=VerificationRecord)
+    findings: list[Finding] = Field(default_factory=list)  # the review stage's consolidated ones
     error: str = ""
 
     @classmethod

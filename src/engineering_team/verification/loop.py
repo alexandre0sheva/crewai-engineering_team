@@ -40,6 +40,14 @@ class VerificationError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class FindingsRepair:
+    """A repair round for review findings that ran: its card, and whether it changed the project."""
+
+    card_id: str | None
+    changed: bool
+
+
+@dataclass(frozen=True)
 class RepairCall:
     """What the repair agent is told, and where its card is."""
 
@@ -153,6 +161,55 @@ class VerificationLoop:
         record.repair_log.append(self._log_line(number, failing, still, changed, error))
         self.save()
         return fresh
+
+    def repair_findings(
+        self, brief: str, ids: list[str], agent: RepairAgent
+    ) -> FindingsRepair | None:
+        """One repair round for review findings, from the same budget as repairs for failing checks.
+
+        ``agent`` is told ``brief``; the caller verifies again afterwards (``run``), which is what
+        decides the outcome. Returns ``None`` when no round is left; otherwise the caller closes
+        the round's card with :meth:`close_findings_repair` once it has verified again.
+        """
+
+        ctx, record = self.ctx, self.record
+        if not ctx.budget.may_repair(record.rounds):
+            ctx.events.emit("verify.repair_skipped", findings=ids, rounds=record.rounds)
+            return None
+        check_cancelled(ctx)
+        ctx.budget.check()
+        record.rounds += 1
+        number = record.rounds
+        card = self.cards.open_repair(number, self.teammate, ids)
+        before = verification_revision(ctx.workspace)
+        ctx.events.emit("verify.repair", round=number, findings=ids)
+        error = ""
+        try:
+            summary = agent(
+                RepairCall(number, f"Repair round {number} of {self.max_rounds}.\n\n{brief}", card)
+            )
+        except (RunCancelled, BudgetExceeded):
+            raise
+        except Exception as exc:  # a crashed repair attempt is a used round, not the end
+            summary, error = "", f"{type(exc).__name__}: {exc}"[:MAX_ERROR]
+        check_cancelled(ctx)
+        self._note(number, summary, error)
+        changed = verification_revision(ctx.workspace) != before
+        extra = " The repair agent failed to run." if error else ""
+        extra += "" if changed else " It changed nothing in the project."
+        record.repair_log.append(
+            f"Round {number}: sent review finding(s) {', '.join(ids)} to the repair agent.{extra}"
+        )
+        self.save()
+        return FindingsRepair(card, changed)
+
+    def close_findings_repair(self, repair: FindingsRepair, error: str = "") -> None:
+        """Close the card of a findings repair after verifying again: done when the project
+        changed and the checks passed (those are the evidence), failed otherwise."""
+
+        passed = [r.id for r in self.state.checks if r.status == "passed"]
+        reason = error or ("" if repair.changed else "the repair changed nothing")
+        self.cards.close_findings_repair(repair.card_id, evidence=passed, reason=reason)
 
     @staticmethod
     def _log_line(

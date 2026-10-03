@@ -154,6 +154,15 @@ as each task lands.
   work packages can go to custom teammates, and a disabled or missing teammate is replaced by the nearest enabled generalist
   (`team.fallback` event). `engineering-team team list` and `team show KEY` show the roster; `doctor` checks it. See `docs/TEAM.md`.
 
+- Five more teammates: a code reviewer and a security engineer (read-only; the security engineer can run the dependency
+  audit), a DevOps engineer, a technical writer, and a debugger (now the repair agent of the verify stage).
+- Parallel review: after verification the `new` recipe runs the reviewers side by side in their own lanes; the
+  controller validates and merges their findings (duplicates become one finding naming both reviewers) into
+  `docs/review.md`; findings at or above `review.fail_on` (default `high`) go to the debugger for one repair round and the
+  project is verified again. Optional DevOps (`docs/devops.md`) and documentation (`docs/usage.md`) stages follow; the final
+  re-verify covers what they change. `--profile smoke`, `team_profile = "minimal"` (`ENGINEERING_TEAM_PROFILE`), or disabling
+  a stage's teammates skips them.
+
 ### Changed
 
 - Each pipeline teammate's tools now come from its roster entry (the product analyst is read-only; the browser tools go to the

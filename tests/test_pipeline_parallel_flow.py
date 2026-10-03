@@ -19,7 +19,7 @@ from test_pipeline_flow import (
 )
 
 from engineering_team.board.store import BoardStore
-from engineering_team.contracts import Plan, WorkPackage
+from engineering_team.contracts import Plan, ReviewReport, WorkPackage
 from engineering_team.pipeline import strategies
 from engineering_team.pipeline.packages import SHARED_DENY
 from engineering_team.pipeline.stages import CrewStageRunner, StageRequest
@@ -339,6 +339,10 @@ def scoped_run(monkeypatch: pytest.MonkeyPatch) -> dict[str, ScriptedLLM]:
                 "Integrated.",
             ]
         ),
+        "code_reviewer": ScriptedLLM([ReviewReport().model_dump_json()]),
+        "security_engineer": ScriptedLLM([ReviewReport().model_dump_json()]),
+        "devops_engineer": ScriptedLLM([write("docs/devops.md"), "ok"]),
+        "technical_writer": ScriptedLLM([write("docs/usage.md"), "ok"]),
         "quality_engineer": ScriptedLLM(
             [write("docs/verification.md"), "verified", write("docs/release-report.md"), "done"]
         ),
@@ -384,8 +388,10 @@ def test_tool_events_of_a_package_carry_its_lane_and_other_stages_do_not(
     assert spec_calls and all(e.lane is None for e in spec_calls)
     llm_calls = [e for e in events if e.type == "llm.call" and e.stage == "implement"]
     assert llm_calls and {e.lane for e in llm_calls} == {1}  # CrewAI's own events too
-    started = [e for e in events if e.type == "lane.started"]
+    started = [e for e in events if e.type == "lane.started" and e.data.get("kind") != "job"]
     assert [(e.lane, e.data["unit"]) for e in started] == [(1, "WP-1")]
+    reviewers = {e.data["unit"] for e in events if e.type == "lane.started" and e.stage == "review"}
+    assert reviewers == {"code_reviewer", "security_engineer"}  # the read-only fan-out
 
 
 def test_the_model_rate_limiter_counts_every_model_call_of_the_run(
@@ -409,6 +415,6 @@ def test_the_model_rate_limiter_counts_every_model_call_of_the_run(
     assert limiter is not None and all(item is limiter for item in seen)
     usage = json.loads((run_dir(only_run()) / "usage.json").read_text(encoding="utf-8"))
     # Every model call of every stage agent took a slot (and none had to wait at 600 a minute).
-    assert limiter.calls == usage["totals"]["calls"] == 14  # type: ignore[attr-defined]
+    assert limiter.calls == usage["totals"]["calls"] == 20  # type: ignore[attr-defined]
     assert limiter.waits == 0  # type: ignore[attr-defined]
     assert DOC.startswith("# Doc")

@@ -60,8 +60,44 @@ stages:
   # last stage the controller re-verifies if anything changed the project since.
   - name: verify
     kind: verify
-    teammates: [quality_engineer]
+    teammates: [debugger]
     inputs: [spec, plan]
+
+  # Read-only reviewers run side by side (parallel.max_parallel_agents); the controller checks and
+  # merges their findings into docs/review.md. Findings at or above review.fail_on go to the
+  # verify stage's repair agent (one round of budget.max_repair_rounds), then the project is
+  # verified again. Skipped with --profile smoke or team_profile = "minimal", and when every
+  # reviewer is disabled.
+  - name: review
+    kind: review
+    teammates: [code_reviewer, security_engineer]
+    inputs: [spec, plan]
+    outputs: ["file:docs/review.md"]
+    skip_if: [minimal_team]
+    optional: true
+    verification_policy: artifacts
+
+  # Optional delivery and documentation work; skipped like review, and when disabled. Whatever
+  # they change is verified again by the final re-verify after the last stage.
+  - name: devops
+    kind: agent
+    teammates: [devops_engineer]
+    inputs: [spec, plan]
+    outputs: ["file:docs/devops.md"]
+    skip_if: [minimal_team]
+    optional: true
+    verification_policy: artifacts
+    retry: 1
+
+  - name: docs
+    kind: agent
+    teammates: [technical_writer]
+    inputs: [spec, plan]
+    outputs: ["file:docs/usage.md"]
+    skip_if: [minimal_team]
+    optional: true
+    verification_policy: artifacts
+    retry: 1
 
   - name: release
     kind: agent

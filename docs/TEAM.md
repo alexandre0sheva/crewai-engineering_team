@@ -18,7 +18,12 @@ engineering-team team show product_analyst
 | `solution_architect` | Designs the solution and splits the work (`plan` stage); writes `docs/architecture.md`. | `worker` | read tools as above, plus `fs_write` |
 | `backend_engineer` | Foundation, backend work packages, integration. | `worker` | `fs_read`, `fs_write`, `search`, `command`, `dev`, `runtime`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
 | `frontend_engineer` | Frontend work packages. | `worker` | as `backend_engineer`, plus `browser` |
-| `quality_engineer` | Repairs failing checks, writes tests, the release report. | `worker` | as `frontend_engineer` (it needs `browser` to look at the UI) |
+| `quality_engineer` | Writes tests and the release report (`release` stage). | `worker` | as `frontend_engineer` (it needs `browser` to look at the UI) |
+| `code_reviewer` | Read-only review of the finished project: correctness, maintainability, tests, diff noise (`review` stage). | `reviewer` | `fs_read`, `search`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `mcp:docs` |
+| `security_engineer` | Read-only security review: secrets, injection, access control, unsafe defaults, and `Dependency Audit` (pip-audit, npm audit, cargo audit, only where installed and allowed). | `reviewer` | as `code_reviewer`, plus `dev` (the audit is the only `dev` tool a read-only reviewer gets) |
+| `devops_engineer` | Dockerfile, CI workflow, `.env.example`, run scripts; records them in `docs/devops.md` (`devops` stage). | `worker` | `fs_read`, `fs_write`, `search`, `command`, `dev`, `runtime`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
+| `technical_writer` | README, `docs/usage.md`, and a changelog for the generated project (`docs` stage); changes documentation only. | `worker` | `fs_read`, `fs_write`, `search`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `mcp:docs` |
+| `debugger` | Reproduces a failure, finds the root cause, makes the smallest fix: the repair agent of the `verify` stage, for failing checks and for review findings. | `worker` | everything but `web`: as `quality_engineer` without `web` |
 | `generalist_engineer` | Does everything alone (`single` strategy) and stands in for a missing teammate. | `worker` | as `frontend_engineer` |
 
 Groups marked `web` and `browser` are used only when they exist: `web` needs `web.enabled` (and the
@@ -30,6 +35,20 @@ the architect keeps `fs_write` (it writes the architecture document) and the qua
 `fs_write` (tests and the release report). Everyone has the coordination groups (`board`, `notes`,
 `human`) and `knowledge` (Search Docs, which is also how reference documents from `--context-dir` are
 read).
+
+## Review and the optional stages
+
+After the project is verified, the `new` recipe runs the **review** stage: the code reviewer and the
+security engineer read the project side by side (each in its own parallel lane, read-only) and each returns a
+list of findings. The controller checks them (severity, a real path inside the project), merges duplicates
+(same file, nearby lines, similar words: one finding at the higher severity, naming both reviewers), numbers them
+`F-1`, `F-2`, ..., and writes `docs/review.md`. Findings at or above `review.fail_on` (default `high`) go to the
+`debugger` for one repair round (counted in `budget.max_repair_rounds`) and the project is verified again. The
+`devops` and `docs` stages follow, then the release, and the final re-verify covers whatever they changed.
+
+The three are optional. They are skipped by `--profile smoke`, by `team_profile = "minimal"`, and when none of
+their teammates is enabled (`[team.devops_engineer] enabled = false`); with only one reviewer enabled, the other
+simply does not run. See [CONFIGURATION.md](CONFIGURATION.md#review-review-and-team_profile).
 
 ## Tool groups
 
