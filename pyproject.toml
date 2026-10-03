@@ -23,6 +23,7 @@ classifiers = [
 ]
 dependencies = [
     "crewai[tools]>=1.15.23,<1.16",
+    "pyyaml>=6.0,<7",  # recipes and stage prompts (also a CrewAI dependency; declared, not assumed)
 ]
 
 [project.optional-dependencies]
@@ -52,7 +53,6 @@ run_with_trigger = "engineering_team.main:run_with_trigger"
 dev = [
     "mypy>=2.4.0",
     "pytest>=9.1.0",
-    "pyyaml>=6.0",
     "ruff>=0.16.10",
 ]
 

@@ -14,9 +14,11 @@ import crewai
 from engineering_team.atomic_io import atomic_write_json, atomic_write_text
 from engineering_team.contracts import RunManifest, RunStatus, RunSummary, StageRecord, utc_now
 from engineering_team.runtime.bridge import bind_run, flush_bridge
+from engineering_team.runtime.cancel import RunCancelled
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import stage_scope
 from engineering_team.runtime.run_store import RunStore
+from engineering_team.runtime.snapshot import workspace_revision
 
 
 def _sha256(text: str) -> str:
@@ -41,12 +43,15 @@ class RunRecorder:
     ``begin`` writes ``manifest.json`` (pending), ``request.md``, and ``settings.json``.
     ``running()`` wraps the work: it moves the run to ``running``, binds CrewAI's events to
     the run's event log, and on exit records the outcome (``succeeded``; ``cancelled`` if the
-    run's cancel event is set; ``interrupted`` for Ctrl-C; ``failed`` otherwise).
+    run's cancel event is set; ``interrupted`` for Ctrl-C; ``failed`` otherwise). A strategy
+    that fails without raising calls :meth:`fail`. ``reopen`` attaches to an existing run so
+    ``running()`` can continue it (resume).
     """
 
     def __init__(self, ctx: RunContext, store: RunStore) -> None:
         self.ctx = ctx
         self.store = store
+        self._failure: str | None = None
 
     @classmethod
     def begin(
@@ -77,15 +82,54 @@ class RunRecorder:
         )
         return cls(ctx, store)
 
+    @classmethod
+    def attach(cls, ctx: RunContext) -> RunRecorder:
+        """The recorder of a run whose manifest already exists."""
+
+        return cls(ctx, RunStore(ctx.workspace.root))
+
+    @classmethod
+    def reopen(cls, ctx: RunContext) -> RunRecorder:
+        """Prepare an unfinished or failed run to continue (``running()`` then reopens it).
+
+        The caller holds the workspace lock, so a manifest still saying ``running`` belongs to
+        a process that died: it becomes ``interrupted``, as does each of its running stages.
+        """
+
+        recorder = cls.attach(ctx)
+        store = recorder.store
+        if store.load(ctx.run_id).status == "running":
+            store.set_status(ctx.run_id, "interrupted")
+
+        def change(manifest: RunManifest) -> None:
+            manifest.resumes += 1
+            for stage in manifest.stages:
+                if stage.status == "running":
+                    stage.status = "interrupted"
+
+        store.update(ctx.run_id, change)
+        return recorder
+
     @property
     def manifest(self) -> RunManifest:
         return self.store.load(self.ctx.run_id)
 
+    def fail(self, error: str) -> None:
+        """End the run as ``failed`` with this message, without raising."""
+
+        self._failure = error
+
     @contextlib.contextmanager
     def running(self) -> Iterator[RunRecorder]:
         ctx = self.ctx
-        self.store.set_status(ctx.run_id, "running")
-        ctx.events.emit("run.started", mode=self.manifest.mode, project=ctx.settings.project_name)
+        self._failure = None
+        manifest = self.store.set_status(ctx.run_id, "running")
+        ctx.events.emit(
+            "run.started",
+            mode=manifest.mode,
+            project=ctx.settings.project_name,
+            **({"resumed": manifest.resumes} if manifest.resumes else {}),
+        )
         outcome: RunStatus = "succeeded"
         error: str | None = None
         try:
@@ -93,6 +137,8 @@ class RunRecorder:
                 yield self
             flush_bridge()  # deliver CrewAI's in-flight events, then the last safe point:
             ctx.budget.check()  # raises BudgetExceeded if the run overspent
+            if self._failure is not None:
+                outcome, error = "failed", self._failure
         except KeyboardInterrupt:
             outcome = "interrupted"
             raise
@@ -113,15 +159,23 @@ class RunRecorder:
     @contextlib.contextmanager
     def stage(self, name: str) -> Iterator[None]:
         """Run one stage: events, the stage tag on everything inside it, a record in the
-        manifest, and a budget check at both boundaries."""
+        manifest (with the workspace revision at both ends), and a budget check at both
+        boundaries. :class:`RunCancelled` ends it ``cancelled``; Ctrl-C ends it ``interrupted``."""
 
         ctx = self.ctx
         ctx.budget.check()
         attempts = next((s.attempts for s in self.manifest.stages if s.name == name), 0) + 1
-        record = StageRecord(name=name, status="running", started=utc_now(), attempts=attempts)
+        record = StageRecord(
+            name=name,
+            status="running",
+            started=utc_now(),
+            attempts=attempts,
+            revision_start=workspace_revision(ctx.workspace),
+        )
         self.store.record_stage(ctx.run_id, record)
         ctx.events.emit("stage.started", stage=name, attempt=attempts)
         status: str = "succeeded"
+        detail = ""
         try:
             with stage_scope(name):
                 yield
@@ -130,15 +184,46 @@ class RunRecorder:
         except KeyboardInterrupt:
             status = "interrupted"
             raise
-        except BaseException:
-            status = "failed"
+        except RunCancelled as exc:
+            status, detail = "cancelled", str(exc)
+            raise
+        except BaseException as exc:
+            status, detail = "failed", f"{type(exc).__name__}: {exc}"[:500]
             raise
         finally:
             ctx.processes.stop_stage(name)  # a server started in this stage does not outlive it
             ctx.browsers.stop_stage(name)  # nor does a browser context opened in it
-            record = record.model_copy(update={"status": status, "finished": utc_now()})
+            record = record.model_copy(
+                update={
+                    "status": status,
+                    "finished": utc_now(),
+                    "revision": workspace_revision(ctx.workspace),
+                    "detail": detail,
+                }
+            )
             self.store.record_stage(ctx.run_id, record)
             ctx.events.emit("stage.finished", stage=name, status=status)
+
+    def skip_stage(self, name: str, reason: str) -> None:
+        """Record a stage that was not needed (its revision is the unchanged workspace's)."""
+
+        revision = workspace_revision(self.ctx.workspace)
+        now = utc_now()
+        attempts = next((s.attempts for s in self.manifest.stages if s.name == name), 0)
+        self.store.record_stage(
+            self.ctx.run_id,
+            StageRecord(
+                name=name,
+                status="skipped",
+                started=now,
+                finished=now,
+                attempts=attempts,
+                revision_start=revision,
+                revision=revision,
+                detail=reason,
+            ),
+        )
+        self.ctx.events.emit("stage.skipped", stage=name, reason=reason)
 
     def summary(self, status: RunStatus) -> RunSummary:
         """What the run used and cost so far, with its standing against the budget."""

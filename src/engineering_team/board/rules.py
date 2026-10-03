@@ -2,7 +2,8 @@
 
 The controller is the source of truth. Agents may start a card, hand it over for verification
 ("I'm done, please verify"), and block or unblock it; only the controller decides that work is
-``done``, ``failed`` or ``cancelled``, or sends a card back after failed checks.
+``done``, ``failed`` or ``cancelled``, sends a card back after failed checks, or reopens a failed
+or cancelled card when the run resumes.
 """
 
 from __future__ import annotations
@@ -35,6 +36,10 @@ CONTROLLER_MOVES: dict[CardStatus, tuple[CardStatus, ...]] = {
     "in_progress": ("verifying", "done", "blocked", "failed", "cancelled"),
     "verifying": ("in_progress", "done", "blocked", "failed", "cancelled"),
     "blocked": ("ready", "in_progress", "failed", "cancelled"),
+    # Resuming a run reopens the stage and work-package cards that failed or were cancelled;
+    # ``done`` stays final.
+    "failed": ("ready",),
+    "cancelled": ("ready",),
 }
 
 REASON_REQUIRED: frozenset[CardStatus] = frozenset({"blocked", "failed"})

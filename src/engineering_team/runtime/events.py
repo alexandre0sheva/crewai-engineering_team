@@ -33,6 +33,19 @@ MIN_SECRET_LENGTH = 8
 current_stage: ContextVar[str | None] = ContextVar("engineering_team_stage", default=None)
 
 
+# The parallel lane the current context works in, tagged on events like the stage is.
+current_lane: ContextVar[int | str | None] = ContextVar("engineering_team_lane", default=None)
+
+
+@contextlib.contextmanager
+def lane_scope(lane: int | str) -> Iterator[None]:
+    token = current_lane.set(lane)
+    try:
+        yield
+    finally:
+        current_lane.reset(token)
+
+
 @contextlib.contextmanager
 def stage_scope(name: str) -> Iterator[None]:
     token = current_stage.set(name)
@@ -124,7 +137,9 @@ class JsonlSink:
     def emit(self, type: str, **data: Any) -> None:
         try:
             stage = data.pop("stage", None) or current_stage.get()
-            agent, lane = data.pop("agent", None), data.pop("lane", None)
+            agent = data.pop("agent", None)
+            lane = data.pop("lane", None)
+            lane = current_lane.get() if lane is None else lane
             with self._lock:
                 event = Event(
                     seq=self._seq + 1,

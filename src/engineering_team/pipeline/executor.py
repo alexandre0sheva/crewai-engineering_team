@@ -1,0 +1,274 @@
+"""Executing one stage of a recipe: board cards, retries, artifact checks, work packages.
+
+``StageExecutor`` owns everything about *running* a stage; ``PipelineFlow`` decides *which*
+stage runs next. Failures are exceptions: :class:`RunCancelled` and ``BudgetExceeded`` stop the
+run (never retried), anything else is retried up to the stage's ``retry`` and then fails the
+stage, which fails the run so ``resume`` can pick it up.
+"""
+
+from __future__ import annotations
+
+import threading
+
+from engineering_team.artifacts import missing_artifacts
+from engineering_team.contracts import Plan, WorkPackage
+from engineering_team.pipeline.actions import CONTROLLER_ACTIONS
+from engineering_team.pipeline.board_sync import StageBoard
+from engineering_team.pipeline.packages import SHARED_DENY, PlanError, plan_problems
+from engineering_team.pipeline.parallel import PackageOutcome, run_work_packages
+from engineering_team.pipeline.recipes import Recipe, StageSpec
+from engineering_team.pipeline.resume import RESUME_NOTE, StagePlan
+from engineering_team.pipeline.stages import (
+    StageError,
+    StageOutput,
+    StageRequest,
+    StageRunner,
+    teammate_for,
+)
+from engineering_team.pipeline.state import PackageState, PipelineState, RunBundle
+from engineering_team.runtime.budget import BudgetExceeded
+from engineering_team.runtime.cancel import RunCancelled, check_cancelled
+from engineering_team.runtime.context import RunContext
+from engineering_team.runtime.session import RunRecorder
+from engineering_team.tools import WriteScope
+
+MAX_SUMMARY = 2000
+MAX_NOTE_ERROR = 600
+
+
+class StageExecutor:
+    def __init__(
+        self,
+        ctx: RunContext,
+        recipe: Recipe,
+        state: PipelineState,
+        bundle: RunBundle,
+        runner: StageRunner,
+        recorder: RunRecorder,
+        board: StageBoard,
+    ) -> None:
+        self.ctx = ctx
+        self.recipe = recipe
+        self.state = state
+        self.bundle = bundle
+        self.runner = runner
+        self.recorder = recorder
+        self.board = board
+        self._save_lock = threading.Lock()
+
+    # -- the stage -----------------------------------------------------------------------
+
+    def run(self, stage: StageSpec, entry: StagePlan) -> None:
+        """Run ``stage`` to success or raise. Records it, moves its card, saves the state."""
+
+        card = self.board.card_for(stage.name)
+        self.board.start(card, stage.teammates[0] if stage.teammates else None)
+        try:
+            with self.recorder.stage(stage.name):
+                self._attempts(stage, entry)
+                check_cancelled(self.ctx)  # an agent that stopped because of a cancel is not done
+                self.board.verifying(card)
+        except RunCancelled as exc:
+            self.board.cancelled(card, str(exc))
+            raise
+        except KeyboardInterrupt:
+            self.board.cancelled(card, "interrupted")
+            raise
+        except BaseException as exc:
+            self.board.failed(card, f"{type(exc).__name__}: {exc}")
+            raise
+        finally:
+            self._save()
+        self.board.done(card)
+        self.board.promote_next()
+        self._save()
+
+    def _attempts(self, stage: StageSpec, entry: StagePlan) -> None:
+        note = entry.note or ""
+        # A parallel stage retries per work package (see ``_packages``), not as a whole.
+        for attempt in range(1 if stage.kind == "parallel" else 1 + stage.retry):
+            check_cancelled(self.ctx)
+            try:
+                self._once(stage, entry, note)
+                return
+            except (RunCancelled, BudgetExceeded):
+                raise
+            except Exception as exc:
+                if attempt >= stage.retry or stage.kind == "parallel":
+                    raise
+                reason = str(exc)[:MAX_NOTE_ERROR]
+                self.ctx.events.emit(
+                    "stage.retry", stage=stage.name, attempt=attempt + 1, error=reason
+                )
+                note = f"{RESUME_NOTE} The previous attempt failed: {reason}"
+
+    def _once(self, stage: StageSpec, entry: StagePlan, note: str) -> None:
+        if stage.kind == "controller":
+            action = CONTROLLER_ACTIONS.get(stage.action or "")
+            if action is None:
+                known = ", ".join(sorted(CONTROLLER_ACTIONS)) or "none registered"
+                raise StageError(f"Unknown controller action {stage.action!r} (known: {known}).")
+            self.state.summaries[stage.name] = action(self.ctx, self.state)[:MAX_SUMMARY]
+        elif stage.kind == "parallel":
+            self._packages(stage, entry, note)
+        else:
+            self._agent(stage, note)
+        self._check_artifacts(stage)
+
+    def _agent(self, stage: StageSpec, note: str) -> None:
+        output = self._call(stage, stage.teammates[0], note)
+        for name, contract in output.contracts.items():
+            setattr(self.state, name, contract)
+        self.state.summaries[stage.name] = output.summary[:MAX_SUMMARY]
+        if "plan" in output.contracts and self.state.plan is not None:
+            problems = plan_problems(self.state.plan, self.state.spec)
+            if problems:
+                raise PlanError(
+                    "The plan cannot be run: " + "; ".join(problems) + ". Fix the plan so that "
+                    "every work package owns its own paths (never shared root files such as "
+                    "README.md or package.json) and delivers existing acceptance criteria."
+                )
+            host = next((s for s in self.recipe.stages if s.kind == "parallel"), None)
+            if host is not None:
+                self.board.ensure_package_cards(self.state.plan, host)
+
+    def _call(
+        self,
+        stage: StageSpec,
+        teammate: str,
+        note: str,
+        package: WorkPackage | None = None,
+        *,
+        lane: int | None = None,
+        scope: WriteScope | None = None,
+    ) -> StageOutput:
+        self.ctx.board.wait_while_paused(self.ctx.cancel_event)
+        check_cancelled(self.ctx)
+        request = StageRequest(
+            ctx=self.ctx,
+            stage=stage,
+            teammate=teammate,
+            state=self.state.model_copy(deep=True),
+            requirements=self.bundle.requirements,
+            card_id=(
+                self.state.packages[package.id].card_id
+                if package
+                else self.board.card_for(stage.name)
+            ),
+            steering=self.board.steering(teammate),
+            note=note,
+            package=package,
+            lane=lane,
+            write_scope=scope,
+        )
+        output = self.runner.run(request)
+        check_cancelled(self.ctx)
+        return output
+
+    def _check_artifacts(self, stage: StageSpec) -> None:
+        if stage.verification_policy != "artifacts":
+            return
+        problems = missing_artifacts(self.ctx.workspace, *stage.file_outputs)
+        if problems:
+            raise StageError(
+                "Required project artifacts are missing or incomplete: "
+                + ", ".join(problems)
+                + ". Create or complete them with the project filesystem tools."
+            )
+
+    # -- work packages -------------------------------------------------------------------
+
+    def _packages(self, stage: StageSpec, entry: StagePlan, note: str) -> None:
+        plan = self.state.plan
+        if plan is None:
+            raise StageError(f"Stage '{stage.name}' needs the plan, which no earlier stage made.")
+        self.board.ensure_package_cards(plan, stage)
+        for package in plan.work_packages:
+            self.state.packages.setdefault(package.id, PackageState())
+        limit = self.ctx.settings.parallel.max_parallel_agents
+        done = {pid for pid, known in self.state.packages.items() if known.status == "succeeded"}
+
+        def job(package: WorkPackage, lane: int, retry_note: str) -> str:
+            return self._package(stage, package, lane, retry_note or note, scoped=limit > 1)
+
+        # ``retry`` of a parallel stage is per package, inside the engine, so a stage-level
+        # retry never reruns packages that already finished.
+        outcomes = run_work_packages(self.ctx, plan, job, limit, done=done, retry=stage.retry)
+        self._settle(plan, outcomes)
+
+    def _package(
+        self, stage: StageSpec, package: WorkPackage, lane: int, note: str, *, scoped: bool
+    ) -> str:
+        """One attempt at one work package, in ``lane`` (called on a worker thread)."""
+
+        teammate = teammate_for(stage, package)
+        known = self.state.packages[package.id]
+        if known.status in ("running", "failed"):  # an earlier attempt, maybe in another session
+            if RESUME_NOTE not in note:
+                note = f"{RESUME_NOTE} {note}".strip()
+            if known.error and "previous attempt failed" not in note:
+                note += f" The previous attempt failed: {known.error}"
+        known.status, known.error = "running", ""
+        known.attempts += 1
+        self.board.start(known.card_id, teammate, lane=lane)
+        self._save()
+        # With one lane nothing runs beside the agent, so it keeps the whole workspace.
+        scope = WriteScope(allow=tuple(package.owned_paths), deny=SHARED_DENY) if scoped else None
+        try:
+            output = self._call(stage, teammate, note, package, lane=lane, scope=scope)
+        except RunCancelled:
+            self.board.cancelled(known.card_id, "cancelled")
+            raise
+        except BaseException as exc:
+            known.status, known.error = "failed", str(exc)[:MAX_NOTE_ERROR]
+            self.board.failed(known.card_id, known.error)
+            self._save()
+            raise
+        known.status, known.summary = "succeeded", output.summary[:MAX_SUMMARY]
+        self.board.verifying(known.card_id)
+        self.board.done(known.card_id)
+        self._save()
+        return known.summary
+
+    def _settle(self, plan: Plan, outcomes: list[PackageOutcome]) -> None:
+        """Record packages that were skipped, then fail the stage if a required one is missing."""
+
+        by_id = {package.id: package for package in plan.work_packages}
+        for outcome in outcomes:
+            known = self.state.packages[outcome.id]
+            if outcome.status == "skipped":
+                known.status, known.error = "skipped", outcome.error
+                self.board.cancelled(known.card_id, f"skipped: {outcome.error}")
+            elif outcome.status == "failed":
+                known.status, known.error = "failed", outcome.error
+        self._save()
+        missing = [o for o in outcomes if not o.ok and by_id[o.id].required]
+        optional = [o.id for o in outcomes if not o.ok and not by_id[o.id].required]
+        if optional:
+            self.ctx.events.emit("parallel.optional_missing", packages=optional)
+        if missing:
+            detail = "; ".join(f"{o.id} ({o.status}: {o.error or 'no detail'})" for o in missing)
+            raise StageError(
+                f"Required work package(s) did not succeed: {detail}. Finished packages are "
+                "kept; fix the cause and run `engineering-team resume`."
+            )
+
+    def _save(self) -> None:
+        """Write the state file; packages finish on different threads, so one at a time."""
+
+        with self._save_lock:
+            self.state.save(self.ctx.run_dir)
+
+
+def reset_for(stage: StageSpec, entry: StagePlan, state: PipelineState) -> None:
+    """Forget what a stage that runs again produced: its contracts, and (unless it continues
+    where it stopped) its finished work packages."""
+
+    if entry.action == "reuse":
+        return
+    for name in stage.contract_outputs:
+        setattr(state, name, None)
+    state.summaries.pop(stage.name, None)
+    if stage.kind == "parallel" and entry.action != "continue":
+        for package in state.packages.values():
+            package.status, package.error = "pending", ""

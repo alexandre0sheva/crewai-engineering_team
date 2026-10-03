@@ -11,6 +11,7 @@ from crewai.lite_agent_output import LiteAgentOutput
 from crewai.project import CrewBase, agent, crew, task
 from crewai.tasks.task_output import TaskOutput
 
+from engineering_team.artifacts import missing_artifacts
 from engineering_team.model_routing import REASONING_EFFORT_PREFIXES, ResolvedModel
 from engineering_team.runtime.context import RunContext
 from engineering_team.settings import Settings
@@ -38,9 +39,6 @@ def build_llm(resolved: ResolvedModel, settings: Settings) -> LLM:
     return LLM(**options)
 
 
-MIN_ARTIFACT_CHARACTERS = 40
-
-
 def _require_workspace_files(
     workspace: ProjectWorkspace,
     *required_paths: str,
@@ -55,15 +53,7 @@ def _require_workspace_files(
     # stringified form this module produces via ``from __future__ import annotations``.
     # Keep the closure itself unannotated; the factory's return type documents the contract.
     def validate(output: TaskOutput | LiteAgentOutput):
-        problems = []
-        for relative_path in required_paths:
-            path = workspace.resolve(relative_path)
-            if not path.is_file():
-                problems.append(f"{relative_path} (missing)")
-                continue
-            content = path.read_text(encoding="utf-8", errors="replace")
-            if len("".join(content.split())) < MIN_ARTIFACT_CHARACTERS:
-                problems.append(f"{relative_path} (nearly empty)")
+        problems = missing_artifacts(workspace, *required_paths)
         if problems:
             return (
                 False,

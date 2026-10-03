@@ -332,7 +332,7 @@ def _only_run(root: Path) -> tuple[RunManifest, Path]:
 
 
 def test_a_cli_run_leaves_a_manifest_and_event_log(monkeypatch) -> None:
-    monkeypatch.setattr(main, "EngineeringTeam", _FakeTeam)
+    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _FakeTeam)
 
     assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 0
 
@@ -353,7 +353,7 @@ def test_a_failing_cli_run_is_recorded_as_failed(monkeypatch) -> None:
         def crew(self):  # type: ignore[no-untyped-def]
             raise RuntimeError("boom")
 
-    monkeypatch.setattr(main, "EngineeringTeam", Exploding)
+    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", Exploding)
 
     assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 1
 
@@ -370,7 +370,7 @@ def test_prepare_only_is_recorded_as_a_prepare_run(monkeypatch) -> None:
 
 
 def test_every_run_of_a_workspace_is_listed_in_order(monkeypatch) -> None:
-    monkeypatch.setattr(main, "EngineeringTeam", _FakeTeam)
+    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _FakeTeam)
 
     for _ in range(3):
         assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 0

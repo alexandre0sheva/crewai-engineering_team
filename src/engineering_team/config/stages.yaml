@@ -1,0 +1,225 @@
+# Task prompts for the pipeline's stages (strategy "pipeline" and "single"). Roles, goals, and
+# backstories live in agents.yaml; nothing here repeats them. Placeholders are interpolated per
+# stage: {project_name} {requirements} {workspace_path} {current_date} {spec} {plan} {package}
+# {card} {notes} {resume_note}. {spec}, {plan} and {package} are JSON; the others are text.
+
+spec:
+  description: >
+    Turn the request for {project_name} into a testable specification. Do not write files
+    and do not design the solution yet.
+
+    Request:
+
+    {requirements}
+
+    Produce a specification with: a short title and summary; acceptance criteria that can each
+    be checked by running or inspecting the result (give each an id like AC-1 and a kind:
+    functional, quality, constraint, or security); explicit non-goals; the assumptions you make
+    where the request is silent; and open questions only for decisions that would materially
+    change the product. Keep it to the smallest useful MVP.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON specification (title, summary, criteria, non_goals, assumptions, open_questions).
+
+plan:
+  description: >
+    Design the solution for {project_name} and split the work. Inspect the current project
+    tree at {workspace_path}; reuse coherent existing code.
+
+    Specification:
+
+    {spec}
+
+    Choose the smallest suitable stack (do not force Python, a web UI, or any framework the
+    specification does not support) and prefer one working vertical slice over breadth. Write
+    docs/architecture.md (goals and non-goals, stack and why, project tree, data model and
+    contracts, flows, security boundaries, failure behaviour). Then return the plan: the stack;
+    the exact project commands (setup, test, lint, build, run) as lists of command lines; and
+    work packages. Each work package has an id (WP-1, ...), a title, a role ("backend",
+    "frontend", ...; only create a frontend package if the product has a user interface), a
+    description, the paths it owns (gitignore-style globs, for example "src/api/**"), the ids
+    of the packages it depends on, and the acceptance criteria ids it delivers (existing ids
+    from the specification; every package delivers at least one, and every criterion is
+    delivered by some package). Packages that do not depend on each other run at the same time
+    and may change only the paths they own, so give each package its own directories (tests
+    belong to the package they test) and make owned paths disjoint. Never give a package a
+    shared root file such as README.md, package.json, pyproject.toml, a lockfile, or CI
+    configuration: the foundation stage owns those and an integration stage runs afterwards to
+    reconcile the packages. Mark a package "required": false only if the product works without
+    it. Also list the main risks.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    docs/architecture.md written in the workspace, and a JSON plan (stack, commands,
+    work_packages, risks).
+
+foundation:
+  description: >
+    Create the shared project foundation for {project_name} in {workspace_path}.
+
+    Specification:
+
+    {spec}
+
+    Plan:
+
+    {plan}
+
+    Create or improve a conventional structure for the chosen stack: dependency and tool
+    configuration, a safe .gitignore, .env.example when configuration is needed, and a useful
+    README.md (setup, run, test, architecture notes). Implement the shared pieces every work
+    package will build on and the thinnest real vertical slice. Leave no placeholder functions
+    where working behaviour is feasible. Install only necessary dependencies and run the
+    cheapest relevant compile, import, or build check. Preserve compatible existing behaviour.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A runnable project foundation with README.md. Report files changed, dependencies added,
+    commands run with their exit codes, and the remaining work.
+
+implement:
+  description: >
+    Implement one work package of {project_name} in {workspace_path}.
+
+    Specification:
+
+    {spec}
+
+    Plan:
+
+    {plan}
+
+    Your work package:
+
+    {package}
+
+    Read the architecture and the code that exists before editing. Implement real, end to end
+    behaviour for the acceptance criteria this package delivers, add focused tests next to the
+    code, validate inputs and error paths, keep secrets out of the repository, and run the
+    relevant tests or smoke checks. You may change only the paths your package owns
+    (owned_paths); teammates are working on the others at the same time, so everything else is
+    read-only for you. If you need a change elsewhere (a shared file, another package's
+    interface), do not work around it: describe it in your summary or in a card comment so the
+    integration stage can make it.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The work package implemented in the workspace with tests. Report the criteria delivered,
+    files changed, commands run with their exit codes, and any honest limitation.
+
+integrate:
+  description: >
+    Integrate the work packages of {project_name} in {workspace_path}. They were built in
+    parallel, each by an agent that could change only its own paths, so they may disagree where
+    they meet (interfaces, imports, configuration, shared files).
+
+    Specification:
+
+    {spec}
+
+    Plan:
+
+    {plan}
+
+    Work package results (status, summary, error):
+
+    {packages}
+
+    Read what each package delivered, then build the whole project and run its tests, lint, and
+    type checks. Fix cross-package contract mismatches and anything a skipped or failed
+    optional package left dangling; you may change any file, including the shared files
+    (README.md, dependency manifests, CI configuration). Keep fixes minimal and do not
+    rewrite a package's design. Write docs/integration.md listing what you ran with exit
+    statuses, every change you made and why, and any package that is missing or incomplete.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A project whose packages work together, and docs/integration.md recording the commands run
+    and every change made.
+
+verify:
+  description: >
+    Independently verify the complete {project_name} workspace at {workspace_path} against the
+    specification. Do not trust earlier summaries; inspect the code.
+
+    Specification:
+
+    {spec}
+
+    Plan:
+
+    {plan}
+
+    Build a criteria-to-test matrix, add the highest-value missing tests, and exercise the
+    primary success and failure paths across component boundaries. Run the test suite, the
+    lint and type checks when configured, the build, and a minimal startup or end-to-end smoke
+    test that cannot block indefinitely. Diagnose failures, make safe in-scope fixes, and rerun
+    the affected checks. Never weaken a meaningful test to get green output. Check for
+    committed secrets, unsafe defaults, and misleading README instructions.
+
+    Write docs/verification.md with each criterion, the exact commands, exit statuses, what
+    each check proved, defects fixed, and remaining gaps.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    docs/verification.md with reproducible evidence, and a summary that separates passing
+    checks, fixes made, checks not run, and residual risks.
+
+release:
+  description: >
+    Perform a release-readiness review of {project_name} in {workspace_path}.
+
+    Specification:
+
+    {spec}
+
+    Re-read the request, the architecture, the verification record, the README, and the
+    important source files. Confirm the project is coherent, starts with its documented
+    commands, and delivers the primary vertical slice. Fix only targeted integration,
+    documentation, or configuration issues, then rerun the affected check. Make sure README.md
+    gives a new developer accurate setup, configuration, run, test, and troubleshooting steps.
+
+    Write docs/release-report.md: delivered scope, criteria status, architecture summary,
+    verification evidence, known limitations, security notes, and the next three improvements.
+    Do not claim production readiness when only MVP readiness was shown.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A coherent project with accurate onboarding documentation and docs/release-report.md, and
+    a concise delivery summary with the workspace path.
+
+build:
+  description: >
+    Build {project_name} end to end in {workspace_path}, on your own.
+
+    Request:
+
+    {requirements}
+
+    Choose the smallest suitable stack, design a minimal architecture, implement a working
+    vertical slice with focused automated tests, run the tests and a build or startup smoke
+    check, fix what fails, and write a README.md (setup, run, test) plus docs/release-report.md
+    (delivered scope, how it was verified, known limitations). Inspect the existing workspace
+    first and reuse coherent code. Never report a check as passing unless you ran it.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A working, tested project with README.md and docs/release-report.md, and a summary of what
+    was built, what was verified, and what is missing.

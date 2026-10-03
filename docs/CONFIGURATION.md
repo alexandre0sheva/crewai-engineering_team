@@ -33,6 +33,7 @@ a profile.
 |---|---|---|---|
 | `provider` | `ENGINEERING_PROVIDER` | `openai` | Model preset: `openai`, `anthropic`, `google`, `ollama` (`azure` needs `enable_azure`) |
 | `profile` | `ENGINEERING_RUN_PROFILE` | `standard` | `standard`, `smoke` (cheap end-to-end check), `max-quality` |
+| `strategy` | `ENGINEERING_STRATEGY` | `hierarchical` | How the team is orchestrated: `hierarchical` (the 0.1.0 manager-led crew), `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)), or `single` (one agent with every tool, the benchmark baseline). `--strategy` overrides it. The default stays `hierarchical` until the benchmarks decide. |
 | `project_name` | `ENGINEERING_PROJECT_NAME` | `mvp-app` | Workspace directory name |
 | `workspace_root` | `ENGINEERING_WORKSPACE_ROOT` | `workspace` | Parent of generated projects (relative → current directory) |
 | `request` | `ENGINEERING_PROJECT_REQUEST` | – | Inline request used when no `--request`/`--example`/`--request-file` is given |
@@ -47,8 +48,8 @@ a profile.
 | `web.enabled` | `ENGINEERING_ALLOW_WEB` | `false` | Register the web tools (Web Search, Fetch URL, Package Info). Also `--allow-web`. Off means no network tool exists in the run; see [Web tools](#web-tools-web-and-knowledge) |
 | `execution.backend` | `ENGINEERING_EXECUTION_BACKEND` | `local` | `local` (Docker arrives later in 0.2.0) |
 | `execution.max_parallel_commands` | `ENGINEERING_MAX_PARALLEL_COMMANDS` | `2` | Concurrent project commands |
-| `parallel.max_parallel_agents` | `ENGINEERING_MAX_PARALLEL` | `3` | Concurrent agents (used once parallel execution lands) |
-| `parallel.max_rpm` | `ENGINEERING_MAX_RPM` | – | Requests-per-minute cap shared by agents |
+| `parallel.max_parallel_agents` | `ENGINEERING_MAX_PARALLEL` | `3` | Work packages (and read-only reviewer jobs) that run at the same time, each in its own lane; also the board's in-progress limit. `1` runs packages one after the other, in dependency order, with no write scope (as a sequential run always did). See [Parallel execution](ARCHITECTURE.md#parallel-execution) |
+| `parallel.max_rpm` | `ENGINEERING_MAX_RPM` | – | Model calls per minute, shared by every agent of a `pipeline` or `single` run (a sliding 60-second window; calls wait their turn and stop waiting on cancel). Unset: no cap. The `hierarchical` crew does not use it |
 | `budget.max_cost_usd` | `ENGINEERING_BUDGET_MAX_COST_USD` | – | Stop the run after this many USD of estimated model cost (see [Budgets](#budgets-usage-and-cost)) |
 | `budget.max_tokens` | `ENGINEERING_BUDGET_MAX_TOKENS` | – | Stop after this many prompt + completion tokens |
 | `budget.max_wall_seconds` | `ENGINEERING_BUDGET_MAX_WALL_SECONDS` | – | Stop after this much wall-clock time |
@@ -232,6 +233,7 @@ starting points and override per tier or role. They are *defaults*, not measured
 ```toml
 provider = "anthropic"
 profile = "standard"
+strategy = "hierarchical"
 
 [parallel]
 max_parallel_agents = 4

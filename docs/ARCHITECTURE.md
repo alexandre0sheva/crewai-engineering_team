@@ -1,5 +1,19 @@
 # Orchestrator architecture
 
+## Strategies
+
+`settings.strategy` (`--strategy`) picks how a run is orchestrated. All three implement
+`Strategy.run(ctx, recipe, bundle) -> RunResult` (`pipeline/strategies.py`) and run inside the run
+recorder, so every one leaves a manifest, an event log, and usage:
+
+| Strategy | What it is | Resumable |
+|----------|-----------|-----------|
+| `hierarchical` (default) | The 0.1.0 crew: a manager delegating to four specialists over six fixed tasks (`config/tasks.yaml`); described next | no |
+| `pipeline` | A recipe's stages as a CrewAI Flow with typed hand-offs, a task board, resume, and cancellation ([below](#pipeline-recipes-and-resume)) | yes |
+| `single` | One agent (`generalist_engineer`) with every tool and one task: the baseline for the benchmarks. It runs through the pipeline machinery as a one-stage recipe, so it has a board card, a stage record, resume, and cancellation too | yes |
+
+The default stays `hierarchical` until the benchmark task has measured `pipeline`.
+
 ## Why hierarchical
 
 The crew uses CrewAI's hierarchical process with a custom
@@ -173,16 +187,18 @@ from reading `commands/` logs. This is the single description of its layout:
 | `request.md` | `RunRecorder` | The request exactly as given |
 | `usage.json` | `RunRecorder` | `UsageReport`: token totals and a breakdown by stage, agent, and model, with per-model cost (`null` when the price is unknown) |
 | `settings.json` | `RunRecorder` | The effective `Settings` (no secrets: credentials are read from the environment, never stored) |
+| `pipeline.json` | `PipelineState` | The pipeline's hand-offs between stages (spec, plan, work-package status, board card ids, agent summaries); see [Pipeline, recipes, and resume](#pipeline-recipes-and-resume) |
+| `cancel` | `engineering-team cancel` | Flag file the running controller polls; deleted when a run starts or resumes |
 | `board.json`, `board.md` | `BoardStore` | The task board: every card with its history (`BoardState`), and a Markdown view of it ([Task board](#task-board)) |
 | `notes/<key>.md` | `NoteStore` | Shared notes agents wrote with `Write Note` |
-| `crew-log.json` | CrewAI | CrewAI's own execution log |
+| `crew-log.json`, `crew-log-<stage>.json` | CrewAI | CrewAI's own execution log (one per stage crew in the pipeline) |
 | `commands/<n>.log` | `LocalBackend` | Full output of each project command |
 
 Other state under `.engineering-team/` is per workspace, not per run: `owner.json` (ownership
 marker), `lock` (workspace lock), `tmp/`, `tool-home/`, and `cache/`.
 
 **Contracts** (`contracts.py`) are Pydantic v2 models that every part of the system shares:
-`Spec`, `Plan`, `WorkPackage`, `CheckSpec`/`CheckResult`, `Finding`, `StageRecord`, `RunManifest`,
+`Spec`, `Plan`, `WorkPackage`, `CheckSpec`/`CheckResult`, `Finding`, `StageRecord` (with the workspace revision at the stage's start and end), `RunManifest`,
 `Event`. Each has `schema_version` (1) and ignores unknown fields, so a file written by a newer
 version still loads; bump the version only for a breaking change in meaning.
 
@@ -190,7 +206,8 @@ version still loads; bump the version only for a breaking change in meaning.
 moves it to `running` and finishes it as `succeeded`, `failed`, `cancelled` (the run's cancel event
 was set) or `interrupted` (Ctrl-C), flushing CrewAI's pending events first. The store enforces the
 transitions `pending → running → {succeeded, failed, cancelled, interrupted}` (a pending run may
-also be cancelled or failed); end states are final. Manifests and JSON files are replaced
+also be cancelled or failed). `succeeded` is final; the other end states can be left only by
+`resume`, which moves the run back to `running` (and counts it in `manifest.resumes`). Manifests and JSON files are replaced
 atomically (temp file, `fsync`, `os.replace`), so a reader never sees a partial file, and updates
 from several threads are serialised.
 
@@ -200,7 +217,8 @@ order; a log can be tailed while the run is live, and a torn last line after a c
 by `read_events`. Event types today: `run.started`/`run.finished`; `tool.call` (our tools: tool,
 redacted args, duration, ok); and, bridged from CrewAI, `crew.*`, `task.*`, `agent.*`,
 `tool.finished`/`tool.error` (CrewAI's view of tool use, including delegation) and `llm.call`
-(model as `provider/model`, call id, token usage) / `llm.failed`; `stage.started`/`stage.finished`;
+(model as `provider/model`, call id, token usage) / `llm.failed`; `stage.started`/`stage.finished`, `stage.skipped`, `stage.reused`, `stage.retry`, `resume.plan`,
+`pipeline.started`/`pipeline.finished`, `pipeline.board_warning`, `run.cancel_requested`;
 `board.*` (card created, moved, commented, updated; pause and resume; steering delivered);
 `question`, `question.answered`, `question.unanswered`; `note.written`, `decision.logged`;
 `budget.warning`/`budget.exceeded`.
@@ -260,8 +278,10 @@ leave the totals.
 | `verifying → in_progress` (failed checks; attempt +1) | no | yes |
 | `→ done` (needs check ids as evidence, or `stage_success` for a stage) | **no** | yes |
 | `→ failed` (reason required), `→ cancelled` | **no** | yes |
+| `failed → ready`, `cancelled → ready` (a resume reopens the card) | **no** | yes |
 
-`done`, `failed`, and `cancelled` are final. A refused move returns an `ERROR:` that lists the
+`done` is final. `failed` and `cancelled` cards can be reopened (`→ ready`) by the controller only,
+when a run resumes. A refused move returns an `ERROR:` that lists the
 allowed next states. The in-progress column has a WIP limit, `parallel.max_parallel_agents`,
 counted over work packages and repairs (stage cards are containers and subtasks belong to their
 parent's agent); the controller sending a card back after failed checks is exempt.
@@ -290,6 +310,138 @@ calls now; the CLI and the web UI use them later.
 timeout passes, or the run is cancelled; it emits `question` events. It starts non-interactive,
 where `ask` returns at once and the agent is told to proceed on an assumption; a front end calls
 `enable()` and answers `pending()` questions.
+
+## Pipeline, recipes, and resume
+
+The `pipeline` strategy replaces the fixed six-task crew with a controller that is resumable,
+skip-aware, and the base for parallel work and new modes. Design principle: the **controller is
+deterministic code**; models do bounded work inside stages.
+
+**Recipes** (`pipeline/recipes.py`, bundled in `modes/recipes/*.yaml`) are data. A `Recipe` is an
+ordered list of stages; each has a `name`, a `kind` (`agent`: one small crew, one teammate;
+`parallel`: one crew per work package of the plan, run in lanes ([Parallel execution](#parallel-execution)); `controller`: a registered
+controller-side action, no model), its `teammates`, `inputs` and `outputs` (contracts `spec`/`plan`,
+or `file:<path>` for a promised file), `skip_if` conditions (`no_work_packages`), `retry`, and a
+`verification_policy` (`artifacts`: the controller requires every promised file to exist and hold
+real content; it never takes the agent's word). The `new` recipe is `spec` → `plan` → `foundation` →
+`implement` → `integrate` → `verify` → `release`; the architect's `Plan` decides which work packages exist, so a
+CLI- or API-only project simply has no frontend package and a plan with none skips `implement`.
+`verify` is a placeholder (the quality agent) until the controller-run verifier replaces it. A
+recipe is validated when loaded (unknown conditions, inputs no earlier stage produces, missing
+teammates, duplicate names are one-line errors).
+
+**Why a Flow.** `PipelineFlow(Flow[PipelineState])` (`pipeline/flow.py`) gives a typed state and
+CrewAI's own `@start`/`@listen`/`@router` wiring. `begin` loads or creates the state, creates the
+board's stage cards, and (when resuming) decides which stages are finished; one `@router`
+(`advance`) runs the next unfinished stage and returns `next_stage`, `finished`, `failed`, or
+`cancelled`, and listeners record the end. One router walking the recipe, rather than a hard-coded
+method per stage, keeps recipes data. Each stage builds its own **small crew** (`pipeline/stages.py`:
+one agent from `agents.yaml`, one task from `config/stages.yaml`, `output_pydantic` where a
+contract is expected, the default tool groups, the stage's card id and any steering notes in the
+prompt) and `StageExecutor` (`pipeline/executor.py`) runs it: board moves, retries (the previous
+error goes into the next attempt's prompt), the artifact check, and work packages in dependency
+order. Unrecoverable failures end the stage `failed` and the run `failed`; a stage whose agent
+stopped because the run was cancelled is never recorded as done.
+
+**State and files.** Where each stage stands lives in the manifest (`StageRecord`: status,
+attempts, why, and the workspace tree hash at its start and end); the contracts and per-package
+status live in `pipeline.json`. The workspace *revision* (`runtime/snapshot.workspace_revision`) is
+a hash of the path and content of every non-ignored file, so the run's own state never moves it.
+
+**Resume** (`engineering-team resume <run_id>`, API `main.resume(run_id)`) reopens a cancelled,
+interrupted, or failed run under the workspace lock and reloads the manifest and state; usage and
+budgets continue from `events.jsonl`. A stage is **complete** only if its record says it succeeded
+(or was skipped), the contracts it promised are in the state, **and** the workspace still fits: the
+tree hash recorded at its end is the tree it left. Because a stage that started afterwards may have
+changed files, the stage that follows the last complete one is checked against *its* recorded start
+hash (chain intact), and only when that stage never started must the workspace equal the end hash.
+A finished stage whose hash no longer fits is run again, and so is everything after it. Per stage:
+`reuse` (nothing runs), `continue` (it started and did not finish; run it again, keeping finished
+work packages), `rerun` (finished but the workspace changed; run it from scratch), `run`. Anything
+that runs again after a previous attempt gets the instruction *"a previous attempt may have left
+partial changes; inspect the workspace first, do not redo finished work"*. Resuming a run whose
+manifest still says `running` (its process was killed) is allowed once the workspace lock is free.
+Repeated resumes are safe: finished stages are never repeated. Resuming also clears a pause left by the stopped session. A run cannot be resumed when it
+succeeded, used `hierarchical`, was started for another mode, its `request.md` no longer matches the
+recorded hash, or its recipe changed since it started. **A changed request never reuses old
+evidence**: `resume <run_id> --request …` with different text starts a new run instead.
+
+*CrewAI's native checkpointing was evaluated and not used.* `checkpoint=True`/`CheckpointConfig`
+(1.15) snapshots a crew's runtime state when events such as `task_completed` fire and restores a
+crew, but a stage here is a single-agent, single-task crew, so a task-boundary checkpoint inside
+one holds nothing between "not started" and "done"; the state that matters (files the tools
+changed) lives in the workspace, which the tree hash covers, and our per-stage state is readable
+JSON next to the manifest instead of a serialised runtime. Revisit when stages become multi-task.
+
+**Cancellation** (`runtime/cancel.py`). `ctx.cancel_event` is the one stop signal; tools refuse to
+work once it is set (telling the agent to wrap up), and the controller checks it before each stage,
+while a stage waits for a pause, and after an agent returns. A first SIGINT or any SIGTERM sets it
+(a second Ctrl-C raises `KeyboardInterrupt` for an immediate stop and ends the run `interrupted`);
+`engineering-team cancel <run_id>` from another process writes `runs/<id>/cancel`, which a watcher
+thread polls twice a second. A cancelled run ends `cancelled` (exit code 130) with the working stage
+`cancelled` and its card `cancelled`; a budget stop is still `failed`. Cancellation is cooperative:
+a model call already in flight finishes first.
+
+**Board.** At run start the controller creates one `stage` card per recipe stage (the first `ready`,
+the rest `backlog`) and moves them: `in_progress` when the stage starts (a reopened card first goes
+through `ready`), `verifying` when the agent returns, `done` (stage success as the evidence) or
+`failed`/`cancelled`; a skipped stage's card is `cancelled` with the reason, so it leaves the
+totals. When the plan stage succeeds the controller creates one `work_package` card per package
+under the `implement` card (dependencies, owned paths, criteria, assignee) and moves each as the
+package runs. The agent is told its card id, receives the board, notes, and human tools, and gets
+any pending steering notes at the start of each stage; `pause` is honoured before every stage and
+every tool call. A board move the rules refuse is logged and reported as a
+`pipeline.board_warning` event rather than breaking the run: the manifest is the record, the board
+a view. Stage agents currently get one default tool table (`fs_read`, `fs_write`, `search`,
+`command`, `dev`, `runtime`, `code_intel`, `board`, `notes`, `human`; `web` when enabled, `browser`
+for the frontend and quality roles when its extra is installed); per-teammate groups replace it
+when the team registry lands.
+
+## Parallel execution
+
+Work packages run side by side, safely, by **ownership, not by merging**. The architect's plan gives each
+`WorkPackage` the gitignore-style globs it owns (`owned_paths`); the agent that works on it gets write tools
+scoped to them (a `WriteScope`, so another path is an `ERROR:` naming what it may change), reads stay unrestricted,
+and the shared root files (README, dependency manifests and lockfiles, CI configuration, `.gitignore`; the list is
+`SHARED_FILES` in `pipeline/packages.py`) belong to `foundation` and `integrate`: they are denied to every scoped
+agent, and a plan that gives one to a package is invalid. Git worktrees per package were considered and rejected:
+merging needs an LLM to resolve conflicts, which is the nondeterminism ownership avoids.
+
+**Plan validation** (`plan_problems`) runs when the plan stage ends. Invalid means: duplicate or empty ids,
+unknown or self dependencies, a cycle, a package that owns nothing or a shared file, a package that delivers no
+acceptance criterion or names one the spec does not have. The architect gets one structured repair attempt (the
+stage retry, with every problem in its prompt); a second failure fails the run with the list. Overlapping
+`owned_paths` are *not* invalid: they are detected (`paths_overlap`, conservative: a glob is reduced to the
+directory it is anchored in) and the packages are simply run in turn, with a `parallel.serialised` event.
+
+**The engine** (`pipeline/parallel.py`, `run_work_packages`). The plan is cut into topological layers; within a
+layer, packages with disjoint ownership run together in a thread pool of at most `parallel.max_parallel_agents`;
+the next layer starts when the batch has finished. Each worker runs under `contextvars.copy_context()`, so the run,
+stage, and **lane** tags reach everything it does, including CrewAI's own events. A lane is a number (the lowest
+free one); events (`lane.started`/`lane.finished`/`lane.retry`, `tool.call`, `llm.call`) and the package's board card
+carry it, and the lane owns its browser context and processes. Outcomes always come back in plan order, whatever
+finished first, so reports are stable. With `max_parallel_agents = 1` nothing runs concurrently, packages run in
+dependency order, and no write scope is applied (nothing runs beside the agent), which is exactly how a sequential
+run behaves.
+
+**Failure isolation.** A failing package is retried `retry` times (the recipe's `retry`, per package) with its error
+in the prompt, then recorded `failed`; its siblings carry on, and the packages that depend on it are `skipped`
+(their cards `cancelled`). When every runnable package has finished, the stage fails if a *required* package
+(`WorkPackage.required`, default true) is missing, naming each one; finished packages are kept and `resume` redoes
+only what is missing. A missing optional package does not fail the run: the **integrate** stage (sequential,
+unrestricted scope, after `implement`) is told each package's status, runs the build and tests, fixes cross-package
+contract mismatches, and records what it ran and changed in `docs/integration.md`.
+
+**Cancellation and limits.** Cancelling sets the one `cancel_event` every lane's tools watch; the engine starts
+nothing more, waits for the running lanes to wrap up, and raises `RunCancelled`. `parallel.max_rpm` installs one
+sliding-window `RateLimiter` (`runtime/requests.py`) as every stage agent's CrewAI rate controller, so the cap is
+shared across lanes instead of applying to each crew alone (provider 429s still rely on CrewAI's own retry). The
+board's WIP limit for `in_progress` work packages is the same `max_parallel_agents`.
+
+**Read-only fan-out** (`run_parallel_readonly(ctx, jobs, runner)`) is the same lane machinery for reviewers and
+codebase analysts: each `ReadOnlyJob` (name, teammate, report path) gets `readonly_tools` — every read-only tool,
+plus write tools that can touch nothing but the job's own report path — and a failing job is reported `failed`
+without stopping the others. Results come back in job order.
 
 ## Settings and model routing
 

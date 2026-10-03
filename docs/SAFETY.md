@@ -21,6 +21,9 @@ Agents read and write files only through the workspace tools, which:
   root from deletion;
 - apply an optional per-agent **write scope** (gitignore-style globs, deny wins) to every
   write, replace, delete, patch, move, copy, and mkdir, so parallel agents own disjoint paths.
+  Parallel work packages always get one (the paths the plan gave them, minus shared root files such as
+  `README.md` and `package.json`), and read-only reviewer jobs may write only their own report file; see
+  [Parallel execution](ARCHITECTURE.md#parallel-execution).
 
 A project directory is *owned* when it contains `.engineering-team/owner.json`. Non-empty
 directories without it are never written to, and `--reset` deletes only owned projects

@@ -1,0 +1,68 @@
+# The recipe for building a new project from a request. A recipe is data: ordered stages, who
+# works on them, which contracts they read and write, when they are skipped, and how the
+# controller checks the result. See docs/ARCHITECTURE.md ("Pipeline, recipes, and resume").
+name: new
+description: Build a new project from a request, from spec to release report.
+stages:
+  - name: spec
+    kind: agent
+    teammates: [solution_architect]
+    inputs: [request]
+    outputs: [spec]
+    retry: 1
+
+  - name: plan
+    kind: agent
+    teammates: [solution_architect]
+    inputs: [request, spec]
+    outputs: [plan, "file:docs/architecture.md"]
+    verification_policy: artifacts
+    retry: 1
+
+  - name: foundation
+    kind: agent
+    teammates: [backend_engineer]
+    inputs: [spec, plan]
+    outputs: ["file:README.md"]
+    verification_policy: artifacts
+    retry: 1
+
+  # The architect's plan decides which work packages exist, so a CLI- or API-only project has
+  # no frontend package and a plan with none skips the stage. Packages that do not depend on
+  # each other and own disjoint paths run in parallel lanes (parallel.max_parallel_agents);
+  # `retry` is per work package.
+  - name: implement
+    kind: parallel
+    teammates: [backend_engineer, frontend_engineer]
+    inputs: [spec, plan]
+    skip_if: [no_work_packages]
+    retry: 1
+
+  # Sequential and unrestricted: builds, runs the tests, and fixes what the parallel packages
+  # got wrong where they meet. Skipped with the implement stage when the plan has no packages.
+  - name: integrate
+    kind: agent
+    teammates: [backend_engineer]
+    inputs: [spec, plan]
+    outputs: ["file:docs/integration.md"]
+    skip_if: [no_work_packages]
+    verification_policy: artifacts
+    retry: 1
+
+  # Placeholder: the quality agent verifies and writes the record. The controller-run
+  # verifier replaces it in a later task.
+  - name: verify
+    kind: agent
+    teammates: [quality_engineer]
+    inputs: [spec, plan]
+    outputs: ["file:docs/verification.md"]
+    verification_policy: artifacts
+    retry: 1
+
+  - name: release
+    kind: agent
+    teammates: [quality_engineer]
+    inputs: [spec, plan]
+    outputs: ["file:docs/release-report.md"]
+    verification_policy: artifacts
+    retry: 1

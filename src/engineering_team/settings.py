@@ -218,6 +218,7 @@ class BrowserSettings(_Frozen):
 class Settings(_Frozen):
     provider: Literal["openai", "anthropic", "google", "ollama", "azure"] = "openai"
     profile: Literal["standard", "smoke", "max-quality"] = "standard"
+    strategy: Literal["hierarchical", "pipeline", "single"] = "hierarchical"
     project_name: str = "mvp-app"
     workspace_root: str = "workspace"
     request: str | None = None
@@ -568,6 +569,7 @@ def _build_env_table() -> dict[str, tuple[str, Callable[[str], Any]]]:
     table: dict[str, tuple[str, Callable[[str], Any]]] = {
         "ENGINEERING_PROVIDER": ("provider", _text),
         "ENGINEERING_RUN_PROFILE": ("profile", _text),
+        "ENGINEERING_STRATEGY": ("strategy", _text),
         "ENGINEERING_PROJECT_NAME": ("project_name", _text),
         "ENGINEERING_WORKSPACE_ROOT": ("workspace_root", _text),
         "ENGINEERING_PROJECT_REQUEST": ("request", _text),

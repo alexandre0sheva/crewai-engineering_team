@@ -668,6 +668,7 @@ def build_tools(
     write_scope: WriteScope | None = None,
     read_only: bool = False,
     agent: str | None = None,
+    lane: int | str | None = None,
 ) -> list[BaseTool]:
     """Build one run's tools, in catalogue order.
 
@@ -677,7 +678,8 @@ def build_tools(
     run's own state, so read-only teammates keep them). The ``web`` group is left out unless
     ``web.enabled`` is set (and, with ``web.roles``, the teammate is listed). ``agent`` is the
     teammate the tools belong to: the board and notes tools act, comment, and are logged as
-    that teammate.
+    that teammate. ``lane`` is the parallel lane the tools work in: it tags their events and
+    keeps the teammate's browser session and processes apart from a same-role teammate's.
     """
 
     wanted = tuple(GROUPS if groups is None else groups)
@@ -688,7 +690,7 @@ def build_tools(
         raise ValueError(
             f"Unknown tool group(s): {', '.join(unknown)}. Known: {', '.join(GROUPS)}."
         )
-    env = ToolEnv(ctx, write_scope, agent)
+    env = ToolEnv(ctx, write_scope, agent, lane)
     bundles: dict[ToolFactory, Mapping[str, BaseTool]] = {}
     tools: list[BaseTool] = []
     for spec in CATALOGUE:

@@ -21,6 +21,20 @@ from typing import Any, TypeVar
 
 from engineering_team.crew import EngineeringTeam
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
+from engineering_team.pipeline.recipes import Recipe
+from engineering_team.pipeline.runner import (
+    execute_run,
+    open_resume,
+    read_request,
+    request_run_cancel,
+)
+from engineering_team.pipeline.state import RunBundle, RunResult, request_hash
+from engineering_team.pipeline.strategies import (
+    STRATEGY_NAMES,
+    Strategy,
+    get_strategy,
+    recipe_name_for,
+)
 from engineering_team.runtime.budget import BudgetExceeded
 from engineering_team.runtime.context import RunContext, new_run_id
 from engineering_team.runtime.locks import WorkspaceLock
@@ -44,6 +58,7 @@ __all__ = [
     "slugify_project_name",
     "load_requirements",
     "run",
+    "resume",
     "train",
     "replay",
     "test",
@@ -217,6 +232,12 @@ def _run_parser() -> argparse.ArgumentParser:
         help="Model provider preset (default: openai).",
     )
     parser.add_argument(
+        "--strategy",
+        choices=list(STRATEGY_NAMES),
+        help="How the team is orchestrated: hierarchical (default), pipeline (staged, "
+        "resumable), or single (one agent, the benchmark baseline).",
+    )
+    parser.add_argument(
         "--allow-web",
         action="store_true",
         help="Let the team use the web tools (search, fetch, package info). Off by default; "
@@ -230,24 +251,30 @@ def _run_parser() -> argparse.ArgumentParser:
 
 
 def _cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
+    """Settings overrides from the options a command defines (each command defines some)."""
+
     names: dict[str, Any] = {
-        "web.enabled": True if args.allow_web else None,
-        "provider": args.provider,
-        "profile": args.profile,
-        "project_name": args.project_name,
-        "workspace_root": args.workspace_root,
+        "web.enabled": True if getattr(args, "allow_web", False) else None,
+        "provider": getattr(args, "provider", None),
+        "profile": getattr(args, "profile", None),
+        "strategy": getattr(args, "strategy", None),
+        "project_name": getattr(args, "project_name", None),
+        "workspace_root": getattr(args, "workspace_root", None),
     }
     return {key: value for key, value in names.items() if value is not None}
 
 
 @dataclass
 class PreparedRun:
-    """A prepared workspace, its run context, crew inputs, and the lock held on the workspace."""
+    """A prepared workspace, its run context, what to run, and the lock held on the workspace."""
 
     ctx: RunContext
     inputs: dict[str, str]
     lock: WorkspaceLock
     recorder: RunRecorder
+    bundle: RunBundle
+    strategy: Strategy
+    recipe: Recipe | None = None
 
     def release(self) -> None:
         """Report what the run used and cost, then drop the workspace lock."""
@@ -292,9 +319,17 @@ def _open_run(
     workspace = _prepare_workspace(settings, reset=reset, force_reset=force_reset)
     run_id = new_run_id()
     lock = WorkspaceLock(workspace.root).acquire(run_id)
+    # Only builds follow the strategy setting; train, test, and replay are crew commands.
+    strategy_name = settings.strategy if mode == "build" else "hierarchical"
     try:
         ctx = RunContext.create(settings, workspace, run_id=run_id)
-        recorder = RunRecorder.begin(ctx, mode=mode, request=requirements or "")
+        recorder = RunRecorder.begin(
+            ctx,
+            mode=mode,
+            request=requirements or "",
+            strategy=strategy_name,
+            recipe=recipe_name_for(strategy_name),
+        )
         inputs = (
             build_inputs(
                 project_name=settings.project_name,
@@ -308,7 +343,14 @@ def _open_run(
     except BaseException:
         lock.release()
         raise
-    return PreparedRun(ctx=ctx, inputs=inputs, lock=lock, recorder=recorder)
+    return PreparedRun(
+        ctx=ctx,
+        inputs=inputs,
+        lock=lock,
+        recorder=recorder,
+        bundle=RunBundle(requirements=requirements or "", inputs=inputs),
+        strategy=get_strategy(strategy_name),
+    )
 
 
 def _prepare_from_args(args: argparse.Namespace, mode: str = "build") -> PreparedRun:
@@ -334,14 +376,15 @@ def _prepare_from_args(args: argparse.Namespace, mode: str = "build") -> Prepare
 
 def _execute(
     prepare: Callable[[], T],
-    work: Callable[[T], object],
+    work: Callable[[T], int | None],
     release: Callable[[T], None] | None = None,
 ) -> int:
     """Run an entry point in two phases and map failures to exit codes.
 
     ``prepare`` validates input and sets up the workspace; a ``ValueError`` there is a usage
     or configuration problem (exit 2, one line). ``work`` calls the crew; any failure there
-    is a runtime failure (exit 1, with traceback). ``release`` always runs after a successful
+    is a runtime failure (exit 1, with traceback), and it may return an exit code itself (a run
+    that ended failed or cancelled without raising). ``release`` always runs after a successful
     ``prepare`` so the workspace lock is dropped however ``work`` ends.
     """
 
@@ -355,7 +398,7 @@ def _execute(
         return EXIT_USAGE
 
     try:
-        work(prepared)
+        code = work(prepared)
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         return EXIT_INTERRUPTED
@@ -369,7 +412,7 @@ def _execute(
     finally:
         if release is not None:
             release(prepared)
-    return 0
+    return code or 0
 
 
 def _config_parser() -> argparse.ArgumentParser:
@@ -413,18 +456,142 @@ def run(argv: Sequence[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments and arguments[0] == "config":
         return _config_command(arguments[1:])
+    if arguments and arguments[0] == "resume":
+        return _resume_command(arguments[1:])
+    if arguments and arguments[0] == "cancel":
+        return _cancel_command(arguments[1:])
     args = _run_parser().parse_args(arguments)
 
-    def work(prepared: PreparedRun) -> None:
-        workspace = prepared.ctx.workspace
-        with prepared.recorder.running():
-            if args.prepare_only:
-                print(f"Prepared project workspace: {workspace.root}")
-                return
-            EngineeringTeam(prepared.ctx).crew().kickoff(inputs=prepared.inputs)
-            print(f"\nProject workspace: {workspace.root}")
+    def work(prepared: PreparedRun) -> int | None:
+        if args.prepare_only:
+            with prepared.recorder.running():
+                print(f"Prepared project workspace: {prepared.ctx.workspace.root}")
+            return None
+        return _run_prepared(prepared)
 
     return _execute(lambda: _prepare_from_args(args), work, PreparedRun.release)
+
+
+def _report(result: RunResult, *, resumable: bool) -> int:
+    """Say how a run ended (one line each) and return the matching exit code."""
+
+    hint = f" Continue it with: engineering-team resume {result.run_id}" if resumable else ""
+    if result.status == "succeeded":
+        print(f"\nProject workspace: {result.workspace}")
+        return 0
+    if result.status == "cancelled":
+        print(f"\nRun {result.run_id} was cancelled.{hint}", file=sys.stderr)
+        return EXIT_INTERRUPTED
+    print(f"\nEngineering team run failed: {result.error.rstrip('.')}.{hint}", file=sys.stderr)
+    return EXIT_FAILURE
+
+
+def _run_prepared(prepared: PreparedRun) -> int:
+    """Run the prepared run under its strategy and report how it ended."""
+
+    result = execute_run(
+        prepared.ctx, prepared.bundle, strategy=prepared.strategy, recipe=prepared.recipe
+    )
+    return _report(result, resumable=prepared.strategy.resumable)
+
+
+def _prepare_resume(settings: Settings, run_id: str, request: str | None) -> PreparedRun:
+    """Reopen ``run_id``, or, when ``request`` differs from the one it was started with, start a
+    new run for that request (old evidence is never reused for a different request)."""
+
+    settings.check_ready(require_credentials=True)
+    _, manifest, _ = read_request(settings, run_id)
+    if request is not None and request_hash(request) != manifest.request_hash:
+        print(
+            f"The request changed since run {run_id}; starting a new run instead of resuming it.",
+            file=sys.stderr,
+        )
+        fresh = settings.for_request(request).with_overrides(
+            {"strategy": manifest.strategy}, source=f"changed request (was run {run_id})"
+        )
+        return _open_run(fresh, mode="build", requirements=request)
+    opened = open_resume(settings, run_id)
+    return PreparedRun(
+        ctx=opened.ctx,
+        inputs={},
+        lock=opened.lock,
+        recorder=RunRecorder.attach(opened.ctx),
+        bundle=opened.bundle,
+        strategy=opened.strategy,
+        recipe=opened.recipe,
+    )
+
+
+def resume(
+    run_id: str, *, settings: Settings | None = None, request: str | None = None
+) -> RunResult:
+    """Continue an unfinished or failed pipeline run and return how it ended.
+
+    Stages that finished (and whose workspace state still matches) are not run again. Passing a
+    ``request`` that differs from the run's own starts a new run for it instead. Raises
+    ``ValueError`` when the run cannot be resumed (unknown, already succeeded, hierarchical,
+    recipe changed) and ``WorkspaceBusy`` when another run holds the workspace.
+    """
+
+    prepared = _prepare_resume(settings or load_settings(), run_id, request)
+    try:
+        return execute_run(
+            prepared.ctx, prepared.bundle, strategy=prepared.strategy, recipe=prepared.recipe
+        )
+    finally:
+        prepared.lock.release()
+
+
+def _project_parser(prog: str, description: str) -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog=prog, description=description)
+    parser.add_argument("run_id", help="The run id (see .engineering-team/runs/ in the project).")
+    parser.add_argument("--project-name", help="Project of the run (default: mvp-app).")
+    parser.add_argument("--workspace-root", help="Parent directory of generated projects.")
+    parser.add_argument("--config", help="Path to a config file.")
+    return parser
+
+
+def _resume_command(argv: Sequence[str]) -> int:
+    parser = _project_parser(
+        "engineering-team resume",
+        "Continue a run that was cancelled, interrupted, or failed, without redoing finished "
+        "stages. Only runs of the pipeline and single strategies can be resumed.",
+    )
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument("--request", help="Inline requirements; if changed, a new run starts.")
+    source.add_argument("--request-file", help="Requirements file; if changed, a new run starts.")
+    parser.add_argument("--provider", choices=list(PROVIDERS))
+    parser.add_argument("--profile", choices=list(PROFILE_NAMES))
+    parser.add_argument("--allow-web", action="store_true", help="Enable the web tools.")
+    args = parser.parse_args(argv)
+
+    def prepare() -> PreparedRun:
+        settings = load_settings(overrides=_cli_overrides(args), config_file=args.config)
+        request = (
+            load_requirements(
+                inline_request=args.request, request_file=args.request_file, settings=settings
+            )
+            if args.request is not None or args.request_file is not None
+            else None
+        )
+        return _prepare_resume(settings, args.run_id, request)
+
+    return _execute(prepare, _run_prepared, PreparedRun.release)
+
+
+def _cancel_command(argv: Sequence[str]) -> int:
+    args = _project_parser(
+        "engineering-team cancel", "Ask a run in another process to stop at its next safe point."
+    ).parse_args(argv)
+
+    def prepare() -> str:  # unknown runs and workspaces are usage errors, so they belong here
+        settings = load_settings(overrides=_cli_overrides(args), config_file=args.config)
+        return request_run_cancel(settings, args.run_id)
+
+    def work(message: str) -> None:
+        print(message)
+
+    return _execute(prepare, work)
 
 
 def train() -> int:
@@ -515,9 +682,8 @@ def run_with_trigger() -> int:
         prepared.inputs["crewai_trigger_payload"] = json.dumps(payload)
         return prepared
 
-    def work(prepared: PreparedRun) -> None:
-        with prepared.recorder.running():
-            EngineeringTeam(prepared.ctx).crew().kickoff(inputs=prepared.inputs)
+    def work(prepared: PreparedRun) -> int:
+        return _run_prepared(prepared)
 
     return _execute(prepare, work, PreparedRun.release)
 

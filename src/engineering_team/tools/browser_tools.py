@@ -29,7 +29,7 @@ def available() -> bool:
 
 def make_browser_tools(env: ToolEnv) -> dict[str, BaseTool]:
     ctx = env.ctx
-    actor = env.agent or "agent"
+    actor = env.owner
     budget = float(ctx.settings.browser.page_timeout_seconds) + 60.0
 
     def call(operation: Callable[[Any], str]) -> str:

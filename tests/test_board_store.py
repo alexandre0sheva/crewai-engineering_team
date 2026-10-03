@@ -119,6 +119,8 @@ CONTROLLER_ONLY = {
     ("blocked", "ready"),
     ("blocked", "failed"),
     ("blocked", "cancelled"),
+    ("failed", "ready"),  # a resume reopens failed and cancelled cards
+    ("cancelled", "ready"),
 }
 
 
@@ -178,11 +180,26 @@ def test_an_agent_cannot_mark_a_card_done_by_itself(board: BoardStore) -> None:
     assert board.get(card_id).status == "in_progress"
 
 
-def test_terminal_cards_are_final(board: BoardStore) -> None:
-    for status in ("done", "failed", "cancelled"):
-        card_id = _card_in(board, status)  # type: ignore[arg-type]
-        with pytest.raises(BoardError, match="the card is final"):
-            board.move(card_id, "in_progress", actor=CONTROLLER)
+def test_done_cards_are_final(board: BoardStore) -> None:
+    card_id = _card_in(board, "done")
+    with pytest.raises(BoardError, match="the card is final"):
+        board.move(card_id, "in_progress", actor=CONTROLLER)
+
+
+@pytest.mark.parametrize("status", ["failed", "cancelled"])
+def test_only_the_controller_can_reopen_a_failed_or_cancelled_card(
+    board: BoardStore, status: str
+) -> None:
+    card_id = _card_in(board, status, assignee="dev")  # type: ignore[arg-type]
+    with pytest.raises(BoardError, match="Allowed next states: ready"):
+        board.move(card_id, "in_progress", actor=CONTROLLER)
+    with pytest.raises(BoardError, match="cannot move"):
+        board.move(card_id, "ready", actor="dev")
+
+    reopened = board.move(card_id, "ready", actor=CONTROLLER)
+
+    assert reopened.status == "ready" and reopened.finished is None
+    assert board.move(card_id, "in_progress", actor=CONTROLLER).status == "in_progress"
 
 
 def test_an_agent_can_only_move_its_own_cards(board: BoardStore) -> None:

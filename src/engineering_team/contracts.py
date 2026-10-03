@@ -74,6 +74,7 @@ class WorkPackage(Contract):
     owned_paths: list[str] = Field(default_factory=list)
     depends_on: list[str] = Field(default_factory=list)
     criteria_ids: list[str] = Field(default_factory=list)
+    required: bool = True  # a failed optional package does not fail the run
 
 
 class Plan(Contract):
@@ -121,12 +122,19 @@ class Finding(Contract):
 
 
 class StageRecord(Contract):
+    """One stage's standing. ``revision_start``/``revision`` are the workspace tree hash when the
+    stage began and when it ended; resume trusts a finished stage only while they still fit the
+    workspace. ``detail`` says why a stage was skipped, failed, or was cancelled."""
+
     name: str
     status: StageStatus = "pending"
     started: datetime | None = None
     finished: datetime | None = None
     attempts: int = 0
     artifacts: list[str] = Field(default_factory=list)
+    revision_start: str | None = None
+    revision: str | None = None
+    detail: str = ""
 
 
 class UsageTotals(Contract):
@@ -208,6 +216,7 @@ class RunManifest(Contract):
     strategy: str = "hierarchical"
     recipe: str | None = None
     status: RunStatus = "pending"
+    resumes: int = 0  # how many times `resume` continued this run
     stages: list[StageRecord] = Field(default_factory=list)
     created: datetime = Field(default_factory=utc_now)
     finished: datetime | None = None

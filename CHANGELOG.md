@@ -16,6 +16,27 @@ as each task lands.
 
 ### Added
 
+- `--strategy pipeline` (or `ENGINEERING_STRATEGY`): a staged run (spec, plan, foundation, implement, verify,
+  release) driven by a recipe (`modes/recipes/new.yaml`) as a CrewAI Flow with typed hand-offs: one small crew per
+  stage, work packages chosen by the architect's plan (a plan without any skips `implement`), the task board kept
+  by the controller (a card per stage and per work package), and the controller, not the agent, checking that
+  promised files exist. Per-stage state is written to `pipeline.json` in the run directory.
+- `engineering-team resume <run_id>` (and `resume()` in Python): continue a cancelled, interrupted, or failed
+  pipeline run without redoing finished stages. A stage counts as finished only while the workspace still matches
+  the tree hash recorded when it ended; anything else runs again with an instruction to inspect the workspace
+  first. A changed request starts a new run instead of reusing old results.
+- `engineering-team cancel <run_id>` (from another terminal), and Ctrl-C / SIGTERM now stop a run at its next safe
+  point and end it `cancelled` (exit code 130); a second Ctrl-C stops immediately.
+- Parallel work packages in the `pipeline` strategy: packages that do not depend on each other and own disjoint
+  paths run at the same time, up to `parallel.max_parallel_agents` (default 3; `1` is strictly sequential). Each
+  package's agent can write only the paths it owns (never the shared README, manifests, and lockfiles), packages that
+  might overlap are run in turn, a failed package is retried once and does not stop its siblings (its dependents are
+  skipped), and a new sequential `integrate` stage builds, tests, and fixes where the packages meet. Plans are
+  validated first (ownership, criteria, cycles) and a bad plan goes back to the architect once.
+- Events, board cards, browser sessions, and processes are tagged per parallel lane; `parallel.max_rpm` now caps model
+  calls per minute across all agents of a run. `run_parallel_readonly` runs reviewers and analysts side by side with
+  read-only tools and one report file each.
+- `--strategy single`: one agent with every tool and one task, the baseline the other strategies are measured against.
 - Optional headless-browser tools (`uv sync --extra browser`, then `playwright install chromium` or
   `browser.channel = "chrome"`): `Browser Open`, `Browser Snapshot` (accessibility tree with element refs),
   `Browser Screenshot`, `Browser Click`, `Browser Type`, `Browser Select`, `Browser Press Key`,
@@ -88,6 +109,12 @@ as each task lands.
 
 ### Changed
 
+- The `new` recipe gained an `integrate` stage after `implement`. A parallel stage's `retry` now applies per work
+  package, and `WorkPackage` has an optional `required` flag.
+- New `strategy` setting (`--strategy`, `ENGINEERING_STRATEGY`, `strategy` in the config file): `hierarchical` (the default,
+  unchanged), `pipeline`, or `single`. The 0.1.0 invocation keeps working and still uses the hierarchical crew.
+- A run that ends `failed`, `cancelled`, or `interrupted` can now be reopened by `resume`; `succeeded` stays final. Stage
+  records in the manifest carry the workspace revision at their start and end.
 - `config show` takes model prices from the price table (and marks models without one as `price unknown`).
 
 - The request and run metadata moved from `.engineering-team/request.md` and `run.json` into each run's directory

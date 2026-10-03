@@ -15,10 +15,16 @@ from engineering_team.execution.local import LocalBackend
 from engineering_team.pricing import PriceTable
 from engineering_team.runtime.browsers import BrowserDriver, BrowserRegistry
 from engineering_team.runtime.budget import Budget, BudgetGuard
-from engineering_team.runtime.events import EventSink, FanoutSink, JsonlSink, Scrubber
+from engineering_team.runtime.events import (
+    EventSink,
+    FanoutSink,
+    JsonlSink,
+    Scrubber,
+    read_events,
+)
 from engineering_team.runtime.interaction import HumanChannel
 from engineering_team.runtime.processes import ProcessRegistry
-from engineering_team.runtime.requests import RequestLimiter
+from engineering_team.runtime.requests import RateLimiter, RequestLimiter
 from engineering_team.runtime.run_store import EVENTS_FILENAME
 from engineering_team.runtime.snapshot import Snapshot
 from engineering_team.runtime.usage import UsageTracker
@@ -65,7 +71,8 @@ class RunContext:
     log, ``human`` the line to the person running it, and ``processes`` the run's background
     processes and ports (all stopped when their stage or the run ends), ``browsers`` the run's
     headless browser (closed with its stage or the run), and ``web_requests`` the run's shared
-    cap on outbound web requests.
+    cap on outbound web requests, and ``llm_rate`` (set when ``parallel.max_rpm`` is) the cap on
+    model calls per minute that parallel agents share.
     """
 
     run_id: str
@@ -87,6 +94,7 @@ class RunContext:
     browsers: BrowserRegistry
     tool_gate: ToolGate | None = None
     web_requests: RequestLimiter = field(default_factory=lambda: RequestLimiter(40))
+    llm_rate: RateLimiter | None = None
 
     @classmethod
     def create(
@@ -97,11 +105,15 @@ class RunContext:
         run_id: str | None = None,
         backend: ExecutionBackend | None = None,
         events: EventSink | None = None,
+        resume: bool = False,
     ) -> RunContext:
         """Create the context and its run directory (controller-owned, hidden from agents).
 
         Snapshots the workspace as the baseline for change reports. The default backend runs
-        commands locally, logging to ``run_dir/commands/``.
+        commands locally, logging to ``run_dir/commands/``. ``resume=True`` continues an
+        existing run directory: usage (and so the cost and token budgets) starts from what
+        ``events.jsonl`` already recorded, the board and notes load from disk, and the event
+        log is appended to. The baseline is then the workspace as it is now.
         """
 
         from engineering_team.board.notes import NoteStore
@@ -111,7 +123,11 @@ class RunContext:
         run_dir = workspace.root / CONTROLLER_DIRECTORY / "runs" / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
         cancel_event = threading.Event()
-        usage = UsageTracker()
+        usage = (
+            UsageTracker.from_events(read_events(run_dir / EVENTS_FILENAME))
+            if resume
+            else UsageTracker()
+        )
         prices = settings.price_table()
         guard = BudgetGuard(Budget.from_settings(settings.budget), usage, prices, cancel_event)
         # The usage tracker must see an event before the guard evaluates it.
@@ -162,4 +178,9 @@ class RunContext:
             ),
             tool_gate=guard.tool_gate,
             web_requests=RequestLimiter(settings.web.max_requests_per_run),
+            llm_rate=(
+                RateLimiter(settings.parallel.max_rpm, cancel_event)
+                if settings.parallel.max_rpm
+                else None
+            ),
         )

@@ -61,7 +61,10 @@ class WriteScope:
         """Why ``relative_path`` was refused, naming the paths the caller owns."""
 
         owned = ", ".join(self.allow) or "(nothing)"
-        excluded = f" (except {', '.join(self.deny)})" if self.deny else ""
+        shown = ", ".join(self.deny[:4]) + (
+            f" and {len(self.deny) - 4} more" if len(self.deny) > 4 else ""
+        )
+        excluded = f" (except {shown})" if self.deny else ""
         return (
             f"'{relative_path}' is outside your write scope. You may only change: "
             f"{owned}{excluded}. Reading is unrestricted; ask the engineering lead to "

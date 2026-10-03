@@ -93,7 +93,7 @@ def make_process_tools(env: ToolEnv) -> dict[str, BaseTool]:
     policy = net.HttpPolicy(
         tuple(ctx.settings.network.http_allowlist), registry.is_run_port, registry.run_ports
     )
-    actor = env.agent or "agent"
+    actor = env.owner
 
     def describe(process: ManagedProcess) -> str:
         state = "running" if process.running else f"stopped ({process.stop_reason or 'ended'})"

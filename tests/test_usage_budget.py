@@ -559,7 +559,7 @@ class _SpendingTeam:
 
 
 def test_a_fake_run_prints_exact_token_counts_and_a_cost(capsys, monkeypatch) -> None:
-    monkeypatch.setattr(main, "EngineeringTeam", _SpendingTeam)
+    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _SpendingTeam)
 
     assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 0
 
@@ -575,7 +575,7 @@ def test_a_fake_run_with_an_unpriced_model_prints_unknown_never_zero(capsys, mon
     class Unpriced(_SpendingTeam):
         model = "someone/new-model"
 
-    monkeypatch.setattr(main, "EngineeringTeam", Unpriced)
+    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", Unpriced)
 
     assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 0
 
@@ -585,7 +585,7 @@ def test_a_fake_run_with_an_unpriced_model_prints_unknown_never_zero(capsys, mon
 
 
 def test_the_cli_leaves_usage_and_summary_in_the_run_directory(monkeypatch) -> None:
-    monkeypatch.setattr(main, "EngineeringTeam", _SpendingTeam)
+    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _SpendingTeam)
     assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 0
 
     store = RunStore(Path.cwd() / "workspace" / "demo")
@@ -600,7 +600,7 @@ def test_the_cli_leaves_usage_and_summary_in_the_run_directory(monkeypatch) -> N
 
 
 def test_a_budget_stop_in_the_cli_is_a_clean_failure(capsys, monkeypatch) -> None:
-    monkeypatch.setattr(main, "EngineeringTeam", _SpendingTeam)
+    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _SpendingTeam)
     monkeypatch.setenv("ENGINEERING_BUDGET_MAX_TOKENS", "1000")
 
     code = main.run(["--request", REQUEST, "--project-name", "demo"])

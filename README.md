@@ -152,7 +152,23 @@ current directory and its parents, the filesystem root, symlinks, and the
 engineering-team installation are always refused.
 
 Exit codes: `0` success, `2` usage or configuration error (one-line message), `1`
-runtime failure, `130` interrupted.
+runtime failure, `130` interrupted or cancelled.
+
+### Staged runs: resume and cancel
+
+`--strategy pipeline` (or `ENGINEERING_STRATEGY=pipeline`) runs the team as a staged,
+resumable pipeline (spec, plan, foundation, implement, verify, release) instead of the default
+manager-led crew; `--strategy single` runs one agent with every tool, the baseline the other
+strategies are measured against. A pipeline run that was cancelled (Ctrl-C), interrupted, or failed
+continues where it stopped, without redoing finished stages:
+
+```bash
+uv run engineering-team resume <run_id> --project-name habit-tracker
+uv run engineering-team cancel <run_id> --project-name habit-tracker   # from another terminal
+```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#pipeline-recipes-and-resume) for how stages,
+recipes, and resume work.
 
 ## Generated project layout
 

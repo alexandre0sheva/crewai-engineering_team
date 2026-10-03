@@ -1,0 +1,193 @@
+"""Recipes: a run's stage list as data.
+
+A :class:`Recipe` is an ordered list of :class:`StageSpec`. Nothing in it is code: a stage names
+its kind, its teammates, the contracts it reads and writes, the conditions that skip it, how
+often a failure is retried, and how the controller verifies its output. The pipeline
+(``pipeline/flow.py``) interprets it, so a new mode is a new YAML file.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import re
+from collections.abc import Callable
+from importlib import resources
+from pathlib import Path
+from typing import TYPE_CHECKING, Literal
+
+import yaml
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+
+if TYPE_CHECKING:
+    from engineering_team.pipeline.state import PipelineState
+
+StageKind = Literal["agent", "controller", "parallel"]
+VerificationPolicy = Literal["none", "artifacts"]
+
+# Contracts a stage can read or write; anything else must be ``file:<path>`` (outputs only) or
+# ``request`` (inputs only).
+CONTRACTS = ("spec", "plan")
+FILE_PREFIX = "file:"
+NAME_PATTERN = re.compile(r"[a-z][a-z0-9_]*")
+
+# Named conditions a stage can be skipped on; each looks at the pipeline's state.
+CONDITIONS: dict[str, Callable[[PipelineState], bool]] = {
+    "no_work_packages": lambda state: state.plan is not None and not state.plan.work_packages,
+}
+
+
+class RecipeError(ValueError):
+    """A recipe that cannot be loaded or is not valid; the message says what to fix."""
+
+
+class StageSpec(BaseModel):
+    """One stage of a recipe.
+
+    ``agent`` runs one small crew (one teammate, one task); ``parallel`` runs one crew per work
+    package of the plan (sequentially for now); ``controller`` runs the controller-side action
+    named by ``action`` (no model). ``retry`` is how many extra attempts a failed stage gets.
+    ``verification_policy`` ``artifacts`` makes the controller require every ``file:`` output.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    kind: StageKind = "agent"
+    teammates: list[str] = Field(default_factory=list)
+    inputs: list[str] = Field(default_factory=list)
+    outputs: list[str] = Field(default_factory=list)
+    skip_if: list[str] = Field(default_factory=list)
+    retry: int = Field(default=0, ge=0, le=3)
+    verification_policy: VerificationPolicy = "none"
+    action: str | None = None
+    description: str = ""
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, value: str) -> str:
+        if not NAME_PATTERN.fullmatch(value):
+            raise ValueError(f"stage name {value!r} must be lowercase letters, digits, and _")
+        return value
+
+    @property
+    def contract_outputs(self) -> list[str]:
+        return [name for name in self.outputs if not name.startswith(FILE_PREFIX)]
+
+    @property
+    def file_outputs(self) -> list[str]:
+        return [
+            name.removeprefix(FILE_PREFIX) for name in self.outputs if name.startswith(FILE_PREFIX)
+        ]
+
+    @model_validator(mode="after")
+    def _consistent(self) -> StageSpec:
+        if self.kind in ("agent", "parallel") and not self.teammates:
+            raise ValueError(f"stage {self.name!r} ({self.kind}) needs at least one teammate")
+        if self.kind == "controller" and not self.action:
+            raise ValueError(f"controller stage {self.name!r} needs an action")
+        if self.kind != "controller" and self.action:
+            raise ValueError(f"only controller stages take an action (stage {self.name!r})")
+        for output in self.outputs:
+            if output.startswith(FILE_PREFIX):
+                if not output.removeprefix(FILE_PREFIX).strip():
+                    raise ValueError(f"stage {self.name!r} has an empty file output")
+            elif output not in CONTRACTS:
+                raise ValueError(
+                    f"stage {self.name!r} output {output!r} must be one of {CONTRACTS} "
+                    f"or 'file:<path>'"
+                )
+        for name in self.inputs:
+            if name != "request" and name not in CONTRACTS:
+                raise ValueError(
+                    f"stage {self.name!r} input {name!r} must be 'request' or one of {CONTRACTS}"
+                )
+        unknown = [name for name in self.skip_if if name not in CONDITIONS]
+        if unknown:
+            raise ValueError(
+                f"stage {self.name!r} has unknown skip_if {unknown}; known: {sorted(CONDITIONS)}"
+            )
+        if self.verification_policy == "artifacts" and not self.file_outputs:
+            raise ValueError(
+                f"stage {self.name!r} asks for artifact verification but has no file: outputs"
+            )
+        return self
+
+
+class Recipe(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    description: str = ""
+    stages: list[StageSpec] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _ordered(self) -> Recipe:
+        seen: set[str] = set()
+        produced: set[str] = {"request"}
+        for stage in self.stages:
+            if stage.name in seen:
+                raise ValueError(f"duplicate stage name {stage.name!r}")
+            seen.add(stage.name)
+            missing = [name for name in stage.inputs if name not in produced]
+            if missing:
+                raise ValueError(
+                    f"stage {stage.name!r} reads {missing}, which no earlier stage produces"
+                )
+            produced.update(stage.contract_outputs)
+        return self
+
+    def stage(self, name: str) -> StageSpec:
+        for stage in self.stages:
+            if stage.name == name:
+                return stage
+        raise KeyError(name)
+
+    @property
+    def digest(self) -> str:
+        """Identifies the recipe's content: a run only resumes under the recipe it started with."""
+
+        payload = self.model_dump_json()
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def bundled_recipes() -> list[str]:
+    root = resources.files("engineering_team") / "modes" / "recipes"
+    return sorted(
+        entry.name.removesuffix(".yaml") for entry in root.iterdir() if entry.name.endswith(".yaml")
+    )
+
+
+def parse_recipe(text: str, *, source: str) -> Recipe:
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise RecipeError(f"Recipe {source} is not valid YAML: {exc}") from exc
+    if not isinstance(data, dict):
+        raise RecipeError(f"Recipe {source} must be a YAML mapping with 'name' and 'stages'.")
+    try:
+        return Recipe.model_validate(data)
+    except ValidationError as exc:
+        first = exc.errors()[0]
+        where = ".".join(str(part) for part in first["loc"])
+        raise RecipeError(
+            f"Recipe {source} is invalid at {where or 'top level'}: {first['msg']}"
+        ) from exc
+
+
+def load_recipe(name_or_path: str | Path) -> Recipe:
+    """A bundled recipe by name (``new``) or a recipe file by path."""
+
+    candidate = Path(name_or_path).expanduser()
+    if candidate.suffix in (".yaml", ".yml") or candidate.is_file():
+        try:
+            return parse_recipe(candidate.read_text(encoding="utf-8"), source=str(candidate))
+        except OSError as exc:
+            raise RecipeError(f"Cannot read recipe file {candidate}: {exc}") from exc
+    name = str(name_or_path)
+    available = bundled_recipes()
+    if name not in available:
+        raise RecipeError(f"Unknown recipe '{name}'. Bundled recipes: {', '.join(available)}.")
+    text = (resources.files("engineering_team") / "modes" / "recipes" / f"{name}.yaml").read_text(
+        encoding="utf-8"
+    )
+    return parse_recipe(text, source=f"{name}.yaml")

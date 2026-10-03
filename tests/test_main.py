@@ -21,6 +21,15 @@ ENV_INLINE = "ENGINEERING_PROJECT_REQUEST"
 ENV_FILE = "ENGINEERING_REQUEST_FILE"
 
 
+def _patch_team(monkeypatch, team) -> None:
+    """Replace the crew that ``run`` (hierarchical), ``train``, ``replay`` and ``test`` build."""
+
+    from engineering_team.pipeline import strategies
+
+    monkeypatch.setattr(main, "EngineeringTeam", team)
+    monkeypatch.setattr(strategies, "EngineeringTeam", team)
+
+
 def _write(path: Path, text: str) -> Path:
     path.write_text(text, encoding="utf-8")
     return path
@@ -181,7 +190,7 @@ def test_filesystem_root_cannot_be_a_workspace_root() -> None:
 
 
 def test_prepare_only_succeeds_without_calling_the_crew(capsys, monkeypatch) -> None:
-    monkeypatch.setattr(main, "EngineeringTeam", lambda: pytest.fail("crew must not be built"))
+    _patch_team(monkeypatch, lambda: pytest.fail("crew must not be built"))
 
     code = main.run(["--example", "tiny-notes", "--project-name", "demo", "--prepare-only"])
 
@@ -231,7 +240,7 @@ def test_runtime_failure_exits_with_one_and_reports_the_cause(capsys, monkeypatc
         def _boom(inputs):
             raise RuntimeError("model unavailable")
 
-    monkeypatch.setattr(main, "EngineeringTeam", ExplodingTeam)
+    _patch_team(monkeypatch, ExplodingTeam)
 
     code = main.run(["--request", "Build a thing", "--project-name", "demo"])
 
@@ -253,7 +262,7 @@ def test_validation_errors_inside_the_crew_are_runtime_failures_not_usage_errors
         def _fail(inputs):
             raise ValueError("raised deep inside the framework")
 
-    monkeypatch.setattr(main, "EngineeringTeam", ValidatingTeam)
+    _patch_team(monkeypatch, ValidatingTeam)
 
     assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 1
 
@@ -270,7 +279,7 @@ def test_keyboard_interrupt_exits_with_130(capsys, monkeypatch) -> None:
         def _interrupt(inputs):
             raise KeyboardInterrupt
 
-    monkeypatch.setattr(main, "EngineeringTeam", InterruptedTeam)
+    _patch_team(monkeypatch, InterruptedTeam)
 
     assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 130
     assert "Interrupted" in capsys.readouterr().err
@@ -288,7 +297,7 @@ def test_successful_run_returns_zero_so_console_scripts_exit_cleanly(monkeypatch
         def crew(self):
             return SimpleNamespace(kickoff=lambda inputs: calls.append(inputs) or object())
 
-    monkeypatch.setattr(main, "EngineeringTeam", FakeTeam)
+    _patch_team(monkeypatch, FakeTeam)
 
     assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 0
     assert calls[0]["project_name"] == "demo"
@@ -333,7 +342,7 @@ def test_settings_error_is_a_one_line_usage_error(capsys, monkeypatch) -> None:
 
 def test_missing_credentials_fail_fast_before_any_model_call(capsys, monkeypatch) -> None:
     monkeypatch.delenv("OPENAI_API_KEY")
-    monkeypatch.setattr(main, "EngineeringTeam", lambda *_: pytest.fail("crew must not be built"))
+    _patch_team(monkeypatch, lambda *_: pytest.fail("crew must not be built"))
 
     code = main.run(["--request", "Build a thing", "--project-name", "demo"])
 
@@ -357,7 +366,7 @@ def test_cli_profile_and_environment_reach_the_crew_via_settings(monkeypatch) ->
         def crew(self):
             return SimpleNamespace(kickoff=lambda inputs: None)
 
-    monkeypatch.setattr(main, "EngineeringTeam", FakeTeam)
+    _patch_team(monkeypatch, FakeTeam)
     monkeypatch.setenv("ENGINEERING_MAX_PARALLEL", "5")
 
     assert main.run(["--example", "tiny-notes", "--profile", "standard"]) == 0
@@ -419,7 +428,7 @@ def test_config_show_reports_invalid_configuration_as_a_usage_error(capsys, monk
 def test_a_workspace_in_use_by_another_run_is_a_usage_error(capsys, monkeypatch) -> None:
     from engineering_team.runtime.locks import WorkspaceLock
 
-    monkeypatch.setattr(main, "EngineeringTeam", lambda *_: pytest.fail("crew must not be built"))
+    _patch_team(monkeypatch, lambda *_: pytest.fail("crew must not be built"))
     argv = ["--request", "Build a thing", "--project-name", "demo"]
     assert main.run([*argv, "--prepare-only"]) == 0
     holder = WorkspaceLock(Path.cwd() / "workspace" / "demo").acquire("other-run")
@@ -443,7 +452,7 @@ def test_the_run_context_points_at_a_fresh_run_directory(monkeypatch) -> None:
         def crew(self):
             return SimpleNamespace(kickoff=lambda inputs: None)
 
-    monkeypatch.setattr(main, "EngineeringTeam", FakeTeam)
+    _patch_team(monkeypatch, FakeTeam)
 
     assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 0
     assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 0
@@ -469,7 +478,7 @@ def test_the_workspace_lock_is_released_however_the_run_ends(monkeypatch, failur
         def crew(self):
             return SimpleNamespace(kickoff=kickoff)
 
-    monkeypatch.setattr(main, "EngineeringTeam", FakeTeam)
+    _patch_team(monkeypatch, FakeTeam)
 
     main.run(["--request", "Build a thing", "--project-name", "demo"])
 

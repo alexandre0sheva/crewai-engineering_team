@@ -49,3 +49,25 @@ class Snapshot:
                 hashlib.sha256(data).hexdigest(), len(data), text
             )
         return cls(files)
+
+
+def workspace_revision(workspace: ProjectWorkspace) -> str:
+    """A hash of every non-ignored regular file's path and content: the workspace's revision.
+
+    The same tree always hashes the same; any added, removed, renamed, or edited file changes
+    it. Ignored paths (``.gitignore``, heavy directories, ``.engineering-team``) do not count,
+    so a run's own state files never move it. Contents are streamed, not held in memory.
+    """
+
+    digest = hashlib.sha256()
+    for path in iter_files(workspace, rules=IgnoreRules.for_workspace(workspace)):
+        inner = hashlib.sha256()
+        try:
+            with path.open("rb") as handle:
+                while chunk := handle.read(1 << 20):
+                    inner.update(chunk)
+        except OSError:
+            continue  # vanished or unreadable mid-walk: indistinguishable from absent
+        digest.update(workspace.relative_name(path).encode("utf-8", errors="replace"))
+        digest.update(b"\0" + inner.digest())
+    return digest.hexdigest()[:32]

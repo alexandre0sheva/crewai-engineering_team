@@ -101,6 +101,15 @@ class ToolEnv:
     ctx: RunContext
     write_scope: WriteScope | None = None
     agent: str | None = None  # the teammate these tools belong to; board tools act as it
+    lane: int | str | None = None  # the parallel lane they work in (shown on events)
+
+    @property
+    def owner(self) -> str:
+        """Who owns browser sessions and processes: the teammate, per lane, so two agents of
+        one role working in parallel never share a session or a port."""
+
+        name = self.agent or "agent"
+        return f"{name}#{self.lane}" if self.lane is not None else name
 
     @property
     def workspace(self) -> ProjectWorkspace:
@@ -133,6 +142,7 @@ class ToolEnv:
             duration=round(time.monotonic() - started, 4),
             ok=not result.startswith("ERROR:"),
             agent=self.agent,
+            lane=self.lane,
         )
         return result
 

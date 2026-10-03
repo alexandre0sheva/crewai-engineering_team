@@ -29,7 +29,9 @@ tool never changes project files or runs agent-chosen commands (`Hotspots` and `
 fixed, read-only `git log` / `git blame` through the backend): the `board`, `notes`, and `human`
 tools change only the run's own state, so read-only teammates (reviewers) keep them. `build_tools(..., agent=)`
 names the teammate the tools belong to; board and notes tools act, comment, and are logged as that
-teammate. The default groups for the 0.1 crew are the four project groups (`PROJECT_GROUPS`).
+teammate. `lane=` is the parallel lane the tools work in: it tags their `tool.call` events, and a lane's
+browser session and background processes are its own (owner `teammate#lane`), so two agents of one role working at
+once never share them. The default groups for the 0.1 crew are the four project groups (`PROJECT_GROUPS`).
 
 ## Tools
 

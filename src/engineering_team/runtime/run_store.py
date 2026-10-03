@@ -23,9 +23,13 @@ EVENTS_FILENAME = "events.jsonl"
 TERMINAL_STATUSES: frozenset[RunStatus] = frozenset(
     {"succeeded", "failed", "cancelled", "interrupted"}
 )
+# ``succeeded`` is final; the other end states can be left only by resuming the run.
 TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
     "pending": frozenset({"running", "cancelled", "failed"}),
     "running": TERMINAL_STATUSES,
+    "interrupted": frozenset({"running"}),
+    "failed": frozenset({"running"}),
+    "cancelled": frozenset({"running"}),
 }
 
 
@@ -108,6 +112,9 @@ class RunStore:
                     )
                 if manifest.status in TERMINAL_STATUSES and manifest.finished is None:
                     manifest.finished = utc_now()
+                if manifest.status == "running":  # a resumed run is open again
+                    manifest.finished = None
+                    manifest.summary = None
             self._write(manifest)
             return manifest
 

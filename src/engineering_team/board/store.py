@@ -262,6 +262,8 @@ class BoardStore:
             if to == "in_progress" and card.kind in WIP_KINDS and not sent_back:
                 self._check_wip(card)
             before, now = card.status, self._clock()
+            if before in ("failed", "cancelled"):  # reopened by a resume: a fresh start
+                card.finished = None
             card.status = to
             if to == "in_progress":
                 card.started = card.started or now
