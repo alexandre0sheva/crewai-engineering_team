@@ -19,12 +19,14 @@ from engineering_team.contracts import CheckResult, CheckSpec
 from engineering_team.runtime.budget import BudgetExceeded
 from engineering_team.runtime.cancel import RunCancelled, check_cancelled
 from engineering_team.runtime.context import RunContext
+from engineering_team.runtime.reports import QA_NOTES, VERIFICATION
+from engineering_team.verification.baseline_compare import apply_baseline
 from engineering_team.verification.cards import CheckCards
 from engineering_team.verification.checks_file import ChecksFileError, pinned_checks
 from engineering_team.verification.criteria import map_criteria
 from engineering_team.verification.profiles import build_checks
 from engineering_team.verification.report import render_report
-from engineering_team.verification.revision import NOTES_FILE, REPORT_FILE, verification_revision
+from engineering_team.verification.revision import verification_revision
 from engineering_team.verification.verdict import Judgement, failures_for_repair, judge
 from engineering_team.verification.verifier import Verifier
 
@@ -96,7 +98,9 @@ class VerificationLoop:
             user = pinned_checks(ctx, record.checks_digest)
         except ChecksFileError as exc:
             return self._conclude([], [], Judgement("failed", [str(exc)]))
-        planned = build_checks(ctx, self.state.plan, user)
+        # A change to an existing project is checked with what the project itself uses and
+        # judged against its baseline; the plan's own commands do not replace them.
+        planned = build_checks(ctx, None if self.state.baseline else self.state.plan, user)
         record.notes = planned.notes
         checks = planned.checks
 
@@ -117,6 +121,10 @@ class VerificationLoop:
 
     def _verify(self, checks: list[CheckSpec], number: int | None = None) -> list[CheckResult]:
         results = self.verifier.run(checks, round=self._next_file() if number is None else number)
+        if self.state.baseline is not None:
+            results = apply_baseline(
+                results, {check.id: check.cwd for check in checks}, self.state.baseline
+            )
         self.state.checks = results
         self.record.revision = results[0].revision if results else None
         self.save()
@@ -223,16 +231,14 @@ class VerificationLoop:
     def _note(self, number: int, summary: str, error: str) -> None:
         """Keep what the agent said in ``docs/qa-notes.md``, labelled as unverified narrative."""
 
-        workspace = self.ctx.workspace
+        reports = self.ctx.reports
         try:
-            existing = workspace.read_file(NOTES_FILE)
-        except Exception:
+            existing = reports.read(QA_NOTES)
+        except OSError:
             existing = "# QA notes\n\nWhat the repair agent said, for people. Not evidence: the "
-            existing += "controller's checks are in `docs/verification.md`.\n"
+            existing += f"controller's checks are in `{reports.label(VERIFICATION)}`.\n"
         said = summary.strip()[:MAX_NOTE] or (f"(no summary; {error})" if error else "(no summary)")
-        workspace.write_file(
-            NOTES_FILE, f"{existing.rstrip()}\n\n## Repair round {number}\n\n{said}\n"
-        )
+        reports.write(QA_NOTES, f"{existing.rstrip()}\n\n## Repair round {number}\n\n{said}\n")
 
     # -- the end ---------------------------------------------------------------------------
 
@@ -243,8 +249,14 @@ class VerificationLoop:
         record.verdict = judgement.verdict
         record.problems = judgement.problems
         record.coverage = map_criteria(ctx.workspace, self.state.spec, checks, results)
-        text = render_report(record, results, judgement, max_rounds=self.max_rounds)
-        ctx.workspace.write_file(REPORT_FILE, text)
+        text = render_report(
+            record,
+            results,
+            judgement,
+            max_rounds=self.max_rounds,
+            notes=ctx.reports.label(QA_NOTES),
+        )
+        ctx.reports.write(VERIFICATION, text)
         self.save()
         ctx.events.emit(
             "verify.verdict",
@@ -261,5 +273,5 @@ class VerificationLoop:
             )
         raise VerificationError(
             f"Not verified ({judgement.verdict}): {'; '.join(judgement.problems)}. "
-            f"See {REPORT_FILE}."
+            f"See {ctx.reports.label(VERIFICATION)}."
         )

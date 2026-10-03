@@ -13,6 +13,8 @@ uv run engineering-team <command> --help # its options
 | Command | What it does |
 |---------|--------------|
 | `new` | Build a new project from a request (`--request`, `--request-file`, stdin, or `--example`). |
+| `feature --repo PATH --request ...` | Add a feature to an existing project on a branch, worktree, or copy, verified against its baseline ([Feature mode](#feature-mode)). |
+| `diff [RUN] [--stat]` / `export-patch [RUN] --out FILE` | What a `feature` run changed, and that change as a patch for `git apply`. |
 | `analyze [--repo PATH] [--deep]` | Look at an existing project without changing it: languages, detected commands, tests, CI, Git state; `--deep` also writes a codebase map ([Adopting an existing project](#adopting-an-existing-project)). |
 | `resume RUN` | Continue a cancelled, interrupted, or failed run without redoing finished stages. |
 | `status [RUN]` | Where a run stands: stages, progress, cost, blocked cards. |
@@ -142,17 +144,18 @@ project context (`analysis.context_chars`). It is a guide written by agents, not
 it. The only things `--deep` writes are in `.engineering-team/` (the map, the profile, the run record), which
 Git is told to ignore through `.git/info/exclude`; your `.gitignore` and your files are never edited.
 
-**How the team gets a place to work.** The modes that change an existing project (`feature`, `fix`,
-`maintain`) start from the `adopt` recipe: profile, baseline, map. They never work in your checkout blindly;
+**How the team gets a place to work.** The modes that change an existing project (`feature` today; `fix` and
+`maintain` follow) start from the `adopt` recipe: profile, baseline, map. They never work in your checkout blindly;
 `modes/isolation.py` picks one of three policies:
 
 | Policy | When | What happens | Your files |
 |--------|------|--------------|------------|
 | **branch** | A Git repository with a clean tree | The team works in your checkout on a new branch `engineering-team/<run-id>-<slug>` made from the current commit. | Untouched until the team writes; your branch never moves. |
 | **worktree** | The tree is dirty (the default then), or `--worktree` | `git worktree add .engineering-team/worktrees/<run-id>` on the same kind of branch. The team starts from the last commit. | Not touched at all, uncommitted changes included. |
-| **copy** | A directory that is not a repository | The directory is copied to `workspace/<name>` (caches and `.venv` are left out; a copy over 2 GiB is refused). With `--init-git` the copy becomes a repository whose first commit is the import, so the work can be diffed against it. | Not touched at all. |
+| **copy** | A directory that is not a repository | The directory is copied to `workspace/<name>` (caches and `.venv` are left out; a copy over 2 GiB is refused). The copy becomes a repository whose first commit is the import, so the work can be diffed against it. | Not touched at all. |
 
-A dirty tree is never worked on in place unless you say so (`--allow-dirty`: the team then works on a new
+`feature` takes `--worktree` (always use a worktree) and `--allow-dirty`; a copy is always made a
+repository (its first commit is the import). A dirty tree is never worked on in place unless you say so (`--allow-dirty`: the team then works on a new
 branch in your checkout, and your uncommitted changes are part of its first commit). A directory inside a
 repository (not its top level), a repository with no commits, and a copy that would overwrite or contain
 another directory are refused with the fix. Nothing ever pushes: the team's work is a branch (or worktree, or
@@ -164,6 +167,48 @@ build, through the same verifier and execution backend as a normal run) and reco
 stable keys, so a later verification can ask for "no new failures" instead of "failures". A project with no
 tests gets no test baseline, and says so. Nothing is installed for the baseline: if the project's
 dependencies are not installed, its checks report that they could not run.
+
+### Feature mode
+
+```bash
+uv run engineering-team feature --repo ../my-service --request "Add a /search endpoint that finds notes by text."
+uv run engineering-team feature --repo ../my-service --request-file feature.md --squash
+uv run engineering-team diff                       # what the team changed, against where it started
+uv run engineering-team export-patch --out search.patch
+```
+
+`feature` takes the request like `new` does (`--request`, `--request-file`, `--context-dir`, stdin,
+`--interactive`) and the options `--provider`, `--profile`, `--sandbox`, `--checks`, `--allow-web`. The team is isolated
+first ([above](#adopting-an-existing-project)), then the `feature` recipe runs: **profile, baseline, map** (the
+adopt stages), **spec** (criteria for the new behaviour, and for the existing behaviour the change must keep),
+**impact** (the architect reads the code and the map and plans the smallest change as work packages, each owning exact
+paths), **implement** (packages that do not depend on each other run side by side, each able to write only its own
+paths; a package may own `package.json`, `pyproject.toml`, and the other shared root files, since there is no
+foundation stage), **tests** (the quality engineer writes tests in the style the project already uses), **verify**,
+**review**, **summary**. The agents are told to follow the project's conventions, keep the diff minimal, and never
+reformat or tidy what they were not asked to change.
+
+**Baseline-aware verification.** The controller runs the project's own checks (the ones the baseline recorded, not
+commands the plan declares) and compares them with the baseline: a failing check whose failures were all failing
+before the change counts as passed, and says so (`N known failure(s) from the baseline, no new ones`); any failure the
+baseline did not have is new, fails the check, and is the only thing handed to the repair agent (it is told which
+failures were already there and not to fix them). `verified` therefore means "the change added no failure", and exit
+code 3 means it did. Run time and cost are bounded as usual (`budget.max_repair_rounds`).
+
+**Review and diff noise.** Two read-only reviewers read the change (not the whole project) against the commit the team
+started from. The controller adds a **diff-noise** measure from Git: the lines changed outside the paths the plan owns,
+the project's test directories, and test files; each such file is listed. It is informational: it is in the review
+report and the summary, not a failure.
+
+**What you get.** The team's branch (or worktree, or copy) with one commit per stage (`stage(<name>): ...`), or one
+commit with `--squash` (or `git.squash`); and in the run directory (`.engineering-team/runs/<id>/`)
+`CHANGE_SUMMARY.md` (where the work is, files changed, the verification and the baseline, review findings, diff noise,
+and what the team said, labelled as not evidence), `changes.patch` (applies to the starting commit with `git apply`),
+and `reports/` (`spec.md`, `verification.md`, `review.md`, `qa-notes.md`). The controller's write-ups are kept out of
+your project, so the diff holds only the change. `diff [RUN]` and `export-patch [RUN] --out FILE` read the work
+against the starting commit whenever you run them. Nothing is pushed: you review the branch and merge it, or apply the
+patch. `runs`, `status`, `board`, `cancel`, `note`, and `resume` find the run wherever its workspace is, and a failed
+or interrupted `feature` run continues with `resume RUN` (a changed request starts over with `feature`).
 
 **`new --adopt`** is the narrow, older door: it lets `new` work in an existing directory under the workspace
 root that the tool did not create (`--project-name NAME --adopt`), in place and without isolation, so it

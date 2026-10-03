@@ -9,7 +9,7 @@ Each returns a ``ReviewReport``; the controller checks, merges, and numbers the 
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 from crewai.tools import BaseTool
 
@@ -17,7 +17,6 @@ from engineering_team.contracts import Finding, ReviewReport
 from engineering_team.pipeline.parallel import JobResult, ReadOnlyJob, run_parallel_readonly
 from engineering_team.pipeline.recipes import StageSpec
 from engineering_team.pipeline.review import (
-    REVIEW_FILE,
     Reviewed,
     blocking,
     consolidate,
@@ -26,6 +25,7 @@ from engineering_team.pipeline.review import (
 from engineering_team.pipeline.stages import StageError, StageOutput
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.context import RunContext
+from engineering_team.runtime.reports import REVIEW
 
 REPORT_DIR = "docs/reviews"
 
@@ -41,6 +41,7 @@ def run_review(
     stage: StageSpec,
     call: Call,
     repair: Repair | None,
+    extra: Sequence[str] = (),
 ) -> str:
     """Run the stage; returns a one-line summary. Raises ``StageError`` if no reviewer reported."""
 
@@ -64,7 +65,7 @@ def run_review(
     fail_on = ctx.settings.review.fail_on
     findings = consolidate(reviews)
     state.findings = findings
-    ctx.workspace.write_file(REVIEW_FILE, render_review(findings, reviews, fail_on=fail_on))
+    ctx.reports.write(REVIEW, render_review(findings, reviews, fail_on=fail_on, extra=extra))
     serious = blocking(findings, fail_on)
     ctx.events.emit(
         "review.findings",
@@ -75,8 +76,8 @@ def run_review(
     outcome = ""
     if serious and repair is not None:
         outcome = repair(serious)
-        ctx.workspace.write_file(
-            REVIEW_FILE, render_review(findings, reviews, fail_on=fail_on, outcome=outcome)
+        ctx.reports.write(
+            REVIEW, render_review(findings, reviews, fail_on=fail_on, outcome=outcome, extra=extra)
         )
     elif serious:
         outcome = "No verify stage in this recipe, so nothing was sent to repair."

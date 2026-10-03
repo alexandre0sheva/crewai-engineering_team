@@ -260,6 +260,7 @@ files but no repository is left alone. The controller never pushes, fetches, or 
 | `git.enabled` | `true` | Also `ENGINEERING_GIT` and `--no-git` (which sets it to `false`): no repository is created and nothing is committed (the read-only Git tools still read a repository that exists) |
 | `git.author_name` | `Engineering Team` | Author and committer name of the controller's commits |
 | `git.author_email` | `engineering-team@users.noreply.github.com` | Their email (a no-reply address; set your own to attribute the commits) |
+| `git.squash` | `false` | Also `feature --squash`: when a repository mode (`feature`) succeeds, its stage commits since the starting commit become one commit (`feature: <title>`) on the team's branch |
 
 ### Requirements intake (`[intake]` and the request options)
 

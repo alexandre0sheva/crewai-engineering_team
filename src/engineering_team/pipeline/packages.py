@@ -58,8 +58,11 @@ class PlanError(ValueError):
     """The architect's plan cannot be executed; the message lists every problem found."""
 
 
-def plan_problems(plan: Plan, spec: Spec | None = None) -> list[str]:
+def plan_problems(plan: Plan, spec: Spec | None = None, *, allow_shared: bool = False) -> list[str]:
     """Everything wrong with the plan's work packages (empty when it can be run).
+
+    With ``allow_shared`` a package may own the project's shared root files (a change to an
+    existing project has no foundation stage to own them).
 
     Overlapping ``owned_paths`` are *not* a problem: packages that overlap are run one after
     the other (see :func:`schedule`). With a ``spec`` every package must deliver at least one
@@ -84,7 +87,7 @@ def plan_problems(plan: Plan, spec: Spec | None = None) -> list[str]:
             elif dependency not in seen:
                 problems.append(f"{package.id} depends on unknown package {dependency!r}")
                 broken_dependencies = True
-        problems.extend(_ownership_problems(package))
+        problems.extend(_ownership_problems(package, allow_shared))
         if spec is not None and known is not None:
             if not package.criteria_ids:
                 problems.append(f"{package.id} delivers no acceptance criterion (criteria_ids)")
@@ -101,11 +104,11 @@ def plan_problems(plan: Plan, spec: Spec | None = None) -> list[str]:
     return problems
 
 
-def _ownership_problems(package: WorkPackage) -> list[str]:
+def _ownership_problems(package: WorkPackage, allow_shared: bool = False) -> list[str]:
     if not package.owned_paths:
         return [f"{package.id} owns no paths, so it could not write anything (owned_paths)"]
     problems = []
-    for pattern in package.owned_paths:
+    for pattern in () if allow_shared else package.owned_paths:
         claimed = [name for name in SHARED_FILES if compile_glob(pattern).fullmatch(name)]
         if claimed:
             problems.append(

@@ -184,9 +184,9 @@ class CrewStageRunner:
     def run(self, request: StageRequest) -> StageOutput:
         ctx, stage = request.ctx, request.stage
         prompts = _yaml("stages.yaml")
-        key = {"parallel": "implement", "verify": "repair", "analyze": "analyze_chunk"}.get(
-            stage.kind, stage.name
-        )
+        key = stage.prompt or {
+            "parallel": "implement", "verify": "repair", "analyze": "analyze_chunk",
+        }.get(stage.kind, stage.name)  # fmt: skip
         if stage.kind == "analyze" and request.synthesis:
             key = "analyze_synthesis"  # the last step combines what the chunk analysts found
         if stage.kind == "verify" and request.findings:
@@ -317,6 +317,7 @@ class CrewStageRunner:
             "resume_note": request.note,
             "failures": request.failures,
             "findings": request.findings,
+            "base": str((request.state.isolation or {}).get("base_commit") or "")[:12],
             "chunk": request.chunk,
             "synthesis": request.synthesis,
             "profile": request.profile,

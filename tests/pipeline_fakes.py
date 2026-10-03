@@ -162,6 +162,10 @@ class FakeRunner:
         elif stage == "plan":
             write("docs/architecture.md", "# Architecture\n" + BODY)
             contracts["plan"] = self.plan
+        elif stage == "impact":  # the feature recipe's plan: it promises no file
+            contracts["plan"] = self.plan
+        elif stage == "tests":
+            pass  # the feature recipe's test-writing stage: scripts add files through on_call
         elif stage == "foundation":
             write("README.md", "# Demo\n" + BODY)
         elif package is not None:

@@ -657,6 +657,35 @@ profile with no run at all; with `--deep` it opens a run in the project itself (
 (`analysis_recipe()`: profile and map; no baseline, because that runs the project's commands). The repository
 modes will inline or reuse the three stages; a recipe cannot include another yet.
 
+### Feature mode
+
+`modes/recipes/feature.yaml` is the `adopt` stages followed by `spec` (prompt `spec_change`), `impact` (the architect;
+output `plan`), `implement` (a `parallel` stage with prompt `implement_change` and `allow_shared`), `tests`, `verify`,
+`review` (prompt `review_change`), and `summary` (the controller action `change_summary`). Two stage options exist for
+it: `prompt` names the task prompt in `config/stages.yaml` instead of the one the kind or name picks, and `allow_shared`
+lets a parallel stage's packages own shared root files (`plan_problems(allow_shared=)` and the write scope's `deny`
+follow it).
+
+- **Isolation first.** `cli/feature_command.feature` calls `isolate()` (a copy is always made a repository), registers the
+  workspace with `runtime/run_index.register_workspace` (a `.external-workspaces.json` beside the workspace root, so
+  `runs`, `status`, `board`, `cancel`, `diff`, and `resume` find a run that lives in your repository or in a worktree
+  under it), and opens the run with `_open_run(workspace=..., run_id=..., recipe=...)` (mode `feature`, strategy
+  `pipeline`). `resume` reopens such a run in its own workspace (`open_resume(workspace_dir=)`).
+- **Reports out of the diff.** `RunContext.reports` (`runtime/reports.py`) says where the controller's write-ups go:
+  the project's `docs/` (a new project) or `<run dir>/reports/` (an adopted workspace, `RunContext.create(adopted=True)`).
+  The spec, verification, QA-notes, and review writers all go through it.
+- **Baseline comparison** (`verification/baseline_compare.apply_baseline`) runs inside the verification loop whenever
+  the pipeline state holds a baseline: a failed detected check is turned into `passed` when every failure key is in
+  `known_failures` (recorded on the result, with the new ones for a mixed outcome), the plan's commands are not used
+  (`build_checks(plan=None)`), and `failures_for_repair` separates new failures from known ones. The raw results stay in
+  `verification/round-<n>.json`.
+- **Change report** (`modes/change_report.py`): `GitPort.changes(base)` (a temporary-index `diff --raw --numstat`) gives
+  files and lines since `state.isolation['base_commit']`; `modes/diff_noise.measure` counts the lines outside the plan's
+  owned paths, the test directories, and test-named files. The review stage adds the section to the review report;
+  `change_summary` writes `changes.patch` (`GitPort.export_patch`) and `CHANGE_SUMMARY.md` to the run directory.
+- **Squash** (`git.squash`) is done by `Checkpoints.final`, after the last stage and the final gate:
+  `GitPort.squash(base, message)` (`reset --soft` to the base, then one commit), refused unless the base is an ancestor.
+
 ## Settings and model routing
 
 `settings.py` is the only module that reads configuration. It builds an immutable, typed

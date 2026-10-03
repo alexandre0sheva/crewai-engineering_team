@@ -7,7 +7,10 @@
 # the verify stage's: the controller's failing checks are {failures}; ``repair_review`` is its
 # prompt for review findings ({findings}). ``review`` is run once per reviewer. ``analyze_chunk``
 # is run once per chunk of an existing codebase ({chunk} is its brief) and ``analyze_synthesis``
-# once after them ({synthesis} holds the chunk analyses and the detected facts).
+# once after them ({synthesis} holds the chunk analyses and the detected facts). ``spec_change``,
+# ``impact``, ``implement_change``, ``tests`` and ``review_change`` are the ``feature`` recipe's:
+# a change to an existing project ({base} is the commit the team started from; {context} carries
+# the codebase map).
 
 spec:
   description: >
@@ -418,3 +421,171 @@ analyze_synthesis:
   expected_output: >
     A JSON codebase map (overview, architecture, modules, key_flows, conventions, hotspots,
     risks, how_to_run, how_to_test).
+
+spec_change:
+  description: >
+    Turn the request into a testable specification for a CHANGE to an existing project,
+    {project_name}, in {workspace_path}. Do not write files and do not design the solution.
+
+    Request:
+
+    {requirements}
+
+    {context}
+
+    Produce a specification with: a short title and summary; acceptance criteria numbered
+    AC-1, AC-2, ... (each id used once) that can each be checked by running or inspecting the
+    result, with a kind of functional, quality, constraint, or security; explicit non-goals;
+    and the assumptions you make where the request is silent. Describe the new behaviour only
+    as it differs from what the project does today (read the project first if the request is
+    ambiguous), and add a criterion for each existing behaviour the change could plausibly break
+    and must keep (kind constraint), so that regressions are named. Keep it to the smallest
+    change that satisfies the request and invent nothing the request does not support.
+
+    Also report your confidence (high, medium, or low). List a blocking question only when its
+    answer would materially change the change and you cannot reasonably assume it; for each,
+    also write the answer you would assume under assumptions. Minor uncertainties go in
+    open_questions. Ask at most five blocking questions.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON specification (title, summary, criteria, non_goals, assumptions, open_questions,
+    confidence, blocking_questions).
+
+impact:
+  description: >
+    Plan the change to the existing project {project_name} in {workspace_path}. Do not edit
+    any file: you design, the others implement.
+
+    Specification:
+
+    {spec}
+
+    Original request:
+
+    {requirements}
+
+    {context}
+
+    First read the code the change touches (the codebase map above is a guide, not evidence:
+    confirm it in the code; the symbol, reference, import, and test-finding tools show who
+    depends on what). Then produce the impact plan as JSON: the project's existing stack
+    (do not change it); leave commands empty (the controller uses the project's own commands);
+    work packages, each with an id, a title, a role (a teammate from the list below), a
+    description that names the files to change or add, the migrations or data changes it needs,
+    and how it is tested, the exact owned_paths (the files or directories it may change: as
+    narrow as possible, never a directory that holds unrelated code; a root file such as
+    package.json or pyproject.toml is allowed when the change needs it), depends_on, and the
+    criteria_ids it delivers. Packages that do not depend on each other and own different paths
+    run at the same time. Also list the risks: what the change could break, what is untested,
+    what needs a human decision. Follow the conventions the code already has; plan the smallest
+    change that delivers the criteria, and no refactoring the request did not ask for.
+
+    Teammates available for work packages (a package's role is a teammate's key, or its short
+    form without "_engineer"):
+
+    {teammates}
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON plan (stack, commands left empty, work_packages with owned_paths and criteria_ids,
+    risks).
+
+implement_change:
+  description: >
+    Implement one work package of a change to the existing project {project_name} in
+    {workspace_path}.
+
+    Specification:
+
+    {spec}
+
+    Plan:
+
+    {plan}
+
+    Your work package:
+
+    {package}
+
+    {context}
+
+    Read the code you will change and the code around it first, and follow what you find: its
+    naming, structure, error handling, comments, and test style, and the project's lint and
+    format configuration. Keep the diff minimal: change only what the criteria need, do not
+    reformat, rename, reorder, or tidy code you were not asked to change, and do not touch
+    generated files or lockfiles by hand. Run the project's own tests and checks for what you
+    changed. You may change only the paths your package owns (owned_paths); teammates work on
+    the others at the same time, so everything else is read-only for you. If you need a change
+    elsewhere, describe it in your summary or in a card comment instead of working around it.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The work package implemented with the smallest diff. Report the criteria delivered, files
+    changed, commands run with their exit codes, and any honest limitation.
+
+tests:
+  description: >
+    Add or update the automated tests for the change to the existing project {project_name} in
+    {workspace_path}.
+
+    Specification:
+
+    {spec}
+
+    Plan:
+
+    {plan}
+
+    {context}
+
+    First find how this project tests itself: the test directories, the framework, the naming
+    and fixture conventions, and how existing tests for nearby code are written. Then write the
+    tests the change needs in exactly that style: at least one test per acceptance criterion
+    that describes behaviour, tests for the edge cases and error paths of the new code, and an
+    updated version of any existing test the change legitimately invalidates (say so in your
+    summary). Never weaken, delete, or skip an existing test to make it pass. Keep to test files
+    and the test support code; do not change the code under test (if it is wrong, say so in
+    your summary). Run the project's tests for what you added and fix your own tests until they
+    pass. Tests that were failing before the change (the baseline) are not yours to fix.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The tests in the workspace, passing, and a short summary: tests added or changed per
+    criterion, commands run with their exit codes, and anything the change leaves untested.
+
+review_change:
+  description: >
+    Review the CHANGE the team made to the existing project {project_name} in
+    {workspace_path}. You can only read it: do not write or change any file, and do not report
+    anything you have not seen in the code.
+
+    Specification:
+
+    {spec}
+
+    The team started from commit {base}. Read the change with Git Diff Between Refs (first
+    {base}, second HEAD; start with stat=true) and Git Info diff for anything not committed
+    yet, then read the changed files in full where the diff is not enough, and the code that
+    calls them. Judge the change, not the whole project: report only defects the change
+    introduced or left behind, each once, with the file and line, a severity (critical, high,
+    medium, low, info) that reflects its impact, and a concrete suggested fix. Also report as
+    low or medium any part of the diff that is noise (unrelated reformatting, renames, files
+    nobody asked for) and any acceptance criterion the change does not deliver. Leave out style
+    preferences. If you find nothing, say so with an empty list. If you ran a tool, name it and
+    what it reported; if a tool could not run, say that instead of guessing.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON review report: a one- or two-sentence summary and a findings list (each finding has
+    severity, summary, file, line, and suggested_fix).

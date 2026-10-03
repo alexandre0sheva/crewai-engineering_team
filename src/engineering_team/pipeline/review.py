@@ -160,6 +160,7 @@ def render_review(
     *,
     fail_on: str,
     outcome: str = "",
+    extra: Sequence[str] = (),
 ) -> str:
     """``docs/review.md``: written by the controller from the validated findings."""
 
@@ -188,6 +189,8 @@ def render_review(
         )
         if f.suggested_fix:
             lines.append(f"  - Suggested fix: {f.suggested_fix}")
+    if extra:
+        lines += ["", *extra]
     if outcome:
         lines += ["", "## Outcome", "", outcome]
     return "\n".join(lines) + "\n"

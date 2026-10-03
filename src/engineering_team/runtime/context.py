@@ -24,6 +24,7 @@ from engineering_team.runtime.events import (
 )
 from engineering_team.runtime.interaction import HumanChannel
 from engineering_team.runtime.processes import ProcessRegistry
+from engineering_team.runtime.reports import Reports
 from engineering_team.runtime.requests import RateLimiter, RequestLimiter
 from engineering_team.runtime.run_store import EVENTS_FILENAME
 from engineering_team.runtime.snapshot import Snapshot
@@ -76,7 +77,9 @@ class RunContext:
     cap on outbound web requests, ``git`` the controller's Git (checkpoints, patches, history;
     see ``docs/ARCHITECTURE.md``), and ``llm_rate`` (set when ``parallel.max_rpm`` is) the cap on
     model calls per minute that parallel agents share, and ``team`` the roster of teammates
-    (the built-ins plus the project's changes and additions; see ``docs/TEAM.md``).
+    (the built-ins plus the project's changes and additions; see ``docs/TEAM.md``), and ``reports``
+    where the controller's own write-ups go (the project's ``docs/``, or the run directory for a
+    project the team did not create).
     """
 
     run_id: str
@@ -98,6 +101,7 @@ class RunContext:
     browsers: BrowserRegistry
     git: GitPort
     team: Roster
+    reports: Reports
     tool_gate: ToolGate | None = None
     web_requests: RequestLimiter = field(default_factory=lambda: RequestLimiter(40))
     llm_rate: RateLimiter | None = None
@@ -112,6 +116,7 @@ class RunContext:
         backend: ExecutionBackend | None = None,
         events: EventSink | None = None,
         resume: bool = False,
+        adopted: bool = False,
     ) -> RunContext:
         """Create the context and its run directory (controller-owned, hidden from agents).
 
@@ -121,7 +126,8 @@ class RunContext:
         ``run_dir/commands/``. ``resume=True`` continues an
         existing run directory: usage (and so the cost and token budgets) starts from what
         ``events.jsonl`` already recorded, the board and notes load from disk, and the event
-        log is appended to. The baseline is then the workspace as it is now.
+        log is appended to. The baseline is then the workspace as it is now. ``adopted`` keeps the
+        controller's reports in the run directory instead of the project's ``docs/``.
         """
 
         from engineering_team.team import build_roster
@@ -194,6 +200,7 @@ class RunContext:
             ),
             git=GitPort(workspace, run_backend, settings.git, sink),
             team=team,
+            reports=(Reports.in_run_dir(workspace, run_dir) if adopted else Reports(workspace)),
             tool_gate=guard.tool_gate,
             web_requests=RequestLimiter(settings.web.max_requests_per_run),
             llm_rate=(

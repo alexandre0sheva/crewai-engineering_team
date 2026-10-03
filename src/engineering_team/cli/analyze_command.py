@@ -95,7 +95,9 @@ def analyze(
     def work(prepared: Any) -> int:
         if not (g.json or g.quiet):
             g.console().print(render_profile(found), markup=False, highlight=False, soft_wrap=True)
-        code = present_run(prepared, g, extra=lambda: _document(root, found, deep=True))
+        code = present_run(
+            prepared, g, extra=lambda data: data.update(_document(root, found, deep=True))
+        )
         printed.append(True)
         if not g.json:
             _show_map(g, root)

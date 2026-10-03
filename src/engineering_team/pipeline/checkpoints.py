@@ -51,11 +51,14 @@ class Checkpoints:
         if self.enabled:
             self._guard(lambda: self._commit(f"stage({name}): {_subject(summary)}"))
 
-    def final(self) -> None:
-        """After the last stage: commit what the final verification changed, if anything."""
+    def final(self, squash_message: str = "") -> None:
+        """After the last stage: commit what the final verification changed, if anything, and,
+        with ``git.squash``, make the team's commits since it started one commit."""
 
         if self.enabled:
             self._guard(self._final)
+            if self.ctx.settings.git.squash and squash_message:
+                self._guard(lambda: self._squash(squash_message))
 
     # -- internals ---------------------------------------------------------------------
 
@@ -71,6 +74,14 @@ class Checkpoints:
     def _final(self) -> None:
         if self.git.is_repo() and self.git.is_dirty():
             self.git.checkpoint("final: the project changed after the last stage (final check)")
+
+    def _squash(self, message: str) -> None:
+        from engineering_team.modes.isolation import read_isolation
+
+        isolation = read_isolation(self.ctx.workspace.root)
+        if isolation is None or isolation.base_commit is None or not self.git.is_repo():
+            return  # not a repository mode, or no commit to squash back to
+        self.git.squash(isolation.base_commit, _subject(message))
 
     def _guard(self, action: Callable[[], None]) -> None:
         try:

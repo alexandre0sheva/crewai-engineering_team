@@ -358,10 +358,16 @@ def _open_run(
     reset: bool = False,
     force_reset: bool = False,
     adopt: bool = False,
+    workspace: ProjectWorkspace | None = None,
+    run_id: str | None = None,
+    recipe: Recipe | None = None,
 ) -> PreparedRun:
     """Prepare the workspace, take its write lock, and build the run context and inputs.
 
     ``context`` (the reference documents of ``--context-dir``) is copied into the workspace.
+    A repository mode passes the ``workspace`` its isolation made (and the ``run_id`` that named
+    the branch) and its ``recipe``: the run then uses the pipeline strategy, and the controller's
+    reports go to the run directory instead of the project's ``docs/``.
 
     Also creates the run's manifest (``pending``); the caller wraps the work in
     ``recorder.running()`` and releases the lock (``_execute`` does) once the run is over. A
@@ -369,22 +375,26 @@ def _open_run(
     usage error.
     """
 
-    workspace = _prepare_workspace(settings, reset=reset, force_reset=force_reset, adopt=adopt)
-    run_id = new_run_id()
+    adopted = workspace is not None
+    if workspace is None:
+        workspace = _prepare_workspace(settings, reset=reset, force_reset=force_reset, adopt=adopt)
+    run_id = run_id or new_run_id()
     lock = WorkspaceLock(workspace.root).acquire(run_id)
     # Only builds follow the strategy setting; train, test, and replay are crew commands.
     strategy_name = settings.strategy if mode == "build" else "hierarchical"
+    if recipe is not None:
+        strategy_name = "pipeline"
     try:
         if context is not None:
             install_context(workspace.root, context)
-        ctx = RunContext.create(settings, workspace, run_id=run_id)
+        ctx = RunContext.create(settings, workspace, run_id=run_id, adopted=adopted)
         pin = _pin_checks(settings, ctx, mode, strategy_name)
         recorder = RunRecorder.begin(
             ctx,
             mode=mode,
             request=requirements or "",
             strategy=strategy_name,
-            recipe=recipe_name_for(strategy_name),
+            recipe=recipe.name if recipe is not None else recipe_name_for(strategy_name),
         )
         inputs = (
             build_inputs(
@@ -411,6 +421,7 @@ def _open_run(
             script_digests=pin.script_digests,
         ),
         strategy=get_strategy(strategy_name),
+        recipe=recipe,
     )
 
 
@@ -418,7 +429,7 @@ def _pin_checks(settings: Settings, ctx: RunContext, mode: str, strategy: str) -
     """Validate and pin the user's checks file (a problem with it is a usage error)."""
 
     source = settings.verify.checks_file
-    if source is None or mode != "build":
+    if source is None or mode not in ("build", "feature"):
         return ChecksPin()
     if strategy != "pipeline":
         raise ValueError(
@@ -551,13 +562,20 @@ def _run_prepared(prepared: PreparedRun) -> int:
     return _report(result, resumable=prepared.strategy.resumable)
 
 
-def _prepare_resume(settings: Settings, run_id: str, request: str | None) -> PreparedRun:
+def _prepare_resume(
+    settings: Settings, run_id: str, request: str | None, workspace: Path | None = None
+) -> PreparedRun:
     """Reopen ``run_id``, or, when ``request`` differs from the one it was started with, start a
     new run for that request (old evidence is never reused for a different request)."""
 
     settings.check_ready(require_credentials=True)
-    _, manifest, _ = read_request(settings, run_id)
+    _, manifest, _ = read_request(settings, run_id, workspace)
     if request is not None and request_hash(request) != manifest.request_hash:
+        if manifest.mode != "build":
+            raise ValueError(
+                f"The request changed since run {run_id}. A {manifest.mode} run cannot be "
+                f"restarted from a new request; run `engineering-team {manifest.mode}` again."
+            )
         print(
             f"The request changed since run {run_id}; starting a new run instead of resuming it.",
             file=sys.stderr,
@@ -566,7 +584,7 @@ def _prepare_resume(settings: Settings, run_id: str, request: str | None) -> Pre
             {"strategy": manifest.strategy}, source=f"changed request (was run {run_id})"
         )
         return _open_run(fresh, mode="build", requirements=request)
-    opened = open_resume(settings, run_id)
+    opened = open_resume(settings, run_id, workspace)
     return PreparedRun(
         ctx=opened.ctx,
         inputs={},

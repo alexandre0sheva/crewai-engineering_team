@@ -15,6 +15,7 @@ from crewai.tools import BaseTool
 from engineering_team.artifacts import missing_artifacts
 from engineering_team.contracts import Finding, Plan, Spec, VerificationRecord, WorkPackage
 from engineering_team.modes import adopt as adopt  # noqa: F401  (registers the adopt actions)
+from engineering_team.modes.change_report import ChangeError, measure_change, render_noise
 from engineering_team.modes.map_stage import run_map
 from engineering_team.pipeline.actions import CONTROLLER_ACTIONS
 from engineering_team.pipeline.board_sync import StageBoard
@@ -26,7 +27,6 @@ from engineering_team.pipeline.resume import RESUME_NOTE, StagePlan
 from engineering_team.pipeline.review import repair_brief
 from engineering_team.pipeline.review_stage import run_review
 from engineering_team.pipeline.spec_stage import (
-    SPEC_FILE,
     Clarifier,
     SpecError,
     check_spec,
@@ -46,6 +46,7 @@ from engineering_team.runtime.budget import BudgetExceeded
 from engineering_team.runtime.cancel import RunCancelled, check_cancelled
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import stage_scope
+from engineering_team.runtime.reports import SPEC
 from engineering_team.runtime.session import RunRecorder
 from engineering_team.tools import WriteScope
 from engineering_team.verification.loop import RepairCall, VerificationError, VerificationLoop
@@ -228,8 +229,28 @@ class StageExecutor:
                 loop.close_findings_repair(ran)
             return "Sent to repair and verified again; the findings were not reviewed again."
 
-        summary = run_review(self.ctx, self.state, stage, call, repair if verify else None)
+        summary = run_review(
+            self.ctx, self.state, stage, call, repair if verify else None, self._noise_section()
+        )
         self.state.summaries[stage.name] = summary[:MAX_SUMMARY]
+
+    def _noise_section(self) -> list[str]:
+        """The diff-noise lines of a change to an existing project (nothing for a new one)."""
+
+        if not self.state.isolation:
+            return []
+        try:
+            measured = measure_change(self.ctx, self.state)
+        except ChangeError:
+            return []
+        self.state.diff_noise = measured.noise
+        self.ctx.events.emit(
+            "review.diff_noise",
+            total_lines=measured.noise.total_lines,
+            outside_lines=measured.noise.outside_lines,
+            outside_files=measured.noise.outside_files,
+        )
+        return ["## Diff noise", "", *render_noise(measured.noise)]
 
     def final_gate(self) -> None:
         """After the last stage: the project must still be what was verified.
@@ -255,14 +276,20 @@ class StageExecutor:
             setattr(self.state, name, contract)
         self.state.summaries[stage.name] = output.summary[:MAX_SUMMARY]
         if "plan" in output.contracts and self.state.plan is not None:
-            problems = plan_problems(self.state.plan, self.state.spec)
+            host = next((s for s in self.recipe.stages if s.kind == "parallel"), None)
+            shared = host is not None and host.allow_shared
+            problems = plan_problems(self.state.plan, self.state.spec, allow_shared=shared)
             if problems:
                 raise PlanError(
                     "The plan cannot be run: " + "; ".join(problems) + ". Fix the plan so that "
-                    "every work package owns its own paths (never shared root files such as "
-                    "README.md or package.json) and delivers existing acceptance criteria."
+                    "every work package owns its own paths"
+                    + (
+                        ""
+                        if shared
+                        else " (never shared root files such as README.md or package.json)"
+                    )
+                    + " and delivers existing acceptance criteria."
                 )
-            host = next((s for s in self.recipe.stages if s.kind == "parallel"), None)
             if host is not None:
                 self.board.ensure_package_cards(self.state.plan, host)
 
@@ -281,7 +308,7 @@ class StageExecutor:
             return check_spec(revised)
 
         spec = self.clarifier.settle(check_spec(contract), revise)
-        self.ctx.workspace.write_file(SPEC_FILE, render_spec(spec))
+        self.ctx.reports.write(SPEC, render_spec(spec))
         return spec
 
     def _call(
@@ -386,7 +413,8 @@ class StageExecutor:
         self.board.start(known.card_id, teammate, lane=lane)
         self._save()
         # With one lane nothing runs beside the agent, so it keeps the whole workspace.
-        scope = WriteScope(allow=tuple(package.owned_paths), deny=SHARED_DENY) if scoped else None
+        deny = () if stage.allow_shared else SHARED_DENY
+        scope = WriteScope(allow=tuple(package.owned_paths), deny=deny) if scoped else None
         try:
             output = self._call(stage, teammate, note, package, lane=lane, scope=scope)
         except RunCancelled:

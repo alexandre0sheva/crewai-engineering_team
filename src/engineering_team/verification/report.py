@@ -11,7 +11,6 @@ import re
 from collections.abc import Sequence
 
 from engineering_team.contracts import CheckResult, VerificationRecord
-from engineering_team.verification.revision import NOTES_FILE
 from engineering_team.verification.verdict import Judgement
 
 STATUS_LABEL = {
@@ -52,13 +51,14 @@ def render_report(
     judgement: Judgement,
     *,
     max_rounds: int,
+    notes: str = "docs/qa-notes.md",
 ) -> str:
     verdict = judgement.verdict
     lines = [
         "# Verification",
         "",
         "> Written by the controller from checks it ran itself. Nothing here is taken from an "
-        f"agent's report; the agents' own notes are in `{NOTES_FILE}` and are not evidence.",
+        f"agent's report; the agents' own notes are in `{notes}` and are not evidence.",
         "",
         f"**Verdict: {verdict.upper()}**: {EXPLANATION[verdict]}",
         "",
@@ -86,6 +86,18 @@ def render_report(
             lines += [f"Files it points at: {', '.join(r.suspect_files)}", ""]
         if r.log_tail:
             lines.append(_fence(r.log_tail))
+
+    known = [r for r in results if r.known_failures]
+    if known:
+        lines += ["", "## Known failures from the baseline", ""]
+        lines.append(
+            "These failed before the team changed anything. A check that shows only these is "
+            "recorded as passed (no new failures); new failures are listed as such."
+        )
+        for r in known:
+            lines += ["", f"### {_cell(r.id)}", ""]
+            lines += [f"- known: {_cell(key)}" for key in r.known_failures]
+            lines += [f"- NEW: {_cell(key)}" for key in r.new_failures]
 
     if record.coverage:
         lines += ["", "## Acceptance criteria", ""]

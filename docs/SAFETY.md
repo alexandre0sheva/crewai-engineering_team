@@ -204,6 +204,18 @@ What the adoption machinery touches in a project that is not the tool's own, and
   the same limits as the verifier: allowlisted tools, no shell, a timeout, a command gate. On the local backend
   that code runs on your machine; use `--sandbox docker` for code you do not trust. Checks may write caches or
   build output inside the workspace (the isolated one for the repository modes); nothing is installed.
+- **`feature` writes the change and nothing else into your project.** The controller's reports (`spec.md`,
+  `verification.md`, `review.md`, `qa-notes.md`), `CHANGE_SUMMARY.md` and `changes.patch` go to the run directory;
+  the project receives only what the agents wrote, on the team's branch, worktree, or copy, in commits the
+  controller makes (`--no-verify`, no hooks, no signing). Each agent can write only the paths its work package owns
+  when packages run side by side; a package may own a shared root file (`package.json`, `pyproject.toml`) because
+  there is no foundation stage, which is the one place the plan is allowed to widen what an agent can touch.
+- **Baseline-aware verification excuses only what was already failing.** A failure is excused only when its key
+  (test id, or lint or type-check rule and file, or the whole build) was recorded before the change and only for the
+  project's own detected checks; checks you wrote (`--checks`) and the plan's commands are never compared, and a
+  failure that was not in the baseline is a new failure.
+- **`--squash` rewrites only the team's own branch**, after checking that the starting commit is an ancestor of it.
+- **`export-patch` refuses to write inside the project** (the patch would become part of the change it describes).
 - **The codebase map is context, not evidence.** The analysts are told to read, never to change, and their
   words are flattened and size-capped by the controller when it writes the map; it can still be wrong or, if the
   code contains text aimed at an agent, influenced by it. Treat it like any document of untrusted origin

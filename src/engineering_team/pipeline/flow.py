@@ -134,11 +134,13 @@ class PipelineFlow(Flow[PipelineState]):
     def _finish_gate(self) -> str:
         """Every stage is done; the project must still be what the verify stage verified."""
 
+        recipe = self._recipe
         try:
             self._ctx.board.wait_while_paused(self._ctx.cancel_event)
             check_cancelled(self._ctx)
             self._executor.final_gate()
-            self._executor.checkpoints.final()
+            spec = self.state.spec
+            self._executor.checkpoints.final(f"{recipe.name}: {spec.title}" if spec else "")
             return "finished"
         except RunCancelled as exc:
             return self._halt("cancelled", str(exc))

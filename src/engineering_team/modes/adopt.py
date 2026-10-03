@@ -13,6 +13,7 @@ from pathlib import Path
 
 from engineering_team.atomic_io import atomic_write_json
 from engineering_team.modes.baseline import run_baseline
+from engineering_team.modes.isolation import read_isolation
 from engineering_team.modes.repo_analyzer import analyze_repo
 from engineering_team.modes.repo_profile import RepoProfile
 from engineering_team.pipeline.actions import register_action
@@ -52,6 +53,8 @@ def profile_action(ctx: RunContext, state: PipelineState) -> str:
 
     profile = analyze_repo(ctx.workspace.root, ctx.git)
     state.profile = profile
+    isolation = read_isolation(ctx.workspace.root)  # how the workspace was made, if it was
+    state.isolation = isolation.to_json() if isolation is not None else None
     save_profile(ctx.workspace.root, profile)
     commands = len(profile.commands)
     return (

@@ -27,12 +27,12 @@ def present_run(
     g: Globals,
     *,
     ask: bool = False,
-    extra: Callable[[], dict[str, Any]] | None = None,
+    extra: Callable[[dict[str, Any]], None] | None = None,
 ) -> int:
     """Run ``prepared`` with the right display, then show (or print as JSON) how it ended.
 
     With ``ask`` the team's questions are put to the person at the terminal. ``extra`` is called
-    after the run and its items are added to the ``--json`` document.
+    with the summary data after the run and may add to it (what ``--json`` prints).
     """
 
     from engineering_team import main as engine
@@ -63,7 +63,7 @@ def present_run(
     code = engine.exit_code_for(result)
     data = summary.build(ctx, result, code, resumable=prepared.strategy.resumable)
     if extra is not None:
-        data.update(extra())
+        extra(data)
     if g.json:
         print_json(data)
     elif g.interactive:
@@ -287,7 +287,7 @@ def resume(
             if request is not None or request_file is not None
             else None
         )
-        return engine._prepare_resume(settings, ref.run_id, text)
+        return engine._prepare_resume(settings, ref.run_id, text, ref.workspace)
 
     ask = wants_questions(interactive, stdin_used=False)
 

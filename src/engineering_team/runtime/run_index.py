@@ -7,6 +7,7 @@ workspace root is searched, so ``engineering-team status 20261003-101500-ab12cd`
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from engineering_team.contracts import RunManifest
 from engineering_team.runtime.run_store import RunNotFound, RunStore
 from engineering_team.tools.workspace import CONTROLLER_DIRECTORY
 from engineering_team.workspaces import resolve_workspace_root, slugify_project_name
+
+REGISTRY = ".external-workspaces.json"
 
 
 @dataclass(frozen=True)
@@ -50,17 +53,56 @@ def project_directories(workspace_root: str | Path) -> list[Path]:
     )
 
 
-def find_runs(workspace_root: str | Path, project: str | None = None) -> list[RunRef]:
-    """Every readable run (of one project, or of all), oldest first."""
+def register_workspace(workspace_root: str | Path, workspace: Path, project: str) -> None:
+    """Remember a workspace that is not under the workspace root (a branch or worktree of the
+    user's own repository), so ``status``, ``board``, ``cancel``, ``diff`` and the rest find its
+    runs. ``project`` is how ``runs`` names it."""
 
-    if project is not None:
-        directory = resolve_workspace_root(workspace_root) / slugify_project_name(project)
-        directories = [directory] if directory.is_dir() else []
-    else:
-        directories = project_directories(workspace_root)
+    root = resolve_workspace_root(workspace_root)
+    root.mkdir(parents=True, exist_ok=True)
+    entries = _registered(root)
+    path = str(workspace.resolve())
+    entries = [entry for entry in entries if entry["path"] != path]
+    entries.append({"path": path, "project": project})
+    (root / REGISTRY).write_text(json.dumps({"workspaces": entries}, indent=2) + "\n", "utf-8")
+
+
+def _registered(root: Path) -> list[dict[str, str]]:
+    try:
+        data = json.loads((root / REGISTRY).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    entries = data.get("workspaces") if isinstance(data, dict) else None
+    return [
+        {"path": str(e["path"]), "project": str(e.get("project") or Path(str(e["path"])).name)}
+        for e in entries or []
+        if isinstance(e, dict) and "path" in e
+    ]
+
+
+def find_runs(workspace_root: str | Path, project: str | None = None) -> list[RunRef]:
+    """Every readable run (of one project, or of all), oldest first. Workspaces registered with
+    :func:`register_workspace` count as projects too."""
+
+    root = resolve_workspace_root(workspace_root)
+    wanted = slugify_project_name(project) if project is not None else None
+    labelled: dict[Path, str] = {}
+    for directory in project_directories(workspace_root):
+        if wanted is None or directory.name == wanted:
+            labelled[directory.resolve()] = directory.name
+    for entry in _registered(root):
+        directory = Path(entry["path"])
+        if not (directory / CONTROLLER_DIRECTORY / "runs").is_dir():
+            continue
+        try:
+            matches = wanted is None or slugify_project_name(entry["project"]) == wanted
+        except ValueError:
+            matches = False
+        if matches:
+            labelled.setdefault(directory.resolve(), entry["project"])
     found = [
-        RunRef(directory.name, directory, manifest)
-        for directory in directories
+        RunRef(label, directory, manifest)
+        for directory, label in labelled.items()
         for manifest in RunStore(directory).list_runs()
     ]
     return sorted(found, key=lambda ref: (ref.manifest.created, ref.run_id))

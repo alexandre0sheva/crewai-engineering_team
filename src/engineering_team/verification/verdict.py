@@ -62,6 +62,13 @@ def failures_for_repair(results: Sequence[CheckResult]) -> str:
         lines = [f"- check `{result.id}` ({result.name}) FAILED: {result.summary}"]
         if result.command:
             lines.append(f"  command: {result.command}")
+        if result.new_failures:
+            lines.append(f"  new failures (fix these): {', '.join(result.new_failures)}")
+        if result.known_failures:
+            lines.append(
+                "  failing before your change, so not yours to fix (leave them): "
+                + ", ".join(result.known_failures)
+            )
         if result.suspect_files:
             lines.append(f"  suspect files: {', '.join(result.suspect_files)}")
         if result.hint:

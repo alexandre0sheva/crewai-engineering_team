@@ -28,6 +28,7 @@ from engineering_team.runtime.locks import WorkspaceBusy, WorkspaceLock
 from engineering_team.runtime.run_store import RunStore
 from engineering_team.runtime.session import RunRecorder
 from engineering_team.settings import Settings
+from engineering_team.tools.workspace import ProjectWorkspace
 from engineering_team.verification.checks_file import digest_of
 from engineering_team.workspaces import (
     prepare_workspace,
@@ -80,10 +81,14 @@ class ResumedRun:
         self.lock.release()
 
 
-def read_request(settings: Settings, run_id: str) -> tuple[RunStore, RunManifest, str]:
-    """The run's manifest and the request it was started with (checked against its hash)."""
+def read_request(
+    settings: Settings, run_id: str, workspace: Path | None = None
+) -> tuple[RunStore, RunManifest, str]:
+    """The run's manifest and the request it was started with (checked against its hash).
+    ``workspace`` is where the run lives when that is not ``workspace_root/<project>`` (a
+    repository mode's branch, worktree, or copy)."""
 
-    workspace_dir = _workspace_dir(settings)
+    workspace_dir = workspace or _workspace_dir(settings)
     store = RunStore(workspace_dir)
     manifest = store.load(run_id)  # RunNotFound is a ValueError: a usage error
     path = store.run_dir(run_id) / "request.md"
@@ -96,16 +101,22 @@ def read_request(settings: Settings, run_id: str) -> tuple[RunStore, RunManifest
     return store, manifest, request
 
 
-def open_resume(settings: Settings, run_id: str) -> ResumedRun:
+RESUMABLE_MODES = ("build", "feature")
+
+
+def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = None) -> ResumedRun:
     """Reopen an unfinished or failed run of the pipeline (or single-agent) strategy.
 
-    Raises ``ValueError`` (a usage error) when the run cannot be resumed: it already
-    succeeded, used the hierarchical strategy, or its recipe changed.
+    ``workspace_dir`` is the run's workspace when it is not ``workspace_root/<project>`` (a
+    repository mode's). Raises ``ValueError`` (a usage error) when the run cannot be resumed: it
+    already succeeded, used the hierarchical strategy, or its recipe changed.
     """
 
-    store, manifest, request = read_request(settings, run_id)
-    if manifest.mode != "build":
-        raise ResumeError(f"Run {run_id} is a '{manifest.mode}' run; only builds can be resumed.")
+    store, manifest, request = read_request(settings, run_id, workspace_dir)
+    if manifest.mode not in RESUMABLE_MODES:
+        raise ResumeError(
+            f"Run {run_id} is a '{manifest.mode}' run; only builds and features can be resumed."
+        )
     if manifest.status == "succeeded":
         raise ResumeError(f"Run {run_id} already succeeded; there is nothing to resume.")
     strategy = get_strategy(manifest.strategy)
@@ -130,15 +141,24 @@ def open_resume(settings: Settings, run_id: str) -> ResumedRun:
             "two plans. Start a new run instead."
         )
     _check_same_checks(settings, saved)
-    workspace = prepare_workspace(
-        settings.project_name,
-        settings.workspace_root,
-        command_allowlist=settings.command_allowlist,
-        subprocess_env_allowlist=settings.subprocess_env_allowlist,
-    )
+    if workspace_dir is not None and manifest.mode == "feature":
+        workspace = ProjectWorkspace.create(
+            workspace_dir,
+            extra_commands=settings.command_allowlist,
+            env_passthrough=settings.subprocess_env_allowlist,
+        )
+    else:
+        workspace = prepare_workspace(
+            settings.project_name,
+            settings.workspace_root,
+            command_allowlist=settings.command_allowlist,
+            subprocess_env_allowlist=settings.subprocess_env_allowlist,
+        )
     lock = WorkspaceLock(workspace.root).acquire(run_id)
     try:
-        ctx = RunContext.create(settings, workspace, run_id=run_id, resume=True)
+        ctx = RunContext.create(
+            settings, workspace, run_id=run_id, resume=True, adopted=manifest.mode == "feature"
+        )
         RunRecorder.reopen(ctx)
     except BaseException:
         lock.release()

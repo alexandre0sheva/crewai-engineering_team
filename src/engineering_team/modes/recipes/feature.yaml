@@ -1,0 +1,77 @@
+# The recipe for adding a feature to an existing project. The team works in an isolated branch,
+# worktree, or copy (modes/isolation.py), never in your checkout blindly; every controller write-up
+# goes to the run directory, so the diff holds only the change. See docs/USAGE.md ("Feature mode").
+name: feature
+description: Add a feature to an existing project, verified against its baseline.
+stages:
+  # Adopt: what the project is, what its own checks said before any change, how its code fits.
+  - name: profile
+    kind: controller
+    action: repo_profile
+
+  - name: baseline
+    kind: controller
+    action: baseline
+
+  - name: map
+    kind: analyze
+    teammates: [codebase_analyst]
+
+  # The analyst turns the request into criteria, including the existing behaviour the change
+  # must keep; the controller checks the ids and settles blocking questions.
+  - name: spec
+    kind: agent
+    teammates: [product_analyst]
+    inputs: [request]
+    outputs: [spec]
+    prompt: spec_change
+    retry: 1
+
+  # The architect reads the code (and the map) and plans the smallest change as work packages,
+  # each owning exact paths; the controller rejects a plan whose packages are not disjoint.
+  - name: impact
+    kind: agent
+    teammates: [solution_architect]
+    inputs: [request, spec]
+    outputs: [plan]
+    retry: 1
+
+  # Packages that do not depend on each other run side by side, each able to write only its
+  # own paths (shared root files such as package.json may be owned: there is no foundation).
+  - name: implement
+    kind: parallel
+    teammates: [backend_engineer, frontend_engineer]
+    inputs: [spec, plan]
+    skip_if: [no_work_packages]
+    prompt: implement_change
+    allow_shared: true
+    retry: 1
+
+  # Tests in the style the project already uses.
+  - name: tests
+    kind: agent
+    teammates: [quality_engineer]
+    inputs: [spec, plan]
+    retry: 1
+
+  # The controller runs the project's own checks and compares them with the baseline: the change
+  # must not add a failure; failures the project already had are not the team's to fix.
+  - name: verify
+    kind: verify
+    teammates: [debugger]
+    inputs: [spec, plan]
+
+  # Read-only reviewers read the change (not the whole project); the controller adds the diff
+  # noise: lines changed outside the places the plan and the tests account for.
+  - name: review
+    kind: review
+    teammates: [code_reviewer, security_engineer]
+    inputs: [spec, plan]
+    skip_if: [minimal_team]
+    optional: true
+    prompt: review_change
+
+  # CHANGE_SUMMARY.md and changes.patch, written to the run directory from Git.
+  - name: summary
+    kind: controller
+    action: change_summary

@@ -130,3 +130,12 @@ allowlist apply to everyone ([SAFETY.md](SAFETY.md)). Agents cannot read or chan
 directory). The `hierarchical` strategy has a fixed shape: four specialists and a manager, with the
 project tools only. It uses the roster for their prompts, tiers, and `max_iter`; `enabled`,
 `tool_groups`, and new teammates apply to `pipeline` and `single`.
+
+## Teammates in `feature` mode
+
+The `feature` recipe ([USAGE.md](USAGE.md#feature-mode)) uses the same teammates with prompts for changing code that
+already exists: `codebase_analyst` (the `map` stage), `product_analyst` (`spec`: criteria for the new behaviour and for
+what must keep working), `solution_architect` (`impact`: the smallest change, as work packages with exact owned paths),
+`backend_engineer` and `frontend_engineer` (`implement`: minimal diff, follow the project's conventions, only their
+own paths), `quality_engineer` (`tests`: in the project's existing test style), `debugger` (repairs only new failures,
+never the baseline's), and `code_reviewer` and `security_engineer` (`review`: the change since the starting commit).

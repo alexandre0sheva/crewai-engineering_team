@@ -144,6 +144,11 @@ class CheckResult(Contract):
     criteria_ids: list[str] = Field(default_factory=list)
     suspect_files: list[str] = Field(default_factory=list)
     log_tail: str = ""
+    # Against a baseline (a project that was already failing): the failures this check showed
+    # that the baseline already had, and the ones it did not. A failed check with only known
+    # failures is recorded ``passed`` (no new failures); ``summary`` says so.
+    known_failures: list[str] = Field(default_factory=list)
+    new_failures: list[str] = Field(default_factory=list)
     # The parsed ``TestReport``/``DiagnosticReport`` (``devtools.models``) as JSON, if there is one.
     report: dict[str, Any] | None = None
 

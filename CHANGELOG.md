@@ -16,6 +16,17 @@ as each task lands.
 
 ### Added
 
+- `engineering-team feature --repo PATH --request ...`: add a feature to an existing project. The team is isolated on a
+  new branch, worktree, or copy and runs the `feature` recipe (profile, baseline, map, spec, impact, implement,
+  tests, verify, review, summary) with prompts that keep the diff minimal and follow the project's conventions; the
+  controller's write-ups stay out of your project, and the run leaves `CHANGE_SUMMARY.md` and `changes.patch` in its run
+  directory. `--worktree`, `--allow-dirty`, and `--squash` (or `git.squash`) choose where and how.
+- Baseline-aware verification: a change to an existing project passes when it adds no failure; failures the project
+  already had are listed as known, never handed to the repair agent, and a new one fails the run (exit 3).
+- Diff noise: the lines a change touched outside the paths the plan owns and the tests, in the review report and the
+  change summary.
+- `engineering-team diff [RUN]` and `export-patch [RUN] --out FILE`; `runs`, `status`, `board`, `cancel`, and `resume`
+  now find runs that live in a branch or worktree of your own repository, and `resume` continues a `feature` run.
 - `engineering-team analyze --repo PATH`: a free, read-only profile of an existing project (languages, detected
   test/lint/build/run commands and where each came from, entry points, tests, CI, conventions, Git state); `--deep`
   also has the new read-only `codebase_analyst` teammates map the code, in parallel chunks, into

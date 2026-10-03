@@ -22,6 +22,7 @@ import re
 import shutil
 import threading
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -67,6 +68,25 @@ SAFE_CONFIG = (
 REF = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._/@{}~^:+-]*")
 BRANCH = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._/-]*")
 SHA = re.compile(r"\b[0-9a-f]{40}(?:[0-9a-f]{24})?\b")
+
+
+@dataclass(frozen=True)
+class Change:
+    """One file that differs between a base and the work tree. ``added`` and ``removed`` are
+    ``None`` for a binary file."""
+
+    status: str  # A added, M modified, D deleted, T type changed
+    path: str
+    added: int | None
+    removed: int | None
+
+    @property
+    def lines(self) -> int:
+        """Lines touched (a binary file counts as one)."""
+
+        if self.added is None:
+            return 1
+        return self.added + (self.removed or 0)
 
 
 class GitError(Exception):
@@ -219,6 +239,45 @@ class GitPort:
         """Unified diff from ``base`` (default HEAD) to the work tree, new files included."""
 
         return self._work_diff(base, ("--no-color",), paths)
+
+    def changes(self, base: str | None = None) -> list[Change]:
+        """The files that differ between ``base`` (default HEAD) and the work tree, new files
+        included, with the lines each touched; sorted by path."""
+
+        text = self._work_diff(base, ("--raw", "--numstat", "--no-renames"), (), raw=True)
+        status: dict[str, str] = {}
+        counts: dict[str, tuple[int | None, int | None]] = {}
+        for line in text.splitlines():
+            if line.startswith(":"):
+                head, _, path = line.partition("\t")
+                status[path] = head.split()[-1][:1]
+            elif line.count("\t") == 2:
+                added, removed, path = line.split("\t")
+                counts[path] = (
+                    (int(added), int(removed))
+                    if added.isdigit() and removed.isdigit()
+                    else (None, None)
+                )
+        return [
+            Change(status.get(path, "M"), path, *counts.get(path, (0, 0)))
+            for path in sorted(set(status) | set(counts))
+        ]
+
+    def squash(self, base: str, message: str) -> str:
+        """Make everything since ``base`` (which must be an ancestor of HEAD) one commit, with
+        the work tree's uncommitted changes included; returns its sha. The branch is rewritten,
+        so only call this on a branch the controller made."""
+
+        self._require_repo()
+        reference = _clean_ref(base)
+        try:
+            self._run("merge-base", "--is-ancestor", reference, "HEAD")
+        except GitError:
+            raise GitError(f"{base} is not an ancestor of the current commit.") from None
+        self._run("reset", "--soft", reference)
+        sha = self._commit(message, allow_empty=True)
+        self._emit("git.squash", sha=sha, base=reference[:12])
+        return sha
 
     def diff_stat(self, base: str | None = None) -> str:
         return self._work_diff(base, ("--stat",), ())

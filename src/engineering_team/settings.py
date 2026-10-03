@@ -240,6 +240,8 @@ class GitSettings(_Frozen):
     enabled: bool = True  # --no-git turns it off
     author_name: str = "Engineering Team"
     author_email: str = "engineering-team@users.noreply.github.com"
+    # A repository mode squashes the team's stage commits into one when the run succeeds.
+    squash: bool = False
 
 
 class VerifySettings(_Frozen):
