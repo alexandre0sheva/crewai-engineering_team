@@ -2,12 +2,27 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from crewai.tools import BaseTool, tool
 
 from engineering_team.tools.support import ToolEnv, ToolError
 from engineering_team.tools.web_tools import CACHE_DIRECTORY
 from engineering_team.webtools.docsearch import DocSources, format_hits, search_docs
 from engineering_team.webtools.untrusted import wrap_untrusted
+
+if TYPE_CHECKING:
+    from engineering_team.runtime.context import RunContext
+
+
+def _context_dirs(ctx: RunContext) -> list[str]:
+    """The configured directories, plus the reference documents ``--context-dir`` copied in."""
+
+    from engineering_team.intake.context_docs import context_path  # intake imports the tools
+
+    found = list(ctx.settings.knowledge.context_dirs)
+    supplied = context_path(ctx.workspace.root)
+    return [*found, str(supplied)] if supplied.is_dir() else found
 
 
 def make_knowledge_tools(env: ToolEnv) -> dict[str, BaseTool]:
@@ -25,7 +40,7 @@ def make_knowledge_tools(env: ToolEnv) -> dict[str, BaseTool]:
             sources = DocSources(
                 workspace=ctx.workspace,
                 cache_dir=ctx.run_dir / CACHE_DIRECTORY,
-                context_dirs=list(ctx.settings.knowledge.context_dirs),
+                context_dirs=_context_dirs(ctx),
             )
             try:
                 result = search_docs(sources, query, max_results, source=source.strip())

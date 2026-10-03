@@ -17,6 +17,7 @@ from engineering_team.settings import (
     DockerSettings,
     ExecutionSettings,
     GitSettings,
+    IntakeSettings,
     KnowledgeSettings,
     NetworkSettings,
     ParallelSettings,
@@ -53,6 +54,8 @@ def test_every_setting_is_documented() -> None:
         "browser",
         "verify",
         "git",
+        "intake",
+        "team",
     }
     for section, model in (
         ("budget", BudgetSettings),
@@ -67,6 +70,7 @@ def test_every_setting_is_documented() -> None:
         ("browser", BrowserSettings),
         ("verify", VerifySettings),
         ("git", GitSettings),
+        ("intake", IntakeSettings),
     ):
         keys |= {f"{section}.{name}" for name in model.model_fields}
 

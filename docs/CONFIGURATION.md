@@ -260,6 +260,55 @@ files but no repository is left alone. The controller never pushes, fetches, or 
 | `git.author_name` | `Engineering Team` | Author and committer name of the controller's commits |
 | `git.author_email` | `engineering-team@users.noreply.github.com` | Their email (a no-reply address; set your own to attribute the commits) |
 
+### Requirements intake (`[intake]` and the request options)
+
+`new` takes the request from `--request TEXT`, one or more `--request-file FILE`, or stdin (`-`, as
+`--request -` or `--request-file -`); a `--request` and files merge in that order, each under a
+`## Request: <name>` header, and a single source is used as it is. `--example NAME` stands alone.
+With none of these the request comes from `request`, then `request_file`, then `./PROJECT_REQUEST.md`.
+Line endings are normalised, a still-unedited template (`init`) is refused, and the request hash used by
+`resume` is the same whichever way the text arrived. `--context-dir DIR` copies reference documents
+(`.md`, `.mdx`, `.rst`, `.txt`, `.adoc`) into the workspace for the team to search; the other keys cap them
+and the clarifying questions. `--interactive` (never the default, and ignored when stdin is not a terminal)
+lets the team ask those questions; see [Usage](USAGE.md#writing-a-request).
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `intake.max_request_chars` | `60000` | Longest merged request; a longer one is refused (put reference material in `--context-dir`) |
+| `intake.max_context_files` | `100` | Most documents a `--context-dir` may hold; more is an error, not a silent cut |
+| `intake.max_context_bytes` | `2000000` | Most bytes of documents in a `--context-dir` |
+| `intake.max_questions` | `5` | Questions the Product Analyst may put to you in one run |
+| `intake.question_timeout_seconds` | `600` | How long each question waits for your answer before the team assumes |
+
+### Team (`[team]` and `team_file`)
+
+Teammates come from `config/agents.yaml`; these settings change them or add new ones. See
+[TEAM.md](TEAM.md) for the model, the roster, and a tutorial. Both files are optional and are checked
+before a run starts (a mistake is a usage error naming the teammate and the field).
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `team_file` | – | A YAML file of teammates (key → fields). Unset: `.engineering-team/team.yaml` in the current directory, if it exists. A named file that does not exist is an error. |
+| `team.<key>.role`, `team.<key>.goal`, `team.<key>.backstory` | built-in | The prompt; all three are required for a new key |
+| `team.<key>.tier` | `worker` | `lead`, `worker`, `cheap`, or `reviewer` (model tier under the `standard` profile) |
+| `team.<key>.tool_groups` | built-in; new: read-only | Tool groups, plus `mcp:docs` |
+| `team.<key>.allow_delegation` | built-in | `hierarchical` manager only |
+| `team.<key>.max_iter` | profile default | Reasoning steps per task |
+| `team.<key>.enabled` | `true` | `false` takes the teammate out of the roster |
+| `team.<key>.modes` | all | `new`, `feature`, `fix`, `maintain` |
+| `team.<key>.stages` | – | Extra stages it may be given work packages for |
+
+```toml
+[team.data_engineer]
+role = "Data engineer for {project_name}"
+goal = "Build the data layer."
+backstory = "You model data carefully."
+stages = ["implement"]
+
+[team.frontend_engineer]
+enabled = false
+```
+
 ## Models
 
 Each role (the manager `engineering_lead` and every specialist) resolves to a model in this order,

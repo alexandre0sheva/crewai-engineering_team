@@ -438,6 +438,33 @@ and the shared root files (README, dependency manifests and lockfiles, CI config
 agent, and a plan that gives one to a package is invalid. Git worktrees per package were considered and rejected:
 merging needs an LLM to resolve conflicts, which is the nondeterminism ownership avoids.
 
+**The roster** (`team/registry.py`). Built-in teammates are defined once, in `config/agents.yaml` (prompt,
+`tier`, `tool_groups`, and so on). `build_roster(settings)` layers `.engineering-team/team.yaml` (or `team_file`) and the
+`[team.<key>]` tables on top, field by field, validates everything (unknown tool groups, modes, missing prompt fields
+for a new teammate) and returns a `Roster`, held on the `RunContext` as `ctx.team`; `check_ready` and `doctor` build it too, so
+a bad definition is a usage error before any state is created. The pipeline builds its agents programmatically from it
+(`CrewStageRunner._agent`: role, goal, backstory, the teammate's tool groups, its model from `Settings.resolve_model(key,
+tier=, max_iter=)`), because a roster that changes per project cannot be a fixed set of `@CrewBase` methods; `@CrewBase` stays
+only for the `hierarchical` strategy, whose four specialists and six tasks are fixed (it takes prompts, tiers, and
+`max_iter` from the roster, not `enabled` or tool groups). `Roster.assign` picks who works a stage when the one the recipe
+names is disabled or missing (next listed, then the `generalist_engineer`, then the enabled teammate with the most similar
+tools; a `team.fallback` event records it), and a work package's `role` is matched against `package_pool` (the stage's
+teammates plus enabled teammates that list the stage under `stages`), which the plan prompt also shows the architect.
+
+**Intake and the spec stage** (`intake/`, `pipeline/spec_stage.py`). `RequestBundle.from_sources` is the one door
+for a request (CLI, library, web UI): it normalises, merges (inline text, then files in order, `-` is stdin), caps
+the size, refuses templates, and hashes (`request_hash`, the manifest's value, so the same text hashes the same from
+any source). `--context-dir` is scanned by `scan_context_dir` and copied read-only to `.engineering-team/context/`
+(`install_context`); agents reach it only through `Search Docs`, which adds that directory to its corpus. The
+`spec` stage runs the read-only `product_analyst`, who returns the `Spec` contract (numbered `AC-n` criteria,
+assumptions, non-goals, `confidence`, `blocking_questions`). The controller then (1) rejects an unusable spec
+(`spec_problems`: ids must be `AC-n` and unique) through the stage retry, which is the one repair; (2) settles blocking
+questions with `Clarifier`: with a human channel (`--interactive`) it asks up to `intake.max_questions`, via
+`HumanChannel` (`question` / `question.answered` events) and re-runs the analyst once with the answers; otherwise, or for
+unanswered questions, it records them as assumptions and open questions; (3) writes `docs/spec.md` itself from the
+contract. The plan stage receives the spec as the contract and the original request for context; `AC-n` ids flow into
+work packages and checks.
+
 **Plan validation** (`plan_problems`) runs when the plan stage ends. Invalid means: duplicate or empty ids,
 unknown or self dependencies, a cycle, a package that owns nothing or a shared file, a package that delivers no
 acceptance criterion or names one the spec does not have. The architect gets one structured repair attempt (the

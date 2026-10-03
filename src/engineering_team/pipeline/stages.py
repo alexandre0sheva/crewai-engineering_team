@@ -23,30 +23,12 @@ from pydantic import BaseModel
 
 from engineering_team.contracts import Contract, Plan, Spec, WorkPackage
 from engineering_team.crew import build_llm
+from engineering_team.intake.context_docs import context_note
 from engineering_team.pipeline.recipes import StageSpec
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.context import RunContext
+from engineering_team.team import Roster, TeamError
 from engineering_team.tools import WriteScope, build_tools
-from engineering_team.tools.browser_tools import available as browser_tools_available
-
-# Tool groups every stage agent gets for now (a later task assigns groups per teammate). The
-# ``web`` group exists only when web access is enabled; ``browser`` is added below for the
-# teammates who check the UI and only when the optional extra is installed.
-STAGE_GROUPS = (
-    "fs_read",
-    "fs_write",
-    "search",
-    "command",
-    "dev",
-    "runtime",
-    "code_intel",
-    "git_read",
-    "board",
-    "notes",
-    "human",
-    "web",
-)
-BROWSER_TEAMMATES = frozenset({"frontend_engineer", "quality_engineer", "generalist_engineer"})
 
 # Contracts a stage can produce, by output name.
 CONTRACT_MODELS: dict[str, type[Contract]] = {"spec": Spec, "plan": Plan}
@@ -72,6 +54,9 @@ class StageRequest:
     lane: int | str | None = None  # the parallel lane this unit works in
     write_scope: WriteScope | None = None  # the paths its agent may change (None: any)
     failures: str = ""  # a repair stage: the checks the controller found failing
+    roles: tuple[
+        str, ...
+    ] = ()  # teammates a work package may be given to (the plan stage lists them)
 
     @property
     def label(self) -> str:
@@ -91,10 +76,11 @@ class StageRunner(Protocol):
 
 
 def stage_groups(ctx: RunContext, teammate: str) -> tuple[str, ...]:
-    groups: tuple[str, ...] = STAGE_GROUPS
-    if teammate in BROWSER_TEAMMATES and browser_tools_available():
-        groups = (*groups, "browser")
-    return groups
+    """The teammate's tool groups. One the machine or setup cannot provide (browser extra not
+    installed, web disabled) is left out by ``build_tools``, never an error mid-run; `doctor`
+    says what is missing."""
+
+    return ctx.team.get(teammate).groups
 
 
 @functools.cache
@@ -104,19 +90,56 @@ def _yaml(name: str) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def teammate_for(stage: StageSpec, package: WorkPackage | None) -> str:
-    """The teammate who works on the stage (or on this work package of it)."""
+def teammate_for(
+    stage: StageSpec, package: WorkPackage | None, roster: Roster | None = None
+) -> str:
+    """The teammate who works on the stage (or on this work package of it).
+
+    A package's ``role`` names a teammate (``backend``, ``frontend_engineer``, or the key of a
+    custom teammate that lists the stage under ``stages``). With a ``roster`` the choice is
+    limited to enabled teammates and a missing or disabled one falls back to the nearest enabled
+    generalist (see ``Roster.assign``).
+    """
 
     if package is None:
-        return stage.teammates[0]
+        return _lead(stage, roster)
     role = package.role.strip().lower().replace(" ", "_")
-    for teammate in stage.teammates:
+    pool = package_pool(stage, roster)
+    for teammate in pool:
         if role in (teammate, teammate.removesuffix("_engineer")):
             return teammate
-    for teammate in stage.teammates:
+    for teammate in pool:
         if role[:4] and teammate.startswith(role[:4]):
             return teammate
-    return stage.teammates[0]
+    return _lead(stage, roster, pool)
+
+
+def package_pool(stage: StageSpec, roster: Roster | None) -> list[str]:
+    """Teammates a work package of ``stage`` can be given to: the stage's own, plus enabled
+    teammates that list the stage under ``stages`` (that is how a custom teammate joins in)."""
+
+    pool = list(stage.teammates)
+    if roster is not None:
+        pool += [m.key for m in roster.enabled() if stage.name in m.stages and m.key not in pool]
+        pool = [key for key in pool if roster.usable(key)] or pool
+    return pool
+
+
+def _lead(stage: StageSpec, roster: Roster | None, pool: list[str] | None = None) -> str:
+    preferred = pool or list(stage.teammates)
+    if roster is None:
+        return preferred[0]
+    return roster.assign(preferred, stage.name)[0]
+
+
+def lead_teammate(ctx: RunContext, stage: StageSpec) -> str:
+    """Who works ``stage`` itself (its first usable teammate), reporting a fallback once."""
+
+    wanted = stage.teammates[0]
+    key, why = ctx.team.assign(stage.teammates, stage.name)
+    if why and ctx.team.note_fallback(stage.name, wanted, key):
+        ctx.events.emit("team.fallback", stage=stage.name, wanted=wanted, used=key, why=why)
+    return key
 
 
 def _json(model: BaseModel | None) -> str:
@@ -180,17 +203,18 @@ class CrewStageRunner:
 
     def _agent(self, request: StageRequest) -> Agent:
         ctx, teammate = request.ctx, request.teammate
-        configs = _yaml("agents.yaml")
-        if teammate not in configs:
-            raise StageError(
-                f"Unknown teammate '{teammate}'; agents.yaml defines: {', '.join(configs)}."
-            )
-        resolved = ctx.settings.resolve_model(teammate)
+        try:
+            member = ctx.team.get(teammate)
+        except TeamError as exc:
+            raise StageError(str(exc)) from exc
+        resolved = ctx.settings.resolve_model(teammate, tier=member.tier, max_iter=member.max_iter)
         llm = (
             self._llm_factory(teammate) if self._llm_factory else build_llm(resolved, ctx.settings)
         )
         agent = Agent(
-            config=configs[teammate],
+            role=member.role,
+            goal=member.goal,
+            backstory=member.backstory,
             llm=llm,
             tools=build_tools(
                 ctx,
@@ -199,8 +223,10 @@ class CrewStageRunner:
                 agent=teammate,
                 lane=request.lane,
             ),
-            mcps=ctx.settings.docs_mcp_urls or None if ctx.settings.docs_mcp_enabled else None,
-            allow_delegation=False,
+            mcps=ctx.settings.docs_mcp_urls or None
+            if member.uses_docs_mcp and ctx.settings.docs_mcp_enabled
+            else None,
+            allow_delegation=False,  # a stage crew has one agent: nobody to delegate to
             max_iter=resolved.max_iter,
             verbose=ctx.settings.verbose,
             inject_date=True,
@@ -237,6 +263,12 @@ class CrewStageRunner:
                 {pid: p.model_dump(mode="json") for pid, p in request.state.packages.items()},
                 indent=2,
             ),
+            "teammates": "\n".join(
+                f"- {key}: {ctx.team.members[key].role_for(ctx.settings.project_name)}"
+                for key in request.roles
+                if key in ctx.team.members
+            ),
+            "context": context_note(ctx.workspace.root),
             "card": card,
             "notes": notes,
             "resume_note": request.note,

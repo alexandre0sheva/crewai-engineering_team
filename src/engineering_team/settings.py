@@ -253,6 +253,39 @@ class VerifySettings(_Frozen):
     timeout: int = Field(default=300, ge=1, le=3600)  # for commands the plan declares
 
 
+TEAM_KEY = re.compile(r"[a-z][a-z0-9_]*")
+
+
+class TeamOverride(_Frozen):
+    """Changes to one teammate (``[team.<key>]`` or ``.engineering-team/team.yaml``).
+
+    Every field is optional; unset fields keep the teammate's current value. A key that is not a
+    built-in teammate adds a new one, which then needs ``role``, ``goal`` and ``backstory``.
+    Values are checked when the roster is built (``team/registry.py``).
+    """
+
+    role: str | None = None
+    goal: str | None = None
+    backstory: str | None = None
+    tier: Literal["lead", "worker", "cheap", "reviewer"] | None = None
+    tool_groups: list[str] | None = None
+    allow_delegation: bool | None = None
+    max_iter: int | None = Field(default=None, ge=1)
+    enabled: bool | None = None
+    modes: list[str] | None = None
+    stages: list[str] | None = None
+
+
+class IntakeSettings(_Frozen):
+    """Requirements intake: size caps for the request and ``--context-dir``, and clarification."""
+
+    max_request_chars: int = Field(default=60_000, ge=500, le=1_000_000)
+    max_context_files: int = Field(default=100, ge=1, le=2000)
+    max_context_bytes: int = Field(default=2_000_000, ge=1000, le=100_000_000)
+    max_questions: int = Field(default=5, ge=1, le=10)  # asked in one round per run
+    question_timeout_seconds: int = Field(default=600, ge=5, le=3600)
+
+
 class Settings(_Frozen):
     provider: Literal["openai", "anthropic", "google", "ollama", "azure"] = "openai"
     profile: Literal["standard", "smoke", "max-quality"] = "standard"
@@ -282,6 +315,9 @@ class Settings(_Frozen):
     browser: BrowserSettings = BrowserSettings()
     verify: VerifySettings = VerifySettings()
     git: GitSettings = GitSettings()
+    intake: IntakeSettings = IntakeSettings()
+    team: dict[str, TeamOverride] = {}
+    team_file: str | None = None  # default: ./.engineering-team/team.yaml when it exists
 
     _layers: list[tuple[str, dict[str, Any]]] = PrivateAttr(default_factory=list)
     _sources: dict[str, str] = PrivateAttr(default_factory=dict)
@@ -296,6 +332,17 @@ class Settings(_Frozen):
                 raise ValueError(
                     f"price override {key!r} must look like 'provider/model-id' "
                     "(or 'provider/*' for every model of a provider)"
+                )
+        return value
+
+    @field_validator("team")
+    @classmethod
+    def _team_keys(cls, value: dict[str, TeamOverride]) -> dict[str, TeamOverride]:
+        for key in value:
+            if not TEAM_KEY.fullmatch(key):
+                raise ValueError(
+                    f"teammate key {key!r} must be lowercase letters, digits and _ "
+                    "(for example 'data_engineer')"
                 )
         return value
 
@@ -353,23 +400,32 @@ class Settings(_Frozen):
         preset = PROVIDER_PRESETS[self.provider]
         return (preset[name] if preset else None), f"{self.provider} preset ({name})"
 
-    def resolve_model(self, role: str) -> ResolvedModel:
-        """Resolve the concrete model for a role (preset → tier → profile → role overrides)."""
+    def resolve_model(
+        self, role: str, *, tier: str | None = None, max_iter: int | None = None
+    ) -> ResolvedModel:
+        """Resolve the concrete model for a role (preset → tier → profile → role overrides).
 
-        slot_name = "lead" if role in LEAD_ROLES else "worker"
+        ``tier`` and ``max_iter`` are the teammate's own (``team/registry.py``). A ``lead``
+        tier uses the profile's lead slot. Only the ``standard`` profile maps the other tiers to
+        their own model tiers; ``smoke`` and ``max-quality`` fix the models of both slots, so a
+        cheap run stays cheap. ``models.roles`` overrides still win over both.
+        """
+
+        slot_name = "lead" if tier == "lead" or (tier is None and role in LEAD_ROLES) else "worker"
         slot = getattr(PROFILE_DEFAULTS[self.profile], slot_name)
-        tier, tier_source = self._tier(slot.tier)
+        tier_name = tier if tier is not None and self.profile == "standard" else slot.tier
+        model_tier, tier_source = self._tier(tier_name)
 
         values: dict[str, Any] = {
-            "model": tier.model if tier else None,
-            "reasoning_effort": tier.reasoning_effort if tier else None,
-            "temperature": tier.temperature if tier else None,
-            "max_iter": slot.max_iter,
+            "model": model_tier.model if model_tier else None,
+            "reasoning_effort": model_tier.reasoning_effort if model_tier else None,
+            "temperature": model_tier.temperature if model_tier else None,
+            "max_iter": max_iter or slot.max_iter,
             "context_window": None,
             "api": None,
         }
         sources = {name: tier_source for name in values}
-        sources["max_iter"] = f"{self.profile} profile default"
+        sources["max_iter"] = "team setting" if max_iter else f"{self.profile} profile default"
 
         def apply(override: ModelOverride, key_prefix: str) -> None:
             for name in values:
@@ -378,7 +434,7 @@ class Settings(_Frozen):
                     values[name] = value
                     sources[name] = self.source_of(f"{key_prefix}.{name}")
 
-        apply(self.models.tiers.get(slot.tier, ModelOverride()), f"models.tiers.{slot.tier}")
+        apply(self.models.tiers.get(tier_name, ModelOverride()), f"models.tiers.{tier_name}")
         profile_overrides = self.profiles.get(self.profile, ProfileOverrides())
         apply(getattr(profile_overrides, slot_name), f"profiles.{self.profile}.{slot_name}")
         apply(self.models.roles.get(role, ModelOverride()), f"models.roles.{role}")
@@ -386,8 +442,8 @@ class Settings(_Frozen):
         if values["model"] is None:
             raise SettingsError(
                 f"Provider '{self.provider}' has no default models (for Azure they are your "
-                f"deployment names). Set a model for the '{slot.tier}' tier "
-                f'([models.tiers.{slot.tier}] model = "azure/<deployment>"), or '
+                f"deployment names). Set a model for the '{tier_name}' tier "
+                f'([models.tiers.{tier_name}] model = "azure/<deployment>"), or '
                 "ENGINEERING_LEAD_MODEL / ENGINEERING_WORKER_MODEL."
             )
 
@@ -401,7 +457,7 @@ class Settings(_Frozen):
                 facts.context_window,
                 "model facts",
             )
-        return ResolvedModel(role=role, slot=slot_name, tier=slot.tier, sources=sources, **values)
+        return ResolvedModel(role=role, slot=slot_name, tier=tier_name, sources=sources, **values)
 
     def resolved_models(self) -> list[ResolvedModel]:
         """The lead, a representative worker, and every explicitly configured role."""
@@ -449,7 +505,10 @@ class Settings(_Frozen):
     def check_ready(self, *, require_credentials: bool) -> None:
         """Fail early, in one line each, when the chosen providers cannot work."""
 
+        from engineering_team.team import build_roster
+
         self.resolved_models()  # raises SettingsError for unresolvable models
+        build_roster(self)  # raises TeamError (a ValueError) for an invalid team definition
         problems = self.sdk_problems()
         if require_credentials:
             problems += [f"{item}." for item in self.missing_credentials()]
@@ -470,7 +529,9 @@ class Settings(_Frozen):
 
         rows = [
             SettingRow(key, mask_value(key, value), self.source_of(key))
-            for key, value in _flatten(self.model_dump(exclude={"models", "profiles", "pricing"}))
+            for key, value in _flatten(
+                self.model_dump(exclude={"models", "profiles", "pricing", "team"})
+            )
         ]
         rows.extend(
             SettingRow(

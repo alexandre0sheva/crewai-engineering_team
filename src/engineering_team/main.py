@@ -19,9 +19,10 @@ from dataclasses import dataclass
 from datetime import date
 from importlib import resources
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TextIO, TypeVar
 
 from engineering_team.crew import EngineeringTeam
+from engineering_team.intake import TEMPLATE_MARKER, ContextScan, RequestBundle, install_context
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
 from engineering_team.pipeline.recipes import Recipe
 from engineering_team.pipeline.runner import (
@@ -57,6 +58,7 @@ warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
 __all__ = [
     "SMOKE_PROFILE_MARKER",
+    "TEMPLATE_MARKER",
     "prepare_workspace",
     "slugify_project_name",
     "load_requirements",
@@ -70,7 +72,6 @@ __all__ = [
 
 DEFAULT_REQUEST_FILENAME = "PROJECT_REQUEST.md"
 DEFAULT_EXAMPLE = "tiny-notes"
-TEMPLATE_MARKER = "<!-- ENGINEERING_TEAM_REQUEST_TEMPLATE -->"
 
 EXIT_FAILURE = 1
 EXIT_USAGE = 2
@@ -104,13 +105,55 @@ def load_example(name: str) -> str:
     return request.read_text(encoding="utf-8")
 
 
-def _read_request_file(path: str | Path) -> str:
-    configured = Path(path).expanduser()
-    if not configured.is_file():
-        raise ValueError(
-            f"Request file not found: {configured}. Pass --request, --request-file, or --example."
+NO_REQUEST = (
+    "No project request found. Pass --request, --request-file, or "
+    f"--example {DEFAULT_EXAMPLE} (see --help), or create {DEFAULT_REQUEST_FILENAME} "
+    "in the current directory."
+)
+
+
+def load_bundle(
+    *,
+    inline_request: str | None = None,
+    request_files: Sequence[str | Path] = (),
+    example: str | None = None,
+    context_dir: str | Path | None = None,
+    stdin: TextIO | None = None,
+    settings: Settings | None = None,
+) -> RequestBundle:
+    """Load the normalised, non-placeholder request (see :class:`RequestBundle`).
+
+    Explicit sources win over the environment: ``--request`` and ``--request-file`` (repeatable;
+    ``-`` is stdin) merge in that order, ``--example`` stands alone. With none of them the
+    first of ``ENGINEERING_PROJECT_REQUEST``, ``ENGINEERING_REQUEST_FILE``, and
+    ``PROJECT_REQUEST.md`` in the current directory is used. A blank explicit value is an
+    error rather than a silent fallback. ``ValueError`` (``IntakeError``) says what to fix.
+    """
+
+    settings = settings or load_settings()
+    limits = settings.intake
+    if example is not None:
+        if inline_request is not None or request_files:
+            raise ValueError(
+                "Use only one of --example, or --request/--request-file (those can be combined)."
+            )
+        return RequestBundle.from_sources(
+            text=load_example(example), context_dir=context_dir, limits=limits
         )
-    return configured.read_text(encoding="utf-8")
+    default_file = Path.cwd() / DEFAULT_REQUEST_FILENAME
+    files: Sequence[str | Path] = request_files
+    if inline_request is None and not files:
+        if settings.request is not None:
+            inline_request = settings.request
+        elif settings.request_file is not None:
+            files = [settings.request_file]
+        elif default_file.is_file():
+            files = [default_file]
+        else:
+            raise ValueError(NO_REQUEST)
+    return RequestBundle.from_sources(
+        text=inline_request, files=files, stdin=stdin, context_dir=context_dir, limits=limits
+    )
 
 
 def load_requirements(
@@ -120,47 +163,14 @@ def load_requirements(
     example: str | None = None,
     settings: Settings | None = None,
 ) -> str:
-    """Load a non-placeholder product request.
+    """The text of :func:`load_bundle` for one inline request, file, or example."""
 
-    Precedence (first match wins): ``--request`` > ``--example`` > ``--request-file`` >
-    ``ENGINEERING_PROJECT_REQUEST`` > ``ENGINEERING_REQUEST_FILE`` > ``PROJECT_REQUEST.md``
-    in the current working directory. Explicit command-line input always beats the
-    environment, and a blank explicit value is an error rather than a silent fallback.
-    """
-
-    settings = settings or load_settings()
-    environment_request = settings.request
-    environment_file = settings.request_file
-    default_file = Path.cwd() / DEFAULT_REQUEST_FILENAME
-
-    if inline_request is not None:
-        requirements = inline_request
-    elif example is not None:
-        requirements = load_example(example)
-    elif request_file is not None:
-        requirements = _read_request_file(request_file)
-    elif environment_request is not None:
-        requirements = environment_request
-    elif environment_file is not None:
-        requirements = _read_request_file(environment_file)
-    elif default_file.is_file():
-        requirements = default_file.read_text(encoding="utf-8")
-    else:
-        raise ValueError(
-            "No project request found. Pass --request, --request-file, or "
-            f"--example {DEFAULT_EXAMPLE} (see --help), or create {DEFAULT_REQUEST_FILENAME} "
-            "in the current directory."
-        )
-
-    requirements = requirements.strip()
-    if not requirements:
-        raise ValueError("The project request is empty.")
-    if TEMPLATE_MARKER in requirements:
-        raise ValueError(
-            "The project request is still a template. Replace it with concrete MVP "
-            "requirements, or pass --request/--request-file/--example."
-        )
-    return requirements
+    return load_bundle(
+        inline_request=inline_request,
+        request_files=[request_file] if request_file is not None else [],
+        example=example,
+        settings=settings,
+    ).text
 
 
 def build_inputs(
@@ -338,10 +348,13 @@ def _open_run(
     *,
     mode: str = "build",
     requirements: str | None = None,
+    context: ContextScan | None = None,
     reset: bool = False,
     force_reset: bool = False,
 ) -> PreparedRun:
     """Prepare the workspace, take its write lock, and build the run context and inputs.
+
+    ``context`` (the reference documents of ``--context-dir``) is copied into the workspace.
 
     Also creates the run's manifest (``pending``); the caller wraps the work in
     ``recorder.running()`` and releases the lock (``_execute`` does) once the run is over. A
@@ -355,6 +368,8 @@ def _open_run(
     # Only builds follow the strategy setting; train, test, and replay are crew commands.
     strategy_name = settings.strategy if mode == "build" else "hierarchical"
     try:
+        if context is not None:
+            install_context(workspace.root, context)
         ctx = RunContext.create(settings, workspace, run_id=run_id)
         pin = _pin_checks(settings, ctx, mode, strategy_name)
         recorder = RunRecorder.begin(
@@ -410,18 +425,21 @@ def _prepare_from_args(args: Any, mode: str = "build") -> PreparedRun:
     if args.adopt:
         raise ValueError("--adopt is not implemented yet.")
     settings = load_settings(overrides=_cli_overrides(args), config_file=args.config)
-    requirements = load_requirements(
+    files = args.request_file
+    bundle = load_bundle(
         inline_request=args.request,
-        request_file=args.request_file,
+        request_files=[files] if isinstance(files, str) else list(files or []),
         example=args.example,
+        context_dir=getattr(args, "context_dir", None),
         settings=settings,
     )
-    settings = settings.for_request(requirements)
+    settings = settings.for_request(bundle.text)
     settings.check_ready(require_credentials=not getattr(args, "prepare_only", False))
     return _open_run(
         settings,
         mode="prepare" if getattr(args, "prepare_only", False) else mode,
-        requirements=requirements,
+        requirements=bundle.text,
+        context=bundle.context,
         reset=args.reset,
         force_reset=args.force_reset,
     )

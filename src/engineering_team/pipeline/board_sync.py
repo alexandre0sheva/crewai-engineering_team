@@ -16,7 +16,7 @@ from engineering_team.board.models import CONTROLLER, Card, CardStatus
 from engineering_team.board.rules import BoardError
 from engineering_team.contracts import Plan
 from engineering_team.pipeline.recipes import Recipe, StageSpec
-from engineering_team.pipeline.stages import teammate_for
+from engineering_team.pipeline.stages import lead_teammate, teammate_for
 from engineering_team.pipeline.state import PackageState, PipelineState
 from engineering_team.runtime.context import RunContext
 
@@ -47,7 +47,7 @@ class StageBoard:
                     stage.name.replace("_", " ").capitalize(),
                     kind="stage",
                     status="ready" if index == 0 else "backlog",
-                    assignee=stage.teammates[0] if stage.teammates else None,
+                    assignee=lead_teammate(self.ctx, stage) if stage.teammates else None,
                     stage=stage.name,
                     description=stage.description or f"Stage {index + 1}: {stage.kind}",
                     depends_on=[previous] if previous else [],
@@ -70,7 +70,7 @@ class StageBoard:
                 f"{package.id}: {package.title}"[:200],
                 kind="work_package",
                 status="backlog",
-                assignee=teammate_for(host, package),
+                assignee=teammate_for(host, package, self.ctx.team),
                 stage=host.name,
                 parent_id=parent,
                 description=package.description,

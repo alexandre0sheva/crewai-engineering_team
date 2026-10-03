@@ -73,7 +73,8 @@ class FakeRunner:
     """A stage runner that writes deterministic files and returns scripted contracts.
 
     ``fail`` maps a stage (or ``stage:package``) to how many times it should fail first;
-    ``cancel_at`` makes that stage ask the run to cancel; ``plan`` is what the plan stage returns.
+    ``cancel_at`` makes that stage ask the run to cancel; ``plan`` is what the plan stage returns;
+    ``specs`` are what successive spec-stage calls return (the last repeats).
     The ``verify`` stage is run by the controller; the runner is only called for it to repair
     failures (its request then carries ``failures``). ``calls`` lists every ``(stage, package id
     or None)`` it was asked to run, in order.
@@ -87,8 +88,10 @@ class FakeRunner:
         cancel_at: str | None = None,
         on_call: Callable[[StageRequest], None] | None = None,
         says: dict[str, str] | None = None,
+        specs: list[Spec] | None = None,
     ) -> None:
         self.plan = PLAN if plan is None else plan
+        self.specs = list(specs or [SPEC])  # what the spec stage returns; the last one repeats
         self.fail = dict(fail or {})
         self.cancel_at = cancel_at
         self.on_call = on_call
@@ -113,7 +116,7 @@ class FakeRunner:
         write = request.ctx.workspace.write_file
         contracts: dict[str, Contract] = {}
         if stage == "spec":
-            contracts["spec"] = SPEC
+            contracts["spec"] = self.specs.pop(0) if len(self.specs) > 1 else self.specs[0]
         elif stage == "plan":
             write("docs/architecture.md", "# Architecture\n" + BODY)
             contracts["plan"] = self.plan

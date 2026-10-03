@@ -11,7 +11,7 @@ from __future__ import annotations
 import threading
 
 from engineering_team.artifacts import missing_artifacts
-from engineering_team.contracts import Plan, VerificationRecord, WorkPackage
+from engineering_team.contracts import Plan, Spec, VerificationRecord, WorkPackage
 from engineering_team.pipeline.actions import CONTROLLER_ACTIONS
 from engineering_team.pipeline.board_sync import StageBoard
 from engineering_team.pipeline.checkpoints import Checkpoints
@@ -19,11 +19,20 @@ from engineering_team.pipeline.packages import SHARED_DENY, PlanError, plan_prob
 from engineering_team.pipeline.parallel import PackageOutcome, run_work_packages
 from engineering_team.pipeline.recipes import Recipe, StageSpec
 from engineering_team.pipeline.resume import RESUME_NOTE, StagePlan
+from engineering_team.pipeline.spec_stage import (
+    SPEC_FILE,
+    Clarifier,
+    SpecError,
+    check_spec,
+    render_spec,
+)
 from engineering_team.pipeline.stages import (
     StageError,
     StageOutput,
     StageRequest,
     StageRunner,
+    lead_teammate,
+    package_pool,
     teammate_for,
 )
 from engineering_team.pipeline.state import PackageState, PipelineState, RunBundle
@@ -59,6 +68,7 @@ class StageExecutor:
         self.board = board
         self._save_lock = threading.Lock()
         self.checkpoints = Checkpoints(ctx)
+        self.clarifier = Clarifier(ctx)
 
     # -- the stage -----------------------------------------------------------------------
 
@@ -66,7 +76,7 @@ class StageExecutor:
         """Run ``stage`` to success or raise. Records it, moves its card, saves the state."""
 
         card = self.board.card_for(stage.name)
-        self.board.start(card, stage.teammates[0] if stage.teammates else None)
+        self.board.start(card, lead_teammate(self.ctx, stage) if stage.teammates else None)
         try:
             with self.recorder.stage(stage.name):
                 self._attempts(stage, entry)
@@ -105,7 +115,8 @@ class StageExecutor:
                 self.ctx.events.emit(
                     "stage.retry", stage=stage.name, attempt=attempt + 1, error=reason
                 )
-                note = f"{RESUME_NOTE} The previous attempt failed: {reason}"
+                prefix = "" if isinstance(exc, SpecError) else f"{RESUME_NOTE} "
+                note = f"{prefix}The previous attempt failed: {reason}"
 
     def _once(self, stage: StageSpec, entry: StagePlan, note: str) -> None:
         if stage.kind == "controller":
@@ -128,7 +139,7 @@ class StageExecutor:
         Raises ``VerificationError`` unless every required check passed on the current tree.
         """
 
-        teammate = stage.teammates[0]
+        teammate = lead_teammate(self.ctx, stage)
 
         def repair(call: RepairCall) -> str:
             output = self._call(stage, teammate, "", failures=call.failures, card_id=call.card_id)
@@ -162,7 +173,9 @@ class StageExecutor:
         self._save()
 
     def _agent(self, stage: StageSpec, note: str) -> None:
-        output = self._call(stage, stage.teammates[0], note)
+        output = self._call(stage, lead_teammate(self.ctx, stage), note)
+        if "spec" in output.contracts:
+            output.contracts["spec"] = self._settle_spec(stage, note, output.contracts["spec"])
         for name, contract in output.contracts.items():
             setattr(self.state, name, contract)
         self.state.summaries[stage.name] = output.summary[:MAX_SUMMARY]
@@ -177,6 +190,24 @@ class StageExecutor:
             host = next((s for s in self.recipe.stages if s.kind == "parallel"), None)
             if host is not None:
                 self.board.ensure_package_cards(self.state.plan, host)
+
+    def _settle_spec(self, stage: StageSpec, note: str, contract: object) -> Spec:
+        """The analyst's spec, checked (``SpecError`` makes the stage retry once), with its
+        blocking questions settled, and written to ``docs/spec.md`` by the controller."""
+
+        if not isinstance(contract, Spec):
+            raise SpecError("The stage returned no specification.")
+
+        def revise(answers: str) -> Spec:
+            again = self._call(stage, lead_teammate(self.ctx, stage), f"{note} {answers}".strip())
+            revised = again.contracts.get("spec")
+            if not isinstance(revised, Spec):
+                raise SpecError("The analyst returned no specification.")
+            return check_spec(revised)
+
+        spec = self.clarifier.settle(check_spec(contract), revise)
+        self.ctx.workspace.write_file(SPEC_FILE, render_spec(spec))
+        return spec
 
     def _call(
         self,
@@ -210,10 +241,17 @@ class StageExecutor:
             lane=lane,
             write_scope=scope,
             failures=failures,
+            roles=self._roles(),
         )
         output = self.runner.run(request)
         check_cancelled(self.ctx)
         return output
+
+    def _roles(self) -> tuple[str, ...]:
+        """The teammates the recipe's work packages can go to (the plan stage names them)."""
+
+        host = next((s for s in self.recipe.stages if s.kind == "parallel"), None)
+        return tuple(package_pool(host, self.ctx.team)) if host else ()
 
     def _check_artifacts(self, stage: StageSpec) -> None:
         if stage.verification_policy != "artifacts":
@@ -251,7 +289,7 @@ class StageExecutor:
     ) -> str:
         """One attempt at one work package, in ``lane`` (called on a worker thread)."""
 
-        teammate = teammate_for(stage, package)
+        teammate = teammate_for(stage, package, self.ctx.team)
         known = self.state.packages[package.id]
         if known.status in ("running", "failed"):  # an earlier attempt, maybe in another session
             if RESUME_NOTE not in note:

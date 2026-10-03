@@ -55,7 +55,8 @@ def test_a_greenfield_run_leaves_a_repository_with_one_commit_per_stage(
     # Everything is committed, and none of the controller's own state is.
     assert git("status", "--porcelain") == ""
     assert not [f for f in git("ls-files").splitlines() if f.startswith(".engineering-team")]
-    assert git("show", "--name-only", "--format=", "HEAD~6") == ""  # stage(spec): wrote nothing
+    # stage(spec): the analyst wrote nothing; the controller wrote the spec from its contract.
+    assert git("show", "--name-only", "--format=", "HEAD~6") == "docs/spec.md"
     assert "docs/architecture.md" in git("show", "--name-only", "--format=", "HEAD~5")
     assert "docs/verification.md" in git("show", "--name-only", "--format=", "HEAD~1")
     events = [e.type for e in read_events(run_dir(only_run()) / "events.jsonl")]

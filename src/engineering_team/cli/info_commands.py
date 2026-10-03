@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-from importlib import resources
 from typing import Annotated, Any
 
 import typer
@@ -319,7 +318,7 @@ def unpause(
     _pause(ctx, run, project_name, config, "unpause")
 
 
-# -- config, examples, team ---------------------------------------------------------------------
+# -- config, examples ---------------------------------------------------------------------
 
 
 def config_show(
@@ -373,35 +372,3 @@ def examples_list(ctx: typer.Context) -> None:
         table.add_row(item["name"], item["title"])
     g.console().print(table)
     g.console().print("Run one with: engineering-team examples run NAME", style="dim")
-
-
-def team(ctx: typer.Context) -> None:
-    """The teammates (a configurable registry arrives in a later release)."""
-
-    import yaml
-
-    g = get_globals(ctx)
-    text = (resources.files("engineering_team") / "config" / "agents.yaml").read_text(
-        encoding="utf-8"
-    )
-    agents = yaml.safe_load(text) or {}
-    members = [
-        {
-            "key": key,
-            "role": str(spec.get("role", key)).strip(),
-            "goal": " ".join(str(spec.get("goal", "")).split()),
-        }
-        for key, spec in agents.items()
-    ]
-    if g.json:
-        print_json(members)
-        return
-    table = Table(box=box.SIMPLE_HEAD, pad_edge=False)
-    for name in ("Teammate", "Role", "Goal"):
-        table.add_column(name, overflow="fold")
-    for member in members:
-        table.add_row(member["key"], member["role"], member["goal"][:90])
-    g.console().print(table)
-    g.console().print(
-        "Custom teammates and per-teammate tools are not configurable yet.", style="dim"
-    )

@@ -35,6 +35,7 @@ if TYPE_CHECKING:  # imported when a context is created: ``board`` itself import
     from engineering_team.board.notes import NoteStore
     from engineering_team.board.store import BoardStore
     from engineering_team.git.port import GitPort
+    from engineering_team.team import Roster
 
 # Called with a tool's name before it runs; returning a message refuses the call (the tool
 # returns it as an ``ERROR:``). The budget guard installs one to stop runaway tool use.
@@ -74,7 +75,8 @@ class RunContext:
     headless browser (closed with its stage or the run), and ``web_requests`` the run's shared
     cap on outbound web requests, ``git`` the controller's Git (checkpoints, patches, history;
     see ``docs/ARCHITECTURE.md``), and ``llm_rate`` (set when ``parallel.max_rpm`` is) the cap on
-    model calls per minute that parallel agents share.
+    model calls per minute that parallel agents share, and ``team`` the roster of teammates
+    (the built-ins plus the project's changes and additions; see ``docs/TEAM.md``).
     """
 
     run_id: str
@@ -95,6 +97,7 @@ class RunContext:
     processes: ProcessRegistry
     browsers: BrowserRegistry
     git: GitPort
+    team: Roster
     tool_gate: ToolGate | None = None
     web_requests: RequestLimiter = field(default_factory=lambda: RequestLimiter(40))
     llm_rate: RateLimiter | None = None
@@ -121,6 +124,9 @@ class RunContext:
         log is appended to. The baseline is then the workspace as it is now.
         """
 
+        from engineering_team.team import build_roster
+
+        team = build_roster(settings)  # a bad team definition is a usage error, before any state
         from engineering_team.board.notes import NoteStore
         from engineering_team.board.store import BoardStore
         from engineering_team.git.port import GitPort
@@ -187,6 +193,7 @@ class RunContext:
                 name=run_id,
             ),
             git=GitPort(workspace, run_backend, settings.git, sink),
+            team=team,
             tool_gate=guard.tool_gate,
             web_requests=RequestLimiter(settings.web.max_requests_per_run),
             llm_rate=(

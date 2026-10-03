@@ -136,8 +136,29 @@ as each task lands.
   start; it never falls back to running on your machine. `local` stays the default. See `docs/SAFETY.md`.
 - New command-line interface (Typer and Rich): `new`, `resume`, `status`, `runs`, `board`, `cancel`, `note`, `pause`, `unpause`, `config show`, `doctor`, `init`, `examples`, `team`, with `--json`, `--quiet`, `-v`, `--no-color`, and `--workspace-root`. A run shows a live view (progress, kanban board, parallel lanes, activity, cost against budget) and ends with a summary; `note`, `pause`, and `unpause` steer a run from another terminal; runs are found by id across projects. See `docs/USAGE.md`.
 
+- Requirements intake: `new` takes `--request`, repeatable `--request-file` (merged in order under headers), and stdin
+  (`-`); `--context-dir DIR` copies reference documents read-only into the project (with an index) for the team to
+  search; line endings are normalised, a request over `intake.max_request_chars` or an unedited template is refused,
+  and the same text hashes the same from a file, stdin, or the Python API (`RequestBundle.from_sources`).
+  `init --mode new|feature|fix|maintain` writes a request template for the kind of work. Settings: `[intake]`.
+- Product Analyst teammate and spec stage: a read-only analyst turns the request into a `Spec` with stable criterion ids
+  (`AC-1`, `AC-2`, ...), assumptions, non-goals, open questions, and its confidence; the controller checks the ids
+  (one repair attempt) and writes `docs/spec.md`, and the architect gets the spec as its contract.
+- Clarifying questions: when the analyst is unsure, `--interactive` asks you at the terminal (at most five, Enter lets
+  the team assume) and folds your answers into the spec; otherwise, and whenever stdin is not a terminal, the run
+  records the open questions as assumptions and continues.
+
+- Team registry and custom teammates: every teammate has a tier, tool groups, an iteration limit, and an enabled flag; change a
+  built-in or add a new teammate (a prompt and some tool groups) in `engineering-team.toml` (`[team.<key>]`) or
+  `.engineering-team/team.yaml`, with no Python. Definitions are validated before a run starts. The planner is told who is available,
+  work packages can go to custom teammates, and a disabled or missing teammate is replaced by the nearest enabled generalist
+  (`team.fallback` event). `engineering-team team list` and `team show KEY` show the roster; `doctor` checks it. See `docs/TEAM.md`.
+
 ### Changed
 
+- Each pipeline teammate's tools now come from its roster entry (the product analyst is read-only; the browser tools go to the
+  frontend, quality, and generalist teammates) instead of one shared list; the `hierarchical` strategy reads prompts, tiers, and
+  iteration limits from the roster too.
 - The 0.1.0 invocation (`engineering-team --request-file FILE`) now runs `new` and prints a deprecation notice (removed in 0.3.0); CrewAI's console output is off unless you pass `-v`; `replay` takes `--run RUN_ID` or `--project-name` instead of guessing the project from the environment.
 - `Hotspots` and `Find TODOs` now read history through `GitPort`: a project inside some other repository no longer reads
   that repository's history, only a repository of its own.
@@ -165,9 +186,12 @@ as each task lands.
   the smoke profile).
 - Settings are centralised: only `settings.py` reads configuration, the profile no longer travels through
   `os.environ`, and `EngineeringTeam` takes a `Settings` object.
-- Request precedence is now `--request` > `--example` > `--request-file` > `ENGINEERING_PROJECT_REQUEST` >
-  `ENGINEERING_REQUEST_FILE` > `PROJECT_REQUEST.md` in the current directory; blank environment values
-  count as unset and a blank `--request` is an error.
+- Request sources: explicit `--request` / `--request-file` (merged in that order) or `--example` (on its own) beat
+  `ENGINEERING_PROJECT_REQUEST` > `ENGINEERING_REQUEST_FILE` > `PROJECT_REQUEST.md` in the current directory; blank
+  environment values count as unset and a blank `--request` is an error. Combining `--request` with `--request-file`
+  now merges them instead of ignoring the file.
+- The `new` recipe's `spec` stage is run by the new `product_analyst` instead of the solution architect, and every
+  pipeline teammate can use `Search Docs`.
 - The default workspace root is `./workspace` relative to where you run the command (it used to be next to
   the installed package), and relative `ENGINEERING_WORKSPACE_ROOT` values resolve against the current
   directory.

@@ -3,8 +3,7 @@
 Every tool an agent can call, built per run by `build_tools(ctx, groups=, write_scope=,
 read_only=)` from the catalogue in `src/engineering_team/tools/registry.py`. A test fails if a
 registered tool has no row below, or a row names an unregistered tool, so this file is the
-complete list. Which teammate gets which groups is described in [TEAM.md](TEAM.md) once teammates
-are configurable; the execution boundary is in [SAFETY.md](SAFETY.md).
+complete list. Which teammate gets which groups is in [TEAM.md](TEAM.md) (and configurable there); the execution boundary is in [SAFETY.md](SAFETY.md).
 
 ## Groups
 
@@ -81,7 +80,7 @@ once never share them. The default groups for the 0.1 crew are the four project 
 | `Git Diff Between Refs` | `git_read` | yes | no | no | Diff (or `stat=true` per-file summary) from one commit, branch, or tag to another, never the work tree; optional `path`. |
 | `Hotspots` | `code_intel` | yes | no | no | Top files (≤ 50, default 10) by commits in the last `days` (default 365, 0 = all) times a complexity proxy; lock, minified, and binary files left out. Without Git history it answers `No Git history: …`. |
 | `Inspect Dependencies` | `code_intel` | yes | no | no | Declared direct dependencies from `pyproject.toml`, `requirements*.txt`, `package.json`, `go.mod`, `Cargo.toml`, and `pom.xml` (≤ 30 manifests), with the locked version from `uv.lock`, `poetry.lock`, `Cargo.lock`, or `package-lock.json` next to it. |
-| `Search Docs` | `knowledge` | yes | no | no | BM25 over the project's markdown/text docs, `knowledge.context_dirs`, and pages `Fetch URL` cached this run (`source=` repo, context, or web-cache); ≤ 20 passages (default 5) with source, `file:line`, heading, excerpt. No embeddings, no network. Output is wrapped as untrusted content. |
+| `Search Docs` | `knowledge` | yes | no | no | BM25 over the project's markdown/text docs, `knowledge.context_dirs`, the reference documents `--context-dir` copied into `.engineering-team/context/` (the only way agents read that directory), and pages `Fetch URL` cached this run (`source=` repo, context, or web-cache); ≤ 20 passages (default 5) with source, `file:line`, heading, excerpt. No embeddings, no network. Output is wrapped as untrusted content. |
 | `Web Search` | `web` | yes | yes | no | Serper, Brave, or Tavily (`web.search_provider`, key from the environment): ≤ 10 results of title, URL, snippet (≤ 300 characters), non-http(s) links dropped; query ≤ 300 characters. Untrusted. |
 | `Fetch URL` | `web` | yes | yes | no | One public http(s) page as Markdown (readable main content; scripts, navigation, hidden text dropped), JSON, or text. SSRF-safe (see below), ≤ 5 redirects, `web.max_download_bytes`, `web.max_page_chars`, no PDFs or binaries; the page is cached for `Search Docs`. Untrusted. |
 | `Package Info` | `web` | yes | yes | no | Latest version, release date (where the registry gives one), license, repository, DEPRECATED / YANKED flags from PyPI, npm, crates.io, or the Go module proxy (`ecosystem` = pypi, npm, crates, go). Untrusted. |
@@ -278,8 +277,8 @@ For verifying a user interface: load the app, read it, use it, and check what it
   requires it); each teammate has an incognito context (no shared cookies or storage); at most
   `browser.max_contexts` are open; a context closes with `Browser Close`, with the stage it was
   opened in, and everything closes when the run ends, fails, or crashes.
-- **Defaults per teammate.** The frontend and quality teammates get the `browser` group by default
-  once teammates are configurable (T23); `build_tools(..., groups=["browser"])` selects it today.
+- **Defaults per teammate.** The frontend, quality, and generalist teammates get the `browser` group
+  by default, and a teammate in your own team definition can list it ([TEAM.md](TEAM.md)).
 - **Not included.** Downloads, file uploads, credential storage, and a Playwright test runner as a tool.
   The Verifier can run your own Playwright script as a `browser_script` check
   ([CONFIGURATION.md](CONFIGURATION.md#verification-verify-and---checks)).

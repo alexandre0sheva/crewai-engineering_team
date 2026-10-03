@@ -79,12 +79,18 @@ def all_sources(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, st
     return {"cli_file": cli_file}
 
 
-def test_cli_inline_beats_every_other_source(all_sources) -> None:
+def test_cli_inline_beats_the_environment(all_sources) -> None:
+    assert load_requirements(inline_request="cli inline request") == "cli inline request"
+
+
+def test_cli_inline_and_file_merge_in_order_ahead_of_the_environment(all_sources) -> None:
     result = load_requirements(
         inline_request="cli inline request", request_file=all_sources["cli_file"]
     )
 
-    assert result == "cli inline request"
+    assert result == (
+        "## Request: inline request\n\ncli inline request\n\n## Request: cli.md\n\ncli file request"
+    )
 
 
 def test_cli_file_beats_the_environment(all_sources) -> None:

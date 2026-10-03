@@ -158,10 +158,25 @@ class LiveDisplay:
     def __init__(self, console: Console, info: RunInfo, run_dir: Path) -> None:
         self._console = console
         self._info = info
+        self._live: Live | None = None
         self.watcher = RunWatcher(run_dir, info.prices)
 
     def _render(self) -> RenderableType:
         return render_run(self.watcher.poll(), self._info, width=self._console.width)
+
+    @contextlib.contextmanager
+    def paused(self) -> Iterator[None]:
+        """Stop redrawing while the terminal is used for something else (a prompt)."""
+
+        live = self._live
+        if live is None:
+            yield
+            return
+        live.stop()
+        try:
+            yield
+        finally:
+            live.start(refresh=True)
 
     @contextlib.contextmanager
     def __call__(self) -> Iterator[None]:
@@ -170,8 +185,12 @@ class LiveDisplay:
             console=self._console,
             refresh_per_second=4,
             transient=False,
-        ):
-            yield
+        ) as live:
+            self._live = live
+            try:
+                yield
+            finally:
+                self._live = None
 
 
 class PlainDisplay:

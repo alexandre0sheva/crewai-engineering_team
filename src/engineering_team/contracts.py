@@ -27,6 +27,7 @@ CheckType = Literal["command", "browser_script"]
 CheckSource = Literal["user", "plan", "detected"]
 CriterionStatus = Literal["verified", "referenced", "unverified"]
 Severity = Literal["info", "low", "medium", "high", "critical"]
+Confidence = Literal["high", "medium", "low"]
 
 
 def utc_now() -> datetime:
@@ -51,7 +52,12 @@ class AcceptanceCriterion(Contract):
 
 
 class Spec(Contract):
-    """What to build, in testable terms."""
+    """What to build, in testable terms.
+
+    ``blocking_questions`` are the analyst's questions whose answers would change the product
+    (it also gives its assumed answer under ``assumptions``); ``open_questions`` are the rest.
+    ``clarifications`` is what the person answered, recorded by the controller.
+    """
 
     title: str
     summary: str = ""
@@ -59,6 +65,9 @@ class Spec(Contract):
     non_goals: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     open_questions: list[str] = Field(default_factory=list)
+    confidence: Confidence = "high"
+    blocking_questions: list[str] = Field(default_factory=list)
+    clarifications: list[str] = Field(default_factory=list)
 
 
 class ProjectCommands(Contract):

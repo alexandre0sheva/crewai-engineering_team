@@ -19,6 +19,7 @@ from engineering_team.cli import doctor as doctor_module
 from engineering_team.cli import info_commands as info
 from engineering_team.cli import init_command, run_commands
 from engineering_team.cli.context import Globals
+from engineering_team.cli.team_commands import team_app
 
 COMMANDS = (
     "new", "resume", "status", "runs", "board", "cancel", "note", "pause", "unpause",
@@ -48,6 +49,7 @@ config_app = typer.Typer(help="Inspect the effective configuration.", no_args_is
 examples_app = typer.Typer(help="The bundled example requests.", no_args_is_help=True)
 app.add_typer(config_app, name="config")
 app.add_typer(examples_app, name="examples")
+app.add_typer(team_app, name="team")
 
 
 def _version(value: bool) -> None:
@@ -95,7 +97,6 @@ app.command()(info.pause)
 app.command()(info.unpause)
 app.command()(doctor_module.doctor)
 app.command()(init_command.init)
-app.command()(info.team)
 config_app.command("show")(info.config_show)
 examples_app.command("list")(info.examples_list)
 

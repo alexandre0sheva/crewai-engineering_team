@@ -36,13 +36,8 @@ def scripts() -> dict[str, ScriptedLLM]:
     """One scripted model per teammate; a teammate's script covers its stages in recipe order."""
 
     return {
-        "solution_architect": ScriptedLLM(
-            [
-                SPEC.model_dump_json(),
-                write("docs/architecture.md"),
-                PLAN.model_dump_json(),
-            ]
-        ),
+        "product_analyst": ScriptedLLM([SPEC.model_dump_json()]),
+        "solution_architect": ScriptedLLM([write("docs/architecture.md"), PLAN.model_dump_json()]),
         "backend_engineer": ScriptedLLM(
             [
                 write("README.md"),
@@ -127,11 +122,12 @@ def test_each_stage_agent_sees_its_task_the_contracts_and_its_card(
 ) -> None:
     run_cli()
 
-    architect = models["solution_architect"].calls
-    assert "tiny notes CLI" in architect[0].prompt  # the request, interpolated
-    assert "Do not write files" in architect[0].prompt
-    plan_prompt = architect[1].prompt
+    analyst = models["product_analyst"].calls
+    assert "tiny notes CLI" in analyst[0].prompt  # the request, interpolated
+    assert "Do not write files" in analyst[0].prompt
+    plan_prompt = models["solution_architect"].calls[0].prompt
     assert "Notes CLI" in plan_prompt and "AC-1" in plan_prompt  # the spec JSON from stage 1
+    assert "tiny notes CLI" in plan_prompt  # the original request rides along as context
     assert "Your task board card is K-002" in plan_prompt
     backend = models["backend_engineer"].calls
     implement_prompt = next(call.prompt for call in backend if "Your work package" in call.prompt)
@@ -160,6 +156,32 @@ def test_stage_agents_get_the_coordination_and_development_tools(
         "write_note",  # notes
     } <= names
     assert not any(name.startswith("web_") or name.startswith("browser_") for name in names)
+
+
+def test_the_analyst_only_reads_and_is_told_about_the_context_documents(
+    models: dict[str, ScriptedLLM],
+) -> None:
+    refs = Path.cwd() / "refs"
+    refs.mkdir()
+    (refs / "domain.md").write_text("# Domain\nA note has a title and a body.\n", encoding="utf-8")
+
+    assert run_cli("--context-dir", str(refs)) == 0
+
+    analyst = models["product_analyst"].calls[0]
+    assert analyst.tools is not None
+    names = {tool["function"]["name"] for tool in analyst.tools}
+    assert {"search_docs", "read_project_file", "ask_human", "write_note"} <= names
+    assert not {"write_project_file", "run_project_command", "replace_in_project_file"} & names
+    assert "1 reference document(s)" in analyst.prompt and "Search Docs" in analyst.prompt
+    assert "1 reference document(s)" in models["solution_architect"].calls[0].prompt
+
+
+def test_without_context_documents_the_prompts_say_nothing_about_them(
+    models: dict[str, ScriptedLLM],
+) -> None:
+    run_cli()
+
+    assert "reference document(s)" not in models["product_analyst"].calls[0].prompt
 
 
 def test_token_usage_is_attributed_to_the_stage_that_spent_it(
@@ -202,7 +224,7 @@ def test_a_final_answer_that_is_not_the_contract_fails_the_stage(
 ) -> None:
     llms = scripts()
     # CrewAI itself asks the model to convert a non-JSON answer a few times before giving up.
-    llms["solution_architect"] = ScriptedLLM(["I will write a spec."] * 40)
+    llms["product_analyst"] = ScriptedLLM(["I will write a spec."] * 40)
     monkeypatch.setattr(
         strategies, "CrewStageRunner", lambda: CrewStageRunner(llm_factory=lambda key: llms[key])
     )
@@ -215,7 +237,7 @@ def test_a_final_answer_that_is_not_the_contract_fails_the_stage(
     # Either CrewAI's own conversion error or ours says the answer was not a valid Spec.
     assert "valid Spec" in detail or "Pydantic model" in detail
     # The stage's one retry carried the failure to the agent.
-    assert any("previous attempt failed" in c.prompt for c in llms["solution_architect"].calls)
+    assert any("previous attempt failed" in c.prompt for c in llms["product_analyst"].calls)
 
 
 def test_the_stage_runner_rejects_unknown_teammates_and_stages(
@@ -256,7 +278,7 @@ def test_a_work_package_goes_to_the_teammate_its_role_names() -> None:
     assert teammate_for(stage, None) == "backend_engineer"
 
 
-def test_tool_groups_follow_the_default_table(make_context) -> None:  # type: ignore[no-untyped-def]
+def test_stage_tool_groups_come_from_the_roster(make_context) -> None:  # type: ignore[no-untyped-def]
     ctx = make_context()
 
     groups = stage_groups(ctx, "backend_engineer")
@@ -266,4 +288,6 @@ def test_tool_groups_follow_the_default_table(make_context) -> None:  # type: ig
         "code_intel", "git_read", "board", "notes", "human", "web",
     }  # fmt: skip
     assert "browser" not in groups
+    assert "browser" in stage_groups(ctx, "frontend_engineer")
+    assert not {"fs_write", "command"} & set(stage_groups(ctx, "product_analyst"))
     assert set(Spec.model_fields) and set(Plan.model_fields)  # contracts imported for the prompts

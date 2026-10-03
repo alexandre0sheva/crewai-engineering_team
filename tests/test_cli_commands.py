@@ -187,12 +187,12 @@ def test_examples_list_and_run_a_bundled_example() -> None:
     assert (project("ex") / ".engineering-team" / "owner.json").exists()
 
 
-def test_team_lists_the_current_teammates_and_says_the_registry_is_not_there_yet() -> None:
+def test_team_lists_the_teammates() -> None:
     members = json.loads(invoke("--json", "team", root=False).stdout)
     text = invoke("team", root=False)
 
     assert {m["key"] for m in members} >= {"engineering_lead", "solution_architect"}
-    assert "not configurable yet" in text.stdout
+    assert "product_analyst" in text.stdout and "built-in" in text.stdout
 
 
 def test_init_writes_a_valid_config_and_a_request_template_that_cannot_be_run_unedited() -> None:

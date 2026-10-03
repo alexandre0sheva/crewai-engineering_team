@@ -26,6 +26,7 @@ class Question:
     card_id: str | None = None
     asked: datetime = field(default_factory=utc_now)
     answer: str | None = None
+    skipped: bool = False
     _answered: threading.Event = field(default_factory=threading.Event, repr=False)
 
 
@@ -52,7 +53,7 @@ class HumanChannel:
         """Questions still waiting for an answer, oldest first."""
 
         with self._lock:
-            return [q for q in self._questions.values() if q.answer is None]
+            return [q for q in self._questions.values() if q.answer is None and not q.skipped]
 
     def answer(self, question_id: str, text: str) -> bool:
         """Deliver an answer; ``False`` if there is no such open question."""
@@ -63,6 +64,18 @@ class HumanChannel:
                 return False
             question.answer = text
         self._events.emit("question.answered", question_id=question.id, agent=question.agent)
+        question._answered.set()
+        return True
+
+    def skip(self, question_id: str) -> bool:
+        """The human declines to answer: the asker gets ``None`` at once. ``False`` if no such
+        open question."""
+
+        with self._lock:
+            question = self._questions.get(question_id)
+            if question is None or question.answer is not None or question.skipped:
+                return False
+            question.skipped = True
         question._answered.set()
         return True
 
@@ -95,7 +108,7 @@ class HumanChannel:
             return None
         end = time.monotonic() + timeout
         outcome = "timeout"
-        while question.answer is None:
+        while question.answer is None and not question.skipped:
             remaining = end - time.monotonic()
             if remaining <= 0:
                 break
@@ -104,7 +117,7 @@ class HumanChannel:
                 break
             question._answered.wait(timeout=min(0.1, remaining))
         if question.answer is None:
-            self._close(question, outcome)
+            self._close(question, "skipped" if question.skipped else outcome)
         return question.answer
 
     def _close(self, question: Question, outcome: str) -> None:

@@ -4,11 +4,15 @@
 name: new
 description: Build a new project from a request, from spec to release report.
 stages:
+  # The product analyst returns the spec contract; the controller checks the criterion ids,
+  # settles blocking questions (asking with --interactive, otherwise recording assumptions) and
+  # writes docs/spec.md itself. `retry: 1` is the one repair of an invalid spec.
   - name: spec
     kind: agent
-    teammates: [solution_architect]
+    teammates: [product_analyst]
     inputs: [request]
-    outputs: [spec]
+    outputs: [spec, "file:docs/spec.md"]
+    verification_policy: artifacts
     retry: 1
 
   - name: plan

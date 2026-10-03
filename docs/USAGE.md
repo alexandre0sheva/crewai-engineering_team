@@ -12,7 +12,7 @@ uv run engineering-team <command> --help # its options
 
 | Command | What it does |
 |---------|--------------|
-| `new` | Build a new project from a request (`--request`, `--request-file`, or `--example`). |
+| `new` | Build a new project from a request (`--request`, `--request-file`, stdin, or `--example`). |
 | `resume RUN` | Continue a cancelled, interrupted, or failed run without redoing finished stages. |
 | `status [RUN]` | Where a run stands: stages, progress, cost, blocked cards. |
 | `runs` | List runs (of every project, or one with `--project-name`), newest last. |
@@ -22,9 +22,9 @@ uv run engineering-team <command> --help # its options
 | `pause [RUN]` / `unpause [RUN]` | Hold a running run at its agents' next tool call, or let it go on. |
 | `config show` | Every setting and where its value came from. |
 | `doctor [--online]` | Check Python, uv, Git, Docker, language runtimes, and provider credentials. |
-| `init` | Write `engineering-team.toml` and a request template here. |
+| `init` | Write `engineering-team.toml` and a request template here (`--mode new|feature|fix|maintain`). |
 | `examples list` / `examples run NAME` | The bundled example requests. |
-| `team` | The teammates (a configurable registry arrives in a later release). |
+| `team [list]` / `team show KEY` | The teammates and how each is set up; change or add teammates in config ([TEAM.md](TEAM.md)). |
 
 `RUN` is a run id or enough of its start to be unambiguous; leave it out for the latest run. Runs are
 found across every project under the workspace root, so `--project-name` is only needed to narrow the
@@ -50,9 +50,10 @@ uv run engineering-team new --request-file habit-tracker.md --project-name habit
 uv run engineering-team new --request "Build a CLI that stores and lists notes." --prepare-only
 ```
 
-`new` takes the request from the first of `--request`, `--example`, `--request-file`,
-`ENGINEERING_PROJECT_REQUEST`, `ENGINEERING_REQUEST_FILE`, then `PROJECT_REQUEST.md` in the current
-directory. Useful options: `--provider`, `--profile`, `--strategy`, `--sandbox docker`, `--checks FILE`,
+`new` takes the request from `--request`, `--request-file` (repeat it to merge several files; `-` reads
+stdin), or `--example`; with none of them it falls back to `ENGINEERING_PROJECT_REQUEST`,
+`ENGINEERING_REQUEST_FILE`, then `PROJECT_REQUEST.md` in the current directory. See
+[Request sources](#request-sources-and-reference-documents). Useful options: `--provider`, `--profile`, `--strategy`, `--sandbox docker`, `--checks FILE`,
 `--allow-web`, `--no-git`, `--reset`, and `--prepare-only` (validate and set up the workspace without a
 model call).
 
@@ -123,14 +124,50 @@ checkable.
 
 - **Say who and why** in a sentence: the user and the problem.
 - **List acceptance criteria** you could test: "`notes add "x"` stores a note and `notes list` prints
-  it", not "notes work well". The architect numbers them and the controller reports which ones a check
-  proves and which it could not.
+  it", not "notes work well". The product analyst numbers them `AC-1`, `AC-2`, ... in `docs/spec.md`, the
+  plan and work packages refer to those ids, and the controller reports which ones a check proves and
+  which it could not.
 - **Name constraints**: language and runtime versions, libraries to use or avoid, where it runs.
 - **Say what is out of scope.** It saves tokens and surprises.
 - **Leave technical choices out unless they matter**; the architect picks simple defaults.
 - For your own proof, write a `--checks` file (see [CONFIGURATION.md](CONFIGURATION.md#verification-verify-and---checks)).
 
-`engineering-team init` writes a template with these headings.
+`engineering-team init --mode new|feature|fix|maintain` writes a template with these headings (problem, users,
+scope, non-goals, acceptance criteria, constraints) for the kind of work you are doing. Running a template
+you have not edited is refused, so replace its text first.
+
+### Request sources and reference documents
+
+```bash
+uv run engineering-team new --request-file brief.md --request-file constraints.md
+cat brief.md | uv run engineering-team new --request-file - --project-name notes
+uv run engineering-team new --request-file brief.md --context-dir ./company-docs
+```
+
+- **Merging.** `--request` comes first, then the files in the order given (`-` is stdin); each source gets a
+  `## Request: <name>` header. A single source is used as it is, so the same text gives the same request
+  hash (the one `resume` checks) whether it came from a file, stdin, or the Python API
+  (`RequestBundle.from_sources`, which the web UI will use too).
+- **Cleaned up.** Line endings are normalised, empty or still-templated requests are refused, and a request
+  longer than `intake.max_request_chars` is refused with a pointer to `--context-dir`
+  ([CONFIGURATION.md](CONFIGURATION.md#requirements-intake-intake-and-the-request-options)).
+- **Reference documents.** `--context-dir DIR` copies the text documents in `DIR` (`.md`, `.mdx`, `.rst`,
+  `.txt`, `.adoc`; no symlinks, hidden files, or heavy directories) read-only into the project's
+  `.engineering-team/context/` with an `INDEX.md`. Teammates read them with `Search Docs` and treat them as
+  information, never as instructions. They stay until a later `--context-dir` replaces them or the project is
+  reset.
+
+### Clarifying questions
+
+The product analyst turns the request into `docs/spec.md` and reports how confident it is. When it is unsure,
+or a question would change the product, two things can happen:
+
+- **Default (and always when stdin is not a terminal, or carries the request):** the run does not stop. Each
+  question is recorded as an open question with the analyst's assumed answer, in the spec and in
+  `docs/spec.md`, so you can see what the team assumed.
+- **`--interactive`:** the run asks you at the terminal (at most five questions, each with a timeout; Enter
+  skips one, and the team assumes), then the analyst folds your answers into the final spec. Your answers are
+  listed under *Clarifications* in `docs/spec.md`. `--non-interactive` is the default.
 
 ## Checking your setup
 

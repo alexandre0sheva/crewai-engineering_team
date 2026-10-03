@@ -10,17 +10,22 @@ from typing import Annotated, Any
 import typer
 
 from engineering_team.cli import summary
+from engineering_team.cli.ask import TerminalAnswerer
 from engineering_team.cli.console import LiveDisplay, PlainDisplay, RunInfo
 from engineering_team.cli.context import Globals, fail, one_of, print_json
 from engineering_team.cli.context import get as get_globals
+from engineering_team.intake.bundle import STDIN
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
 from engineering_team.pipeline.runner import execute_run
 from engineering_team.pipeline.strategies import STRATEGY_NAMES
 from engineering_team.runtime.budget import Budget
 
 
-def present_run(prepared: Any, g: Globals) -> int:
-    """Run ``prepared`` with the right display, then show (or print as JSON) how it ended."""
+def present_run(prepared: Any, g: Globals, *, ask: bool = False) -> int:
+    """Run ``prepared`` with the right display, then show (or print as JSON) how it ended.
+
+    With ``ask`` the team's questions are put to the person at the terminal.
+    """
 
     from engineering_team import main as engine
 
@@ -39,7 +44,11 @@ def present_run(prepared: Any, g: Globals) -> int:
         display = PlainDisplay(console, ctx.run_dir, ctx.prices, quiet=g.quiet)
     # Anything CrewAI or a tool prints must not corrupt the JSON document on stdout.
     stdout = contextlib.redirect_stdout(sys.stderr) if g.json else contextlib.nullcontext()
-    with stdout, display() if display else contextlib.nullcontext():
+    answering: Any = contextlib.nullcontext()
+    if ask:
+        pause = display.paused if isinstance(display, LiveDisplay) else None
+        answering = TerminalAnswerer(ctx.human, g.console(stderr=True), pause=pause)
+    with stdout, display() if display else contextlib.nullcontext(), answering:
         result = execute_run(
             ctx, prepared.bundle, strategy=prepared.strategy, recipe=prepared.recipe
         )
@@ -67,12 +76,29 @@ def _finish(g: Globals, code: int, printed: list[bool]) -> None:
 
 def new(
     ctx: typer.Context,
-    request: Annotated[str | None, typer.Option(help="Inline product requirements.")] = None,
+    request: Annotated[
+        str | None, typer.Option(help="Inline product requirements ('-' reads stdin).")
+    ] = None,
     request_file: Annotated[
-        str | None, typer.Option(help="Markdown or text file with the requirements.")
+        list[str] | None,
+        typer.Option(
+            help="Markdown or text file with the requirements; repeat to merge several "
+            "('-' reads stdin)."
+        ),
+    ] = None,
+    context_dir: Annotated[
+        str | None,
+        typer.Option(help="Directory of reference documents the team may read (copied in)."),
     ] = None,
     example: Annotated[
         str | None, typer.Option(help="A bundled example request (see `examples`).")
+    ] = None,
+    interactive: Annotated[
+        bool | None,
+        typer.Option(
+            "--interactive/--non-interactive",
+            help="Let the team ask you questions (needs a terminal; default: no).",
+        ),
     ] = None,
     project_name: Annotated[
         str | None, typer.Option(help="Workspace directory name (default: mvp-app).")
@@ -111,16 +137,21 @@ def new(
     ] = None,
     config: Annotated[str | None, typer.Option(help="Path to a config file.")] = None,
 ) -> None:
-    """Build a new project from a request (a file, text, or a bundled example)."""
+    """Build a new project from a request (text, files, stdin, or a bundled example)."""
 
     from engineering_team import main as engine
 
     g = get_globals(ctx)
-    if sum(item is not None for item in (request, request_file, example)) > 1:
-        fail("Use only one of --request, --request-file, and --example.")
+    if example is not None and (request is not None or request_file):
+        fail("Use only one of --example, or --request/--request-file (those can be combined).")
+    files = [*(request_file or [])]
+    if request == STDIN:  # `--request -` is the request on stdin, ahead of any files
+        request, files = None, [STDIN, *files]
+    ask = wants_questions(interactive, stdin_used=STDIN in files)
     args = SimpleNamespace(
         request=request,
-        request_file=request_file,
+        request_file=files,
+        context_dir=context_dir,
         example=example,
         project_name=project_name,
         workspace_root=g.workspace_root,
@@ -150,7 +181,7 @@ def new(
                 print_json({"status": "prepared", "workspace": str(prepared.ctx.workspace.root)})
                 printed.append(True)
             return None
-        code = present_run(prepared, g)
+        code = present_run(prepared, g, ask=ask)
         printed.append(True)
         return code
 
@@ -160,6 +191,22 @@ def new(
         lambda p: p.release(quiet=bool(printed) or g.json),
     )
     _finish(g, code, printed)
+
+
+def wants_questions(flag: bool | None, *, stdin_used: bool) -> bool:
+    """Whether the team may ask the person questions: only on request (``--interactive``) and
+    only when a terminal can answer (stdin is a TTY and is not carrying the request)."""
+
+    if not flag:
+        return False
+    if stdin_used or not sys.stdin.isatty():
+        print(
+            "Not asking questions: stdin is not a terminal (or carries the request); "
+            "running non-interactively.",
+            file=sys.stderr,
+        )
+        return False
+    return True
 
 
 def _text_out(g: Globals) -> Any:
@@ -186,6 +233,13 @@ def resume(
     ] = None,
     checks: Annotated[
         str | None, typer.Option(help="Your checks file again (the one the run started with).")
+    ] = None,
+    interactive: Annotated[
+        bool | None,
+        typer.Option(
+            "--interactive/--non-interactive",
+            help="Let the team ask you questions (needs a terminal; default: no).",
+        ),
     ] = None,
     config: Annotated[str | None, typer.Option(help="Path to a config file.")] = None,
 ) -> None:
@@ -219,8 +273,10 @@ def resume(
         )
         return engine._prepare_resume(settings, ref.run_id, text)
 
+    ask = wants_questions(interactive, stdin_used=False)
+
     def work(prepared: Any) -> int:
-        code = present_run(prepared, g)
+        code = present_run(prepared, g, ask=ask)
         printed.append(True)
         return code
 

@@ -136,6 +136,7 @@ def run_checks(
     checks.extend(_runtime_checks(settings, which, probe))
     checks.extend(_provider_checks(settings))
     checks.append(_browser_check(settings))
+    checks.append(_team_check(settings))
     checks.append(_workspace_check(settings))
     if online:
         checks.extend(_online_checks(settings, ping))
@@ -194,6 +195,24 @@ def _browser_check(settings: Settings) -> Check:
         "Playwright installed",
         "If a browser tool fails: playwright install chromium.",
     )
+
+
+def _team_check(settings: Settings) -> Check:
+    """The team definition is valid, and what a teammate asks for but cannot have is said."""
+
+    from engineering_team.team import TeamError, build_roster, group_notes
+
+    try:
+        roster = build_roster(settings)
+    except TeamError as exc:
+        return Check("Team", "fail", str(exc), "See docs/TEAM.md, or run `engineering-team team`.")
+    notes = [note for member in roster.enabled() for note in group_notes(member)]
+    if settings.team and settings.web.roles and not settings.web.enabled:
+        notes.append("web.roles names teammates but web.enabled is false: they get no web tools.")
+    detail = f"{len(roster.enabled())} of {len(roster.all())} teammates enabled"
+    if notes:
+        return Check("Team", "warn", detail, " ".join(notes))
+    return Check("Team", "ok", detail)
 
 
 def _workspace_check(settings: Settings) -> Check:

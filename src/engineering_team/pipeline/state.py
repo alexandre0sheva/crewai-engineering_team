@@ -8,7 +8,6 @@ records (one source of truth) because that is what resume checks against the wor
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -26,15 +25,9 @@ from engineering_team.contracts import (
     Verdict,
     VerificationRecord,
 )
+from engineering_team.intake.bundle import request_hash as request_hash  # re-exported
 
 STATE_FILENAME = "pipeline.json"
-
-
-def request_hash(requirements: str) -> str:
-    """The hash recorded in the manifest, so a changed request is never mistaken for the old one."""
-
-    return hashlib.sha256(requirements.strip().encode("utf-8")).hexdigest()
-
 
 PackageStatus = Literal["pending", "running", "succeeded", "failed", "skipped"]
 

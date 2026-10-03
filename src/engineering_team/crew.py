@@ -69,7 +69,15 @@ def _require_workspace_files(
 
 @CrewBase
 class EngineeringTeam:
-    """A lead-managed, stack-agnostic engineering crew for MVP delivery."""
+    """A lead-managed, stack-agnostic engineering crew for MVP delivery.
+
+    This is the ``hierarchical`` strategy: four fixed specialists and six fixed tasks, which is
+    what ``@CrewBase`` is for. The pipeline needs a roster that changes per project, so it builds
+    its agents from ``ctx.team`` instead (``pipeline/stages.py``). Here the roster supplies each
+    teammate's prompt, tier and iteration limit (and so ``[team.<key>]`` changes to those apply),
+    while the tools stay ``PROJECT_GROUPS`` and ``enabled`` is not consulted: the tasks need
+    those four specialists.
+    """
 
     agents: list[BaseAgent]
     tasks: list[Task]
@@ -84,9 +92,14 @@ class EngineeringTeam:
     def engineering_lead(self) -> Agent:
         """Create the tool-free custom manager required by hierarchical crews."""
 
-        resolved = self.settings.resolve_model("engineering_lead")
+        member = self.ctx.team.get("engineering_lead")
+        resolved = self.settings.resolve_model(
+            "engineering_lead", tier=member.tier, max_iter=member.max_iter
+        )
         return Agent(
-            config=self.agents_config["engineering_lead"],  # type: ignore[index]
+            role=member.role,
+            goal=member.goal,
+            backstory=member.backstory,
             llm=build_llm(resolved, self.settings),
             # CrewAI 1.15 rejects custom hierarchical managers that are
             # constructed with project or MCP tools. During task execution it
@@ -98,12 +111,19 @@ class EngineeringTeam:
         )
 
     def _specialist(self, config_name: str) -> Agent:
-        resolved = self.settings.resolve_model(config_name)
+        member = self.ctx.team.get(config_name)
+        resolved = self.settings.resolve_model(
+            config_name, tier=member.tier, max_iter=member.max_iter
+        )
         return Agent(
-            config=self.agents_config[config_name],  # type: ignore[index]
+            role=member.role,
+            goal=member.goal,
+            backstory=member.backstory,
             llm=build_llm(resolved, self.settings),
             tools=build_tools(self.ctx, groups=PROJECT_GROUPS),
-            mcps=self.settings.docs_mcp_urls or None if self.settings.docs_mcp_enabled else None,
+            mcps=self.settings.docs_mcp_urls or None
+            if member.uses_docs_mcp and self.settings.docs_mcp_enabled
+            else None,
             allow_delegation=False,
             max_iter=resolved.max_iter,
             verbose=self.settings.verbose,

@@ -326,9 +326,8 @@ def scoped_run(monkeypatch: pytest.MonkeyPatch) -> dict[str, ScriptedLLM]:
         ],
     )
     llms = {
-        "solution_architect": ScriptedLLM(
-            [SPEC.model_dump_json(), write("docs/architecture.md"), plan.model_dump_json()]
-        ),
+        "product_analyst": ScriptedLLM([SPEC.model_dump_json()]),
+        "solution_architect": ScriptedLLM([write("docs/architecture.md"), plan.model_dump_json()]),
         "backend_engineer": ScriptedLLM(
             [
                 write("README.md"),
