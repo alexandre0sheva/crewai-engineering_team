@@ -155,8 +155,37 @@ Tools never spawn processes. `tools/commands.py` validates a command and builds 
 `ctx.backend` (an `ExecutionBackend`: `run(spec) -> CommandRecord`, `start(spec) -> ProcessHandle`)
 runs it. `LocalBackend` puts each command in its own process group, streams output to a capped log
 under `run_dir/commands/`, keeps a head-and-tail window in memory, and kills the whole group on
-timeout or cancellation. A Docker backend will implement the same protocol. Background processes
-will use `start`.
+timeout or cancellation. `DockerBackend` (`execution/docker.py`) implements the same protocol by spawning
+`docker run` as the "process", so output capping, timeouts, and cancellation are the same code; it adds the
+container's name, labels, hardening flags and mounts (`execution/docker_args.py` builds the argv, pure and
+golden-tested), image choice (`execution/images.py`), and removal of the container when a command is stopped
+or the run ends. `create_backend` picks one from `execution.backend` and raises `ExecutionUnavailable` (a usage
+error) instead of falling back when Docker is missing. A backend that resolves programs itself
+(`resolves_on_host = False`) is not asked whether the host has them. Background processes use `start`.
+See [SAFETY.md](SAFETY.md#docker-backend).
+
+### Git
+
+`GitPort` (`git/port.py`, `ctx.git`) is the controller's Git, a thin wrapper that builds fixed `git` argv
+lists and runs them through `ctx.backend` (so cancellation, timeouts, and a Docker sandbox apply; nothing
+spawns `git` itself). Its rules (no push or remote, no hooks, no outside repository) are in
+[SAFETY.md](SAFETY.md#git). It offers `is_repo`, `is_dirty`, `status`, `current_branch`, `head`,
+`create_branch`, `worktree_add`/`worktree_remove`, `checkpoint(message)` (stage everything, commit, return the sha; a
+commit is made even when nothing changed), the work as it is now (`diff`, `diff_stat`, `export_patch`,
+`tree_hash`, all via a temporary index so the real one is never touched), and bounded history for the read-only tools
+and code intelligence (`log`, `show`, `blame`, `search`, `diff_refs`).
+
+`pipeline/checkpoints.py` uses it for a run's history: when the project is **new** (nothing in the workspace but
+controller state) and `git.enabled`, the run starts with `git init` (branch `main`, an initial commit,
+`.engineering-team/` and heavy directories in `.git/info/exclude`); after every stage that finishes the controller
+commits `stage(<name>): <the agent's one-line summary>`, so a clean run leaves `Initial commit` plus one commit per
+stage (a skipped or reused stage has none, a resumed run commits only what it runs again), and after the
+final verification it commits anything that gate changed (`final: ...`). A repository that exists is continued; a
+project with files and no repository is left alone. A Git problem becomes a `git.warning` event and never fails
+the run (events: `git.init`, `git.checkpoint`, `git.warning`). Only `pipeline` and `single` runs commit; the
+`hierarchical` crew has no stages to mark. The workspace revision of resume (`runtime/snapshot.workspace_revision`) stays a
+content hash of non-ignored files, because it must work without Git; `GitPort.tree_hash` is the Git object hash of the same project
+for tools that want to compare with commits.
 
 ### Workspace snapshot
 
@@ -187,18 +216,20 @@ from reading `commands/` logs. This is the single description of its layout:
 | `request.md` | `RunRecorder` | The request exactly as given |
 | `usage.json` | `RunRecorder` | `UsageReport`: token totals and a breakdown by stage, agent, and model, with per-model cost (`null` when the price is unknown) |
 | `settings.json` | `RunRecorder` | The effective `Settings` (no secrets: credentials are read from the environment, never stored) |
-| `pipeline.json` | `PipelineState` | The pipeline's hand-offs between stages (spec, plan, work-package status, board card ids, agent summaries); see [Pipeline, recipes, and resume](#pipeline-recipes-and-resume) |
+| `pipeline.json` | `PipelineState` | The pipeline's hand-offs between stages (spec, plan, work-package status, board card ids, agent summaries, the latest check results and the `VerificationRecord`); see [Pipeline, recipes, and resume](#pipeline-recipes-and-resume) |
+| `verification/round-<n>.json` | `Verifier` | The results of each check run (status, exit code, duration, log path, the workspace revision it ran against, the parsed test or diagnostic report); see [Verification and repair](#verification-and-repair) |
+| `checks.yaml` | `pin_checks` | The pinned copy of the user's `--checks` file (its hash is in `pipeline.json`) |
 | `cancel` | `engineering-team cancel` | Flag file the running controller polls; deleted when a run starts or resumes |
 | `board.json`, `board.md` | `BoardStore` | The task board: every card with its history (`BoardState`), and a Markdown view of it ([Task board](#task-board)) |
 | `notes/<key>.md` | `NoteStore` | Shared notes agents wrote with `Write Note` |
 | `crew-log.json`, `crew-log-<stage>.json` | CrewAI | CrewAI's own execution log (one per stage crew in the pipeline) |
-| `commands/<n>.log` | `LocalBackend` | Full output of each project command |
+| `commands/<n>.log` | `LocalBackend` | Full output of each project command (including `git` commands) |
 
 Other state under `.engineering-team/` is per workspace, not per run: `owner.json` (ownership
 marker), `lock` (workspace lock), `tmp/`, `tool-home/`, and `cache/`.
 
 **Contracts** (`contracts.py`) are Pydantic v2 models that every part of the system shares:
-`Spec`, `Plan`, `WorkPackage`, `CheckSpec`/`CheckResult`, `Finding`, `StageRecord` (with the workspace revision at the stage's start and end), `RunManifest`,
+`Spec`, `Plan`, `WorkPackage`, `CheckSpec`/`CheckResult`/`CriterionCoverage`/`VerificationRecord`, `Finding`, `StageRecord` (with the workspace revision at the stage's start and end), `RunManifest`,
 `Event`. Each has `schema_version` (1) and ignores unknown fields, so a file written by a newer
 version still loads; bump the version only for a breaking change in meaning.
 
@@ -221,7 +252,7 @@ redacted args, duration, ok); and, bridged from CrewAI, `crew.*`, `task.*`, `age
 `pipeline.started`/`pipeline.finished`, `pipeline.board_warning`, `run.cancel_requested`;
 `board.*` (card created, moved, commented, updated; pause and resume; steering delivered);
 `question`, `question.answered`, `question.unanswered`; `note.written`, `decision.logged`;
-`budget.warning`/`budget.exceeded`.
+`budget.warning`/`budget.exceeded`; `git.init`/`git.checkpoint`/`git.warning`; `check.started`/`check.finished` and `verify.started`/`verify.repair`/`verify.reused`/`verify.verdict`.
 
 **The CrewAI bridge** (`runtime/bridge.py`). CrewAI has one process-wide event bus. The bridge
 registers its handlers once and routes each event to the run bound in the *emitting* context
@@ -320,13 +351,13 @@ deterministic code**; models do bounded work inside stages.
 **Recipes** (`pipeline/recipes.py`, bundled in `modes/recipes/*.yaml`) are data. A `Recipe` is an
 ordered list of stages; each has a `name`, a `kind` (`agent`: one small crew, one teammate;
 `parallel`: one crew per work package of the plan, run in lanes ([Parallel execution](#parallel-execution)); `controller`: a registered
-controller-side action, no model), its `teammates`, `inputs` and `outputs` (contracts `spec`/`plan`,
+controller-side action, no model; `verify`: the controller's own verification, [below](#verification-and-repair)), its `teammates`, `inputs` and `outputs` (contracts `spec`/`plan`,
 or `file:<path>` for a promised file), `skip_if` conditions (`no_work_packages`), `retry`, and a
 `verification_policy` (`artifacts`: the controller requires every promised file to exist and hold
 real content; it never takes the agent's word). The `new` recipe is `spec` → `plan` → `foundation` →
 `implement` → `integrate` → `verify` → `release`; the architect's `Plan` decides which work packages exist, so a
 CLI- or API-only project simply has no frontend package and a plan with none skips `implement`.
-`verify` is a placeholder (the quality agent) until the controller-run verifier replaces it. A
+`verify` is run by the controller, not an agent. A
 recipe is validated when loaded (unknown conditions, inputs no earlier stage produces, missing
 teammates, duplicate names are one-line errors).
 
@@ -442,6 +473,74 @@ board's WIP limit for `in_progress` work packages is the same `max_parallel_agen
 codebase analysts: each `ReadOnlyJob` (name, teammate, report path) gets `readonly_tools` — every read-only tool,
 plus write tools that can touch nothing but the job's own report path — and a failing job is reported `failed`
 without stopping the others. Results come back in job order.
+
+## Verification and repair
+
+**Principle: success is evidence the controller produced, never something an agent says.** The
+`verify` stage of the `new` recipe (kind `verify`, `verification/`) is controller code. It decides
+what runs, runs it through `ctx.backend`, judges the results, and only then involves an agent, and
+only to repair.
+
+**What runs** (`verification/profiles.py`). Per kind of check (setup, tests, lint, type check,
+build, smoke): the user's `--checks` file, then the commands the plan declares, then what
+`devtools/detect.py` finds in the project (one detector, shared with the developer tools); custom
+user checks are added. Detected tests, lint, type-check, and build checks run the structured developer tools
+(`DevRunner`, T11), so the result carries the parsed `TestReport`/`DiagnosticReport`; commands from
+the user or the plan run as plain commands (exit code, log tail, and the files the output points
+at). Each project of a monorepo gets its own checks. A required `tests` check always exists.
+
+**Results** (`verification/verifier.py`). `Verifier.run(checks)` returns one `CheckResult` per check:
+`passed`, `failed`, `skipped` (not run because a required setup failed), or `unavailable` (it could not
+run: the program or runtime is missing, or the command is one the controller may not run); a missing tool is
+never a pass, and neither is a tool run that produced no usable result (`No tests ran` is `failed`).
+Each result stores the exit code, duration, log path, a bounded log tail, and the **workspace revision** it ran
+against; the batch is written to `verification/round-<n>.json`. Every check is a `check` card that the
+controller moves (`in_progress → verifying → done` with the check id as evidence, `failed`, `blocked` when
+unavailable, `cancelled` when skipped).
+
+**Revision.** `verification_revision` is the workspace tree hash of `runtime/snapshot.py` minus the files
+that are about the verification rather than what was verified: `docs/verification.md` (the controller's report),
+`docs/qa-notes.md` and `docs/release-report.md` (agent narrative). Everything else counts, so writing the
+report cannot make its own evidence stale and an edit to the code always does.
+
+**Verdict** (`verification/verdict.py`). `verified` only if some check is required, every required check
+passed, and every result is for the current revision. A required check that failed is `failed`; none failed
+but a required one is `unavailable` or `skipped` is `partial`; results for another revision are stale and never
+count. Lint and type checks are advisory unless `verify.static_required`.
+
+**The report.** The controller renders `docs/verification.md` from the results (`verification/report.py`):
+verdict, a table of every check, the output of those that did not pass, the criteria matrix, and the repair
+log. It has no timestamps, durations, or run ids, so the same results give the same file. Acceptance
+criteria are `verified` only when a *passing* check mapped to them (`criteria:` in the checks file) ran;
+a passing suite whose test files mention a criterion id is only `referenced` (an agent wrote both); the rest are
+listed under *Manual / unverified*. Unverified criteria do not block `verified`, but they are never hidden.
+What the agents say lives in `docs/qa-notes.md`, appended by the controller and labelled as narrative.
+
+**Repair loop** (`verification/loop.py`). Verify; while a required check `failed` and
+`budget.may_repair(rounds)` and the run's other budgets allow, hand the failures (check id, command, summary,
+suspect files, the end of the log) to the stage's first teammate through the `repair` prompt, then run the
+checks **again**. The agent's reply is never read as evidence: if its round changed nothing in the project
+the recorded results are reused and the round still counts. Rounds (`budget.max_repair_rounds`, default 3) are
+counted over the whole run; a crashed repair attempt uses a round; `unavailable` checks are not repaired
+(editing code cannot install a runtime). Each round is a `repair` card the controller closes: `done` with
+the now-passing check ids as evidence, or `failed`.
+
+**Ends and exit codes.** `verified`: the run `succeeded` (exit 0). `failed`: the stage raises
+`VerificationError`, the run ends `failed`, the manifest's `verdict` is `failed`, exit code **3**. `partial`:
+the same with exit code **4**. Both are resumable (`resume` gives the stage fresh repair rounds) and both
+leave `docs/verification.md` with the reason. Budget and cancel stops are unchanged (exit 1 and 130).
+
+**Final gate.** After the last stage, if the recipe has a `verify` stage, the controller compares the
+workspace to the verified revision; if a later stage (release, documentation) changed anything, it runs
+the checks again (repairing with whatever rounds are left) and fails the run if they no longer pass.
+It also re-renders the report from the stored results, so an agent cannot leave its own words in it.
+
+**Trust boundary.** The checks file is validated and pinned at the start of the run (see
+[CONFIGURATION.md](CONFIGURATION.md#verification-verify-and---checks)). Checks run through the same
+execution backend as every other command; under the Docker sandbox the run directory is hidden from commands,
+while on the local backend an agent with a command tool can still reach it ([SAFETY.md](SAFETY.md)). Only the
+`pipeline` strategy verifies: `hierarchical` and `single` keep the interim artifact guardrails and never
+report `verified`.
 
 ## Settings and model routing
 

@@ -4,9 +4,10 @@ What the orchestrator does and does not protect, and where each protection lives
 reporting is in [SECURITY.md](../SECURITY.md); the tools themselves are listed in
 [TOOLS.md](TOOLS.md).
 
-This is a **project boundary, not a virtual machine**. Package scripts, test runners, and
-generated programs are ordinary code running as you. Run the whole orchestrator inside a
-container or VM when the request or its dependencies are untrusted.
+By default this is a **project boundary, not a virtual machine**. Package scripts, test runners,
+and generated programs are ordinary code running as you. Use the [Docker sandbox](#docker-backend)
+(`--sandbox docker`) so that project commands run in a hardened container, and run the whole
+orchestrator inside a container or VM when the request or its dependencies are untrusted.
 
 ## Filesystem boundary
 
@@ -61,13 +62,70 @@ holding the output pipe when the command exits are killed too. Windows is not su
 
 Limits worth knowing: the local backend cannot enforce `CommandSpec.network=False`, restrict
 what a process reads outside the workspace, or cap CPU and memory. A process that deliberately
-leaves its process group (`setsid`) can outlive a timeout. The Docker backend (planned) is the
-answer to all of these.
+leaves its process group (`setsid`) can outlive a timeout. The [Docker backend](#docker-backend) is
+the answer to all of these.
 
 ### Docker backend
 
-Not implemented yet; this section will describe the container sandbox, its mounts, network
-policy, and resource limits when it lands.
+`--sandbox docker` (or `execution.backend = "docker"`, `ENGINEERING_EXECUTION_BACKEND=docker`) runs
+**every command in its own throwaway container**: agent commands, the developer tools, the
+verifier's checks, background processes, and the controller's Git. `local` stays the default (no
+setup needed) and Docker is the recommended choice for anything you did not write yourself. It
+**never falls back to the host**: with Docker missing or stopped the run refuses to start
+(exit 2) and says so; `--sandbox local` is always an explicit choice.
+
+What each container gets (the exact `docker run` line is pinned by a golden test):
+
+- **Not root, no powers.** It runs as your uid:gid, with `--cap-drop ALL`, `no-new-privileges`, no
+  `--privileged`, no devices, no host namespaces, and no Docker socket.
+- **A read-only system.** The root filesystem is read-only; `/tmp` is a tmpfs. Limits: processes
+  (`pids_limit`), memory (swap disabled), CPUs, core files off.
+- **Only the project.** The project is mounted read-write **at its own host path**, so paths in
+  arguments, errors, and logs mean the same inside and outside. The controller's
+  `.engineering-team/` is hidden behind an empty tmpfs (run records, the board, pinned checks and
+  logs are invisible to the workload), except three directories commands legitimately use: `tmp/`
+  (scratch and report files), `cache/` (the uv, pip, and npm caches, persisted per project), and
+  `tool-home/` (`HOME`). Nothing else on your machine is mounted: your home directory, SSH keys, and
+  other projects do not exist in there.
+- **No secrets.** The host environment is never inherited. The workload gets only the scrubbed
+  variables described above (plus `CI=1` and `NO_COLOR=1`), passed in a `0600` file that is removed
+  when the command ends, never on a command line. `PATH` comes from the image, not your machine.
+- **No network, except for setup.** Commands run with `--network none`. Only commands that ask for
+  the network (`Install Dependencies`, `Dependency Audit`, the verifier's `setup` checks) get the
+  default bridge network, and `execution.docker.network = "none"` takes even that away. A
+  **process that publishes a port** (`CommandSpec.ports`: a dev server) needs the bridge network
+  too, so it also has outbound access; it is published as `127.0.0.1:<port>` only, never on all
+  interfaces, and must listen on `0.0.0.0` inside the container. **There is no domain filtering**
+  and none is claimed: a network-enabled command can reach whatever the host's Docker network can.
+- **A lifecycle that cleans up.** Containers are named and labelled with the run id and removed
+  (`docker stop`, then `docker rm -f`) on exit, timeout, cancellation, and run end, background
+  processes included; output is capped and bounded exactly as in the local backend.
+
+What it does **not** protect against:
+
+- **A shared kernel.** A container is not a VM: a kernel or runtime vulnerability can be an escape.
+  The flags above shrink the surface, they do not remove it. For hostile code use a VM, or run the
+  orchestrator in one.
+- **The project itself.** The workload can read and rewrite every project file, `.git` included,
+  and anything the project later runs *outside* the sandbox (a `package.json` script you run by
+  hand, a Makefile, a git hook you install, an editor task) is still untrusted code. Secrets that
+  sit inside the project, such as a `.env` file, are readable.
+- **The network when it is on.** An install script (or a published-port server) can reach the
+  internet and, on Docker Desktop, `host.docker.internal`.
+- **Poisoned caches.** `cache/` and `tool-home/` persist across runs of the same project, so a
+  malicious package can leave something there for the next run. Delete `.engineering-team/cache/`
+  to start clean.
+- **Anything outside commands.** The orchestrator itself, model calls, and the web and browser
+  tools run on the host. Anyone who can use your Docker daemon is effectively root on the host.
+- **Image trust.** Images come from the registries named in `execution.docker`; the defaults are the
+  official Docker Hub, MCR, and `astral/uv` images, pulled on first use. `execution.docker.git_image`
+  is a third-party image (`alpine/git`); pin another if that matters to you.
+
+Operational notes: the daemon must run on this machine (a remote `DOCKER_HOST` is refused because
+the project is bind-mounted); running as root is refused; a hard kill of the controller can leave a
+container behind, which `docker rm -f $(docker ps -aq --filter label=engineering-team=1)` removes;
+and switching a project between `local` and `docker` can leave a `.venv` or `node_modules` built
+for the other platform (delete it).
 
 ### Developer tools
 
@@ -80,15 +138,51 @@ test run they execute code from the project, so the process boundary above still
 their report files go to a scratch directory inside `.engineering-team/tmp/` that is removed
 afterwards.
 
-### Code intelligence and Git
+### Controller-run checks
+
+The verifier ([ARCHITECTURE.md](ARCHITECTURE.md#verification-and-repair)) runs its checks through the
+same validation and backend as agent commands: no shell, no inline code, no paths outside the
+project, the same scrubbed environment. Two things differ: commands **you** wrote in `--checks FILE`
+may use any program (the file is yours; it must live outside the project, is validated and pinned
+when the run starts, and a changed copy stops verification), while commands the **plan** declares
+(agent-written) stay on the allowlist. A check never gets a secret from the environment. Like any
+test run, a check executes project code, so the process boundary above still applies. Under the Docker
+sandbox the run directory (where the pinned checks file lives) is hidden from commands.
+
+### Git
+
+All Git use goes through the controller's `GitPort` (`git/port.py`), which runs a fixed `git` argv
+through the execution backend. The rules are what the port *can* do, not a filter on what it is
+asked:
+
+- **No outward Git.** It has no way to push, fetch, pull, add or change remotes, or force anything
+  (a test asserts it), and `protocol.allow=never` and a disabled credential helper back that up.
+- **No code from the repository.** Hooks never run (`core.hooksPath=/dev/null`, `--no-verify`), and
+  neither do commands a repository's own config names: `core.fsmonitor`, `diff.external`, and
+  text conversion are switched off; there is no pager, no prompt, and no system or global
+  configuration (`GIT_CONFIG_NOSYSTEM`, `GIT_CONFIG_GLOBAL=/dev/null`).
+- **Only the project's own repository.** `is_repo()` is true only when the project directory is the
+  top level, and `GIT_CEILING_DIRECTORIES` stops Git discovering a repository above it. A project inside
+  another repository (this tool's own checkout, say) is "not a repository", and nothing in the outer one
+  is read or written.
+- **The controller's state is never committed.** `.engineering-team/` and heavy directories go into
+  `.git/info/exclude` (never the project's `.gitignore`).
+- **Validated agent input.** The read-only tools ([TOOLS.md](TOOLS.md#git-tools)) take refs (no leading
+  `-`, no spaces, no `..`), project paths (checked like every file path; `.git` and `.engineering-team` are
+  refused), and a search pattern; none can add a flag. Agents cannot touch `.git` with the file tools either.
+- **Reads never stage.** Diffs, patches, and the tree hash use a temporary index (a copy of the real one
+  with its timestamp kept, which Git needs to know which entries to rehash).
+
+Committing is best effort and never fails a run. A commit is made as `Engineering Team
+<engineering-team@users.noreply.github.com>` (`git.author_name`, `git.author_email`); nothing is signed.
+
+### Code intelligence
 
 The `code_intel` tools ([TOOLS.md](TOOLS.md#code-intelligence-tools)) only read project files. Only
-`Hotspots` and `Find TODOs` start a process: a fixed `git log --numstat` or `git blame
---line-porcelain` through the execution backend, with a pager, external diff, textconv, and
-fsmonitor switched off and prompts disabled, so a repository's own configuration cannot run a
-program. The agent supplies a day count and workspace-checked paths, never git arguments. Manifest
-and lockfile parsing is static (no package manager is run), and `pom.xml` is read with the standard
-library XML parser, which limits entity expansion.
+`Hotspots` and `Find TODOs` read history, through the `GitPort` rules above; the agent supplies a day
+count and workspace-checked paths, never git arguments. Manifest and lockfile parsing is static (no
+package manager is run), and `pom.xml` is read with the standard library XML parser, which limits entity
+expansion.
 
 ### Background processes and the HTTP tool
 
@@ -96,7 +190,8 @@ library XML parser, which limits entity expansion.
 The run owns what it starts: every process's whole process group is killed when its stage ends,
 the run is cancelled (within about a second), its lifetime limit (`runtime.process_lifetime_seconds`)
 passes, or the run ends, fails, or crashes, with an `atexit` hook as the last net. Only a `SIGKILL`
-of the controller itself can leave children behind; the Docker backend removes that case. At most
+of the controller itself can leave children behind (the Docker backend labels its containers so
+they can be removed, see above). At most
 `runtime.max_background_processes` run at once. There is no interactive shell or PTY tool: it would
 have no timeout, no allowlist, and state the controller cannot see.
 
@@ -113,8 +208,9 @@ private addresses; the general SSRF-safe fetcher in the web tools does that).
 `Query SQLite` opens the file `mode=ro` with `query_only` and an authorizer that allows only reads,
 so writes, `ATTACH`, and write `PRAGMA`s fail; queries have a time, row, and size limit.
 
-**Containers (T20).** `CommandSpec.ports` lists the ports a process will listen on; a container
-backend must publish each only as `127.0.0.1:<port>`, never on all interfaces.
+**Containers.** `CommandSpec.ports` lists the ports a process will listen on; the Docker backend
+publishes each only as `127.0.0.1:<port>`, never on all interfaces, which is how these host-side
+tools reach a server running in a container.
 
 ## Network
 
@@ -124,8 +220,8 @@ Tools that need the network are off unless enabled in settings.
 setup phase: install what the project declares) and `Dependency Audit` (vulnerability databases).
 Both ask for the network (`CommandSpec.network=True`) and are refused when
 `tools.dev.allow_network` is `false`. The local backend cannot enforce the request, so on the host
-the setting is the only switch; the Docker backend (T20) will allow network for these commands
-only and run tests, linters, and builds with none. Every other tool, including the test and build
+the setting is the only switch; the Docker backend gives these commands (and the verifier's `setup`
+checks) the network and runs everything else with none. Every other tool, including the test and build
 tools, asks for no network, and a test run that needs a dependency it does not have fails visibly
 instead of installing it.
  Optional documentation MCP
@@ -201,8 +297,8 @@ runs its JavaScript in a real Chromium, so keep it to the app being built. What 
   `Browser Type` text is never written to events. Do not type real credentials; use test accounts.
 - **Residual risks.** A page can still call any allowed port with whatever JavaScript it contains,
   and an allowlisted external name is trusted as given (the proxy pins the address it validates,
-  but a page on an allowlisted host can still serve hostile content). Use the Docker backend and a
-  short allowlist for untrusted requirements.
+  but a page on an allowlisted host can still serve hostile content). The Docker backend does not
+  contain the browser (it runs on the host); keep the allowlist short for untrusted requirements.
 
 ## Untrusted content
 

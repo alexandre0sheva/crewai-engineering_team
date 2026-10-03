@@ -11,6 +11,7 @@ from engineering_team.contracts import (
     AcceptanceCriterion,
     CheckResult,
     CheckSpec,
+    CriterionCoverage,
     Event,
     Finding,
     Plan,
@@ -18,6 +19,7 @@ from engineering_team.contracts import (
     RunManifest,
     Spec,
     StageRecord,
+    VerificationRecord,
     WorkPackage,
 )
 
@@ -29,6 +31,8 @@ ALL_MODELS = [
     Plan,
     CheckSpec,
     CheckResult,
+    CriterionCoverage,
+    VerificationRecord,
     Finding,
     StageRecord,
     RunManifest,
@@ -71,12 +75,27 @@ SAMPLES = [
         log_path="commands/1.log",
         revision="abc123",
         started_at=datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC),
+        kind="test",
+        source="plan",
+        summary="3 passed",
+        suspect_files=["app.py"],
+        report={"framework": "pytest", "passed": 3},
+    ),
+    CriterionCoverage(id="C1", text="Add a note", status="referenced", checks=["tests"]),
+    VerificationRecord(
+        verdict="partial",
+        revision="abc123",
+        rounds=2,
+        problems=["tests could not run"],
+        check_cards={"tests": "K-004"},
+        script_digests={"e2e/flow.py": "0" * 64},
     ),
     Finding(id="F1", severity="high", summary="SQL injection", file="app.py", line=12),
     StageRecord(name="build", status="succeeded", attempts=1, artifacts=["docs/architecture.md"]),
     RunManifest(
         run_id="20260102-030405-abcdef",
         project_name="notes",
+        verdict="failed",
         versions={"python": "3.12"},
         stages=[StageRecord(name="build")],
     ),
@@ -142,7 +161,7 @@ def test_defaults_keep_agent_output_cheap_to_validate() -> None:
         (RunManifest, {"run_id": "r", "project_name": "p", "status": "done"}),
         (StageRecord, {"name": "s", "status": "meh"}),
         (Spec, {"summary": "no title"}),
-        (CheckSpec, {"id": "x", "name": "n"}),
+        (CheckSpec, {"id": "x"}),  # a check needs a name
     ],
 )
 def test_invalid_values_and_missing_required_fields_are_rejected(

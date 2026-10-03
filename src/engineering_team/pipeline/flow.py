@@ -76,10 +76,14 @@ class PipelineFlow(Flow[PipelineState]):
             for name in PipelineState.model_fields:
                 setattr(state, name, getattr(loaded, name))
         state.recipe, state.recipe_digest, state.request_hash = recipe.name, digest, requested
+        if loaded is None:  # a fresh run pins the user's checks; a resumed one keeps its own
+            state.verification.checks_digest = self._bundle.checks_digest
+            state.verification.script_digests = dict(self._bundle.script_digests)
         self._board = StageBoard(ctx, recipe, state)
         self._executor = StageExecutor(
             ctx, recipe, state, self._bundle, self._runner, self._recorder, self._board
         )
+        self._executor.checkpoints.start()
         if self._bundle.resume:
             ctx.board.unpause()  # a pause belonged to the session that was stopped
         self._plans = self._decide(loaded is not None)
@@ -95,7 +99,7 @@ class PipelineFlow(Flow[PipelineState]):
     def advance(self) -> str:
         recipe = self._recipe
         if self._index >= len(recipe.stages):
-            return "finished"
+            return self._finish_gate()
         stage = recipe.stages[self._index]
         self._index += 1
         entry = self._plans.get(stage.name, StagePlan("run", "not started"))
@@ -117,6 +121,22 @@ class PipelineFlow(Flow[PipelineState]):
             return self._halt("failed", str(exc))
         except Exception as exc:  # the stage already recorded itself as failed
             return self._halt("failed", f"Stage '{stage.name}' failed: {exc}")
+
+    def _finish_gate(self) -> str:
+        """Every stage is done; the project must still be what the verify stage verified."""
+
+        try:
+            self._ctx.board.wait_while_paused(self._ctx.cancel_event)
+            check_cancelled(self._ctx)
+            self._executor.final_gate()
+            self._executor.checkpoints.final()
+            return "finished"
+        except RunCancelled as exc:
+            return self._halt("cancelled", str(exc))
+        except BudgetExceeded as exc:
+            return self._halt("failed", str(exc))
+        except Exception as exc:
+            return self._halt("failed", f"Final verification: {exc}")
 
     @listen("finished")
     def finish(self) -> None:

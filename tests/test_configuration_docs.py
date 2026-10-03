@@ -14,12 +14,15 @@ from engineering_team.settings import (
     BrowserSettings,
     BudgetSettings,
     DevToolsSettings,
+    DockerSettings,
     ExecutionSettings,
+    GitSettings,
     KnowledgeSettings,
     NetworkSettings,
     ParallelSettings,
     RuntimeSettings,
     Settings,
+    VerifySettings,
     WebSettings,
     _build,
 )
@@ -48,10 +51,13 @@ def test_every_setting_is_documented() -> None:
         "web",
         "knowledge",
         "browser",
+        "verify",
+        "git",
     }
     for section, model in (
         ("budget", BudgetSettings),
         ("execution", ExecutionSettings),
+        ("execution.docker", DockerSettings),
         ("parallel", ParallelSettings),
         ("tools.dev", DevToolsSettings),
         ("runtime", RuntimeSettings),
@@ -59,6 +65,8 @@ def test_every_setting_is_documented() -> None:
         ("web", WebSettings),
         ("knowledge", KnowledgeSettings),
         ("browser", BrowserSettings),
+        ("verify", VerifySettings),
+        ("git", GitSettings),
     ):
         keys |= {f"{section}.{name}" for name in model.model_fields}
 
@@ -90,7 +98,8 @@ def test_toml_examples_in_the_docs_are_valid_settings() -> None:
 
 
 def test_only_settings_and_subprocess_code_read_the_process_environment() -> None:
-    allowed = {"settings.py", "commands.py"}
+    # docker.py reads only DOCKER_* and the few variables the docker client itself needs.
+    allowed = {"settings.py", "commands.py", "docker.py"}
     offenders = []
     for path in (ROOT / "src" / "engineering_team").rglob("*.py"):
         text = path.read_text(encoding="utf-8")

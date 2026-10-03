@@ -46,7 +46,7 @@ a profile.
 | `ollama_base_url` | `ENGINEERING_OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server |
 | `enable_azure` | `ENGINEERING_ENABLE_AZURE` | `false` | Allow the Azure provider and `azure/...` models |
 | `web.enabled` | `ENGINEERING_ALLOW_WEB` | `false` | Register the web tools (Web Search, Fetch URL, Package Info). Also `--allow-web`. Off means no network tool exists in the run; see [Web tools](#web-tools-web-and-knowledge) |
-| `execution.backend` | `ENGINEERING_EXECUTION_BACKEND` | `local` | `local` (Docker arrives later in 0.2.0) |
+| `execution.backend` | `ENGINEERING_EXECUTION_BACKEND` | `local` | `local` runs commands on this machine; `docker` runs each in a hardened container (also `--sandbox docker`; never falls back to `local`). See [Docker sandbox](#docker-sandbox-executiondocker-and---sandbox) |
 | `execution.max_parallel_commands` | `ENGINEERING_MAX_PARALLEL_COMMANDS` | `2` | Concurrent project commands |
 | `parallel.max_parallel_agents` | `ENGINEERING_MAX_PARALLEL` | `3` | Work packages (and read-only reviewer jobs) that run at the same time, each in its own lane; also the board's in-progress limit. `1` runs packages one after the other, in dependency order, with no write scope (as a sequential run always did). See [Parallel execution](ARCHITECTURE.md#parallel-execution) |
 | `parallel.max_rpm` | `ENGINEERING_MAX_RPM` | – | Model calls per minute, shared by every agent of a `pipeline` or `single` run (a sliding 60-second window; calls wait their turn and stop waiting on cancel). Unset: no cap. The `hierarchical` crew does not use it |
@@ -54,7 +54,42 @@ a profile.
 | `budget.max_tokens` | `ENGINEERING_BUDGET_MAX_TOKENS` | – | Stop after this many prompt + completion tokens |
 | `budget.max_wall_seconds` | `ENGINEERING_BUDGET_MAX_WALL_SECONDS` | – | Stop after this much wall-clock time |
 | `budget.max_tool_calls` | `ENGINEERING_BUDGET_MAX_TOOL_CALLS` | – | Stop after this many agent tool calls |
-| `budget.max_repair_rounds` | `ENGINEERING_BUDGET_MAX_REPAIR_ROUNDS` | `3` | Fix-and-verify rounds a stage may attempt (used by the verification loop) |
+| `budget.max_repair_rounds` | `ENGINEERING_BUDGET_MAX_REPAIR_ROUNDS` | `3` | Fix-and-verify rounds the whole run may spend repairing checks the controller found failing (see [Verification](#verification-verify-and---checks)); `0` never calls a repair agent |
+
+### Docker sandbox (`[execution.docker]` and `--sandbox`)
+
+`--sandbox docker` (or `execution.backend = "docker"`) runs every command in a container; what that
+does and does not protect is in [SAFETY.md](SAFETY.md#docker-backend). The settings below live in
+the `execution.docker` table (config file only) and apply only to that backend.
+
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `execution.docker.image` | – | Use this image for every command. Unset: one image per language, chosen from the program being run (`npm` → Node) and otherwise from the project's detected stack |
+| `execution.docker.setup_image` | – | Image for commands that need the network (installs, audits). Unset: the same image as everything else |
+| `execution.docker.git_image` | `alpine/git:latest` | Image for the controller's Git commands (the language images lack Git) |
+| `execution.docker.network` | `setup` | `setup`: only install-type commands (and servers that publish a port) get a network. `none`: no network for anything that does not publish a port, so installs fail |
+| `execution.docker.memory` | `2g` | Memory limit per command (swap disabled); a number with `b`, `k`, `m`, or `g` |
+| `execution.docker.cpus` | `2.0` | CPU limit per command |
+| `execution.docker.pids_limit` | `512` | Maximum processes per command |
+| `execution.docker.tmpfs_size` | `512m` | Size of the container's `/tmp` |
+
+Default images (tags checked when they were chosen; override any with `image`): Python
+`astral/uv:python3.12-bookworm-slim` (Python and `uv`), Node `node:22-slim`, Go `golang:1.25`,
+Rust `rust:1-slim`, Java `eclipse-temurin:21-jdk`, .NET `mcr.microsoft.com/dotnet/sdk:9.0`,
+Ruby `ruby:3.3-slim`, PHP `php:8.3-cli`. A missing image is pulled the first time it is needed. A
+tool the image does not have (`mvn` on the Temurin image, say) fails with "not found"; set `image` to
+one that has it.
+
+```toml
+[execution]
+backend = "docker"
+
+[execution.docker]
+image = "python:3.12"
+network = "setup"
+memory = "4g"
+cpus = 4
+```
 
 ### Developer tools (`[tools.dev]`, config file only)
 
@@ -164,6 +199,66 @@ default, and external sites only through `web.enabled` and `web.allow_domains` (
 channel = "chrome"
 max_contexts = 3
 ```
+
+### Verification (`[verify]` and `--checks`)
+
+Applies to the `verify` stage of `--strategy pipeline` (see
+[Verification](ARCHITECTURE.md#verification-and-repair)): the controller runs the project's
+checks itself, repairs what fails (at most `budget.max_repair_rounds` times), and ends the run
+`verified`, `failed` (exit code 3), or `partial` (exit code 4).
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `verify.checks_file` | – | Your own checks (below). Set with `--checks FILE`; the file must be outside the project |
+| `verify.static_required` | `false` | A failing linter or type checker fails the verification (otherwise it is reported but advisory) |
+| `verify.smoke` | `true` | Start the plan's `run` command and see that it does not crash; no `run` command, no smoke check |
+| `verify.smoke_seconds` | `10` | How long the smoke check watches: still running after this long counts as started |
+| `verify.smoke_required` | `false` | A crashing smoke check fails the verification |
+| `verify.timeout` | `300` | Seconds a command the plan declares may run (detected checks use `tools.dev.*_timeout`) |
+
+Which checks run, per kind (setup, tests, lint, type check, build, run): your checks, then the
+commands the architect's plan declares (`setup`, `test`, `lint`, `build`, `run`), then what is detected from the project's own files. A
+required `tests` check always exists, so a project with no tests is `failed`, never `verified`.
+A plan command the controller may not run (not on the allowlist, or needing a shell) is dropped
+with a note in the report and the detected default runs instead.
+
+**Your checks file** (`--checks checks.yaml`, kept outside the project so agents cannot edit it):
+
+```yaml
+checks:
+  - id: unit                    # letters, digits and . _ : -
+    name: Unit tests            # optional; defaults to the id
+    command: pytest -q          # a string or a list; no shell operators
+    kind: test                  # setup | test | lint | typecheck | build | smoke | custom (default)
+    required: true              # default true; false: reported, never fails the run
+    timeout: 120                # seconds (default 300)
+    criteria: [AC-1, AC-2]      # acceptance criteria this check proves
+  - id: checkout-flow           # a Playwright script you wrote; it must exist in the project before the run
+    type: browser_script        # runs `python <script>` (.py) or `npx playwright test <script>`
+    script: e2e/checkout.py
+    criteria: [AC-3]
+```
+
+A check of a `kind` replaces the plan's and the detected checks of that kind; `custom` checks are
+added. Your commands may use any program (the file is yours), but still no shell, and they run
+from the project root (or `cwd:`). The file is validated when the run starts (a problem is
+an exit-2 usage error with the line to fix) and **pinned**: a copy and its hash go to the run
+directory, and every verification refuses to run if the copy changed (an altered check proves
+nothing). A `browser_script` is pinned by hash too. `resume` takes the same file again only if it is
+unchanged; a changed request starts a new run, which needs `--checks` again.
+
+### Git (`[git]` and `--no-git`)
+
+A new project (an empty workspace) becomes a Git repository with an initial commit, and the `pipeline`
+and `single` strategies commit after every finished stage (see [Git](ARCHITECTURE.md#git)).
+A project that already is a repository is continued on its current branch; a project that has
+files but no repository is left alone. The controller never pushes, fetches, or touches remotes.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `git.enabled` | `true` | Also `ENGINEERING_GIT` and `--no-git` (which sets it to `false`): no repository is created and nothing is committed (the read-only Git tools still read a repository that exists) |
+| `git.author_name` | `Engineering Team` | Author and committer name of the controller's commits |
+| `git.author_email` | `engineering-team@users.noreply.github.com` | Their email (a no-reply address; set your own to attribute the commits) |
 
 ## Models
 

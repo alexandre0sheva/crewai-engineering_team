@@ -11,9 +11,10 @@ from __future__ import annotations
 import threading
 
 from engineering_team.artifacts import missing_artifacts
-from engineering_team.contracts import Plan, WorkPackage
+from engineering_team.contracts import Plan, VerificationRecord, WorkPackage
 from engineering_team.pipeline.actions import CONTROLLER_ACTIONS
 from engineering_team.pipeline.board_sync import StageBoard
+from engineering_team.pipeline.checkpoints import Checkpoints
 from engineering_team.pipeline.packages import SHARED_DENY, PlanError, plan_problems
 from engineering_team.pipeline.parallel import PackageOutcome, run_work_packages
 from engineering_team.pipeline.recipes import Recipe, StageSpec
@@ -29,8 +30,10 @@ from engineering_team.pipeline.state import PackageState, PipelineState, RunBund
 from engineering_team.runtime.budget import BudgetExceeded
 from engineering_team.runtime.cancel import RunCancelled, check_cancelled
 from engineering_team.runtime.context import RunContext
+from engineering_team.runtime.events import stage_scope
 from engineering_team.runtime.session import RunRecorder
 from engineering_team.tools import WriteScope
+from engineering_team.verification.loop import RepairCall, VerificationLoop
 
 MAX_SUMMARY = 2000
 MAX_NOTE_ERROR = 600
@@ -55,6 +58,7 @@ class StageExecutor:
         self.recorder = recorder
         self.board = board
         self._save_lock = threading.Lock()
+        self.checkpoints = Checkpoints(ctx)
 
     # -- the stage -----------------------------------------------------------------------
 
@@ -82,6 +86,7 @@ class StageExecutor:
         self.board.done(card)
         self.board.promote_next()
         self._save()
+        self.checkpoints.stage(stage.name, self.state.summaries.get(stage.name, ""))
 
     def _attempts(self, stage: StageSpec, entry: StagePlan) -> None:
         note = entry.note or ""
@@ -111,9 +116,50 @@ class StageExecutor:
             self.state.summaries[stage.name] = action(self.ctx, self.state)[:MAX_SUMMARY]
         elif stage.kind == "parallel":
             self._packages(stage, entry, note)
+        elif stage.kind == "verify":
+            self._verify(stage)
         else:
             self._agent(stage, note)
         self._check_artifacts(stage)
+
+    def _verify(self, stage: StageSpec) -> None:
+        """Run the controller's verification; its repair agent is the stage's first teammate.
+
+        Raises ``VerificationError`` unless every required check passed on the current tree.
+        """
+
+        teammate = stage.teammates[0]
+
+        def repair(call: RepairCall) -> str:
+            output = self._call(stage, teammate, "", failures=call.failures, card_id=call.card_id)
+            return output.summary
+
+        loop = VerificationLoop(
+            self.ctx,
+            self.state,
+            stage=stage.name,
+            stage_card=self.board.card_for(stage.name),
+            teammate=teammate,
+            repair=repair,
+            save=self._save,
+        )
+        self.state.summaries[stage.name] = loop.run()[:MAX_SUMMARY]
+
+    def final_gate(self) -> None:
+        """After the last stage: the project must still be what was verified.
+
+        A later stage (release, documentation) may have edited the workspace after the verify
+        stage; then the checks run again (and may be repaired, with the rounds that are left).
+        With nothing changed the recorded results stand. The controller's report is rewritten
+        either way, so an agent cannot leave its own words in ``docs/verification.md``.
+        """
+
+        stage = next((s for s in self.recipe.stages if s.kind == "verify"), None)
+        if stage is None or self.state.verification.verdict is None:
+            return  # the recipe does not verify, or its verify stage did not run
+        with stage_scope(stage.name):
+            self._verify(stage)
+        self._save()
 
     def _agent(self, stage: StageSpec, note: str) -> None:
         output = self._call(stage, stage.teammates[0], note)
@@ -141,6 +187,8 @@ class StageExecutor:
         *,
         lane: int | None = None,
         scope: WriteScope | None = None,
+        failures: str = "",
+        card_id: str | None = None,
     ) -> StageOutput:
         self.ctx.board.wait_while_paused(self.ctx.cancel_event)
         check_cancelled(self.ctx)
@@ -150,7 +198,8 @@ class StageExecutor:
             teammate=teammate,
             state=self.state.model_copy(deep=True),
             requirements=self.bundle.requirements,
-            card_id=(
+            card_id=card_id
+            or (
                 self.state.packages[package.id].card_id
                 if package
                 else self.board.card_for(stage.name)
@@ -160,6 +209,7 @@ class StageExecutor:
             package=package,
             lane=lane,
             write_scope=scope,
+            failures=failures,
         )
         output = self.runner.run(request)
         check_cancelled(self.ctx)
@@ -269,6 +319,14 @@ def reset_for(stage: StageSpec, entry: StagePlan, state: PipelineState) -> None:
     for name in stage.contract_outputs:
         setattr(state, name, None)
     state.summaries.pop(stage.name, None)
+    if stage.kind == "verify":  # a fresh verification gets its own repair rounds
+        kept = state.verification
+        state.checks = []
+        state.verification = VerificationRecord(
+            checks_digest=kept.checks_digest,
+            script_digests=kept.script_digests,
+            check_cards=kept.check_cards,
+        )
     if stage.kind == "parallel" and entry.action != "continue":
         for package in state.packages.values():
             package.status, package.error = "pending", ""

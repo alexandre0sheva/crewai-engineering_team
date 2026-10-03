@@ -19,6 +19,13 @@ StageStatus = Literal[
     "pending", "running", "succeeded", "failed", "skipped", "cancelled", "interrupted"
 ]
 CheckStatus = Literal["passed", "failed", "skipped", "unavailable"]
+# How a verification ended: every required check passed on the current tree (``verified``), a
+# required check failed (``failed``), or none failed but some could not run (``partial``).
+Verdict = Literal["verified", "failed", "partial"]
+CheckKind = Literal["setup", "test", "lint", "typecheck", "build", "smoke", "custom"]
+CheckType = Literal["command", "browser_script"]
+CheckSource = Literal["user", "plan", "detected"]
+CriterionStatus = Literal["verified", "referenced", "unverified"]
 Severity = Literal["info", "low", "medium", "high", "critical"]
 
 
@@ -88,24 +95,79 @@ class Plan(Contract):
 
 
 class CheckSpec(Contract):
-    """An independent check the controller runs (never an agent)."""
+    """An independent check the controller runs (never an agent).
+
+    ``source`` says who defined it (precedence: ``user`` > ``plan`` > ``detected``). A
+    ``detected`` test, lint, type-check, or build check has no ``argv``: the verifier runs the
+    developer tool for the project in ``cwd`` and attaches its parsed report.
+    """
 
     id: str
     name: str
-    argv: list[str]
+    argv: list[str] = Field(default_factory=list)
     required: bool = True
     timeout: float = 120.0
     criteria_ids: list[str] = Field(default_factory=list)
+    kind: CheckKind = "custom"
+    type: CheckType = "command"
+    source: CheckSource = "detected"
+    cwd: str = "."  # project directory, relative to the workspace root
+    script: str | None = None  # browser_script: the workspace-relative test file
 
 
 class CheckResult(Contract):
+    """What running one check showed. ``revision`` is the workspace tree hash it ran against."""
+
     id: str
     status: CheckStatus
+    name: str = ""
+    kind: CheckKind = "custom"
+    required: bool = True
+    source: CheckSource = "detected"
+    command: str = ""
     exit_code: int | None = None
     duration: float = 0.0
     log_path: str | None = None
     revision: str | None = None  # workspace tree hash the check ran against
     started_at: datetime | None = None
+    summary: str = ""  # one line, e.g. "12 passed, 2 failed"
+    hint: str | None = None  # what to do next (install hint, why it could not run)
+    criteria_ids: list[str] = Field(default_factory=list)
+    suspect_files: list[str] = Field(default_factory=list)
+    log_tail: str = ""
+    # The parsed ``TestReport``/``DiagnosticReport`` (``devtools.models``) as JSON, if there is one.
+    report: dict[str, Any] | None = None
+
+
+class CriterionCoverage(Contract):
+    """Where one acceptance criterion stands. ``verified``: a passing controller-run check is
+    mapped to it. ``referenced``: a passing test suite mentions it (a hint, not proof).
+    ``unverified``: needs a human."""
+
+    id: str
+    text: str = ""
+    status: CriterionStatus = "unverified"
+    checks: list[str] = Field(default_factory=list)
+    note: str = ""
+
+
+class VerificationRecord(Contract):
+    """The verification's standing, kept in the pipeline state.
+
+    ``revision`` is the tree the latest results are for (controller-owned report files do not
+    count towards it). ``rounds`` is the repair rounds used so far in the run.
+    """
+
+    verdict: Verdict | None = None
+    revision: str | None = None
+    rounds: int = 0
+    coverage: list[CriterionCoverage] = Field(default_factory=list)
+    problems: list[str] = Field(default_factory=list)  # why it is not ``verified``
+    notes: list[str] = Field(default_factory=list)
+    repair_log: list[str] = Field(default_factory=list)  # one line per repair round
+    checks_digest: str = ""  # sha256 of the pinned user checks file ("" when there is none)
+    script_digests: dict[str, str] = Field(default_factory=dict)  # browser_script files
+    check_cards: dict[str, str] = Field(default_factory=dict)  # check id -> board card id
 
 
 class Finding(Contract):
@@ -216,6 +278,7 @@ class RunManifest(Contract):
     strategy: str = "hierarchical"
     recipe: str | None = None
     status: RunStatus = "pending"
+    verdict: Verdict | None = None  # set by runs that verify; ``failed``/``partial`` end the run
     resumes: int = 0  # how many times `resume` continued this run
     stages: list[StageRecord] = Field(default_factory=list)
     created: datetime = Field(default_factory=utc_now)

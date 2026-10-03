@@ -8,10 +8,20 @@ any tool.
 
 from __future__ import annotations
 
+import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, runtime_checkable
+
+
+class ExecutionUnavailable(ValueError):
+    """The configured backend cannot be used (Docker missing, say). A usage error: the run
+    does not start, and it never falls back to another backend silently."""
+
+
+class ExecutionError(OSError):
+    """A command could not be started by the backend (tools report it as an ``ERROR:``)."""
 
 
 @dataclass(frozen=True)
@@ -86,3 +96,21 @@ class ExecutionBackend(Protocol):
 
     def start(self, spec: CommandSpec) -> ProcessHandle:
         """Start a long-lived process and return immediately."""
+
+
+def has_executable(backend: object, name: str) -> bool:
+    """Whether ``name`` can be run by ``backend``: on the host's ``PATH`` for a backend that
+    runs there, and assumed for one that resolves programs itself (a missing one fails when
+    it runs, with the usual "not found" output)."""
+
+    if getattr(backend, "resolves_on_host", True):
+        return shutil.which(name) is not None
+    return True
+
+
+def close_backend(backend: object, reason: str) -> None:
+    """Release what a backend still holds (containers) at the end of a run, if it holds any."""
+
+    close = getattr(backend, "close", None)
+    if callable(close):
+        close(reason)

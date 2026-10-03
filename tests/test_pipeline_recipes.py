@@ -27,7 +27,12 @@ def test_the_new_recipe_has_the_six_stages_in_order() -> None:
         "verify",
         "release",
     ]
-    assert [stage.kind for stage in recipe.stages] == ["agent"] * 3 + ["parallel"] + ["agent"] * 3
+    assert [stage.kind for stage in recipe.stages] == (
+        ["agent"] * 3 + ["parallel", "agent", "verify", "agent"]
+    )
+    # The controller runs the checks; the quality agent is only the one who repairs failures.
+    assert recipe.stage("verify").teammates == ["quality_engineer"]
+    assert recipe.stage("verify").file_outputs == []
     assert recipe.stage("plan").contract_outputs == ["plan"]
     assert recipe.stage("plan").file_outputs == ["docs/architecture.md"]
     assert recipe.stage("implement").skip_if == ["no_work_packages"]
@@ -47,7 +52,7 @@ def test_every_teammate_of_the_new_recipe_exists_in_agents_yaml() -> None:
         "foundation",
         "implement",
         "integrate",
-        "verify",
+        "repair",  # the verify stage's agent only repairs
         "release",
         "build",
     } <= prompts
@@ -120,3 +125,29 @@ def test_the_no_work_packages_condition_looks_at_the_plan() -> None:
 
     assert check(PipelineState(plan=Plan())) is True
     assert check(PipelineState()) is False  # no plan yet: not a reason to skip
+
+
+def test_a_verify_stage_is_the_controllers_and_has_its_own_rules() -> None:
+    recipe = parse_recipe(
+        "name: r\nstages:\n  - {name: check, kind: verify, teammates: [quality_engineer]}\n",
+        source="test",
+    )
+    assert recipe.stage("check").kind == "verify"
+
+    cases = {
+        "teammate": "{name: c, kind: verify}",
+        "writes docs/verification.md itself": (
+            "{name: c, kind: verify, teammates: [q], outputs: ['file:a.md']}"
+        ),
+        "cannot be retried": "{name: c, kind: verify, teammates: [q], retry: 1}",
+        "only one verify stage": None,
+    }
+    for message, stage in cases.items():
+        stages = (
+            "  - {name: a, kind: verify, teammates: [q]}\n"
+            "  - {name: b, kind: verify, teammates: [q]}\n"
+            if stage is None
+            else f"  - {stage}\n"
+        )
+        with pytest.raises(RecipeError, match=message):
+            parse_recipe(f"name: r\nstages:\n{stages}", source="test")

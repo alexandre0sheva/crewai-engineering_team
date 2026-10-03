@@ -44,6 +44,7 @@ NOT_FOUND_PATTERNS = (
     re.compile(r"No module named '?(?P<tool>[\w.]+)'?"),
     re.compile(r"no such command: `(?P<tool>[\w-]+)`"),
     re.compile(r"(?P<tool>[\w.-]+): command not found"),
+    re.compile(r'exec: "(?P<tool>[\w.-]+)": executable file not found'),  # Docker's message
     re.compile(r"could not determine executable to run", re.IGNORECASE),
     re.compile(r"npx canceled due to missing packages", re.IGNORECASE),
     re.compile(r"Could not find command[ \"]+(?P<tool>[\w-]+)"),

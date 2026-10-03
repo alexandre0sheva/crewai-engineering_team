@@ -162,15 +162,34 @@ class BaseRunner:
         return max(1, min(requested, configured)) if requested else configured
 
     def execute(
-        self, argv: Sequence[str], directory: Path, timeout: int, *, network: bool = False
+        self,
+        argv: Sequence[str],
+        directory: Path,
+        timeout: int,
+        *,
+        network: bool = False,
+        allow: Sequence[str] = (),
     ) -> Execution:
-        """Run one command through the backend. A missing tool comes back as ``tool_missing``."""
+        """Run one command through the backend. A missing tool comes back as ``tool_missing``.
+
+        ``allow`` names executables this one call may run beyond the allowlist (the verifier
+        passes the program of a check the user wrote; agents never get this).
+        """
 
         command = shlex.join(argv)
-        ws = self.workspace
+        ws = (
+            replace(self.workspace, extra_commands=self.workspace.extra_commands | set(allow))
+            if allow
+            else self.workspace
+        )
         try:
             spec = prepare_command(
-                ws, command, ws.relative_name(directory), timeout, max_timeout=timeout
+                ws,
+                command,
+                ws.relative_name(directory),
+                timeout,
+                max_timeout=timeout,
+                backend=self.ctx.backend,
             )
         except WorkspaceError as exc:
             if str(exc).startswith("Executable not found"):

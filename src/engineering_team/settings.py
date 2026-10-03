@@ -129,9 +129,28 @@ class BudgetSettings(_Frozen):
     max_repair_rounds: int = Field(default=3, ge=0)
 
 
+class DockerSettings(_Frozen):
+    """The Docker sandbox (``execution.backend = "docker"``); see ``docs/SAFETY.md``.
+
+    ``image`` and ``setup_image`` (unset: pick one per stack) must be images with the tools a
+    project needs. ``network = "setup"`` gives only the install commands network access;
+    ``"none"`` gives none at all (installs then fail, so dependencies must already be present).
+    """
+
+    image: str | None = None
+    setup_image: str | None = None
+    git_image: str = "alpine/git:latest"
+    network: Literal["setup", "none"] = "setup"
+    memory: str = Field(default="2g", pattern=r"^[1-9][0-9]*[bkmgBKMG]?$")
+    cpus: float = Field(default=2.0, gt=0, le=64)
+    pids_limit: int = Field(default=512, ge=16)
+    tmpfs_size: str = Field(default="512m", pattern=r"^[1-9][0-9]*[kmgKMG]$")
+
+
 class ExecutionSettings(_Frozen):
     backend: Literal["local", "docker"] = "local"
     max_parallel_commands: int = Field(default=2, ge=1)
+    docker: DockerSettings = DockerSettings()
 
 
 class ParallelSettings(_Frozen):
@@ -215,6 +234,25 @@ class BrowserSettings(_Frozen):
     max_console_entries: int = Field(default=100, ge=10, le=1000)
 
 
+class GitSettings(_Frozen):
+    """Git for the controller: a repository and a commit per stage in new projects."""
+
+    enabled: bool = True  # --no-git turns it off
+    author_name: str = "Engineering Team"
+    author_email: str = "engineering-team@users.noreply.github.com"
+
+
+class VerifySettings(_Frozen):
+    """Controller-run verification (a pipeline run's ``verify`` stage). Times are in seconds."""
+
+    checks_file: str | None = None  # --checks: user-defined checks, kept outside the project
+    static_required: bool = False  # a failing lint or type check fails the verification
+    smoke: bool = True  # start the plan's run command and see that it does not crash
+    smoke_seconds: int = Field(default=10, ge=1, le=300)
+    smoke_required: bool = False
+    timeout: int = Field(default=300, ge=1, le=3600)  # for commands the plan declares
+
+
 class Settings(_Frozen):
     provider: Literal["openai", "anthropic", "google", "ollama", "azure"] = "openai"
     profile: Literal["standard", "smoke", "max-quality"] = "standard"
@@ -242,6 +280,8 @@ class Settings(_Frozen):
     web: WebSettings = WebSettings()
     knowledge: KnowledgeSettings = KnowledgeSettings()
     browser: BrowserSettings = BrowserSettings()
+    verify: VerifySettings = VerifySettings()
+    git: GitSettings = GitSettings()
 
     _layers: list[tuple[str, dict[str, Any]]] = PrivateAttr(default_factory=list)
     _sources: dict[str, str] = PrivateAttr(default_factory=dict)
@@ -582,6 +622,7 @@ def _build_env_table() -> dict[str, tuple[str, Callable[[str], Any]]]:
         "ENGINEERING_OLLAMA_BASE_URL": ("ollama_base_url", _text),
         "ENGINEERING_ENABLE_AZURE": ("enable_azure", _bool),
         "ENGINEERING_ALLOW_WEB": ("web.enabled", _bool),
+        "ENGINEERING_GIT": ("git.enabled", _bool),
         "ENGINEERING_EXECUTION_BACKEND": ("execution.backend", _text),
         "ENGINEERING_MAX_PARALLEL_COMMANDS": ("execution.max_parallel_commands", _int),
         "ENGINEERING_MAX_PARALLEL": ("parallel.max_parallel_agents", _int),

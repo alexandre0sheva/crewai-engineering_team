@@ -206,7 +206,7 @@ def make_process_tools(env: ToolEnv) -> dict[str, BaseTool]:
                         "ready_target must be a number of seconds for 'delay'."
                     ) from exc
             timeout = max(1.0, min(float(ready_timeout), MAX_READY_TIMEOUT))
-            spec = prepare_command(workspace, command, working_directory, 300)
+            spec = prepare_command(workspace, command, working_directory, 300, backend=ctx.backend)
             process = registry.start(
                 spec, name=name, command=command, cwd=working_directory, agent=actor, ports=declared
             )

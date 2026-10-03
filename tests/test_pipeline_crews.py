@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
-from pipeline_fakes import BODY, PLAN, REQUEST, SPEC
+from pipeline_fakes import BODY, PLAN, REQUEST, SPEC, write_checks
 from test_pipeline_flow import ROOT, only_run, project, run_dir
 
 from engineering_team import main
@@ -57,8 +57,6 @@ def scripts() -> dict[str, ScriptedLLM]:
         ),
         "quality_engineer": ScriptedLLM(
             [
-                write("docs/verification.md"),
-                "Everything verified.",
                 write("docs/release-report.md"),
                 "Released.",
             ]
@@ -86,6 +84,8 @@ def run_cli(*extra: str) -> int:
             str(Path.cwd() / ROOT),
             "--strategy",
             "pipeline",
+            "--checks",
+            str(write_checks()),
             *extra,
         ]
     )
@@ -175,10 +175,9 @@ def test_token_usage_is_attributed_to_the_stage_that_spent_it(
         "foundation",
         "implement",
         "integrate",
-        "verify",
         "release",
-    }
-    assert usage["totals"]["calls"] == 15  # every scripted turn was one model call
+    }  # the controller's verify stage spends no tokens
+    assert usage["totals"]["calls"] == 13  # every scripted turn was one model call
     assert usage["by_agent"]
     events = list(read_events(run_dir(only_run()) / "events.jsonl"))
     assert {e.stage for e in events if e.type == "llm.call"} == set(usage["by_stage"])
@@ -264,7 +263,7 @@ def test_tool_groups_follow_the_default_table(make_context) -> None:  # type: ig
 
     assert set(groups) >= {
         "fs_read", "fs_write", "search", "command", "dev", "runtime",
-        "code_intel", "board", "notes", "human", "web",
+        "code_intel", "git_read", "board", "notes", "human", "web",
     }  # fmt: skip
     assert "browser" not in groups
     assert set(Spec.model_fields) and set(Plan.model_fields)  # contracts imported for the prompts

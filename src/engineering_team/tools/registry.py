@@ -18,6 +18,7 @@ from engineering_team.tools.browser_tools import make_browser_tools
 from engineering_team.tools.codeintel_tools import make_codeintel_tools
 from engineering_team.tools.command_tools import make_command_tools
 from engineering_team.tools.dev_tools import make_dev_tools
+from engineering_team.tools.git_tools import make_git_tools
 from engineering_team.tools.human_tools import make_human_tools
 from engineering_team.tools.knowledge_tools import make_knowledge_tools
 from engineering_team.tools.network_tools import make_network_tools
@@ -45,6 +46,7 @@ GROUPS = (
     *PROJECT_GROUPS,
     "dev",
     "code_intel",
+    "git_read",
     "knowledge",
     "web",
     "browser",
@@ -345,6 +347,27 @@ CATALOGUE: tuple[ToolSpec, ...] = (
         "code_intel",
         make_codeintel_tools,
         "TODO/FIXME/HACK comments with author and age when Git knows them.",
+        read_only=True,
+    ),
+    _spec(
+        "Git Info",
+        "git_read",
+        make_git_tools,
+        "Status, diff, log, show, or blame of the project's Git history (read-only).",
+        read_only=True,
+    ),
+    _spec(
+        "Git History Search",
+        "git_read",
+        make_git_tools,
+        "Commits that added or removed some text, or a file's history and last author.",
+        read_only=True,
+    ),
+    _spec(
+        "Git Diff Between Refs",
+        "git_read",
+        make_git_tools,
+        "Diff or per-file summary between two commits, branches, or tags.",
         read_only=True,
     ),
     _spec(

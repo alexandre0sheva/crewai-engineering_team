@@ -40,6 +40,7 @@ STAGE_GROUPS = (
     "dev",
     "runtime",
     "code_intel",
+    "git_read",
     "board",
     "notes",
     "human",
@@ -70,6 +71,7 @@ class StageRequest:
     package: WorkPackage | None = None
     lane: int | str | None = None  # the parallel lane this unit works in
     write_scope: WriteScope | None = None  # the paths its agent may change (None: any)
+    failures: str = ""  # a repair stage: the checks the controller found failing
 
     @property
     def label(self) -> str:
@@ -130,7 +132,7 @@ class CrewStageRunner:
     def run(self, request: StageRequest) -> StageOutput:
         ctx, stage = request.ctx, request.stage
         prompts = _yaml("stages.yaml")
-        key = "implement" if stage.kind == "parallel" else stage.name
+        key = {"parallel": "implement", "verify": "repair"}.get(stage.kind, stage.name)
         if key not in prompts:
             raise StageError(
                 f"No prompt for stage '{stage.name}' in config/stages.yaml (known: "
@@ -238,4 +240,5 @@ class CrewStageRunner:
             "card": card,
             "notes": notes,
             "resume_note": request.note,
+            "failures": request.failures,
         }

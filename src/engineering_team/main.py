@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 """Command-line and CrewAI entry points.
 
-Every entry point returns a process exit code: ``0`` success, ``2`` usage or configuration
-error (one-line message, no traceback), ``1`` runtime failure, ``130`` interrupted.
+Every entry point returns a process exit code: ``0`` success (a verifying run: verified),
+``2`` usage or configuration error (one-line message, no traceback), ``1`` runtime failure,
+``3`` the controller's checks failed (not verified), ``4`` verification was partial (a required
+check could not run), ``130`` interrupted.
 """
 
 from __future__ import annotations
@@ -45,6 +47,7 @@ from engineering_team.settings import (
     load_settings,
 )
 from engineering_team.tools import ProjectWorkspace
+from engineering_team.verification.checks_file import ChecksPin, pin_checks
 from engineering_team.workspaces import (
     prepare_workspace,
     slugify_project_name,
@@ -71,6 +74,8 @@ TEMPLATE_MARKER = "<!-- ENGINEERING_TEAM_REQUEST_TEMPLATE -->"
 
 EXIT_FAILURE = 1
 EXIT_USAGE = 2
+EXIT_VERIFICATION_FAILED = 3
+EXIT_PARTIAL = 4
 EXIT_INTERRUPTED = 130
 
 T = TypeVar("T")
@@ -244,10 +249,33 @@ def _run_parser() -> argparse.ArgumentParser:
         "see docs/SAFETY.md.",
     )
     parser.add_argument(
+        "--sandbox",
+        choices=["local", "docker"],
+        help="Where project commands run: local (on this machine, the default) or docker "
+        "(a hardened container per command; needs Docker, never falls back to local). "
+        "See docs/SAFETY.md.",
+    )
+    parser.add_argument(
+        "--checks",
+        help="YAML file of your own checks the controller runs to verify the result (pipeline "
+        "strategy). Keep it outside the project; see docs/CONFIGURATION.md.",
+    )
+    parser.add_argument(
+        "--no-git",
+        action="store_true",
+        help="Do not make a new project a Git repository or commit after each stage.",
+    )
+    parser.add_argument(
         "--config",
         help="Path to a config file (default: ./engineering-team.toml if present).",
     )
     return parser
+
+
+def _absolute(path: str | None) -> str | None:
+    """``path`` as an absolute path (relative paths mean the current directory)."""
+
+    return str(Path(path).expanduser().resolve()) if path else None
 
 
 def _cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
@@ -258,6 +286,9 @@ def _cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
         "provider": getattr(args, "provider", None),
         "profile": getattr(args, "profile", None),
         "strategy": getattr(args, "strategy", None),
+        "verify.checks_file": _absolute(getattr(args, "checks", None)),
+        "git.enabled": False if getattr(args, "no_git", False) else None,
+        "execution.backend": getattr(args, "sandbox", None),
         "project_name": getattr(args, "project_name", None),
         "workspace_root": getattr(args, "workspace_root", None),
     }
@@ -323,6 +354,7 @@ def _open_run(
     strategy_name = settings.strategy if mode == "build" else "hierarchical"
     try:
         ctx = RunContext.create(settings, workspace, run_id=run_id)
+        pin = _pin_checks(settings, ctx, mode, strategy_name)
         recorder = RunRecorder.begin(
             ctx,
             mode=mode,
@@ -348,9 +380,28 @@ def _open_run(
         inputs=inputs,
         lock=lock,
         recorder=recorder,
-        bundle=RunBundle(requirements=requirements or "", inputs=inputs),
+        bundle=RunBundle(
+            requirements=requirements or "",
+            inputs=inputs,
+            checks_digest=pin.digest,
+            script_digests=pin.script_digests,
+        ),
         strategy=get_strategy(strategy_name),
     )
+
+
+def _pin_checks(settings: Settings, ctx: RunContext, mode: str, strategy: str) -> ChecksPin:
+    """Validate and pin the user's checks file (a problem with it is a usage error)."""
+
+    source = settings.verify.checks_file
+    if source is None or mode != "build":
+        return ChecksPin()
+    if strategy != "pipeline":
+        raise ValueError(
+            f"Your checks file is only run by the 'pipeline' strategy, not '{strategy}'. "
+            "Pass --strategy pipeline, or drop --checks."
+        )
+    return pin_checks(ctx, Path(source))
 
 
 def _prepare_from_args(args: argparse.Namespace, mode: str = "build") -> PreparedRun:
@@ -482,6 +533,12 @@ def _report(result: RunResult, *, resumable: bool) -> int:
     if result.status == "cancelled":
         print(f"\nRun {result.run_id} was cancelled.{hint}", file=sys.stderr)
         return EXIT_INTERRUPTED
+    if result.verdict in ("failed", "partial"):
+        print(
+            f"\nRun {result.run_id} is not verified: {result.error.rstrip('.')}.{hint}",
+            file=sys.stderr,
+        )
+        return EXIT_VERIFICATION_FAILED if result.verdict == "failed" else EXIT_PARTIAL
     print(f"\nEngineering team run failed: {result.error.rstrip('.')}.{hint}", file=sys.stderr)
     return EXIT_FAILURE
 
@@ -563,6 +620,10 @@ def _resume_command(argv: Sequence[str]) -> int:
     parser.add_argument("--provider", choices=list(PROVIDERS))
     parser.add_argument("--profile", choices=list(PROFILE_NAMES))
     parser.add_argument("--allow-web", action="store_true", help="Enable the web tools.")
+    parser.add_argument("--sandbox", choices=["local", "docker"], help="Where commands run.")
+    parser.add_argument(
+        "--checks", help="Your checks file again (it must be the one the run started with)."
+    )
     args = parser.parse_args(argv)
 
     def prepare() -> PreparedRun:

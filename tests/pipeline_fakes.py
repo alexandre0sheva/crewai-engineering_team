@@ -41,6 +41,17 @@ PLAN = Plan(
     ],
 )
 
+PASSING_CHECKS = "- {id: tests, name: Project tests, kind: test, command: 'true'}\n"
+
+
+def write_checks(text: str = PASSING_CHECKS, name: str = "checks.yaml") -> Path:
+    """A user checks file outside any project (the sandbox working directory)."""
+
+    path = Path.cwd() / name
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
 STAGES = ("spec", "plan", "foundation", "implement", "integrate", "verify", "release")
 BODY = "A concrete sentence that is long enough to count as real content. " * 2
 
@@ -63,7 +74,9 @@ class FakeRunner:
 
     ``fail`` maps a stage (or ``stage:package``) to how many times it should fail first;
     ``cancel_at`` makes that stage ask the run to cancel; ``plan`` is what the plan stage returns.
-    ``calls`` lists every ``(stage, package id or None)`` it was asked to run, in order.
+    The ``verify`` stage is run by the controller; the runner is only called for it to repair
+    failures (its request then carries ``failures``). ``calls`` lists every ``(stage, package id
+    or None)`` it was asked to run, in order.
     """
 
     def __init__(
@@ -73,11 +86,13 @@ class FakeRunner:
         fail: dict[str, int] | None = None,
         cancel_at: str | None = None,
         on_call: Callable[[StageRequest], None] | None = None,
+        says: dict[str, str] | None = None,
     ) -> None:
         self.plan = PLAN if plan is None else plan
         self.fail = dict(fail or {})
         self.cancel_at = cancel_at
         self.on_call = on_call
+        self.says = dict(says or {})  # what a stage's agent reports instead of "<stage> done"
         self.calls: list[tuple[str, str | None]] = []
         self.requests: list[StageRequest] = []
 
@@ -108,11 +123,9 @@ class FakeRunner:
             write(f"src/{package.id.lower()}.py", f"# {package.title}\nVALUE = 1\n")
         elif stage == "integrate":
             write("docs/integration.md", "# Integration\n" + BODY)
-        elif stage == "verify":
-            write("docs/verification.md", "# Verification\n" + BODY)
         elif stage == "release":
             write("docs/release-report.md", "# Release\n" + BODY)
         elif stage == "build":  # the single-agent strategy's one stage
             write("README.md", "# Demo\n" + BODY)
             write("docs/release-report.md", "# Release\n" + BODY)
-        return StageOutput(contracts=contracts, summary=f"{key} done")
+        return StageOutput(contracts=contracts, summary=self.says.get(key, f"{key} done"))

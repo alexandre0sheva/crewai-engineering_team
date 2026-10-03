@@ -115,6 +115,7 @@ class RunStore:
                 if manifest.status == "running":  # a resumed run is open again
                     manifest.finished = None
                     manifest.summary = None
+                    manifest.verdict = None
             self._write(manifest)
             return manifest
 

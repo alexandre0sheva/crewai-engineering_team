@@ -137,6 +137,18 @@ def hermetic_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pat
 
 
 @pytest.fixture(autouse=True)
+def no_stage_commits(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A pipeline run commits after every stage, which costs several ``git`` processes a stage.
+    Only tests marked ``git`` (about the history itself) let it happen."""
+
+    if request.node.get_closest_marker("git"):
+        return
+    from engineering_team.pipeline.checkpoints import Checkpoints
+
+    monkeypatch.setattr(Checkpoints, "enabled", property(lambda self: False))
+
+
+@pytest.fixture(autouse=True)
 def no_external_network(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Fail any test that tries to reach a non-loopback address (``live`` tests are exempt)."""
 

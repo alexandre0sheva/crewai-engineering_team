@@ -49,15 +49,15 @@ stages:
     verification_policy: artifacts
     retry: 1
 
-  # Placeholder: the quality agent verifies and writes the record. The controller-run
-  # verifier replaces it in a later task.
+  # The controller runs the project's checks itself (the user's --checks file, the plan's
+  # commands, detected defaults) and writes docs/verification.md from what it saw. While a
+  # required check fails it hands the failures to the first teammate to repair, up to
+  # budget.max_repair_rounds, and runs the checks again; only passing checks count. After the
+  # last stage the controller re-verifies if anything changed the project since.
   - name: verify
-    kind: agent
+    kind: verify
     teammates: [quality_engineer]
     inputs: [spec, plan]
-    outputs: ["file:docs/verification.md"]
-    verification_policy: artifacts
-    retry: 1
 
   - name: release
     kind: agent

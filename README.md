@@ -151,15 +151,18 @@ reset by default; `--force-reset` overrides that, but your home directory, the
 current directory and its parents, the filesystem root, symlinks, and the
 engineering-team installation are always refused.
 
-Exit codes: `0` success, `2` usage or configuration error (one-line message), `1`
-runtime failure, `130` interrupted or cancelled.
+Exit codes: `0` success (verified, for a pipeline run), `2` usage or configuration error (one-line
+message), `1` runtime failure, `3` the controller's own checks failed, `4` verification was partial (a
+required check could not run), `130` interrupted or cancelled.
 
 ### Staged runs: resume and cancel
 
 `--strategy pipeline` (or `ENGINEERING_STRATEGY=pipeline`) runs the team as a staged,
 resumable pipeline (spec, plan, foundation, implement, verify, release) instead of the default
 manager-led crew; `--strategy single` runs one agent with every tool, the baseline the other
-strategies are measured against. A pipeline run that was cancelled (Ctrl-C), interrupted, or failed
+strategies are measured against. In a pipeline run the controller, not an agent, runs the tests and checks
+(`--checks FILE` adds your own; see [Configuration](docs/CONFIGURATION.md#verification-verify-and---checks)) and
+writes `docs/verification.md` from what it saw. A pipeline run that was cancelled (Ctrl-C), interrupted, or failed
 continues where it stopped, without redoing finished stages:
 
 ```bash
@@ -191,8 +194,9 @@ workspace/
 ```
 
 The exact source tree is chosen for the product and stack. Generated workspaces
-are git-ignored by this orchestrator; initialize a separate repository inside a
-finished MVP if you want to keep it.
+are git-ignored by this orchestrator. A `pipeline` or `single` run makes a new project its own Git
+repository (an initial commit, then one commit per finished stage; `--no-git` skips it); for other runs,
+initialize a separate repository inside a finished MVP if you want to keep it.
 
 ## How orchestration works
 
@@ -273,7 +277,8 @@ uv run engineering-team \
 
 An actual crew run consumes model tokens and may install dependencies selected
 for the generated MVP. The quality and release stages record exact evidence in
-the generated project's `docs/verification.md` and `docs/release-report.md`.
+the generated project's `docs/release-report.md`; in a pipeline run `docs/verification.md` is written by the
+controller from checks it ran itself.
 
 ## CrewAI maintenance commands
 

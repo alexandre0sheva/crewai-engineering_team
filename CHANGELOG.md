@@ -37,6 +37,28 @@ as each task lands.
   calls per minute across all agents of a run. `run_parallel_readonly` runs reviewers and analysts side by side with
   read-only tools and one report file each.
 - `--strategy single`: one agent with every tool and one task, the baseline the other strategies are measured against.
+- Git-backed history: a new project becomes a Git repository with an initial commit, and the `pipeline` and `single`
+  strategies commit after every finished stage (`stage(plan): ...`), plus a final commit for anything the last check
+  changed, for free rollback and a readable log. `--no-git` (or `git.enabled = false`) turns it off; `git.author_name` and
+  `git.author_email` set the author. The controller never pushes, fetches, runs hooks, or touches a repository that is not the
+  project's own. `GitPort` can also export the work as a patch (`git apply`-able, binary files included).
+- Read-only Git tools (new group `git_read`, given to every pipeline teammate): `Git Info` (status, diff, log, show, blame),
+  `Git History Search` (who added or removed some text; a file's history), and `Git Diff Between Refs`.
+- Independent verification in the `pipeline` strategy: the `verify` stage is now run by the controller, which executes the
+  project's checks itself (your `--checks FILE`, then the commands the plan declares, then detected defaults: tests,
+  lint, type check, build, and a startup smoke check), records each result with its exit code, log, and the workspace
+  revision it ran against, and writes `docs/verification.md` from those results. A missing runtime is `unavailable`,
+  never a pass; an empty or untestable project cannot be `verified`; acceptance criteria no passing mapped check proves are
+  listed as manual/unverified; each check is a board card the controller moves.
+- Bounded repair loop: while a required check fails, the controller hands the structured failures to the quality
+  engineer, then runs the checks again (`budget.max_repair_rounds`, default 3, shared by the run). Only the
+  controller's own re-run counts; an agent's claim does not. An edit after the last verification (for example by the
+  release stage) triggers a final re-verify.
+- New exit codes: `3` when the controller's checks failed and `4` when verification was partial (a required check could not
+  run); the manifest records the `verdict` (`verified`, `failed`, `partial`). Both are resumable.
+- `--checks FILE` (and `[verify]` settings): your own checks, with the acceptance criteria they prove and optional
+  Playwright `browser_script` checks. The file must live outside the project and is pinned at the start of the run;
+  a copy that changes mid-run stops verification.
 - Optional headless-browser tools (`uv sync --extra browser`, then `playwright install chromium` or
   `browser.channel = "chrome"`): `Browser Open`, `Browser Snapshot` (accessibility tree with element refs),
   `Browser Screenshot`, `Browser Click`, `Browser Type`, `Browser Select`, `Browser Press Key`,
@@ -106,9 +128,20 @@ as each task lands.
 - Workspace lock: one run per workspace. A second run (or `--reset`) against a workspace that is in use stops
   with a clear message naming the holder; the lock is released automatically if the holder crashes.
 - `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and pull-request templates.
+- Docker sandbox (`--sandbox docker`, or `execution.backend = "docker"`): every project command, developer tool,
+  verification check, background process, and the controller's Git runs in its own throwaway container (your user,
+  no capabilities, read-only system, process/memory/CPU limits, only the project mounted, no network except for
+  install commands) and the container is removed on exit, timeout, cancel, and run end. An image is chosen per
+  language and configurable under `[execution.docker]`. With Docker missing or stopped a `docker` run refuses to
+  start; it never falls back to running on your machine. `local` stays the default. See `docs/SAFETY.md`.
 
 ### Changed
 
+- `Hotspots` and `Find TODOs` now read history through `GitPort`: a project inside some other repository no longer reads
+  that repository's history, only a repository of its own.
+- The pipeline's `verify` stage no longer relies on an agent writing a verification record: `docs/verification.md` is
+  rendered by the controller from checks it ran, and what the quality engineer says goes to `docs/qa-notes.md`. The
+  size-based artifact guardrail still applies to the other promised files and to the `hierarchical` strategy.
 - The `new` recipe gained an `integrate` stage after `implement`. A parallel stage's `retry` now applies per work
   package, and `WorkPackage` has an optional `required` flag.
 - New `strategy` setting (`--strategy`, `ENGINEERING_STRATEGY`, `strategy` in the config file): `hierarchical` (the default,
@@ -165,6 +198,8 @@ as each task lands.
 
 ### Security
 
+- The Docker sandbox (above) keeps commands away from your other files, your API keys, and the network;
+  `docs/SAFETY.md` says what it does not protect against.
 - File tools check protected locations after resolving symlinks, so an alias such as `link -> .git`
   can no longer read or modify Git metadata; the orchestrator's `.engineering-team/` state is protected
   the same way.

@@ -23,6 +23,8 @@ from engineering_team.contracts import (
     RunStatus,
     Spec,
     StageRecord,
+    Verdict,
+    VerificationRecord,
 )
 
 STATE_FILENAME = "pipeline.json"
@@ -60,7 +62,8 @@ class PipelineState(Contract):
     packages: dict[str, PackageState] = Field(default_factory=dict)
     stage_cards: dict[str, str] = Field(default_factory=dict)  # stage name -> board card id
     summaries: dict[str, str] = Field(default_factory=dict)  # stage name -> what its agent said
-    checks: list[CheckResult] = Field(default_factory=list)  # filled by the verifier (later)
+    checks: list[CheckResult] = Field(default_factory=list)  # the verifier's latest results
+    verification: VerificationRecord = Field(default_factory=VerificationRecord)
     error: str = ""
 
     @classmethod
@@ -81,6 +84,8 @@ class RunBundle:
     requirements: str
     inputs: dict[str, str] = field(default_factory=dict)
     resume: bool = False
+    checks_digest: str = ""  # the pinned user checks file (``--checks``); see verification/
+    script_digests: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -92,3 +97,6 @@ class RunResult:
     error: str = ""
     stages: list[StageRecord] = field(default_factory=list)
     workspace: Path | None = None
+    verdict: Verdict | None = (
+        None  # set when the run verified: ``verified``, ``failed``, ``partial``
+    )

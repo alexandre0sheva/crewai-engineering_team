@@ -12,7 +12,15 @@ from importlib import metadata
 import crewai
 
 from engineering_team.atomic_io import atomic_write_json, atomic_write_text
-from engineering_team.contracts import RunManifest, RunStatus, RunSummary, StageRecord, utc_now
+from engineering_team.contracts import (
+    RunManifest,
+    RunStatus,
+    RunSummary,
+    StageRecord,
+    Verdict,
+    utc_now,
+)
+from engineering_team.execution.backend import close_backend
 from engineering_team.runtime.bridge import bind_run, flush_bridge
 from engineering_team.runtime.cancel import RunCancelled
 from engineering_team.runtime.context import RunContext
@@ -113,6 +121,14 @@ class RunRecorder:
     @property
     def manifest(self) -> RunManifest:
         return self.store.load(self.ctx.run_id)
+
+    def set_verdict(self, verdict: Verdict) -> None:
+        """Record how verification ended (``verified``, ``failed``, ``partial``) in the manifest."""
+
+        def change(manifest: RunManifest) -> None:
+            manifest.verdict = verdict
+
+        self.store.update(self.ctx.run_id, change)
 
     def fail(self, error: str) -> None:
         """End the run as ``failed`` with this message, without raising."""
@@ -244,6 +260,7 @@ class RunRecorder:
         ctx = self.ctx
         ctx.processes.stop_all("the run ended")  # nothing the run started may keep running
         ctx.browsers.close_all("the run ended")
+        close_backend(ctx.backend, "the run ended")  # containers the run still has
         ctx.board.flush()  # board.json and board.md as the run ended
         report = ctx.usage.report(ctx.prices)
         atomic_write_json(ctx.run_dir / "usage.json", report.model_dump(mode="json"))

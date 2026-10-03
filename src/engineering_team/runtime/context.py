@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from engineering_team.execution.backend import ExecutionBackend
-from engineering_team.execution.local import LocalBackend
+from engineering_team.execution.factory import create_backend
 from engineering_team.pricing import PriceTable
 from engineering_team.runtime.browsers import BrowserDriver, BrowserRegistry
 from engineering_team.runtime.budget import Budget, BudgetGuard
@@ -34,6 +34,7 @@ from engineering_team.tools.workspace import CONTROLLER_DIRECTORY, ProjectWorksp
 if TYPE_CHECKING:  # imported when a context is created: ``board`` itself imports ``runtime``
     from engineering_team.board.notes import NoteStore
     from engineering_team.board.store import BoardStore
+    from engineering_team.git.port import GitPort
 
 # Called with a tool's name before it runs; returning a message refuses the call (the tool
 # returns it as an ``ERROR:``). The budget guard installs one to stop runaway tool use.
@@ -71,7 +72,8 @@ class RunContext:
     log, ``human`` the line to the person running it, and ``processes`` the run's background
     processes and ports (all stopped when their stage or the run ends), ``browsers`` the run's
     headless browser (closed with its stage or the run), and ``web_requests`` the run's shared
-    cap on outbound web requests, and ``llm_rate`` (set when ``parallel.max_rpm`` is) the cap on
+    cap on outbound web requests, ``git`` the controller's Git (checkpoints, patches, history;
+    see ``docs/ARCHITECTURE.md``), and ``llm_rate`` (set when ``parallel.max_rpm`` is) the cap on
     model calls per minute that parallel agents share.
     """
 
@@ -92,6 +94,7 @@ class RunContext:
     human: HumanChannel
     processes: ProcessRegistry
     browsers: BrowserRegistry
+    git: GitPort
     tool_gate: ToolGate | None = None
     web_requests: RequestLimiter = field(default_factory=lambda: RequestLimiter(40))
     llm_rate: RateLimiter | None = None
@@ -110,7 +113,9 @@ class RunContext:
         """Create the context and its run directory (controller-owned, hidden from agents).
 
         Snapshots the workspace as the baseline for change reports. The default backend runs
-        commands locally, logging to ``run_dir/commands/``. ``resume=True`` continues an
+        commands as ``settings.execution.backend`` says (locally by default, or in the Docker
+        sandbox; an unavailable Docker is an ``ExecutionUnavailable``), logging to
+        ``run_dir/commands/``. ``resume=True`` continues an
         existing run directory: usage (and so the cost and token budgets) starts from what
         ``events.jsonl`` already recorded, the board and notes load from disk, and the event
         log is appended to. The baseline is then the workspace as it is now.
@@ -118,6 +123,7 @@ class RunContext:
 
         from engineering_team.board.notes import NoteStore
         from engineering_team.board.store import BoardStore
+        from engineering_team.git.port import GitPort
 
         run_id = run_id or new_run_id()
         run_dir = workspace.root / CONTROLLER_DIRECTORY / "runs" / run_id
@@ -139,7 +145,9 @@ class RunContext:
         )
         guard.attach(sink)
         controller_dir = workspace.root / CONTROLLER_DIRECTORY
-        run_backend = backend or LocalBackend(run_dir / "commands", cancel_event)
+        run_backend = backend or create_backend(
+            settings, workspace.root, run_dir / "commands", run_id, cancel_event
+        )
         processes = ProcessRegistry(
             run_backend,
             cancel_event,
@@ -176,6 +184,7 @@ class RunContext:
                 events=sink,
                 name=run_id,
             ),
+            git=GitPort(workspace, run_backend, settings.git, sink),
             tool_gate=guard.tool_gate,
             web_requests=RequestLimiter(settings.web.max_requests_per_run),
             llm_rate=(

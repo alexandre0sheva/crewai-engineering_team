@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 if TYPE_CHECKING:
     from engineering_team.pipeline.state import PipelineState
 
-StageKind = Literal["agent", "controller", "parallel"]
+StageKind = Literal["agent", "controller", "parallel", "verify"]
 VerificationPolicy = Literal["none", "artifacts"]
 
 # Contracts a stage can read or write; anything else must be ``file:<path>`` (outputs only) or
@@ -45,7 +45,10 @@ class StageSpec(BaseModel):
 
     ``agent`` runs one small crew (one teammate, one task); ``parallel`` runs one crew per work
     package of the plan (sequentially for now); ``controller`` runs the controller-side action
-    named by ``action`` (no model). ``retry`` is how many extra attempts a failed stage gets.
+    named by ``action`` (no model); ``verify`` is the controller-run verification: it runs the
+    project's checks itself and, while required checks fail, hands the failures to its first
+    teammate to repair (``budget.max_repair_rounds``). ``retry`` is how many extra attempts a
+    failed stage gets.
     ``verification_policy`` ``artifacts`` makes the controller require every ``file:`` output.
     """
 
@@ -81,10 +84,17 @@ class StageSpec(BaseModel):
 
     @model_validator(mode="after")
     def _consistent(self) -> StageSpec:
-        if self.kind in ("agent", "parallel") and not self.teammates:
+        if self.kind in ("agent", "parallel", "verify") and not self.teammates:
             raise ValueError(f"stage {self.name!r} ({self.kind}) needs at least one teammate")
         if self.kind == "controller" and not self.action:
             raise ValueError(f"controller stage {self.name!r} needs an action")
+        if self.kind == "verify" and (self.outputs or self.verification_policy != "none"):
+            raise ValueError(
+                f"verify stage {self.name!r} writes docs/verification.md itself: it takes no "
+                "outputs and no verification_policy"
+            )
+        if self.kind == "verify" and self.retry:
+            raise ValueError(f"verify stage {self.name!r} cannot be retried: it repairs itself")
         if self.kind != "controller" and self.action:
             raise ValueError(f"only controller stages take an action (stage {self.name!r})")
         for output in self.outputs:
@@ -124,10 +134,12 @@ class Recipe(BaseModel):
     def _ordered(self) -> Recipe:
         seen: set[str] = set()
         produced: set[str] = {"request"}
-        for stage in self.stages:
+        for index, stage in enumerate(self.stages):
             if stage.name in seen:
                 raise ValueError(f"duplicate stage name {stage.name!r}")
             seen.add(stage.name)
+            if stage.kind == "verify" and any(s.kind == "verify" for s in self.stages[:index]):
+                raise ValueError("a recipe can have only one verify stage")
             missing = [name for name in stage.inputs if name not in produced]
             if missing:
                 raise ValueError(

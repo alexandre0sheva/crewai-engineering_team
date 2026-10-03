@@ -1,7 +1,8 @@
 # Task prompts for the pipeline's stages (strategy "pipeline" and "single"). Roles, goals, and
 # backstories live in agents.yaml; nothing here repeats them. Placeholders are interpolated per
 # stage: {project_name} {requirements} {workspace_path} {current_date} {spec} {plan} {package}
-# {card} {notes} {resume_note}. {spec}, {plan} and {package} are JSON; the others are text.
+# {card} {notes} {resume_note} {failures}. {spec}, {plan} and {package} are JSON; the others are
+# text. The ``repair`` prompt is the verify stage's: the controller's failing checks are {failures}.
 
 spec:
   description: >
@@ -148,10 +149,12 @@ integrate:
     A project whose packages work together, and docs/integration.md recording the commands run
     and every change made.
 
-verify:
+repair:
   description: >
-    Independently verify the complete {project_name} workspace at {workspace_path} against the
-    specification. Do not trust earlier summaries; inspect the code.
+    The controller ran its own independent checks on {project_name} in {workspace_path} and
+    some required ones failed. You did not run them, and what you report does not change the
+    outcome: the controller runs the same checks again when you finish, and only passing checks
+    count.
 
     Specification:
 
@@ -161,22 +164,24 @@ verify:
 
     {plan}
 
-    Build a criteria-to-test matrix, add the highest-value missing tests, and exercise the
-    primary success and failure paths across component boundaries. Run the test suite, the
-    lint and type checks when configured, the build, and a minimal startup or end-to-end smoke
-    test that cannot block indefinitely. Diagnose failures, make safe in-scope fixes, and rerun
-    the affected checks. Never weaken a meaningful test to get green output. Check for
-    committed secrets, unsafe defaults, and misleading README instructions.
+    What failed:
 
-    Write docs/verification.md with each criterion, the exact commands, exit statuses, what
-    each check proved, defects fixed, and remaining gaps.
+    {failures}
+
+    Find the cause of each failure (read the failing code and tests; run the check's command
+    yourself to reproduce it) and fix the code. Never weaken, delete, skip, or special-case a
+    test or a check to get it green, and do not edit docs/verification.md (the controller writes
+    it). Keep the changes minimal and in scope; if a failure shows the specification itself is
+    wrong, say so instead of bending the code. Run the failing command again before you finish.
+    Reply with a short summary: the root cause, the files you changed, and anything you could
+    not fix. The controller records it in docs/qa-notes.md; do not write that file yourself.
 
     {card}
     {notes}
     {resume_note}
   expected_output: >
-    docs/verification.md with reproducible evidence, and a summary that separates passing
-    checks, fixes made, checks not run, and residual risks.
+    The failing checks fixed in the workspace, and a short summary of the root cause, the files
+    changed, and what is still failing.
 
 release:
   description: >
@@ -186,8 +191,8 @@ release:
 
     {spec}
 
-    Re-read the request, the architecture, the verification record, the README, and the
-    important source files. Confirm the project is coherent, starts with its documented
+    Re-read the request, the architecture, the controller's verification record
+    (docs/verification.md; read it, do not edit it), the README, and the important source files. Confirm the project is coherent, starts with its documented
     commands, and delivers the primary vertical slice. Fix only targeted integration,
     documentation, or configuration issues, then rerun the affected check. Make sure README.md
     gives a new developer accurate setup, configuration, run, test, and troubleshooting steps.

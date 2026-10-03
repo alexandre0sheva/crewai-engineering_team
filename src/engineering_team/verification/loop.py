@@ -1,0 +1,208 @@
+"""The verify stage: run the checks, repair what failed (bounded), run them again.
+
+The loop is controller code. It decides what runs (``profiles``), runs it (``Verifier``),
+judges the results (``verdict``), and only hands *failures* to an agent. The agent's reply is
+never read as evidence: after each repair round the controller runs the checks again, and the
+verdict follows those results alone. Rounds are bounded by ``budget.max_repair_rounds`` (shared
+by the whole run) and by the run's other budgets. Calling it again on an unchanged workspace
+reuses the recorded results, so a final check after later stages costs nothing unless a stage
+edited the project.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from engineering_team.contracts import CheckResult, CheckSpec
+from engineering_team.runtime.budget import BudgetExceeded
+from engineering_team.runtime.cancel import RunCancelled, check_cancelled
+from engineering_team.runtime.context import RunContext
+from engineering_team.verification.cards import CheckCards
+from engineering_team.verification.checks_file import ChecksFileError, pinned_checks
+from engineering_team.verification.criteria import map_criteria
+from engineering_team.verification.profiles import build_checks
+from engineering_team.verification.report import render_report
+from engineering_team.verification.revision import NOTES_FILE, REPORT_FILE, verification_revision
+from engineering_team.verification.verdict import Judgement, failures_for_repair, judge
+from engineering_team.verification.verifier import Verifier
+
+if TYPE_CHECKING:  # the pipeline imports this module
+    from engineering_team.pipeline.state import PipelineState
+
+MAX_NOTE = 4000
+MAX_ERROR = 300
+
+
+class VerificationError(RuntimeError):
+    """The project is not verified (``failed`` or ``partial``); the message says why."""
+
+
+@dataclass(frozen=True)
+class RepairCall:
+    """What the repair agent is told, and where its card is."""
+
+    round: int
+    failures: str
+    card_id: str | None
+
+
+# Runs one repair attempt with an agent and returns what it said (never taken as evidence).
+RepairAgent = Callable[[RepairCall], str]
+
+
+class VerificationLoop:
+    def __init__(
+        self,
+        ctx: RunContext,
+        state: PipelineState,
+        *,
+        stage: str,
+        stage_card: str | None,
+        teammate: str,
+        repair: RepairAgent | None,
+        save: Callable[[], None],
+    ) -> None:
+        self.ctx = ctx
+        self.state = state
+        self.record = state.verification
+        self.stage = stage
+        self.teammate = teammate
+        self.repair = repair
+        self.save = save
+        self.cards = CheckCards(ctx, self.record.check_cards, stage=stage, parent=stage_card)
+        self.verifier = Verifier(ctx, cards=self.cards, script_digests=self.record.script_digests)
+        self.max_rounds = ctx.settings.budget.max_repair_rounds
+
+    # -- the loop --------------------------------------------------------------------------
+
+    def run(self) -> str:
+        """Verify (repairing while allowed). Returns a one-line summary when the project is
+        ``verified``; raises :class:`VerificationError` otherwise. The report is written either
+        way."""
+
+        ctx, record = self.ctx, self.record
+        ctx.events.emit("verify.started", rounds_used=record.rounds)
+        try:
+            user = pinned_checks(ctx, record.checks_digest)
+        except ChecksFileError as exc:
+            return self._conclude([], [], Judgement("failed", [str(exc)]))
+        planned = build_checks(ctx, self.state.plan, user)
+        record.notes = planned.notes
+        checks = planned.checks
+
+        results = self._recorded(checks) or self._verify(checks)
+        while self._repairable(results):
+            results = self._repair(checks, results)
+        return self._conclude(checks, results, judge(results, verification_revision(ctx.workspace)))
+
+    def _recorded(self, checks: list[CheckSpec]) -> list[CheckResult] | None:
+        """The results already recorded, if they are for this very workspace and these checks."""
+
+        state, record = self.state, self.record
+        same = {c.id for c in checks} == {r.id for r in state.checks}
+        if state.checks and same and record.revision == verification_revision(self.ctx.workspace):
+            self.ctx.events.emit("verify.reused", revision=record.revision)
+            return list(state.checks)
+        return None
+
+    def _verify(self, checks: list[CheckSpec], number: int | None = None) -> list[CheckResult]:
+        results = self.verifier.run(checks, round=self._next_file() if number is None else number)
+        self.state.checks = results
+        self.record.revision = results[0].revision if results else None
+        self.save()
+        return results
+
+    def _next_file(self) -> int:
+        directory = self.ctx.run_dir / "verification"
+        return len(list(directory.glob("round-*.json"))) if directory.is_dir() else 0
+
+    def _repairable(self, results: list[CheckResult]) -> bool:
+        failing = any(r.required and r.status == "failed" for r in results)
+        return (
+            failing and self.repair is not None and self.ctx.budget.may_repair(self.record.rounds)
+        )
+
+    def _repair(self, checks: list[CheckSpec], results: list[CheckResult]) -> list[CheckResult]:
+        ctx, record = self.ctx, self.record
+        check_cancelled(ctx)
+        ctx.budget.check()  # a run over budget stops here rather than spend more on repairs
+        assert self.repair is not None
+        record.rounds += 1
+        number = record.rounds
+        failing = [r.id for r in results if r.required and r.status == "failed"]
+        card = self.cards.open_repair(number, self.teammate, failing)
+        before = verification_revision(ctx.workspace)
+        brief = f"Repair round {number} of {self.max_rounds}.\n\n{failures_for_repair(results)}"
+        ctx.events.emit("verify.repair", round=number, checks=failing)
+        error = ""
+        try:
+            summary = self.repair(RepairCall(number, brief, card))
+        except (RunCancelled, BudgetExceeded):
+            raise
+        except Exception as exc:  # a crashed repair attempt is a used round, not the end
+            summary, error = "", f"{type(exc).__name__}: {exc}"[:MAX_ERROR]
+        check_cancelled(ctx)
+        self._note(number, summary, error)
+        changed = verification_revision(ctx.workspace) != before
+        fresh = self._verify(checks) if changed else results
+        still = [r.id for r in fresh if r.id in failing and r.status != "passed"]
+        fixed = [i for i in failing if i not in still]
+        self.cards.close_repair(card, fixed, still)
+        record.repair_log.append(self._log_line(number, failing, still, changed, error))
+        self.save()
+        return fresh
+
+    @staticmethod
+    def _log_line(
+        number: int, failing: list[str], still: list[str], changed: bool, error: str
+    ) -> str:
+        outcome = f"still failing: {', '.join(still)}" if still else "all of them pass now"
+        extra = " The repair agent failed to run." if error else ""
+        extra += "" if changed else " It changed nothing in the project."
+        return f"Round {number}: sent {', '.join(failing)} to the repair agent; {outcome}.{extra}"
+
+    def _note(self, number: int, summary: str, error: str) -> None:
+        """Keep what the agent said in ``docs/qa-notes.md``, labelled as unverified narrative."""
+
+        workspace = self.ctx.workspace
+        try:
+            existing = workspace.read_file(NOTES_FILE)
+        except Exception:
+            existing = "# QA notes\n\nWhat the repair agent said, for people. Not evidence: the "
+            existing += "controller's checks are in `docs/verification.md`.\n"
+        said = summary.strip()[:MAX_NOTE] or (f"(no summary; {error})" if error else "(no summary)")
+        workspace.write_file(
+            NOTES_FILE, f"{existing.rstrip()}\n\n## Repair round {number}\n\n{said}\n"
+        )
+
+    # -- the end ---------------------------------------------------------------------------
+
+    def _conclude(
+        self, checks: list[CheckSpec], results: list[CheckResult], judgement: Judgement
+    ) -> str:
+        ctx, record = self.ctx, self.record
+        record.verdict = judgement.verdict
+        record.problems = judgement.problems
+        record.coverage = map_criteria(ctx.workspace, self.state.spec, checks, results)
+        text = render_report(record, results, judgement, max_rounds=self.max_rounds)
+        ctx.workspace.write_file(REPORT_FILE, text)
+        self.save()
+        ctx.events.emit(
+            "verify.verdict",
+            verdict=judgement.verdict,
+            rounds=record.rounds,
+            problems=judgement.problems,
+            checks={r.id: r.status for r in results},
+        )
+        required = [r for r in results if r.required]
+        if judgement.verdict == "verified":
+            return (
+                f"Verified: {len(required)} required check(s) passed ({len(results)} ran), "
+                f"{record.rounds} repair round(s)."
+            )
+        raise VerificationError(
+            f"Not verified ({judgement.verdict}): {'; '.join(judgement.problems)}. "
+            f"See {REPORT_FILE}."
+        )

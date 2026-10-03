@@ -69,8 +69,18 @@ def _probe(ctx: RunContext, name: str, argv: tuple[str, ...]) -> str:
 
 
 def environment_info(ctx: RunContext) -> str:
-    """OS, CPUs, memory, tool versions on PATH, and allowlisted executables that are missing."""
+    """OS, CPUs, memory, tool versions on PATH, and allowlisted executables that are missing.
 
+    A sandbox backend reports itself instead: its tools are its images', and probing them would
+    start (and first pull) a container per language.
+    """
+
+    describe = getattr(ctx.backend, "describe", None)
+    if not getattr(ctx.backend, "resolves_on_host", True) and callable(describe):
+        return (
+            f"{describe()}\nThe host's own tools do not matter. Check a tool with Run Project "
+            "Command (`node --version`); a missing one fails with 'not found'."
+        )
     with ThreadPoolExecutor(max_workers=8) as pool:
         probed = list(pool.map(lambda item: (item[0], _probe(ctx, *item)), PROBES))
     found = [line for _, line in probed if line]

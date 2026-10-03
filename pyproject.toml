@@ -70,6 +70,7 @@ markers = [
     "live: calls a real model provider; runs only with ENGINEERING_LIVE_TESTS=1 and an API key",
     "docker: needs a running Docker daemon; skipped when `docker info` fails",
     "browser: drives a real headless browser; skipped without Playwright and Chromium (or Chrome)",
+    "git: a pipeline run that commits to a real repository (unmarked tests make no stage commits)",
 ]
 filterwarnings = [
     # CrewAI's own validators read deprecated Agent/Crew defaults while building agents;

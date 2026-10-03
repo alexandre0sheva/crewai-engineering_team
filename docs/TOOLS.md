@@ -16,6 +16,7 @@ are configurable; the execution boundary is in [SAFETY.md](SAFETY.md).
 | `command` | Run project commands and the project's own scripts | Goes through the execution backend; capped by `execution.max_parallel_commands`. |
 | `dev` | Run the project's tests, linters, type checker, formatter, build, coverage, installs, and audits and get structured results | [Developer tools](#developer-tools). Goes through the execution backend and the command gate. |
 | `code_intel` | Find definitions, references, importers, related tests, TODOs, hotspots, and declared dependencies | [Code intelligence tools](#code-intelligence-tools). Read-only and static; the whole project is indexed on every call. |
+| `git_read` | Read the project's Git history: status, diffs, log, blame, and what changed when | [Git tools](#git-tools). Read-only; the commands are fixed and built by the controller's `GitPort`. Needs a repository of the project's own (new projects get one). |
 | `knowledge` | Search local documentation | [Web and knowledge tools](#web-and-knowledge-tools). Offline and read-only; always registered. |
 | `web` | Search the web, read a public page, look up a package's current version | [Web and knowledge tools](#web-and-knowledge-tools). **Opt-in**: not registered at all unless `web.enabled`; see [SAFETY.md](SAFETY.md#web-tools-network-model). |
 | `browser` | Open the app in a headless browser, read it as an accessibility tree, click, type, screenshot, read console errors | [Browser tools](#browser-tools). Present only when the `browser` extra is installed; localhost ports of this run only by default. |
@@ -75,6 +76,9 @@ once never share them. The default groups for the 0.1 crew are the four project 
 | `Imports Of` | `code_intel` | yes | no | no | A file's imports: project files (with the specifier and line) versus external packages. |
 | `Find Related Tests` | `code_intel` | yes | no | no | Tests that import a file (strongest), are named after it, or mention what it defines; for a bare symbol, tests that mention it. Each result carries its reasons; ≤ 100. |
 | `Find TODOs` | `code_intel` | yes | no | no | `TODO`/`FIXME`/`HACK` (or `tags=`) in comments of any text file below `path`, with the `(owner)` written after the tag; with Git, the blamed author and age of the first `max_results` (≤ 200, default 50) in at most 20 files. Without Git it says author and age are unknown. |
+| `Git Info` | `git_read` | yes | no | no | `status` (branch and changed files), `diff` (uncommitted work against HEAD, new files included), `log` (≤ 200 commits, default 20; with `path`, that file's history), `show` (a commit, or a ref with a path), `blame` (a file, optionally lines `start_line`–`end_line`). Output is capped at 30,000 characters. |
+| `Git History Search` | `git_read` | yes | no | no | Commits that added or removed text (`mode=string`: `log -S`, `regex`: `log -G`, a basic regular expression; `path` narrows it), or, with only a `path`, that file's history and who changed it last. ≤ 200 commits. |
+| `Git Diff Between Refs` | `git_read` | yes | no | no | Diff (or `stat=true` per-file summary) from one commit, branch, or tag to another, never the work tree; optional `path`. |
 | `Hotspots` | `code_intel` | yes | no | no | Top files (≤ 50, default 10) by commits in the last `days` (default 365, 0 = all) times a complexity proxy; lock, minified, and binary files left out. Without Git history it answers `No Git history: …`. |
 | `Inspect Dependencies` | `code_intel` | yes | no | no | Declared direct dependencies from `pyproject.toml`, `requirements*.txt`, `package.json`, `go.mod`, `Cargo.toml`, and `pom.xml` (≤ 30 manifests), with the locked version from `uv.lock`, `poetry.lock`, `Cargo.lock`, or `package-lock.json` next to it. |
 | `Search Docs` | `knowledge` | yes | no | no | BM25 over the project's markdown/text docs, `knowledge.context_dirs`, and pages `Fetch URL` cached this run (`source=` repo, context, or web-cache); ≤ 20 passages (default 5) with source, `file:line`, heading, excerpt. No embeddings, no network. Output is wrapped as untrusted content. |
@@ -101,7 +105,7 @@ once never share them. The default groups for the 0.1 crew are the four project 
 | `HTTP Request` | `runtime` | no | no | no | Method, headers, JSON or text body, timeout (≤ 60 s). Allowed: `localhost`, `127.0.0.1`, `[::1]` **on this run's ports** (processes started with `ports=`/readiness, ports from `Find Free Port`); anything else only via `network.http_allowlist`. Redirects (≤ 5) are re-checked per hop. Response: status, key headers, cookie names, body capped at `runtime.max_http_response_chars` and JSON pretty-printed, marked untrusted. |
 | `Check Port` | `runtime` | yes | no | no | Loopback port: free, in use and accepting, or in use but not accepting; notes whether it is this run's. |
 | `Find Free Port` | `runtime` | yes | no | no | Reserves a free loopback port nobody else in the run holds (distinct for every call and caller, safe under threads) and makes it callable by `HTTP Request`. ≤ 500 per run. |
-| `Environment Info` | `runtime` | no | no | no | OS, CPUs, memory; versions of python, uv, node, npm, pnpm, go, java, rust, cargo, dotnet, docker, git found on `PATH` (probes run through the backend; a binary that cannot run is reported as such); allowlisted executables that are missing. |
+| `Environment Info` | `runtime` | no | no | no | OS, CPUs, memory; versions of python, uv, node, npm, pnpm, go, java, rust, cargo, dotnet, docker, git found on `PATH` (probes run through the backend; a binary that cannot run is reported as such); allowlisted executables that are missing. Under the Docker sandbox it describes the sandbox (images, limits, network) instead of probing the host. |
 | `Query SQLite` | `runtime` | yes | no | no | One statement against a SQLite file opened `mode=ro` with `query_only` and an authorizer that allows only reads: writes, `ATTACH`, and write `PRAGMA`s fail. `?`/`:name` params as JSON, ≤ 1,000 rows (default 100), 80-character cells, 5 s, 30,000 characters; blobs shown as sizes. |
 | `Inspect Database Schema` | `runtime` | yes | no | no | Tables and views with columns (type, PK, NOT NULL, default), indexes, and row counts (≤ 50 objects). |
 | `List Board Cards` | `board` | yes | no | no | Table of cards with overall progress and a count per column; filter by status, kind, assignee, or `mine`; ≤ 100 rows (default 40). |
@@ -149,10 +153,12 @@ For verifying a running application: start it, wait for it, call it, read its lo
   and registers the process in the run (`ctx.processes`). Its whole process group is killed when
   the stage it was started in ends, when the run is cancelled (within about a second), when its
   lifetime limit passes, and when the run ends, fails, or crashes; an `atexit` hook is the last
-  safety net. A hard kill (`SIGKILL`) of the controller itself leaves its children behind; the
-  Docker backend (T20) removes that case.
-- **Ports.** `Find Free Port` hands out distinct ports for parallel agents. Container backends
-  must publish a process's `CommandSpec.ports` only as `127.0.0.1:<port>`.
+  safety net. A hard kill (`SIGKILL`) of the controller itself leaves its children behind; under
+  the Docker backend they are labelled containers that `docker rm -f` removes
+  ([SAFETY.md](SAFETY.md#docker-backend)).
+- **Ports.** `Find Free Port` hands out distinct ports for parallel agents. The Docker backend
+  publishes a process's ports only as `127.0.0.1:<port>`; a server in a container must listen on
+  `0.0.0.0` (not `127.0.0.1`) to be reachable.
 - **The HTTP rule** is in the tool's row: this run's own loopback ports by default, an explicit
   allowlist for anything else, every redirect hop re-checked, responses treated as untrusted data.
   See [SAFETY.md](SAFETY.md#network).
@@ -162,6 +168,25 @@ For verifying a running application: start it, wait for it, call it, read its lo
   no allowlist, state the controller cannot see) and its output is not deterministic. Long-lived
   processes plus `Read Process Logs` and one-shot `Run Project Command` calls cover the real
   needs.
+
+## Git tools
+
+For *why* code is the way it is: `Git Info` (status, diff, log, show, blame), `Git History Search`
+(which commit added or removed this text; a file's history and last author), and `Git Diff Between
+Refs`. All three are read-only and none takes a command: the controller's `GitPort`
+(`git/port.py`) builds a fixed `git` argv for each, runs it through the execution backend with no
+pager, no hooks, no credential helper, no system or global configuration, and no external diff or
+text-conversion command, and refuses any repository that is not the project's own (a project that sits inside
+another repository has none; `GIT_CEILING_DIRECTORIES` stops Git looking further up).
+
+- **Validated input.** A ref is a branch, tag, sha, or `HEAD~N`: no spaces, no leading `-`, no `..`
+  (use `Git Diff Between Refs` for a range). A path goes through the same checks as every file
+  tool, so `.git` and the controller's `.engineering-team/` are refused; it is passed after `--`.
+- **Not here.** Nothing that writes: no commit, checkout, reset, push, fetch, or remote. The controller
+  commits (a repository for a new project and a commit per finished stage, see
+  [ARCHITECTURE.md](ARCHITECTURE.md#git)); agents only read.
+- **Uncommitted work.** `Git Info` `diff` compares the work tree with HEAD, new files included,
+  using a temporary index, so reading never stages anything.
 
 ## Code intelligence tools
 
@@ -188,9 +213,9 @@ use and `Who Imports` for the dependent files, then `Find Related Tests` for wha
 - **Scope.** Every call walks the whole project (honouring `.gitignore`, heavy directories, 200 KB
   per file, 5,000 files) because dependents live outside the directory asked about; `path` only
   limits what is reported. Nothing is cached between calls, so edits are always seen.
-- **Git.** `Hotspots` and `Find TODOs` read history by running fixed `git log --numstat` and
-  `git blame --line-porcelain` commands through the execution backend (pagers, external diff,
-  and fsmonitor off). The `GitPort` of the Git task will take over the runner.
+- **Git.** `Hotspots` and `Find TODOs` read history through the run's `GitPort` (fixed
+  `git log --numstat` and `git blame --line-porcelain`, see [Git tools](#git-tools)); a project
+  with no repository of its own has no history, even when it sits inside another repository.
 - **Dependencies.** Offline: declared versions and locked versions only. Whether a version is
   outdated or deprecated needs a registry and comes from `Package Info` when the web tools are
   enabled.
@@ -245,7 +270,7 @@ For verifying a user interface: load the app, read it, use it, and check what it
   a result themselves.
 - **Start the app first.** The page must be served on one of the run's own ports: start it with
   `Start Background Process` (or reserve a port with `Find Free Port`), then `Browser Open` it.
-  Under the Docker backend (T20) container ports are published to `127.0.0.1` on the host, which is
+  Under the Docker backend container ports are published to `127.0.0.1` on the host, which is
   where this browser runs.
 - **What it can reach** is decided by the navigation guard and enforced by a proxy on every request
   ([SAFETY.md](SAFETY.md#browser-tools-sandbox-scope)).

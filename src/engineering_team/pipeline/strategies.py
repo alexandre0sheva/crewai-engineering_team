@@ -21,7 +21,7 @@ from engineering_team.crew import EngineeringTeam
 from engineering_team.pipeline.flow import run_flow
 from engineering_team.pipeline.recipes import Recipe, StageSpec, load_recipe
 from engineering_team.pipeline.stages import CrewStageRunner, StageRunner
-from engineering_team.pipeline.state import RunBundle, RunResult
+from engineering_team.pipeline.state import PipelineState, RunBundle, RunResult
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.run_store import RunStore
 
@@ -56,14 +56,23 @@ class Strategy(Protocol):
     def run(self, ctx: RunContext, recipe: Recipe | None, bundle: RunBundle) -> RunResult: ...
 
 
-def _result(ctx: RunContext, status: str, error: str = "") -> RunResult:
+def _result(ctx: RunContext, status: str, error: str = "", *, verdict: bool = False) -> RunResult:
+    """The result of a strategy; ``verdict`` reads how verification ended from the pipeline
+    state (only a run that verified has one, and only an end that is final is reported)."""
+
     manifest = RunStore(ctx.workspace.root).load(ctx.run_id)
+    reached = None
+    if verdict and (state := PipelineState.load(ctx.run_dir)) is not None:
+        reached = state.verification.verdict
+        if reached == "verified" and status != "succeeded":
+            reached = None  # verified once, but the run did not finish: nothing to report
     return RunResult(
         run_id=ctx.run_id,
         status=status,  # type: ignore[arg-type]
         error=error,
         stages=manifest.stages,
         workspace=ctx.workspace.root,
+        verdict=reached,
     )
 
 
@@ -91,7 +100,7 @@ class PipelineStrategy:
 
     def run(self, ctx: RunContext, recipe: Recipe | None, bundle: RunBundle) -> RunResult:
         status, error = run_flow(ctx, self.recipe_for(recipe), bundle, self._runner_factory())
-        return _result(ctx, status, error)
+        return _result(ctx, status, error, verdict=True)
 
 
 class SingleAgentStrategy(PipelineStrategy):

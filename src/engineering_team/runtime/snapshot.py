@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
 
 from engineering_team.tools.ignore import IgnoreRules, iter_files, looks_binary
@@ -51,16 +51,20 @@ class Snapshot:
         return cls(files)
 
 
-def workspace_revision(workspace: ProjectWorkspace) -> str:
+def workspace_revision(workspace: ProjectWorkspace, exclude: Collection[str] = ()) -> str:
     """A hash of every non-ignored regular file's path and content: the workspace's revision.
 
     The same tree always hashes the same; any added, removed, renamed, or edited file changes
     it. Ignored paths (``.gitignore``, heavy directories, ``.engineering-team``) do not count,
     so a run's own state files never move it. Contents are streamed, not held in memory.
+    ``exclude`` lists project-relative paths that do not count (the verifier's own report).
     """
 
     digest = hashlib.sha256()
+    skipped = set(exclude)
     for path in iter_files(workspace, rules=IgnoreRules.for_workspace(workspace)):
+        if skipped and workspace.relative_name(path) in skipped:
+            continue
         inner = hashlib.sha256()
         try:
             with path.open("rb") as handle:

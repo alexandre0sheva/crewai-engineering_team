@@ -27,6 +27,7 @@ from engineering_team.runtime.locks import WorkspaceBusy, WorkspaceLock
 from engineering_team.runtime.run_store import RunStore
 from engineering_team.runtime.session import RunRecorder
 from engineering_team.settings import Settings
+from engineering_team.verification.checks_file import digest_of
 from engineering_team.workspaces import (
     prepare_workspace,
     resolve_workspace_root,
@@ -47,6 +48,8 @@ def execute_run(
     recorder = RunRecorder.attach(ctx)
     with cancellation(ctx), recorder.running():
         result = strategy.run(ctx, recipe, bundle)
+        if result.verdict is not None:
+            recorder.set_verdict(result.verdict)
         if result.status == "failed":
             recorder.fail(result.error or "The run failed.")
     manifest = recorder.manifest
@@ -57,6 +60,7 @@ def execute_run(
         error=error,
         stages=manifest.stages,
         workspace=ctx.workspace.root,
+        verdict=manifest.verdict,
     )
 
 
@@ -124,6 +128,7 @@ def open_resume(settings: Settings, run_id: str) -> ResumedRun:
             f"Recipe '{effective.name}' changed since run {run_id} started; resuming would mix "
             "two plans. Start a new run instead."
         )
+    _check_same_checks(settings, saved)
     workspace = prepare_workspace(
         settings.project_name,
         settings.workspace_root,
@@ -139,6 +144,24 @@ def open_resume(settings: Settings, run_id: str) -> ResumedRun:
         raise
     bundle = RunBundle(requirements=request, resume=True)
     return ResumedRun(ctx, lock, bundle, strategy, recipe, store.load(run_id))
+
+
+def _check_same_checks(settings: Settings, saved: PipelineState | None) -> None:
+    """A resume may repeat ``--checks FILE``, but only the file the run started with."""
+
+    source = settings.verify.checks_file
+    if source is None or saved is None:
+        return
+    try:
+        text = Path(source).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ResumeError(f"Cannot read the checks file {source}: {exc}") from exc
+    if digest_of(text) != saved.verification.checks_digest:
+        raise ResumeError(
+            f"{source} is not the checks file this run started with, so its results would not "
+            "be comparable. Resume without --checks (the run keeps its own copy), or start a "
+            "new run."
+        )
 
 
 def request_run_cancel(settings: Settings, run_id: str) -> str:

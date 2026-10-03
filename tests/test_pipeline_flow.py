@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 import pytest
-from pipeline_fakes import PLAN, REQUEST, STAGES, FakeRunner
+from pipeline_fakes import PLAN, REQUEST, STAGES, FakeRunner, write_checks
 
 from engineering_team import main
 from engineering_team.board.store import BoardStore
@@ -44,6 +44,8 @@ def start(*extra: str, name: str = "demo", request: str = REQUEST) -> int:
             str(Path.cwd() / ROOT),
             "--strategy",
             "pipeline",
+            # Only the pipeline strategy runs the user's checks.
+            *(["--checks", str(write_checks())] if "--strategy" not in extra else []),
             *extra,
         ]
     )
@@ -110,11 +112,11 @@ def test_a_scripted_six_stage_run_goes_through_every_stage_in_order(
         ("implement", "WP-1"),
         ("implement", "WP-2"),
         ("integrate", None),
-        ("verify", None),
-        ("release", None),
+        ("release", None),  # the controller ran verify itself: no agent was called
     ]
     manifest = only_run()
     assert manifest.status == "succeeded" and manifest.strategy == "pipeline"
+    assert manifest.verdict == "verified"
     assert manifest.recipe == "new" and manifest.resumes == 0
     assert [record.name for record in manifest.stages] == list(STAGES)
     assert {record.status for record in manifest.stages} == {"succeeded"}
@@ -198,7 +200,6 @@ def test_a_plan_without_work_packages_skips_the_implement_stage(
         "spec",
         "plan",
         "foundation",
-        "verify",
         "release",
     ]
     manifest = only_run()
@@ -230,7 +231,7 @@ def test_user_notes_reach_each_teammate_once(monkeypatch: pytest.MonkeyPatch) ->
     assert [call for call, text in steering.items() if text == note] == [
         ("plan", None),  # solution_architect
         ("foundation", None),  # backend_engineer
-        ("verify", None),  # quality_engineer
+        ("release", None),  # quality_engineer
     ]
     assert all(text in ("", note) for text in steering.values())
 
@@ -255,7 +256,7 @@ def test_a_paused_run_waits_at_the_stage_boundary_until_resumed(
 
 # -- failure and resume --------------------------------------------------------------------------
 
-FAIL_POINTS = ["spec", "plan", "foundation", "implement:WP-2", "integrate", "verify", "release"]
+FAIL_POINTS = ["spec", "plan", "foundation", "implement:WP-2", "integrate", "release"]
 
 
 def _expected_rerun(point: str) -> list[tuple[str, str | None]]:
@@ -266,7 +267,6 @@ def _expected_rerun(point: str) -> list[tuple[str, str | None]]:
         ("implement", "WP-1"),
         ("implement", "WP-2"),
         ("integrate", None),
-        ("verify", None),
         ("release", None),
     ]
     stage, _, package = point.partition(":")
@@ -347,11 +347,11 @@ def test_resuming_twice_after_two_failures_still_never_repeats_a_finished_stage(
     monkeypatch: pytest.MonkeyPatch, reference_tree: str
 ) -> None:
     all_calls: list[tuple[str, str | None]] = []
-    first = use_runner(monkeypatch, FakeRunner(fail={"verify": 2}))
+    first = use_runner(monkeypatch, FakeRunner(fail={"integrate": 2}))
     start()
     all_calls += first.calls
     run_id = only_run().run_id
-    second = use_runner(monkeypatch, FakeRunner(fail={"verify": 2}))
+    second = use_runner(monkeypatch, FakeRunner(fail={"integrate": 2}))
     assert resume(run_id) == 1
     all_calls += second.calls
     third = use_runner(monkeypatch, FakeRunner())
@@ -396,7 +396,7 @@ def test_resuming_a_run_whose_every_stage_finished_runs_nothing(
 def test_a_run_left_running_by_a_killed_process_can_be_resumed(
     monkeypatch: pytest.MonkeyPatch, reference_tree: str
 ) -> None:
-    use_runner(monkeypatch, FakeRunner(cancel_at="verify"))
+    use_runner(monkeypatch, FakeRunner(cancel_at="integrate"))
     start()
     run_id = only_run().run_id
 
@@ -404,7 +404,7 @@ def test_a_run_left_running_by_a_killed_process_can_be_resumed(
         manifest.status = "running"
         manifest.finished = None
         for record in manifest.stages:
-            if record.name == "verify":
+            if record.name == "integrate":
                 record.status = "running"
 
     RunStore(project()).update(run_id, as_if_killed)
@@ -412,7 +412,7 @@ def test_a_run_left_running_by_a_killed_process_can_be_resumed(
 
     assert resume(run_id) == 0
 
-    assert runner.calls[0] == ("verify", None)
+    assert runner.calls[0] == ("integrate", None)
     assert tree() == reference_tree
     assert only_run().status == "succeeded"
 
@@ -420,30 +420,30 @@ def test_a_run_left_running_by_a_killed_process_can_be_resumed(
 def test_a_stage_whose_files_were_edited_after_it_finished_runs_again(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    use_runner(monkeypatch, FakeRunner(fail={"release": 2}))
+    use_runner(monkeypatch, FakeRunner(fail={"integrate": 2}))
     start()
     run_id = only_run().run_id
 
-    def release_never_started(manifest: RunManifest) -> None:
+    def integrate_never_started(manifest: RunManifest) -> None:
         for index, record in enumerate(manifest.stages):
-            if record.name == "release":
-                manifest.stages[index] = StageRecord(name="release")
+            if record.name == "integrate":
+                manifest.stages[index] = StageRecord(name="integrate")
 
-    RunStore(project()).update(run_id, release_never_started)
+    RunStore(project()).update(run_id, integrate_never_started)
     (project() / "README.md").write_text("# edited by hand\n" + "x " * 60, encoding="utf-8")
     runner = use_runner(monkeypatch, FakeRunner())
 
     assert resume(run_id) == 0
 
-    # Nothing started after "verify", so the tree it left must still be there. It is not, so
-    # "verify" runs again (with the inspect-first note) and so does everything after it.
-    assert [call[0] for call in runner.calls] == ["verify", "release"]
+    # Nothing started after "implement", so the tree it left must still be there. It is not, so
+    # "implement" runs again (with the inspect-first note) and so does everything after it.
+    assert [call[0] for call in runner.calls] == ["implement"] * 2 + ["integrate", "release"]
     assert "do not redo" in runner.requests[0].note
     plans = [
         e for e in read_events(run_dir(only_run()) / "events.jsonl") if e.type == "resume.plan"
     ]
     stages = plans[-1].data["stages"]
-    assert stages["verify"]["action"] == "rerun" and stages["foundation"]["action"] == "reuse"
+    assert stages["implement"]["action"] == "rerun" and stages["foundation"]["action"] == "reuse"
 
 
 # -- changed request, and runs that cannot be resumed --------------------------------------------
@@ -457,7 +457,9 @@ def test_resuming_with_a_changed_request_starts_a_new_run(
     old = only_run()
     runner = use_runner(monkeypatch, FakeRunner())
 
-    assert resume(old.run_id, "--request", "Build something completely different.") == 0
+    # A new run starts from nothing, so it needs the checks file again.
+    changed = ("--request", "Build something completely different.")
+    assert resume(old.run_id, *changed, "--checks", str(write_checks())) == 0
 
     assert "request changed" in capsys.readouterr().err
     assert len(runs()) == 2
@@ -590,7 +592,8 @@ def test_the_strategy_comes_from_the_flag_the_environment_or_defaults_to_hierarc
     assert main.run([*base, "--project-name", "from-env"]) == 0
     assert RunStore(project("from-env")).latest().strategy == "single"  # type: ignore[union-attr]
 
-    assert main.run([*base, "--project-name", "flag", "--strategy", "pipeline"]) == 0
+    checks = ["--checks", str(write_checks())]
+    assert main.run([*base, "--project-name", "flag", "--strategy", "pipeline", *checks]) == 0
     assert RunStore(project("flag")).latest().strategy == "pipeline"  # type: ignore[union-attr]
 
 

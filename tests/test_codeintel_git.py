@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 from git_helpers import commit, init_repo
@@ -186,3 +187,17 @@ def test_todos_without_git_are_still_listed(make_context: MakeContext) -> None:
 )
 def test_age_labels(days: float | None, label: str) -> None:
     assert age_label(days) == label
+
+
+def test_a_project_inside_another_repository_has_no_history_of_its_own(
+    make_context: MakeContext, tmp_path: Path
+) -> None:
+    """Hotspots and Find TODOs used to read whatever repository enclosed the project."""
+
+    init_repo(tmp_path)
+    commit(tmp_path, {"outer.py": "x = 1\n"}, "outer", "Ana", 1)
+    ctx = make_context()  # tmp_path/project, with no .git of its own
+    ctx.workspace.write_file("inner.py", "y = 1\n")
+
+    with pytest.raises(GitUnavailable, match="not a Git repository"):
+        GitHistory(ctx).commits(30)

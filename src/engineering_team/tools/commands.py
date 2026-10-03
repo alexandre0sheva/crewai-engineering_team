@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import os
 import shlex
-import shutil
 from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
 
-from engineering_team.execution.backend import CommandRecord, CommandSpec, ExecutionBackend
+from engineering_team.execution.backend import (
+    CommandRecord,
+    CommandSpec,
+    ExecutionBackend,
+    has_executable,
+)
 from engineering_team.tools.workspace import CONTROLLER_DIRECTORY, ProjectWorkspace, WorkspaceError
 
 MAX_COMMAND_TIMEOUT = 300
@@ -84,10 +88,13 @@ def prepare_command(
     timeout_seconds: int = 120,
     *,
     max_timeout: int = MAX_COMMAND_TIMEOUT,
+    backend: ExecutionBackend | None = None,
 ) -> CommandSpec:
     """Validate ``command`` (allowlist, no shell, no inline code, no outside paths).
 
-    ``max_timeout`` caps ``timeout_seconds`` (the developer tools allow longer runs).
+    ``max_timeout`` caps ``timeout_seconds`` (the developer tools allow longer runs). With a
+    ``backend`` that resolves programs itself (the Docker sandbox), the executable is not
+    looked up on the host's ``PATH``.
 
     Returns the spec to run, or raises :class:`WorkspaceError` with a message saying how to
     fix the call.
@@ -130,7 +137,7 @@ def prepare_command(
     _reject_external_path_arguments(workspace, arguments[1:])
 
     timeout = max(1, min(int(timeout_seconds), max_timeout))
-    if shutil.which(arguments[0]) is None and not (
+    if not has_executable(backend, arguments[0]) and not (
         arguments[0].startswith("./") and (cwd / arguments[0]).is_file()
     ):
         raise WorkspaceError(f"Executable not found: {arguments[0]}")
@@ -159,7 +166,7 @@ def run_command(
     runs, so validation errors never wait for a slot.
     """
 
-    spec = prepare_command(workspace, command, relative_cwd, timeout_seconds)
+    spec = prepare_command(workspace, command, relative_cwd, timeout_seconds, backend=backend)
     with gate if gate is not None else nullcontext():
         record = backend.run(spec)
     return format_record(workspace, record)

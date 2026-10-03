@@ -10,6 +10,7 @@ import signal
 import subprocess
 import threading
 import time
+from collections.abc import Mapping
 from pathlib import Path
 
 from engineering_team.execution.backend import CommandRecord, CommandSpec
@@ -61,10 +62,11 @@ class LocalProcess:
         log_path.parent.mkdir(parents=True, exist_ok=True)
         self._log = log_path.open("wb")
         try:
+            argv, env, cwd = self._launch(spec)
             self._process = subprocess.Popen(
-                list(spec.argv),
-                cwd=spec.cwd,
-                env={**spec.env, **NON_INTERACTIVE_ENV},
+                argv,
+                cwd=cwd,
+                env=env,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -77,6 +79,11 @@ class LocalProcess:
             target=self._drain, name=f"{command_id}-output", daemon=True
         )
         self._reader.start()
+
+    def _launch(self, spec: CommandSpec) -> tuple[list[str], Mapping[str, str], Path]:
+        """What to spawn: ``(argv, environment, cwd)``. The Docker backend wraps the command."""
+
+        return list(spec.argv), {**spec.env, **NON_INTERACTIVE_ENV}, spec.cwd
 
     # -- output streaming ---------------------------------------------------------------
 
@@ -218,13 +225,10 @@ class LocalBackend:
     def start(self, spec: CommandSpec) -> LocalProcess:
         with self._number_lock:
             number = next(self._numbers)
-        return LocalProcess(
-            spec,
-            f"cmd-{number}",
-            self.log_dir / f"{number}.log",
-            cancel_event=self._cancel,
-            **self._limits,
-        )
+        return self._spawn(spec, f"cmd-{number}", self.log_dir / f"{number}.log")
+
+    def _spawn(self, spec: CommandSpec, command_id: str, log_path: Path) -> LocalProcess:
+        return LocalProcess(spec, command_id, log_path, cancel_event=self._cancel, **self._limits)
 
     def run(self, spec: CommandSpec) -> CommandRecord:
         return self.start(spec).wait(spec.timeout)
