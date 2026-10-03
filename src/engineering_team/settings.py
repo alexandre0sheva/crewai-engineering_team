@@ -261,6 +261,15 @@ class ReviewSettings(_Frozen):
     fail_on: Literal["low", "medium", "high", "critical"] = "high"
 
 
+class AnalysisSettings(_Frozen):
+    """Adopting an existing project: how the codebase analysts split and report on it."""
+
+    # At most this many chunks (top-level packages or directories) are analysed side by side.
+    max_chunks: int = Field(default=6, ge=1, le=20)
+    # The size cap, in characters, of the codebase map that is put into agent context.
+    context_chars: int = Field(default=8000, ge=1000, le=100_000)
+
+
 TEAM_KEY = re.compile(r"[a-z][a-z0-9_]*")
 
 
@@ -325,6 +334,7 @@ class Settings(_Frozen):
     git: GitSettings = GitSettings()
     intake: IntakeSettings = IntakeSettings()
     review: ReviewSettings = ReviewSettings()
+    analysis: AnalysisSettings = AnalysisSettings()
     team_profile: Literal["full", "minimal"] = "full"  # minimal: no review, DevOps, or docs stage
     team: dict[str, TeamOverride] = {}
     team_file: str | None = None  # default: ./.engineering-team/team.yaml when it exists

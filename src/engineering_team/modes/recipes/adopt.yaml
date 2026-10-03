@@ -1,0 +1,25 @@
+# The recipe for taking over an existing project: what it is, what its checks say before anyone
+# changes it, and how its code fits together. The repository modes (feature, fix, maintain) start
+# with these stages; `engineering-team analyze --deep` runs the first and the last. No stage
+# changes the project. See docs/ARCHITECTURE.md ("Adopting an existing project").
+name: adopt
+description: Profile an existing project, record its baseline, and map its code.
+stages:
+  # Deterministic and free: languages, stacks, detected commands, entry points, tests, CI, and
+  # conventions (.engineering-team/repo-profile.json).
+  - name: profile
+    kind: controller
+    action: repo_profile
+
+  # The controller runs the detected checks once, before any change, and records which already
+  # fail (.engineering-team/baseline.json), so later verification can ask for "no new failures".
+  - name: baseline
+    kind: controller
+    action: baseline
+
+  # Read-only analysts study the project's chunks side by side, one more combines their findings,
+  # and the controller writes .engineering-team/codebase-map.md (reused while the tree is
+  # unchanged).
+  - name: map
+    kind: analyze
+    teammates: [codebase_analyst]

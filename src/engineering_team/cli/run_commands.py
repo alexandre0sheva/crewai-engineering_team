@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import sys
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated, Any
 
@@ -21,10 +22,17 @@ from engineering_team.pipeline.strategies import STRATEGY_NAMES
 from engineering_team.runtime.budget import Budget
 
 
-def present_run(prepared: Any, g: Globals, *, ask: bool = False) -> int:
+def present_run(
+    prepared: Any,
+    g: Globals,
+    *,
+    ask: bool = False,
+    extra: Callable[[], dict[str, Any]] | None = None,
+) -> int:
     """Run ``prepared`` with the right display, then show (or print as JSON) how it ended.
 
-    With ``ask`` the team's questions are put to the person at the terminal.
+    With ``ask`` the team's questions are put to the person at the terminal. ``extra`` is called
+    after the run and its items are added to the ``--json`` document.
     """
 
     from engineering_team import main as engine
@@ -54,6 +62,8 @@ def present_run(prepared: Any, g: Globals, *, ask: bool = False) -> int:
         )
     code = engine.exit_code_for(result)
     data = summary.build(ctx, result, code, resumable=prepared.strategy.resumable)
+    if extra is not None:
+        data.update(extra())
     if g.json:
         print_json(data)
     elif g.interactive:
@@ -110,7 +120,13 @@ def new(
     force_reset: Annotated[
         bool, typer.Option(help="Like --reset, also for a directory this tool did not create.")
     ] = False,
-    adopt: Annotated[bool, typer.Option(hidden=True)] = False,
+    adopt: Annotated[
+        bool,
+        typer.Option(
+            help="Let the team work in an existing directory it did not create "
+            "(not a Git repository)."
+        ),
+    ] = False,
     prepare_only: Annotated[
         bool,
         typer.Option(help="Validate inputs and prepare the workspace without calling a model."),

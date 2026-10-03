@@ -230,7 +230,12 @@ def _run_parser() -> argparse.ArgumentParser:
         help="Like --reset, but also deletes a directory this tool did not create. "
         "Dangerous targets (home, cwd, filesystem root, symlinks) are still refused.",
     )
-    parser.add_argument("--adopt", action="store_true", help=argparse.SUPPRESS)  # reserved
+    parser.add_argument(
+        "--adopt",
+        action="store_true",
+        help="Let the team work in an existing directory it did not create (not a Git "
+        "repository; see `analyze` and docs/USAGE.md for repositories).",
+    )
     parser.add_argument(
         "--prepare-only",
         action="store_true",
@@ -331,13 +336,14 @@ class PreparedRun:
 
 
 def _prepare_workspace(
-    settings: Settings, *, reset: bool = False, force_reset: bool = False
+    settings: Settings, *, reset: bool = False, force_reset: bool = False, adopt: bool = False
 ) -> ProjectWorkspace:
     return prepare_workspace(
         settings.project_name,
         settings.workspace_root,
         reset=reset or force_reset,
         force_reset=force_reset,
+        adopt=adopt,
         command_allowlist=settings.command_allowlist,
         subprocess_env_allowlist=settings.subprocess_env_allowlist,
     )
@@ -351,6 +357,7 @@ def _open_run(
     context: ContextScan | None = None,
     reset: bool = False,
     force_reset: bool = False,
+    adopt: bool = False,
 ) -> PreparedRun:
     """Prepare the workspace, take its write lock, and build the run context and inputs.
 
@@ -362,7 +369,7 @@ def _open_run(
     usage error.
     """
 
-    workspace = _prepare_workspace(settings, reset=reset, force_reset=force_reset)
+    workspace = _prepare_workspace(settings, reset=reset, force_reset=force_reset, adopt=adopt)
     run_id = new_run_id()
     lock = WorkspaceLock(workspace.root).acquire(run_id)
     # Only builds follow the strategy setting; train, test, and replay are crew commands.
@@ -422,8 +429,6 @@ def _pin_checks(settings: Settings, ctx: RunContext, mode: str, strategy: str) -
 
 
 def _prepare_from_args(args: Any, mode: str = "build") -> PreparedRun:
-    if args.adopt:
-        raise ValueError("--adopt is not implemented yet.")
     settings = load_settings(overrides=_cli_overrides(args), config_file=args.config)
     files = args.request_file
     bundle = load_bundle(
@@ -442,6 +447,7 @@ def _prepare_from_args(args: Any, mode: str = "build") -> PreparedRun:
         context=bundle.context,
         reset=args.reset,
         force_reset=args.force_reset,
+        adopt=getattr(args, "adopt", False),
     )
 
 

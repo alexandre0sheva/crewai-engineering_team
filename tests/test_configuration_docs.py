@@ -11,6 +11,7 @@ from engineering_team.model_routing import MODEL_FACTS, PROVIDER_PRESETS
 from engineering_team.pricing import build_table, default_prices
 from engineering_team.settings import (
     ENV_SETTINGS,
+    AnalysisSettings,
     BrowserSettings,
     BudgetSettings,
     DevToolsSettings,
@@ -58,6 +59,7 @@ def test_every_setting_is_documented() -> None:
         "intake",
         "team",
         "review",
+        "analysis",
     }
     for section, model in (
         ("budget", BudgetSettings),
@@ -74,6 +76,7 @@ def test_every_setting_is_documented() -> None:
         ("git", GitSettings),
         ("intake", IntakeSettings),
         ("review", ReviewSettings),
+        ("analysis", AnalysisSettings),
     ):
         keys |= {f"{section}.{name}" for name in model.model_fields}
 

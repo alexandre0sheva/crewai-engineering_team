@@ -14,6 +14,8 @@ from crewai.tools import BaseTool
 
 from engineering_team.artifacts import missing_artifacts
 from engineering_team.contracts import Finding, Plan, Spec, VerificationRecord, WorkPackage
+from engineering_team.modes import adopt as adopt  # noqa: F401  (registers the adopt actions)
+from engineering_team.modes.map_stage import run_map
 from engineering_team.pipeline.actions import CONTROLLER_ACTIONS
 from engineering_team.pipeline.board_sync import StageBoard
 from engineering_team.pipeline.checkpoints import Checkpoints
@@ -135,9 +137,38 @@ class StageExecutor:
             self._verify(stage)
         elif stage.kind == "review":
             self._review(stage)
+        elif stage.kind == "analyze":
+            self._analyze(stage)
         else:
             self._agent(stage, note)
         self._check_artifacts(stage)
+
+    def _analyze(self, stage: StageSpec) -> None:
+        """Analysts study the codebase in chunks, side by side; the controller writes the map."""
+
+        teammate = lead_teammate(self.ctx, stage)
+
+        def call(
+            *,
+            tools: list[BaseTool],
+            lane: int | None,
+            chunk: str = "",
+            synthesis: str = "",
+            profile: str = "",
+        ) -> StageOutput:
+            return self._call(
+                stage,
+                teammate,
+                "",
+                lane=lane,
+                tools=tuple(tools),
+                chunk=chunk,
+                synthesis=synthesis,
+                profile=profile,
+            )
+
+        summary = run_map(self.ctx, self.state, teammate, call)
+        self.state.summaries[stage.name] = summary[:MAX_SUMMARY]
 
     def _verify(self, stage: StageSpec) -> None:
         """Run the controller's verification; its repair agent is the stage's first teammate.
@@ -266,6 +297,9 @@ class StageExecutor:
         findings: str = "",
         tools: tuple[BaseTool, ...] | None = None,
         card_id: str | None = None,
+        chunk: str = "",
+        synthesis: str = "",
+        profile: str = "",
     ) -> StageOutput:
         self.ctx.board.wait_while_paused(self.ctx.cancel_event)
         check_cancelled(self.ctx)
@@ -290,6 +324,9 @@ class StageExecutor:
             findings=findings,
             tools=tools,
             roles=self._roles(),
+            chunk=chunk,
+            synthesis=synthesis,
+            profile=profile,
         )
         output = self.runner.run(request)
         check_cancelled(self.ctx)

@@ -176,6 +176,39 @@ asked:
 Committing is best effort and never fails a run. A commit is made as `Engineering Team
 <engineering-team@users.noreply.github.com>` (`git.author_name`, `git.author_email`); nothing is signed.
 
+### Adopting an existing project
+
+What the adoption machinery touches in a project that is not the tool's own, and what it never does
+([USAGE.md](USAGE.md#adopting-an-existing-project) has the workflow):
+
+| Operation | Touches | Never touches |
+|-----------|---------|---------------|
+| `analyze` | Nothing. It reads files and asks Git read-only questions (its Git home and caches go to a throw-away directory). | Everything: no file, no `.git`, no `.engineering-team/` is created. |
+| `analyze --deep` | `.engineering-team/` (the map, the profile, the run record, scratch) and one line in `.git/info/exclude`. | Source files (the analysts' write tools can reach only their own scratch file), `.gitignore`, branches, history (no stage commits). |
+| **branch** isolation | A new branch `engineering-team/<run-id>-<slug>` is created and checked out; `.git/info/exclude`; `.engineering-team/` | Your branch, your other branches, remotes, hooks. Files on disk change only when the team writes. |
+| **worktree** isolation | A new branch, `.git/worktrees/<id>` (Git's bookkeeping), `.engineering-team/worktrees/<run-id>` | Your working copy: not one file, including uncommitted changes and untracked files. |
+| **copy** isolation | A new directory `workspace/<name>` | The original directory, which is only read. |
+
+- **Never a remote.** The Git port has no push, fetch, pull, or remote commands ([Git](#git)), so adoption
+  cannot publish anything. The result is a local branch, worktree, or copy for you to review and push.
+- **A dirty tree is protected.** In place is refused unless `--allow-dirty`; the default for a dirty tree is the
+  worktree, which leaves it exactly as it is.
+- **Hooks never run** (the Git port's configuration), not on the checkout of the new branch and not on commits.
+- **`.engineering-team/` stays out of your repository's view** through `.git/info/exclude` (a local file that is
+  not part of the repository), never through your `.gitignore`. In a linked worktree the exclude file of the
+  repository's common directory is used.
+- **Adopted directories are not generated ones.** An adopted workspace carries `"adopted": true` in
+  `.engineering-team/owner.json`; `--reset` refuses to delete it without `--force-reset`, and `new --adopt`
+  refuses a Git repository (it would commit onto its current branch).
+- **The baseline runs the project's own code** (its tests, linters, and build) through the execution backend, with
+  the same limits as the verifier: allowlisted tools, no shell, a timeout, a command gate. On the local backend
+  that code runs on your machine; use `--sandbox docker` for code you do not trust. Checks may write caches or
+  build output inside the workspace (the isolated one for the repository modes); nothing is installed.
+- **The codebase map is context, not evidence.** The analysts are told to read, never to change, and their
+  words are flattened and size-capped by the controller when it writes the map; it can still be wrong or, if the
+  code contains text aimed at an agent, influenced by it. Treat it like any document of untrusted origin
+  ([Untrusted content](#untrusted-content)).
+
 ### Code intelligence
 
 The `code_intel` tools ([TOOLS.md](TOOLS.md#code-intelligence-tools)) only read project files. Only

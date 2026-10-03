@@ -13,6 +13,7 @@ from engineering_team.contracts import (
     Spec,
     WorkPackage,
 )
+from engineering_team.modes.codebase_map import ChunkAnalysis, CodebaseMap, ModuleNote
 from engineering_team.pipeline.stages import StageOutput, StageRequest
 from engineering_team.settings import Settings, load_settings
 
@@ -46,6 +47,18 @@ PLAN = Plan(
             criteria_ids=["AC-2"],
         ),
     ],
+)
+
+CODEBASE_MAP = CodebaseMap(
+    overview="A small notes application.",
+    architecture="A CLI over a storage module.",
+    modules=[ModuleNote(name="store", path="app/store.py", purpose="Keeps notes.")],
+    key_flows=["main parses the arguments and calls store.add."],
+    conventions=["Plain functions, no classes."],
+    hotspots=["app/store.py changes most."],
+    risks=["Few tests."],
+    how_to_run=["python -m app.main TEXT"],
+    how_to_test=["make test"],
 )
 
 # What the agent stages after ``verify`` call, in order: two reviewers (side by side, so their
@@ -106,7 +119,9 @@ class FakeRunner:
         says: dict[str, str] | None = None,
         specs: list[Spec] | None = None,
         reviews: dict[str, ReviewReport] | None = None,
+        codebase_map: CodebaseMap | None = None,
     ) -> None:
+        self.codebase_map = codebase_map or CODEBASE_MAP  # what an ``analyze`` synthesis returns
         self.plan = PLAN if plan is None else plan
         self.reviews = dict(reviews or {})  # teammate -> the report that reviewer returns
         self.specs = list(specs or [SPEC])  # what the spec stage returns; the last one repeats
@@ -133,7 +148,16 @@ class FakeRunner:
                 raise RuntimeError(f"scripted failure in {key}")
         write = request.ctx.workspace.write_file
         contracts: dict[str, Contract] = {}
-        if stage == "spec":
+        if request.stage.kind == "analyze":  # chunk analysts, then the synthesis
+            contracts["analysis"] = (
+                self.codebase_map
+                if request.synthesis
+                else ChunkAnalysis(
+                    summary=f"Analysed. {request.chunk.splitlines()[0]}",
+                    modules=[ModuleNote(name="core", path="src", purpose="The core.")],
+                )
+            )
+        elif stage == "spec":
             contracts["spec"] = self.specs.pop(0) if len(self.specs) > 1 else self.specs[0]
         elif stage == "plan":
             write("docs/architecture.md", "# Architecture\n" + BODY)

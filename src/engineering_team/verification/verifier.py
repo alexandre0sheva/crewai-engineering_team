@@ -69,10 +69,13 @@ class Verifier:
 
     # -- running ---------------------------------------------------------------------------
 
-    def run(self, checks: Sequence[CheckSpec], *, round: int = 0) -> list[CheckResult]:
+    def run(
+        self, checks: Sequence[CheckSpec], *, round: int = 0, label: str | None = None
+    ) -> list[CheckResult]:
         """Run ``checks`` in order and return one result each, all stamped with the revision of
         the workspace they left (a check that writes into the project moves it, so it is taken
-        after the last one). The batch is also written to ``verification/round-<round>.json``."""
+        after the last one). The batch is also written to ``verification/round-<round>.json``
+        (or ``verification/<label>.json`` for a batch that is not a verification round)."""
 
         results: list[CheckResult] = []
         blocked_by: CheckSpec | None = None
@@ -92,7 +95,7 @@ class Verifier:
         revision = verification_revision(self.ctx.workspace)
         results = [result.model_copy(update={"revision": revision}) for result in results]
         atomic_write_json(
-            self.ctx.run_dir / "verification" / f"round-{round}.json",
+            self.ctx.run_dir / "verification" / f"{label or f'round-{round}'}.json",
             {
                 "round": round,
                 "revision": revision,

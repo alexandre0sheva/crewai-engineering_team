@@ -46,9 +46,9 @@ Generated applications live under `workspace/<project-name>/` (relative to the
 directory the command is run from) by default. A run resumes that directory unless
 `--reset` is explicitly used. A project is *owned* when it contains
 `.engineering-team/owner.json`; non-empty directories without it are never written
-to, and `--reset` deletes only owned projects (`--force-reset` overrides for foreign
-directories but never for home, the current directory and its parents, the filesystem
-root, symlinks, or the engineering-team installation). This supports normal
+to (unless `--adopt` takes one over, [below](#adopting-an-existing-project)), and `--reset` deletes only owned
+projects (`--force-reset` overrides for foreign and adopted directories but never for home, the current
+directory and its parents, the filesystem root, symlinks, or the engineering-team installation). This supports normal
 nested project structures and lets agents use the stack's own build and test
 tools.
 
@@ -224,9 +224,12 @@ from reading `commands/` logs. This is the single description of its layout:
 | `notes/<key>.md` | `NoteStore` | Shared notes agents wrote with `Write Note` |
 | `crew-log.json`, `crew-log-<stage>.json` | CrewAI | CrewAI's own execution log (one per stage crew in the pipeline) |
 | `commands/<n>.log` | `LocalBackend` | Full output of each project command (including `git` commands) |
+| `verification/baseline.json` | `Verifier` | The baseline's batch of check results ([Adopting an existing project](#adopting-an-existing-project)); not a verification round |
 
 Other state under `.engineering-team/` is per workspace, not per run: `owner.json` (ownership
-marker), `lock` (workspace lock), `tmp/`, `tool-home/`, and `cache/`.
+marker; `"adopted": true` for a directory that held someone's work first), `lock` (workspace lock), `tmp/`,
+`tool-home/`, and `cache/`; for an adopted project also `repo-profile.json`, `baseline.json`,
+`codebase-map.md`, `isolation.json`, and `worktrees/<run-id>/` (a worktree-mode workspace).
 
 **Contracts** (`contracts.py`) are Pydantic v2 models that every part of the system shares:
 `Spec`, `Plan`, `WorkPackage`, `CheckSpec`/`CheckResult`/`CriterionCoverage`/`VerificationRecord`, `Finding`, `StageRecord` (with the workspace revision at the stage's start and end), `RunManifest`,
@@ -351,7 +354,7 @@ deterministic code**; models do bounded work inside stages.
 **Recipes** (`pipeline/recipes.py`, bundled in `modes/recipes/*.yaml`) are data. A `Recipe` is an
 ordered list of stages; each has a `name`, a `kind` (`agent`: one small crew, one teammate;
 `parallel`: one crew per work package of the plan, run in lanes ([Parallel execution](#parallel-execution)); `controller`: a registered
-controller-side action, no model; `verify`: the controller's own verification, [below](#verification-and-repair)), its `teammates`, `inputs` and `outputs` (contracts `spec`/`plan`,
+controller-side action, no model; `verify`: the controller's own verification, [below](#verification-and-repair); `analyze`: read-only analysts study an existing codebase, [below](#adopting-an-existing-project)), its `teammates`, `inputs` and `outputs` (contracts `spec`/`plan`,
 or `file:<path>` for a promised file), `skip_if` conditions (`no_work_packages`), `retry`, and a
 `verification_policy` (`artifacts`: the controller requires every promised file to exist and hold
 real content; it never takes the agent's word). The `new` recipe is `spec` → `plan` → `foundation` →
@@ -593,6 +596,66 @@ execution backend as every other command; under the Docker sandbox the run direc
 while on the local backend an agent with a command tool can still reach it ([SAFETY.md](SAFETY.md)). Only the
 `pipeline` strategy verifies: `hierarchical` and `single` keep the interim artifact guardrails and never
 report `verified`.
+
+## Adopting an existing project
+
+Everything before this builds from nothing. An existing project needs four things first: to be understood, to be
+worked on somewhere safe, to have its starting health recorded, and to have its code explained. All of it lives in
+`modes/` and is composed by the `adopt` recipe (`modes/recipes/adopt.yaml`); the repository modes start with it.
+
+```text
+isolate()  ──►  workspace (branch | worktree | copy)  ──►  adopt recipe:  profile ─► baseline ─► map
+ (before the run)                                           controller      controller    analyze
+```
+
+**Profile** (`repo_analyzer.analyze_repo`, `repo_commands.py`, `repo_profile.py`). Deterministic, no model, no writes:
+one walk of the non-ignored files (`.gitignore`, heavy directories, and `.engineering-team/` skipped, capped at
+20,000 files) gives languages, sizes, manifests, test directories and files, CI files, convention files, and entry
+points (declared ones, from `package.json` and `[project.scripts]`, first); `devtools.detect.find_stacks` (the one
+stack detector the verifier uses) gives the projects; `repo_commands.detect_commands` turns scripts, Makefile and
+justfile targets, tox and nox, and the stack's tools into `DetectedCommand`s, project-defined ones first, each with
+the file it came from. Git state comes from a `GitPort` (a run's, or `standalone_git`, whose home, caches, and logs
+go to a throw-away directory so nothing lands in the project). The result is a `RepoProfile` contract, saved to
+`.engineering-team/repo-profile.json` and held in `PipelineState.profile`.
+
+**Isolation** (`isolation.isolate`, before a run exists, because the run lives in the workspace it returns). A clean
+Git repository gets a branch in place, a dirty one a worktree at `.engineering-team/worktrees/<run-id>`, and a
+directory that is not a repository is copied; the rules and the refusals are in
+[USAGE.md](USAGE.md#adopting-an-existing-project) and [SAFETY.md](SAFETY.md#adopting-an-existing-project).
+`GitPort` is worktree-aware for this (`git_dir()`/`common_dir()` follow a linked worktree's `.git` file, so
+`info/exclude` and the real index are found), and `exclude_controller_state()` is the public way to keep
+`.engineering-team/` out of a repository. The result is an `Isolation` (mode, source, workspace, branch, base
+branch and commit, notes), recorded in the workspace's `.engineering-team/isolation.json`; the workspace is marked
+adopted in `owner.json`.
+
+**Baseline** (`baseline.run_baseline`, `baseline_report.py`). The controller runs the detected checks (the
+verifier's own `build_checks` defaults and `Verifier`, so the same runners, parsers, backend, and limits) once
+before any change, writes `BaselineReport` to `.engineering-team/baseline.json` and the pipeline state, and
+reports the batch as `verification/baseline.json` (not a verification round). Failures become stable keys:
+`test:<dir>:<test id>`, `lint:<dir>:<file>:<rule>` (no line numbers, so an edit elsewhere in a file keeps a
+known failure known), `build:<dir>`; a test command that found no tests is `skipped`, not failed. Comparing a
+later verification against the baseline ("no new failures") is the verify stage's job in the repository modes.
+
+**Map** (`codebase_map.py`, `map_stage.py`; the `analyze` stage kind). `plan_chunks` splits the source (files of a
+known language) into at most `analysis.max_chunks` chunks: top-level directories are the units, a unit holding more
+than half the source is split one level down (up to three), and the two smallest are merged until the limit is met;
+sizes and names decide, so the plan is deterministic and covers every file once. Each chunk goes to a
+`codebase_analyst` through `run_parallel_readonly` (one lane each; read-only tools, and one scratch path under
+`.engineering-team/tmp/analysis/` as their only writable place) and returns a `ChunkAnalysis`; one more call
+combines them with the profile into a `CodebaseMap`, and the controller renders it (`render_map`: its own headings,
+every agent line flattened to one line and capped) to `.engineering-team/codebase-map.md`. The file's first line
+holds the hash of the tree it describes (`workspace_revision`), which is the cache: an unchanged tree reuses the
+map without a model call (`map.cached`). A failed chunk is reported in the map and left out; the stage fails only
+when no chunk could be analysed or the synthesis fails. `map_context(root, cap)` is the size-capped copy later modes
+put into agent context. Events: `map.chunks`, `map.chunk_failed`, `map.written`, `map.cached`,
+`baseline.recorded`.
+
+**Recipes and CLI.** `adopt.yaml` has `profile` and `baseline` (controller actions `repo_profile` and `baseline`,
+registered in `modes/adopt.py`) and `map` (kind `analyze`). `engineering-team analyze --repo PATH` computes the
+profile with no run at all; with `--deep` it opens a run in the project itself (mode `analyze`, no ownership marker,
+`git.enabled = false` so no stage commits, the workspace lock held) and runs the recipe's read-only subset
+(`analysis_recipe()`: profile and map; no baseline, because that runs the project's commands). The repository
+modes will inline or reuse the three stages; a recipe cannot include another yet.
 
 ## Settings and model routing
 

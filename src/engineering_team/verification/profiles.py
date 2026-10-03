@@ -64,7 +64,7 @@ def build_checks(ctx: RunContext, plan: Plan | None, user: Sequence[CheckSpec]) 
     dev = ctx.settings.tools.dev
     workspace = DevRunner(ctx).workspace
     result = ChecksPlan()
-    stacks = _projects(find_stacks(ctx.workspace.root))
+    stacks = project_roots(find_stacks(ctx.workspace.root))
     commands = plan.commands if plan is not None else None
     declared: dict[CheckKind, list[str]] = (
         {
@@ -148,7 +148,7 @@ def build_checks(ctx: RunContext, plan: Plan | None, user: Sequence[CheckSpec]) 
     return result
 
 
-def _projects(stacks: list[Stack]) -> list[Stack]:
+def project_roots(stacks: list[Stack]) -> list[Stack]:
     """The project roots: a directory of the same language inside another project (a ``tests/``
     or ``src/`` folder of loose Python files) is part of that project, not a second one."""
 

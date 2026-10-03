@@ -25,6 +25,11 @@ from pydantic import BaseModel
 from engineering_team.contracts import Contract, Plan, ReviewReport, Spec, WorkPackage
 from engineering_team.crew import build_llm
 from engineering_team.intake.context_docs import context_note
+from engineering_team.modes.codebase_map import (
+    ChunkAnalysis,
+    CodebaseMap,
+    map_context,
+)
 from engineering_team.pipeline.recipes import StageSpec
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.context import RunContext
@@ -59,6 +64,9 @@ class StageRequest:
     roles: tuple[str, ...] = ()
     findings: str = ""  # a repair stage: the review findings the controller wants fixed
     tools: tuple[BaseTool, ...] | None = None  # prebuilt (read-only job); None: build
+    chunk: str = ""  # an analyze stage: the brief of the part of the codebase to study
+    synthesis: str = ""  # an analyze stage's last step: the chunk analyses to combine
+    profile: str = ""  # an analyze stage: the facts the controller found about the repository
 
     @property
     def label(self) -> str:
@@ -144,6 +152,25 @@ def lead_teammate(ctx: RunContext, stage: StageSpec) -> str:
     return key
 
 
+def _context(request: StageRequest) -> str:
+    """The project context a prompt carries: the reference documents the user supplied, and, for
+    an adopted project, the codebase map (size-capped). The analysts that write the map do not
+    get it: they must read the code as it is now."""
+
+    ctx = request.ctx
+    note = context_note(ctx.workspace.root)
+    if request.stage.kind == "analyze":
+        return note
+    mapped = map_context(ctx.workspace.root, ctx.settings.analysis.context_chars)
+    if not mapped:
+        return note
+    heading = (
+        "Codebase map of the existing project, written by analysts who read it (a guide, not "
+        "evidence: check anything you rely on in the code):"
+    )
+    return f"{note}\n\n{heading}\n\n{mapped}".strip()
+
+
 def _json(model: BaseModel | None) -> str:
     return model.model_dump_json(indent=2) if model is not None else "(not available)"
 
@@ -157,7 +184,11 @@ class CrewStageRunner:
     def run(self, request: StageRequest) -> StageOutput:
         ctx, stage = request.ctx, request.stage
         prompts = _yaml("stages.yaml")
-        key = {"parallel": "implement", "verify": "repair"}.get(stage.kind, stage.name)
+        key = {"parallel": "implement", "verify": "repair", "analyze": "analyze_chunk"}.get(
+            stage.kind, stage.name
+        )
+        if stage.kind == "analyze" and request.synthesis:
+            key = "analyze_synthesis"  # the last step combines what the chunk analysts found
         if stage.kind == "verify" and request.findings:
             key = "repair_review"  # a repair round for review findings, not for failing checks
         if key not in prompts:
@@ -172,6 +203,8 @@ class CrewStageRunner:
         }
         if stage.kind == "review":  # each reviewer returns its own report; the controller merges
             wanted = {"review": ReviewReport}
+        if stage.kind == "analyze":  # chunk analyses and the final map; the controller writes it
+            wanted = {"analysis": CodebaseMap if request.synthesis else ChunkAnalysis}
         if len(wanted) > 1:
             raise StageError(
                 f"Stage '{stage.name}' asks for several contracts ({', '.join(wanted)}); "
@@ -278,10 +311,13 @@ class CrewStageRunner:
                 for key in request.roles
                 if key in ctx.team.members
             ),
-            "context": context_note(ctx.workspace.root),
+            "context": _context(request),
             "card": card,
             "notes": notes,
             "resume_note": request.note,
             "failures": request.failures,
             "findings": request.findings,
+            "chunk": request.chunk,
+            "synthesis": request.synthesis,
+            "profile": request.profile,
         }

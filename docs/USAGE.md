@@ -13,6 +13,7 @@ uv run engineering-team <command> --help # its options
 | Command | What it does |
 |---------|--------------|
 | `new` | Build a new project from a request (`--request`, `--request-file`, stdin, or `--example`). |
+| `analyze [--repo PATH] [--deep]` | Look at an existing project without changing it: languages, detected commands, tests, CI, Git state; `--deep` also writes a codebase map ([Adopting an existing project](#adopting-an-existing-project)). |
 | `resume RUN` | Continue a cancelled, interrupted, or failed run without redoing finished stages. |
 | `status [RUN]` | Where a run stands: stages, progress, cost, blocked cards. |
 | `runs` | List runs (of every project, or one with `--project-name`), newest last. |
@@ -54,7 +55,7 @@ uv run engineering-team new --request "Build a CLI that stores and lists notes."
 stdin), or `--example`; with none of them it falls back to `ENGINEERING_PROJECT_REQUEST`,
 `ENGINEERING_REQUEST_FILE`, then `PROJECT_REQUEST.md` in the current directory. See
 [Request sources](#request-sources-and-reference-documents). Useful options: `--provider`, `--profile`, `--strategy`, `--sandbox docker`, `--checks FILE`,
-`--allow-web`, `--no-git`, `--reset`, and `--prepare-only` (validate and set up the workspace without a
+`--allow-web`, `--no-git`, `--reset`, `--adopt` ([below](#adopting-an-existing-project)), and `--prepare-only` (validate and set up the workspace without a
 model call).
 
 **The 0.1.0 form still works.** `engineering-team --request-file FILE` runs `new` and prints a deprecation
@@ -108,8 +109,67 @@ a new run instead. How it works is in [ARCHITECTURE.md](ARCHITECTURE.md#pipeline
 Running `new` again for the same `--project-name` continues in the same project. To start it over,
 pass `--reset`: it deletes only `workspace/<project>/`, and only if this tool created it (it holds
 `.engineering-team/owner.json`; 0.1.0 projects are recognised too). A non-empty directory this tool did
-not create is never modified; `--force-reset` overrides that, but your home directory, the current
+not create is never modified (pass `--adopt` to let the team work in one, [below](#adopting-an-existing-project));
+`--force-reset` overrides the ownership check, but your home directory, the current
 directory and its parents, the filesystem root, symlinks, and the installation itself are always refused.
+
+## Adopting an existing project
+
+Everything above builds a project from nothing. For a project that already exists the team first has to
+understand it, and must never edit your checkout blindly.
+
+**Look first, for free.**
+
+```bash
+uv run engineering-team analyze --repo ../my-service          # no model, nothing written
+uv run engineering-team --json analyze --repo ../my-service   # the same, as one JSON document
+```
+
+`analyze` prints a profile found by code, not by a model: languages with line counts, the projects and package
+managers in it (a monorepo lists each), the **commands** its own files imply (setup, test, lint, type check,
+format, build, run, from `package.json` scripts, Makefile and justfile targets, `tox.ini`, and the toolchain:
+`pytest`, `go test`, `cargo test`, `mvn`, `gradle`, `dotnet test`, `rspec`, `phpunit`...), entry points, test
+directories, CI configuration, convention files (`README`, `CONTRIBUTING`, `AGENTS.md`, `CLAUDE.md`,
+`.editorconfig`, lint and format configs), and the Git state (branch, head, clean or dirty). Each command says
+where it came from, so you can check it; none is run. The directory is not touched.
+
+**Then map it.** `analyze --deep` has the codebase analysts read the code (read-only, up to
+`analysis.max_chunks` parts at a time) and write `.engineering-team/codebase-map.md`: architecture, modules, key
+flows, conventions, hotspots, risks, and how to run and test it. It costs model tokens (the run summary shows
+how many). The map starts with the hash of the tree it describes, so the next `--deep` on an unchanged tree
+costs nothing; `--refresh` writes it again. Later modes put a size-capped copy of the map into the prompts that carry
+project context (`analysis.context_chars`). It is a guide written by agents, not evidence: nothing is verified against
+it. The only things `--deep` writes are in `.engineering-team/` (the map, the profile, the run record), which
+Git is told to ignore through `.git/info/exclude`; your `.gitignore` and your files are never edited.
+
+**How the team gets a place to work.** The modes that change an existing project (`feature`, `fix`,
+`maintain`) start from the `adopt` recipe: profile, baseline, map. They never work in your checkout blindly;
+`modes/isolation.py` picks one of three policies:
+
+| Policy | When | What happens | Your files |
+|--------|------|--------------|------------|
+| **branch** | A Git repository with a clean tree | The team works in your checkout on a new branch `engineering-team/<run-id>-<slug>` made from the current commit. | Untouched until the team writes; your branch never moves. |
+| **worktree** | The tree is dirty (the default then), or `--worktree` | `git worktree add .engineering-team/worktrees/<run-id>` on the same kind of branch. The team starts from the last commit. | Not touched at all, uncommitted changes included. |
+| **copy** | A directory that is not a repository | The directory is copied to `workspace/<name>` (caches and `.venv` are left out; a copy over 2 GiB is refused). With `--init-git` the copy becomes a repository whose first commit is the import, so the work can be diffed against it. | Not touched at all. |
+
+A dirty tree is never worked on in place unless you say so (`--allow-dirty`: the team then works on a new
+branch in your checkout, and your uncommitted changes are part of its first commit). A directory inside a
+repository (not its top level), a repository with no commits, and a copy that would overwrite or contain
+another directory are refused with the fix. Nothing ever pushes: the team's work is a branch (or worktree, or
+copy) that you review and push yourself.
+
+**Baseline.** Before any change the controller runs the detected checks once (tests, lint, type check,
+build, through the same verifier and execution backend as a normal run) and records which already fail in
+`.engineering-team/baseline.json`: per check pass or fail, and the individual failing tests or diagnostics as
+stable keys, so a later verification can ask for "no new failures" instead of "failures". A project with no
+tests gets no test baseline, and says so. Nothing is installed for the baseline: if the project's
+dependencies are not installed, its checks report that they could not run.
+
+**`new --adopt`** is the narrow, older door: it lets `new` work in an existing directory under the workspace
+root that the tool did not create (`--project-name NAME --adopt`), in place and without isolation, so it
+refuses a Git repository (committing there would land on its current branch). The directory is marked
+*adopted* (`.engineering-team/owner.json`): `--reset` refuses to delete it without `--force-reset`.
+Safety details: [SAFETY.md](SAFETY.md#adopting-an-existing-project).
 
 ## Exit codes
 

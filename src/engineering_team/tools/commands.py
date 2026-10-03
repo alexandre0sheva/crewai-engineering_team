@@ -207,8 +207,14 @@ def _reject_external_path_arguments(workspace: ProjectWorkspace, arguments: list
         workspace.reject_protected(relative.parts)
 
 
-def command_environment(workspace: ProjectWorkspace) -> dict[str, str]:
-    """The environment project commands get: a small safe subset plus an isolated home."""
+def command_environment(
+    workspace: ProjectWorkspace, state_dir: Path | None = None
+) -> dict[str, str]:
+    """The environment project commands get: a small safe subset plus an isolated home.
+
+    The home, caches, and temp directory live in the project's controller directory unless
+    ``state_dir`` says otherwise (a read-only look at a project that must stay untouched).
+    """
 
     environment = {
         name: value
@@ -216,7 +222,7 @@ def command_environment(workspace: ProjectWorkspace) -> dict[str, str]:
         if name in SAFE_ENVIRONMENT_NAMES or name in workspace.env_passthrough
     }
 
-    state = workspace.root / CONTROLLER_DIRECTORY
+    state = state_dir or workspace.root / CONTROLLER_DIRECTORY
     tool_home, cache_root, temp_root = state / "tool-home", state / "cache", state / "tmp"
     for directory in (tool_home, cache_root, temp_root):
         directory.mkdir(parents=True, exist_ok=True)

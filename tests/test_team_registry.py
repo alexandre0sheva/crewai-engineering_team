@@ -41,6 +41,7 @@ BUILTINS = {
     "devops_engineer",
     "technical_writer",
     "debugger",
+    "codebase_analyst",
 }
 DATA_ENGINEER = """\
 data_engineer:
@@ -90,6 +91,11 @@ def test_default_tool_groups_follow_the_roles() -> None:
     assert "browser" not in backend.groups and "browser" in frontend.groups
     assert "browser" in roster.get("quality_engineer").groups
     assert set(roster.get("generalist_engineer").groups) >= set(backend.groups)
+    cartographer = set(roster.get("codebase_analyst").groups)  # reads the code, never changes it
+    assert (
+        not cartographer & writers
+        and {"fs_read", "search", "code_intel", "git_read"} <= cartographer
+    )
 
 
 # -- overrides ----------------------------------------------------------------------------------
@@ -472,7 +478,7 @@ def test_doctor_checks_the_team_and_names_missing_tools() -> None:
     team_file("backend_engineer:\n  tool_groups: [telepathy]\n")
     broken = next(c for c in run_checks(load_settings()) if c.name == "Team")
 
-    assert healthy.status in {"ok", "warn"} and "12 of 12 teammates enabled" in healthy.detail
+    assert healthy.status in {"ok", "warn"} and "13 of 13 teammates enabled" in healthy.detail
     assert broken.status == "fail" and "telepathy" in broken.detail
 
 

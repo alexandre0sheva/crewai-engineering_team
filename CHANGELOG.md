@@ -16,6 +16,19 @@ as each task lands.
 
 ### Added
 
+- `engineering-team analyze --repo PATH`: a free, read-only profile of an existing project (languages, detected
+  test/lint/build/run commands and where each came from, entry points, tests, CI, conventions, Git state); `--deep`
+  also has the new read-only `codebase_analyst` teammates map the code, in parallel chunks, into
+  `.engineering-team/codebase-map.md` (reused while the tree is unchanged; `--refresh` rewrites it).
+- Existing-repository adoption (the `adopt` recipe: profile, baseline, map) with isolation policies that never edit
+  your checkout blindly: a new branch for a clean Git repository, a separate worktree when the tree is dirty, a
+  copy for a directory that is not a repository (`--init-git` commits the import); a dirty tree is refused in
+  place without `--allow-dirty`, nothing is ever pushed, and `.engineering-team/` is kept out of Git through
+  `.git/info/exclude`, never your `.gitignore`.
+- A pre-change baseline: the controller runs the detected checks once and records which tests and diagnostics
+  already fail (`.engineering-team/baseline.json`), so later verification can ask for "no new failures".
+- `new --adopt` lets the team work in an existing directory it did not create (not a Git repository); an adopted
+  directory is not deleted by `--reset` without `--force-reset`.
 - `--strategy pipeline` (or `ENGINEERING_STRATEGY`): a staged run (spec, plan, foundation, implement, verify,
   release) driven by a recipe (`modes/recipes/new.yaml`) as a CrewAI Flow with typed hand-offs: one small crew per
   stage, work packages chosen by the architect's plan (a plan without any skips `implement`), the task board kept

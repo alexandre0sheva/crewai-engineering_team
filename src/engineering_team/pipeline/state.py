@@ -27,6 +27,8 @@ from engineering_team.contracts import (
     VerificationRecord,
 )
 from engineering_team.intake.bundle import request_hash as request_hash  # re-exported
+from engineering_team.modes.baseline_report import BaselineReport
+from engineering_team.modes.repo_profile import RepoProfile
 
 STATE_FILENAME = "pipeline.json"
 
@@ -59,6 +61,8 @@ class PipelineState(Contract):
     checks: list[CheckResult] = Field(default_factory=list)  # the verifier's latest results
     verification: VerificationRecord = Field(default_factory=VerificationRecord)
     findings: list[Finding] = Field(default_factory=list)  # the review stage's consolidated ones
+    profile: RepoProfile | None = None  # the adopt recipe's deterministic repository analysis
+    baseline: BaselineReport | None = None  # what the project's checks said before any change
     error: str = ""
 
     @classmethod

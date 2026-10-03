@@ -5,7 +5,9 @@
 # {package} are JSON; the others are text; {context} is empty unless the user supplied reference
 # documents (--context-dir); {teammates} lists who work packages can go to. The ``repair`` prompt is
 # the verify stage's: the controller's failing checks are {failures}; ``repair_review`` is its
-# prompt for review findings ({findings}). ``review`` is run once per reviewer.
+# prompt for review findings ({findings}). ``review`` is run once per reviewer. ``analyze_chunk``
+# is run once per chunk of an existing codebase ({chunk} is its brief) and ``analyze_synthesis``
+# once after them ({synthesis} holds the chunk analyses and the detected facts).
 
 spec:
   description: >
@@ -365,3 +367,54 @@ build:
   expected_output: >
     A working, tested project with README.md and docs/release-report.md, and a summary of what
     was built, what was verified, and what is missing.
+
+analyze_chunk:
+  description: >
+    Analyse one part of the existing codebase of {project_name} in {workspace_path}. You can
+    only read it: do not write or change any file, and do not describe anything you have not
+    seen in the code.
+
+    {chunk}
+
+    Read this chunk's entry points, modules, and tests (the symbol, reference, import, and
+    search tools help you find your way; Hotspots shows where the history churns). Report:
+    a short summary of what this part is for; its main modules (name, path, one-line purpose,
+    and which other modules each uses); the key flows through it, as short sentences that
+    name real functions or files; the conventions the code actually follows (naming, error
+    handling, structure, test style) so a later change can match them; the risks you can
+    point to; and how this part is tested and what is not. Keep every item to one sentence.
+    Say "unclear" instead of guessing.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON analysis (summary, modules, key_flows, conventions, risks, tests).
+
+analyze_synthesis:
+  description: >
+    Write the codebase map of {project_name} in {workspace_path} from the analyses of its
+    parts. You can only read the project: do not write or change any file.
+
+    Facts the controller found (they are certain; do not contradict them):
+
+    {profile}
+
+    The analyses of the parts (written by other analysts; check anything surprising against
+    the code before repeating it):
+
+    {synthesis}
+
+    Combine them into one map: an overview (what the project is and does); the architecture
+    (how the parts fit together); the modules that matter (name, path, purpose, what each
+    uses); the key flows end to end; the conventions a change must follow; the hotspots
+    (use the Hotspots tool when the project has Git history); the risks; and how to run and
+    how to test it, using the detected commands. Resolve disagreements between the analyses by
+    reading the code. Keep every item to one sentence and leave out what you cannot support.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON codebase map (overview, architecture, modules, key_flows, conventions, hotspots,
+    risks, how_to_run, how_to_test).

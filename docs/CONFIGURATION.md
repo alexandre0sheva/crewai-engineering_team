@@ -321,6 +321,16 @@ findings go to `docs/review.md`; see [Review and optional stages](ARCHITECTURE.m
 | `review.fail_on` | `high` | Findings of this severity or higher (`low`, `medium`, `high`, `critical`) are sent to the repair agent (one round of `budget.max_repair_rounds`), then the project is verified again. Lower findings are only reported. |
 | `team_profile` | `full` | `minimal` skips the review, DevOps, and docs stages (the smoke profile does too). To drop one of them, disable its teammates instead: `[team.code_reviewer] enabled = false` (the stage is skipped when none of its teammates is enabled). |
 
+### Adopting existing projects (`[analysis]`)
+
+How the codebase analysts split and report on an existing project (`analyze --deep` and the `map` stage of the
+`adopt` recipe; [USAGE.md](USAGE.md#adopting-an-existing-project), [ARCHITECTURE.md](ARCHITECTURE.md#adopting-an-existing-project)).
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `analysis.max_chunks` | `6` | At most this many chunks (top-level packages or directories, by size) are analysed side by side, each by one read-only analyst; more means more parallel model calls (also capped by `parallel.max_parallel_agents`) and a finer map. 1 to 20. |
+| `analysis.context_chars` | `8000` | The size cap, in characters, of the codebase map put into agent context by later modes (cut at a line). 1,000 to 100,000. |
+
 ## Models
 
 Each role (the manager `engineering_lead` and every specialist) resolves to a model in this order,

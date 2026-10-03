@@ -15,15 +15,15 @@ from typing import Annotated
 
 import typer
 
+from engineering_team.cli import analyze_command, init_command, run_commands
 from engineering_team.cli import doctor as doctor_module
 from engineering_team.cli import info_commands as info
-from engineering_team.cli import init_command, run_commands
 from engineering_team.cli.context import Globals
 from engineering_team.cli.team_commands import team_app
 
 COMMANDS = (
     "new", "resume", "status", "runs", "board", "cancel", "note", "pause", "unpause",
-    "config", "doctor", "init", "examples", "team",
+    "config", "doctor", "init", "examples", "team", "analyze",
 )  # fmt: skip
 HELP_FLAGS = ("-h", "--help")
 FLAGS = ("--json", "--quiet", "-q", "--verbose", "-v", "--no-color")
@@ -88,6 +88,7 @@ def global_options(
 
 app.command()(run_commands.new)
 app.command()(run_commands.resume)
+app.command()(analyze_command.analyze)
 app.command()(info.status)
 app.command()(info.runs)
 app.command()(info.board)

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from engineering_team.pipeline.state import PipelineState
     from engineering_team.settings import Settings
 
-StageKind = Literal["agent", "controller", "parallel", "verify", "review"]
+StageKind = Literal["agent", "controller", "parallel", "verify", "review", "analyze"]
 VerificationPolicy = Literal["none", "artifacts"]
 
 # Contracts a stage can read or write; anything else must be ``file:<path>`` (outputs only) or
@@ -57,6 +57,8 @@ class StageSpec(BaseModel):
     ``verification_policy`` ``artifacts`` makes the controller require every ``file:`` output.
     ``review`` runs its teammates side by side as read-only reviewers; the controller merges their
     findings into ``docs/review.md`` and sends serious ones to repair (``review.fail_on``).
+    ``analyze`` splits an existing codebase into chunks and has its first teammate's read-only
+    analysts study them side by side; the controller writes the codebase map.
     ``optional`` stages are skipped when none of their teammates is enabled.
     """
 
@@ -93,7 +95,7 @@ class StageSpec(BaseModel):
 
     @model_validator(mode="after")
     def _consistent(self) -> StageSpec:
-        if self.kind in ("agent", "parallel", "verify", "review") and not self.teammates:
+        if self.kind in ("agent", "parallel", "verify", "review", "analyze") and not self.teammates:
             raise ValueError(f"stage {self.name!r} ({self.kind}) needs at least one teammate")
         if self.kind == "controller" and not self.action:
             raise ValueError(f"controller stage {self.name!r} needs an action")
@@ -104,6 +106,11 @@ class StageSpec(BaseModel):
             )
         if self.kind == "verify" and self.retry:
             raise ValueError(f"verify stage {self.name!r} cannot be retried: it repairs itself")
+        if self.kind == "analyze" and (self.outputs or self.verification_policy != "none"):
+            raise ValueError(
+                f"analyze stage {self.name!r} writes the codebase map itself: it takes no "
+                "outputs and no verification_policy"
+            )
         if self.kind != "controller" and self.action:
             raise ValueError(f"only controller stages take an action (stage {self.name!r})")
         for output in self.outputs:

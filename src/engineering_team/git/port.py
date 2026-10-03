@@ -94,11 +94,17 @@ class GitPort:
         backend: ExecutionBackend,
         settings: GitSettings,
         events: EventSink | None = None,
+        *,
+        state_dir: Path | None = None,
     ) -> None:
         self.workspace = workspace
         self.settings = settings
         self._backend = backend
         self._events = events
+        # Where git's home, caches, and temp files go (default: the project's controller
+        # directory). A port that only reads, over a project that must stay untouched, points
+        # this somewhere else; it must not be used for diffs, which keep a temporary index.
+        self._state_dir = state_dir
         self._lock = threading.Lock()  # one index-changing operation at a time
         self._counter = 0
         self._known_repo = False  # a repository stays one for the run; only ``True`` is cached
@@ -367,8 +373,37 @@ class GitPort:
             raise GitError("The commit was not created.")
         return sha
 
+    def exclude_controller_state(self) -> None:
+        """Keep the controller's state and heavy directories out of the repository's view
+        (``.git/info/exclude``; the project's own ``.gitignore`` is never edited)."""
+
+        self._require_repo()
+        self._write_exclude()
+
+    def git_dir(self) -> Path:
+        """This working tree's own git directory: ``.git``, or for a linked worktree the
+        directory its ``.git`` file points to."""
+
+        dot_git = self.workspace.root / ".git"
+        if dot_git.is_file():
+            for line in dot_git.read_text(encoding="utf-8", errors="replace").splitlines():
+                if line.startswith("gitdir:"):
+                    target = Path(line.partition(":")[2].strip())
+                    return target if target.is_absolute() else (dot_git.parent / target).resolve()
+        return dot_git
+
+    def common_dir(self) -> Path:
+        """The git directory every linked worktree of the repository shares (``info/exclude``,
+        refs and objects live there)."""
+
+        git_dir = self.git_dir()
+        pointer = git_dir / "commondir"
+        if pointer.is_file():
+            return (git_dir / pointer.read_text(encoding="utf-8").strip()).resolve()
+        return git_dir
+
     def _write_exclude(self) -> None:
-        exclude = self.workspace.root / ".git" / "info" / "exclude"
+        exclude = self.common_dir() / "info" / "exclude"
         exclude.parent.mkdir(parents=True, exist_ok=True)
         lines = [
             f"{CONTROLLER_DIRECTORY}/",
@@ -417,7 +452,7 @@ class GitPort:
             argv=("git", "--no-pager", *config, *args),
             cwd=root,
             env={
-                **command_environment(self.workspace),
+                **command_environment(self.workspace, self._state_dir),
                 "GIT_TERMINAL_PROMPT": "0",
                 "GIT_CONFIG_NOSYSTEM": "1",
                 "GIT_CONFIG_GLOBAL": "/dev/null",
@@ -454,7 +489,7 @@ class _TempIndex:
 
     def __enter__(self) -> dict[str, str]:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        real = self._port.workspace.root / ".git" / "index"
+        real = self._port.git_dir() / "index"
         if real.is_file():
             shutil.copy2(
                 real, self._path
