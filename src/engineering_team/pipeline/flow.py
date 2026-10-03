@@ -139,8 +139,9 @@ class PipelineFlow(Flow[PipelineState]):
             self._ctx.board.wait_while_paused(self._ctx.cancel_event)
             check_cancelled(self._ctx)
             self._executor.final_gate()
-            spec = self.state.spec
-            self._executor.checkpoints.final(f"{recipe.name}: {spec.title}" if spec else "")
+            state = self.state
+            title = state.spec.title if state.spec else state.triage.title if state.triage else ""
+            self._executor.checkpoints.final(f"{recipe.name}: {title}" if title else "")
             return "finished"
         except RunCancelled as exc:
             return self._halt("cancelled", str(exc))

@@ -17,6 +17,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Protocol
 
+from engineering_team.contracts import RunVerdict
 from engineering_team.crew import EngineeringTeam
 from engineering_team.pipeline.flow import run_flow
 from engineering_team.pipeline.recipes import Recipe, StageSpec, load_recipe
@@ -61,11 +62,13 @@ def _result(ctx: RunContext, status: str, error: str = "", *, verdict: bool = Fa
     state (only a run that verified has one, and only an end that is final is reported)."""
 
     manifest = RunStore(ctx.workspace.root).load(ctx.run_id)
-    reached = None
+    reached: RunVerdict | None = None
     if verdict and (state := PipelineState.load(ctx.run_dir)) is not None:
         reached = state.verification.verdict
         if reached == "verified" and status != "succeeded":
             reached = None  # verified once, but the run did not finish: nothing to report
+        if state.needs_info and status == "failed":
+            reached = "needs-info"  # a fix that could not reproduce the bug stopped to ask
     return RunResult(
         run_id=ctx.run_id,
         status=status,  # type: ignore[arg-type]

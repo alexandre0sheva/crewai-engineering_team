@@ -25,6 +25,7 @@ STATUS_STYLE = {
     "cancelled": "yellow",
     "interrupted": "yellow",
     "partial": "yellow",
+    "needs-info": "yellow",
 }
 CHECK_STYLE = {"passed": "green", "failed": "red", "skipped": "yellow", "unavailable": "yellow"}
 REPORT_CANDIDATES = ("docs/verification.md", "docs/release-report.md")
@@ -43,9 +44,15 @@ def file_changes(ctx: RunContext) -> dict[str, int]:
 
 def next_steps(run_id: str, status: str, verdict: str | None, resumable: bool) -> list[str]:
     steps: list[str] = []
-    if status in ("failed", "cancelled", "interrupted") and resumable:
+    if verdict == "needs-info":
+        steps.append(
+            "answer the questions above, then run `engineering-team fix` again with what you "
+            "know (--request, --trace-file, --repro), or add --allow-unreproduced to fix without "
+            "a failing test"
+        )
+    elif status in ("failed", "cancelled", "interrupted") and resumable:
         steps.append(f"engineering-team resume {run_id}")
-    if verdict in ("failed", "partial"):
+    if verdict in ("failed", "partial", "needs-info"):
         steps.append(f"engineering-team board {run_id}   (what failed)")
     steps.append(f"engineering-team status {run_id}")
     return steps
@@ -94,6 +101,7 @@ def build(ctx: RunContext, result: RunResult, exit_code: int, *, resumable: bool
             }
             for c in checks
         ],
+        "questions": list(state.needs_info) if state else [],
         "workspace": str(workspace),
         "report": str(workspace / shown_report) if shown_report else None,
         "next_steps": next_steps(result.run_id, result.status, result.verdict, resumable),
@@ -126,6 +134,7 @@ def render_plain(data: dict[str, Any], console: Console) -> None:
         lines.append(f"Report: {data['report']}")
     if data["error"]:
         lines.append(f"Error: {data['error']}")
+    lines.extend(f"Question {i}: {q}" for i, q in enumerate(data["questions"], 1))
     for check in data["checks"]:
         required = "required" if check["required"] else "optional"
         lines.append(
@@ -166,6 +175,9 @@ def render(data: dict[str, Any], console: Console) -> None:
     parts: list[Any] = [facts]
     if data["error"]:
         parts.append(Text(f"\n{data['error']}", style="red"))
+    if data["questions"]:
+        asked = "\n".join(f"{i}. {q}" for i, q in enumerate(data["questions"], 1))
+        parts.append(Text(f"\nQuestions for you:\n{asked}", style="yellow"))
     if data["checks"]:
         table = Table(
             box=box.SIMPLE_HEAD, pad_edge=False, title="Independent checks", title_justify="left"

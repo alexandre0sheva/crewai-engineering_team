@@ -218,6 +218,7 @@ from reading `commands/` logs. This is the single description of its layout:
 | `settings.json` | `RunRecorder` | The effective `Settings` (no secrets: credentials are read from the environment, never stored) |
 | `pipeline.json` | `PipelineState` | The pipeline's hand-offs between stages (spec, plan, work-package status, board card ids, agent summaries, the latest check results and the `VerificationRecord`); see [Pipeline, recipes, and resume](#pipeline-recipes-and-resume) |
 | `verification/round-<n>.json` | `Verifier` | The results of each check run (status, exit code, duration, log path, the workspace revision it ran against, the parsed test or diagnostic report); see [Verification and repair](#verification-and-repair) |
+| `fix-input.json` | `fix` | `fix` runs only: the person's `--repro` command, the whole `--trace-file`, and `--allow-unreproduced`; read by the controller, never by agents |
 | `checks.yaml` | `pin_checks` | The pinned copy of the user's `--checks` file (its hash is in `pipeline.json`) |
 | `cancel` | `engineering-team cancel` | Flag file the running controller polls; deleted when a run starts or resumes |
 | `board.json`, `board.md` | `BoardStore` | The task board: every card with its history (`BoardState`), and a Markdown view of it ([Task board](#task-board)) |
@@ -666,7 +667,7 @@ it: `prompt` names the task prompt in `config/stages.yaml` instead of the one th
 lets a parallel stage's packages own shared root files (`plan_problems(allow_shared=)` and the write scope's `deny`
 follow it).
 
-- **Isolation first.** `cli/feature_command.feature` calls `isolate()` (a copy is always made a repository), registers the
+- **Isolation first.** `cli/repo_mode.run_repository_mode` (shared by `feature` and `fix`) calls `isolate()` (a copy is always made a repository), registers the
   workspace with `runtime/run_index.register_workspace` (a `.external-workspaces.json` beside the workspace root, so
   `runs`, `status`, `board`, `cancel`, `diff`, and `resume` find a run that lives in your repository or in a worktree
   under it), and opens the run with `_open_run(workspace=..., run_id=..., recipe=...)` (mode `feature`, strategy
@@ -685,6 +686,41 @@ follow it).
   `change_summary` writes `changes.patch` (`GitPort.export_patch`) and `CHANGE_SUMMARY.md` to the run directory.
 - **Squash** (`git.squash`) is done by `Checkpoints.final`, after the last stage and the final gate:
   `GitPort.squash(base, message)` (`reset --soft` to the base, then one commit), refused unless the base is an ancestor.
+
+### Fixing a bug
+
+`modes/recipes/fix.yaml` is the `adopt` stages followed by `triage` (the `debugger`; output `triage`), `reproduce` (a
+stage of kind `reproduce`; output `repro`), `fix` (output `fix_note`), `verify` (prompt `repair_fix`), `review` (prompt
+`review_fix`), and `summary` (the `change_summary` action again, with a fix section). The contracts `Triage`, `Repro`
+and `FixNote` (`modes/fix_contracts.py`) are the debugger's accounts and are never read as evidence; `FixRecord`, in
+`PipelineState.fix`, is what the controller saw.
+
+- **Inputs.** `cli/fix_command.fix` composes the request (report, then the end of the trace, then the repro command;
+  `modes/fix_input.compose_request`) and writes the structured inputs (`repro`, the whole trace, `allow_unreproduced`) to
+  `<run dir>/fix-input.json`, which the controller reads and agents cannot reach; a resumed run finds it again.
+  `modes/trace.py` parses Python, Node, and Java traces (innermost frame first) and maps their frames to files that exist
+  in the workspace, whatever the leading path was where the trace came from.
+- **The red gate** (`modes/fix_repro.run_reproduction`, run by the executor's `_reproduce`). Each attempt calls the
+  debugger, then the controller runs the returned command through `Verifier` (the same backend, allowlist, command
+  gate, and timeout `fix.repro_timeout` as any check; label `repro-red-<n>`). `not_a_failure` decides what is not a
+  reproduction: a pass, a check that could not run, a timeout, exit 126 or 127, and pytest's exit codes 2, 4 and 5. On
+  red the record keeps the command, files, SHA-256 digests of the files, and the run (`fix.red` event). The person's
+  `--repro` command is run first and recorded (`user_red`); it becomes a required `repro-user` check only if it failed.
+- **Needs info.** When `fix.max_repro_attempts` is spent and `--allow-unreproduced` was not given, the stage raises
+  `NeedsInfo` (never retried), `state.needs_info` holds the questions, and `_result` reports the run verdict
+  `needs-info` (`RunVerdict`; the run is `failed`, exit code 4). With the flag, the stage records the placeholder
+  `Repro` so a resume treats it as finished, and the fix goes on without a `repro` check.
+- **Green.** `VerificationLoop` adds `fix_checks` to the checks (`build_checks(extra=)`): the agent's command as a
+  required `plan`-sourced check (allowlisted, like any plan command) and the person's as a `user`-sourced one. A pass
+  is recorded as `fix.green` only if the pinned files are unchanged; `tampered` turns an edited or deleted file into a
+  `failed` verdict whatever the checks say. The comparison with the baseline is untouched (it never relaxes custom
+  checks).
+- **Write scope.** Once the bug has been seen failing, `StageExecutor._call` gives every later agent call (the fix, the
+  repair rounds, review repairs) a `WriteScope(allow=("**",), deny=<reproduction files>)`; the reproduction stage itself
+  is unscoped because it writes them.
+- **Run record.** `pipeline.json` (`fix`, `triage`, `repro`, `fix_note`, `needs_info`), `events.jsonl` (`fix.red`,
+  `fix.green`, `fix.not_red`, `fix.unreproduced`, `fix.needs_info`), `verification/repro-red-<n>.json` and the
+  verification rounds hold the evidence; `modes/fix_report.py` renders it into `CHANGE_SUMMARY.md`.
 
 ## Settings and model routing
 

@@ -16,6 +16,14 @@ as each task lands.
 
 ### Added
 
+- `engineering-team fix --repo PATH`: fix a bug in an existing project from a bug report, a `--trace-file` (Python, Node,
+  and Java traces are parsed and their project files become the suspects), and/or a `--repro "<command>"`. The `fix` recipe
+  (profile, baseline, map, triage, reproduce, fix, verify, review, summary) has the `debugger` write a failing test or script;
+  the controller runs it and requires it to fail before the fix (red) and pass after it (green), keeps the regression test in
+  the project, locks the reproduction's files against the fixing agents, and writes the root cause, risk, and the red and
+  green runs into `CHANGE_SUMMARY.md`.
+- A bug that cannot be reproduced within `fix.max_repro_attempts` stops the run before anything is changed: verdict
+  `needs-info`, exit code 4, and concrete questions; `--allow-unreproduced` fixes it anyway and says so in the summary.
 - `engineering-team feature --repo PATH --request ...`: add a feature to an existing project. The team is isolated on a
   new branch, worktree, or copy and runs the `feature` recipe (profile, baseline, map, spec, impact, implement,
   tests, verify, review, summary) with prompts that keep the diff minimal and follow the project's conventions; the

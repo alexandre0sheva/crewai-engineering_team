@@ -1,8 +1,9 @@
 <!-- ENGINEERING_TEAM_REQUEST_TEMPLATE -->
 # Project request: fix a bug
 
-Replace this text, then run `engineering-team new`. Delete the guidance lines in italics once
-you have answered them.
+Replace this text, then run `engineering-team fix --repo PATH --request-file THIS_FILE` (add
+`--trace-file` and `--repro` if you have them). Delete the guidance lines in italics once you have
+answered them.
 
 ## The problem
 _What goes wrong? Give the exact error message or the wrong output._

@@ -9,7 +9,6 @@ a ``CHANGE_SUMMARY.md`` and a ``changes.patch`` in its run directory; nothing is
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Annotated, Any
@@ -18,36 +17,12 @@ import typer
 
 from engineering_team.cli.context import fail, one_of, print_json
 from engineering_team.cli.context import get as get_globals
-from engineering_team.cli.run_commands import present_run, wants_questions
+from engineering_team.cli.repo_mode import RepoRun, run_repository_mode
 from engineering_team.intake.bundle import STDIN
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
-from engineering_team.modes.change_report import PATCH_FILE, SUMMARY_FILE
-from engineering_team.modes.isolation import Isolation, isolate, read_isolation
+from engineering_team.modes.isolation import read_isolation
 from engineering_team.modes.repo_analyzer import standalone_git
-from engineering_team.pipeline.recipes import load_recipe
-from engineering_team.runtime.context import new_run_id
-from engineering_team.runtime.run_index import register_workspace
-from engineering_team.settings import load_settings
-from engineering_team.tools.workspace import ProjectWorkspace
-from engineering_team.workspaces import slugify_project_name
-
-HEADING = re.compile(r"^\s*(#+|[-=*]{3,})")
-
-
-def _slug_of(request: str) -> str:
-    """A short slug for the branch name: the first line of the request that says something."""
-
-    for line in request.splitlines():
-        if line.strip() and not HEADING.match(line):
-            return line.strip()
-    return "feature"
-
-
-def _project_name(root: Path, given: str | None) -> str:
-    try:
-        return slugify_project_name(given or root.name)
-    except ValueError:
-        return "project"
+from engineering_team.settings import Settings
 
 
 def feature(
@@ -106,92 +81,36 @@ def feature(
     from engineering_team import main as engine
 
     g = get_globals(ctx)
-    root = Path(repo).expanduser().resolve()
-    if not root.is_dir():
-        fail(f"{root} is not a directory.")
     files = [*(request_file or [])]
     if request == STDIN:
         request, files = None, [STDIN, *files]
-    ask = wants_questions(interactive, stdin_used=STDIN in files)
-    args = SimpleNamespace(
+    options = SimpleNamespace(
         provider=provider, profile=profile, allow_web=allow_web, checks=checks, sandbox=sandbox,
         verbose=g.verbose, workspace_root=g.workspace_root,
     )  # fmt: skip
-    made: list[Isolation] = []
-    printed: list[bool] = []
 
-    def prepare() -> Any:
-        label = _project_name(root, project_name)
-        overrides = {
-            **engine._cli_overrides(args),
-            "strategy": "pipeline",
-            "project_name": label,
-            **({"git.squash": True} if squash else {}),
-        }
-        settings = load_settings(overrides=overrides, config_file=config)
-        bundle = engine.load_bundle(
+    def load(settings: Settings) -> Any:
+        return engine.load_bundle(
             inline_request=request, request_files=files, context_dir=context_dir, settings=settings
         )
-        settings = settings.for_request(bundle.text)
-        settings.check_ready(require_credentials=True)
-        run_id = new_run_id()
-        isolation = isolate(
-            root,
-            run_id=run_id,
-            slug=_slug_of(bundle.text),
-            mode="worktree" if worktree else "auto",
-            allow_dirty=allow_dirty,
-            init_git=True,  # a copy becomes a repository: the work is diffed against the import
-            workspace_root=settings.workspace_root,
-            name=project_name,
-        )
-        made.append(isolation)
-        register_workspace(settings.workspace_root, isolation.workspace, label)
-        workspace = ProjectWorkspace.create(
-            isolation.workspace,
-            extra_commands=settings.command_allowlist,
-            env_passthrough=settings.subprocess_env_allowlist,
-        )
-        return engine._open_run(
-            settings,
+
+    run_repository_mode(
+        g,
+        RepoRun(
             mode="feature",
-            requirements=bundle.text,
-            context=bundle.context,
-            workspace=workspace,
-            run_id=run_id,
-            recipe=load_recipe("feature"),
-        )
-
-    def work(prepared: Any) -> int:
-        isolation = made[0]
-        if not (g.json or g.quiet):
-            console = g.console(stderr=True)
-            console.print(f"Working on a {isolation.describe()}", markup=False, soft_wrap=True)
-            for note in isolation.notes:
-                console.print(f"  {note}", markup=False, soft_wrap=True)
-        run_dir = prepared.ctx.run_dir
-
-        def extra(data: dict[str, Any]) -> None:
-            summary = run_dir / SUMMARY_FILE
-            data["isolation"] = isolation.to_json()
-            data["change_summary"] = str(summary) if summary.is_file() else None
-            data["patch"] = str(run_dir / PATCH_FILE) if (run_dir / PATCH_FILE).is_file() else None
-            if summary.is_file():
-                data["report"] = str(summary)
-            data["next_steps"] = [
-                f"engineering-team diff {prepared.ctx.run_id}",
-                f"engineering-team export-patch {prepared.ctx.run_id} --out change.patch",
-                *data["next_steps"],
-            ]
-
-        code = present_run(prepared, g, ask=ask, extra=extra)
-        printed.append(True)
-        return code
-
-    code = engine._execute(prepare, work, lambda p: p.release(quiet=bool(printed) or g.json))
-    if g.json and not printed:
-        print_json({"status": "error", "exit_code": code})
-    raise typer.Exit(code)
+            root=Path(repo).expanduser().resolve(),
+            load=load,
+            options=options,
+            worktree=worktree,
+            allow_dirty=allow_dirty,
+            squash=squash,
+            interactive=interactive,
+            stdin_used=STDIN in files,
+            project_name=project_name,
+            config=config,
+            slug_fallback="feature",
+        ),
+    )
 
 
 # -- looking at the result ---------------------------------------------------------------------

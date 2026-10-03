@@ -4,7 +4,8 @@
 Every entry point returns a process exit code: ``0`` success (a verifying run: verified),
 ``2`` usage or configuration error (one-line message, no traceback), ``1`` runtime failure,
 ``3`` the controller's checks failed (not verified), ``4`` verification was partial (a required
-check could not run), ``130`` interrupted.
+check could not run) or ``fix`` could not reproduce the bug and needs more information, ``130``
+interrupted.
 """
 
 from __future__ import annotations
@@ -429,7 +430,7 @@ def _pin_checks(settings: Settings, ctx: RunContext, mode: str, strategy: str) -
     """Validate and pin the user's checks file (a problem with it is a usage error)."""
 
     source = settings.verify.checks_file
-    if source is None or mode not in ("build", "feature"):
+    if source is None or mode not in ("build", "feature", "fix"):
         return ChecksPin()
     if strategy != "pipeline":
         raise ValueError(
@@ -524,7 +525,7 @@ def exit_code_for(result: RunResult) -> int:
         return EXIT_INTERRUPTED
     if result.verdict == "failed":
         return EXIT_VERIFICATION_FAILED
-    if result.verdict == "partial":
+    if result.verdict in ("partial", "needs-info"):
         return EXIT_PARTIAL
     return EXIT_FAILURE
 
@@ -537,6 +538,8 @@ def failure_line(result: RunResult, *, resumable: bool) -> str | None:
         return None
     if result.status == "cancelled":
         return f"Run {result.run_id} was cancelled.{hint}"
+    if result.verdict == "needs-info":
+        return f"Run {result.run_id} needs more information: {result.error.rstrip('.')}."
     if result.verdict in ("failed", "partial"):
         return f"Run {result.run_id} is not verified: {result.error.rstrip('.')}.{hint}"
     return f"Engineering team run failed: {result.error.rstrip('.')}.{hint}"

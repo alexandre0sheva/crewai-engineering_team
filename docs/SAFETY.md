@@ -214,6 +214,15 @@ What the adoption machinery touches in a project that is not the tool's own, and
   (test id, or lint or type-check rule and file, or the whole build) was recorded before the change and only for the
   project's own detected checks; checks you wrote (`--checks`) and the plan's commands are never compared, and a
   failure that was not in the baseline is a new failure.
+- **`fix` runs a command an agent chose, and only through the same gate as any check.** The reproduction command
+  the debugger returns is run by the controller as a `plan`-sourced check: allowlisted tools only, no shell, no inline
+  code, a timeout (`fix.repro_timeout`), the command gate, and the sandbox you chose. Your own `--repro` command is
+  run as a check you wrote (its program is allowed, like a `--checks` entry), because you gave it. On the local
+  backend both execute project code on your machine: use `--sandbox docker` for code you do not trust.
+- **A reproduction cannot be edited into passing.** After the bug has been seen failing, the reproduction's files are
+  denied to every later agent write (the tools refuse), their SHA-256 digests are pinned, and a changed or deleted file
+  fails the verification whatever the checks say (an agent that edits a file by running a command is caught the same
+  way). The debugger's root cause and risk are labelled as its account in the summary, never as evidence.
 - **`--squash` rewrites only the team's own branch**, after checking that the starting commit is an ancestor of it.
 - **`export-patch` refuses to write inside the project** (the patch would become part of the change it describes).
 - **The codebase map is context, not evidence.** The analysts are told to read, never to change, and their

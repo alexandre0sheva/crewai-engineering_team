@@ -14,6 +14,7 @@ from pathlib import Path
 from engineering_team.atomic_io import atomic_write_text
 from engineering_team.git.port import Change, GitError
 from engineering_team.modes.diff_noise import DiffNoise, measure, touched_scope
+from engineering_team.modes.fix_report import render_fix_section
 from engineering_team.pipeline.actions import register_action
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.context import RunContext
@@ -76,7 +77,13 @@ def render_noise(noise: DiffNoise) -> list[str]:
 
 def render_change_summary(ctx: RunContext, state: PipelineState, measured: Measured) -> str:
     iso = state.isolation or {}
-    title = state.spec.title if state.spec else ctx.settings.project_name
+    title = (
+        state.spec.title
+        if state.spec
+        else state.triage.title
+        if state.triage
+        else ctx.settings.project_name
+    )
     verdict = state.verification.verdict or "not verified"
     lines = [
         f"# Change summary: {title}",
@@ -94,6 +101,8 @@ def render_change_summary(ctx: RunContext, state: PipelineState, measured: Measu
         f"export-patch {ctx.run_id} --out change.patch` and `git apply change.patch` on "
         f"`{measured.base[:12]}`, or merge the branch yourself. Nothing was pushed.",
     ]
+    if state.fix is not None:
+        lines += ["", *render_fix_section(state)]
     lines += ["", "## Files changed", ""]
     if measured.changes:
         lines += ["| File | Change | Lines |", "|---|---|---|"]

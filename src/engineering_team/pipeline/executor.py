@@ -13,9 +13,17 @@ import threading
 from crewai.tools import BaseTool
 
 from engineering_team.artifacts import missing_artifacts
-from engineering_team.contracts import Finding, Plan, Spec, VerificationRecord, WorkPackage
+from engineering_team.contracts import (
+    Finding,
+    Plan,
+    Spec,
+    VerificationRecord,
+    WorkPackage,
+)
 from engineering_team.modes import adopt as adopt  # noqa: F401  (registers the adopt actions)
 from engineering_team.modes.change_report import ChangeError, measure_change, render_noise
+from engineering_team.modes.fix_contracts import Repro
+from engineering_team.modes.fix_repro import NeedsInfo, protected_paths, run_reproduction
 from engineering_team.modes.map_stage import run_map
 from engineering_team.pipeline.actions import CONTROLLER_ACTIONS
 from engineering_team.pipeline.board_sync import StageBoard
@@ -113,7 +121,7 @@ class StageExecutor:
             try:
                 self._once(stage, entry, note)
                 return
-            except (RunCancelled, BudgetExceeded):
+            except (RunCancelled, BudgetExceeded, NeedsInfo):
                 raise
             except Exception as exc:
                 if attempt >= stage.retry or stage.kind == "parallel":
@@ -140,6 +148,8 @@ class StageExecutor:
             self._review(stage)
         elif stage.kind == "analyze":
             self._analyze(stage)
+        elif stage.kind == "reproduce":
+            self._reproduce(stage)
         else:
             self._agent(stage, note)
         self._check_artifacts(stage)
@@ -170,6 +180,21 @@ class StageExecutor:
 
         summary = run_map(self.ctx, self.state, teammate, call)
         self.state.summaries[stage.name] = summary[:MAX_SUMMARY]
+
+    def _reproduce(self, stage: StageSpec) -> None:
+        """The debugger writes a failing reproduction; the controller runs it and requires red."""
+
+        teammate = lead_teammate(self.ctx, stage)
+
+        def attempt(note: str) -> Repro | None:
+            output = self._call(stage, teammate, note)
+            found = output.contracts.get("repro")
+            return found if isinstance(found, Repro) else None
+
+        self.state.summaries[stage.name] = run_reproduction(
+            self.ctx, self.state, attempt, self._save
+        )[:MAX_SUMMARY]
+        self._save()
 
     def _verify(self, stage: StageSpec) -> None:
         """Run the controller's verification; its repair agent is the stage's first teammate.
@@ -330,6 +355,9 @@ class StageExecutor:
     ) -> StageOutput:
         self.ctx.board.wait_while_paused(self.ctx.cancel_event)
         check_cancelled(self.ctx)
+        if scope is None and stage.kind != "reproduce" and (pinned := protected_paths(self.state)):
+            # The reproduction was seen failing: no agent may edit it to make it pass.
+            scope = WriteScope(allow=("**",), deny=pinned)
         request = StageRequest(
             ctx=self.ctx,
             stage=stage,
@@ -472,6 +500,8 @@ def reset_for(stage: StageSpec, entry: StagePlan, state: PipelineState) -> None:
     state.summaries.pop(stage.name, None)
     if stage.kind == "review":
         state.findings = []
+    if stage.kind == "reproduce":  # a fresh reproduction starts from what the person gave
+        state.fix, state.needs_info = None, []
     if stage.kind == "verify":  # a fresh verification gets its own repair rounds
         kept = state.verification
         state.checks = []

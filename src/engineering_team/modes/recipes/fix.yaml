@@ -1,0 +1,66 @@
+# The recipe for fixing a bug in an existing project. Like `feature` it works in an isolated
+# branch, worktree, or copy, and the controller's write-ups go to the run directory. What makes it
+# a fix: nothing is changed until a reproduction has been seen failing ("red"), and the same
+# reproduction must pass afterwards ("green"). See docs/USAGE.md ("Fixing a bug").
+name: fix
+description: Fix a bug in an existing project, seen failing (red) before and passing (green) after.
+stages:
+  # Adopt: what the project is, what its own checks said before any change, how its code fits.
+  - name: profile
+    kind: controller
+    action: repo_profile
+
+  - name: baseline
+    kind: controller
+    action: baseline
+
+  - name: map
+    kind: analyze
+    teammates: [codebase_analyst]
+
+  # The debugger reads the report (and a parsed stack trace) and the code and ranks hypotheses.
+  # It changes nothing.
+  - name: triage
+    kind: agent
+    teammates: [debugger]
+    inputs: [request]
+    outputs: [triage]
+    retry: 1
+
+  # The debugger writes a failing test or script; the controller runs it and accepts it only if
+  # it fails for a real reason. No reproduction within fix.max_repro_attempts: the run stops with
+  # questions (needs-info, exit 4), unless --allow-unreproduced.
+  - name: reproduce
+    kind: reproduce
+    teammates: [debugger]
+    inputs: [request, triage]
+    outputs: [repro]
+
+  # The smallest change that fixes the cause. The reproduction's files are read-only for it.
+  - name: fix
+    kind: agent
+    teammates: [debugger]
+    inputs: [request, triage, repro]
+    outputs: [fix_note]
+    retry: 1
+
+  # The controller runs the reproduction again (it must now pass) and the project's own checks
+  # (no new failures against the baseline). The regression test stays in the project.
+  - name: verify
+    kind: verify
+    teammates: [debugger]
+    prompt: repair_fix
+
+  - name: review
+    kind: review
+    teammates: [code_reviewer, security_engineer]
+    inputs: [request, triage, repro]
+    skip_if: [minimal_team]
+    optional: true
+    prompt: review_fix
+
+  # CHANGE_SUMMARY.md (with the root cause, the red and green runs, and the risk) and
+  # changes.patch, written to the run directory from Git.
+  - name: summary
+    kind: controller
+    action: change_summary

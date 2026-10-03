@@ -332,6 +332,16 @@ How the codebase analysts split and report on an existing project (`analyze --de
 | `analysis.max_chunks` | `6` | At most this many chunks (top-level packages or directories, by size) are analysed side by side, each by one read-only analyst; more means more parallel model calls (also capped by `parallel.max_parallel_agents`) and a finer map. 1 to 20. |
 | `analysis.context_chars` | `8000` | The size cap, in characters, of the codebase map put into agent context by later modes (cut at a line). 1,000 to 100,000. |
 
+### Fixing bugs (`[fix]`)
+
+How hard `engineering-team fix` tries to reproduce a bug before it stops and asks you
+([USAGE.md](USAGE.md#fixing-a-bug), [ARCHITECTURE.md](ARCHITECTURE.md#fixing-a-bug)).
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `fix.max_repro_attempts` | `3` | How many times the debugger may try to write a test or script that fails because of the bug. Each try is checked by the controller, which runs the reproduction itself. When none fails, the run ends `needs-info` (exit 4) with questions. 1 to 6. |
+| `fix.repro_timeout` | `120` | Seconds one run of the reproduction may take; a hang is not a reproduction. 5 to 1,800. |
+
 ## Models
 
 Each role (the manager `engineering_lead` and every specialist) resolves to a model in this order,

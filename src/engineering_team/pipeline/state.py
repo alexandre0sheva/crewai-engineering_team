@@ -21,14 +21,15 @@ from engineering_team.contracts import (
     Finding,
     Plan,
     RunStatus,
+    RunVerdict,
     Spec,
     StageRecord,
-    Verdict,
     VerificationRecord,
 )
 from engineering_team.intake.bundle import request_hash as request_hash  # re-exported
 from engineering_team.modes.baseline_report import BaselineReport
 from engineering_team.modes.diff_noise import DiffNoise
+from engineering_team.modes.fix_contracts import FixNote, FixRecord, Repro, Triage
 from engineering_team.modes.repo_profile import RepoProfile
 
 STATE_FILENAME = "pipeline.json"
@@ -66,6 +67,12 @@ class PipelineState(Contract):
     baseline: BaselineReport | None = None  # what the project's checks said before any change
     isolation: dict[str, Any] | None = None  # how the team got its workspace (`Isolation`, JSON)
     diff_noise: DiffNoise | None = None  # the latest measure of changes outside the plan's scope
+    # Fix mode: the debugger's accounts (not evidence), and what the controller itself saw.
+    triage: Triage | None = None
+    repro: Repro | None = None
+    fix_note: FixNote | None = None
+    fix: FixRecord | None = None
+    needs_info: list[str] = Field(default_factory=list)  # questions when the bug is not reproduced
     error: str = ""
 
     @classmethod
@@ -99,6 +106,6 @@ class RunResult:
     error: str = ""
     stages: list[StageRecord] = field(default_factory=list)
     workspace: Path | None = None
-    verdict: Verdict | None = (
-        None  # set when the run verified: ``verified``, ``failed``, ``partial``
+    verdict: RunVerdict | None = (
+        None  # set when the run verified: ``verified``, ``failed``, ``partial``, ``needs-info``
     )

@@ -139,3 +139,13 @@ what must keep working), `solution_architect` (`impact`: the smallest change, as
 `backend_engineer` and `frontend_engineer` (`implement`: minimal diff, follow the project's conventions, only their
 own paths), `quality_engineer` (`tests`: in the project's existing test style), `debugger` (repairs only new failures,
 never the baseline's), and `code_reviewer` and `security_engineer` (`review`: the change since the starting commit).
+
+## Teammates in `fix` mode
+
+The `fix` recipe ([USAGE.md](USAGE.md#fixing-a-bug)) adds no teammate: `codebase_analyst` (`map`), then the `debugger` does
+the work that is a bug's own: `triage` (read the report, the parsed trace, and the code; ranked hypotheses), `reproduce`
+(a failing test or script in the project's test style; the controller runs it and requires red), `fix` (the smallest
+change at the root cause; the reproduction's files are read-only for it), and the repair rounds of `verify`.
+`code_reviewer` and `security_engineer` review the fix since the starting commit (`review_fix`: does it remove the cause
+or hide the symptom, is the regression test meaningful). To change who triages or fixes, override the `debugger` or give
+a custom teammate the `triage`, `reproduce`, or `fix` stage under `stages`.

@@ -14,6 +14,7 @@ from engineering_team.contracts import (
     WorkPackage,
 )
 from engineering_team.modes.codebase_map import ChunkAnalysis, CodebaseMap, ModuleNote
+from engineering_team.modes.fix_contracts import FixNote, Hypothesis, Repro, Triage
 from engineering_team.pipeline.stages import StageOutput, StageRequest
 from engineering_team.settings import Settings, load_settings
 
@@ -120,7 +121,18 @@ class FakeRunner:
         specs: list[Spec] | None = None,
         reviews: dict[str, ReviewReport] | None = None,
         codebase_map: CodebaseMap | None = None,
+        triage: Triage | None = None,
+        repros: list[Repro] | None = None,
+        fix_note: FixNote | None = None,
     ) -> None:
+        # Fix mode: what the triage, reproduce (one per attempt; the last repeats) and fix stages
+        # return.
+        self.triage = triage or Triage(
+            title="Bug",
+            hypotheses=[Hypothesis(summary="The cause is in the code.", suspects=["app/store.py"])],
+        )
+        self.repros = list(repros or [Repro()])
+        self.fix_note = fix_note or FixNote(root_cause="The cause.", change="The fix.", risk="Low.")
         self.codebase_map = codebase_map or CODEBASE_MAP  # what an ``analyze`` synthesis returns
         self.plan = PLAN if plan is None else plan
         self.reviews = dict(reviews or {})  # teammate -> the report that reviewer returns
@@ -164,6 +176,12 @@ class FakeRunner:
             contracts["plan"] = self.plan
         elif stage == "impact":  # the feature recipe's plan: it promises no file
             contracts["plan"] = self.plan
+        elif stage == "triage":
+            contracts["triage"] = self.triage
+        elif stage == "reproduce":
+            contracts["repro"] = self.repros.pop(0) if len(self.repros) > 1 else self.repros[0]
+        elif stage == "fix":
+            contracts["fix_note"] = self.fix_note
         elif stage == "tests":
             pass  # the feature recipe's test-writing stage: scripts add files through on_call
         elif stage == "foundation":

@@ -14,7 +14,8 @@ uv run engineering-team <command> --help # its options
 |---------|--------------|
 | `new` | Build a new project from a request (`--request`, `--request-file`, stdin, or `--example`). |
 | `feature --repo PATH --request ...` | Add a feature to an existing project on a branch, worktree, or copy, verified against its baseline ([Feature mode](#feature-mode)). |
-| `diff [RUN] [--stat]` / `export-patch [RUN] --out FILE` | What a `feature` run changed, and that change as a patch for `git apply`. |
+| `fix --repo PATH --request ...` | Fix a bug in an existing project: reproduce it (red), fix it, prove it gone (green) ([Fixing a bug](#fixing-a-bug)). |
+| `diff [RUN] [--stat]` / `export-patch [RUN] --out FILE` | What a `feature` or `fix` run changed, and that change as a patch for `git apply`. |
 | `analyze [--repo PATH] [--deep]` | Look at an existing project without changing it: languages, detected commands, tests, CI, Git state; `--deep` also writes a codebase map ([Adopting an existing project](#adopting-an-existing-project)). |
 | `resume RUN` | Continue a cancelled, interrupted, or failed run without redoing finished stages. |
 | `status [RUN]` | Where a run stands: stages, progress, cost, blocked cards. |
@@ -144,8 +145,8 @@ project context (`analysis.context_chars`). It is a guide written by agents, not
 it. The only things `--deep` writes are in `.engineering-team/` (the map, the profile, the run record), which
 Git is told to ignore through `.git/info/exclude`; your `.gitignore` and your files are never edited.
 
-**How the team gets a place to work.** The modes that change an existing project (`feature` today; `fix` and
-`maintain` follow) start from the `adopt` recipe: profile, baseline, map. They never work in your checkout blindly;
+**How the team gets a place to work.** The modes that change an existing project (`feature` and `fix`; `maintain`
+follows) start from the `adopt` recipe: profile, baseline, map. They never work in your checkout blindly;
 `modes/isolation.py` picks one of three policies:
 
 | Policy | When | What happens | Your files |
@@ -210,6 +211,51 @@ against the starting commit whenever you run them. Nothing is pushed: you review
 patch. `runs`, `status`, `board`, `cancel`, `note`, and `resume` find the run wherever its workspace is, and a failed
 or interrupted `feature` run continues with `resume RUN` (a changed request starts over with `feature`).
 
+### Fixing a bug
+
+```bash
+uv run engineering-team fix --repo ../my-service --request "Adding a note drops the notes that were already there."
+uv run engineering-team fix --repo ../my-service --trace-file crash.log          # a trace is a report too
+uv run engineering-team fix --repo ../my-service --request-file issue.md --repro "python -m app.main add x"
+uv run engineering-team fix --repo ../my-service --request "..." --allow-unreproduced
+```
+
+`fix` takes a **bug report** (`--request`, `--request-file`, or stdin: free text or the text of an issue), a
+**stack trace or log** (`--trace-file`: Python, Node, and Java traces are parsed, and the project files they name
+become the suspects, even when the trace came from another machine), and a **command that shows the bug**
+(`--repro "<command>"`). Any one of them is enough. The options for where the team works (`--worktree`,
+`--allow-dirty`, `--squash`) and for the models, sandbox, and checks are those of
+[`feature`](#feature-mode). The recipe: **profile, baseline, map** (the adopt stages), **triage** (the `debugger`
+reads the report, the parsed trace, and the code, and ranks hypotheses; it changes nothing), **reproduce**, **fix**,
+**verify**, **review**, **summary**.
+
+**Red, then green.** Nothing is fixed until the bug has been seen. In `reproduce` the debugger writes a failing test
+(in the project's own style, where similar tests live) or a small script, and names the command that runs it. The
+**controller runs that command itself** and accepts it only if it fails for a real reason: a test that passes,
+cannot be collected, cannot start, or hangs is not a reproduction (for pytest, only a failing test, exit 1, counts).
+The files of the reproduction are then pinned: the fixing agents may not write them, and if they change anyway the
+run fails (`verify` reports "changed after they were seen failing"), so a test cannot be edited into passing.
+After the fix the controller runs the same command again, as a required check (`repro`), together with the
+project's own checks judged against the baseline, so `verified` means: the bug was seen failing, the same command
+passes now, and the change added no failure. The regression test stays in the project. If you gave `--repro`, your
+command must fail before the fix (it is recorded) and pass after (`repro-user`).
+
+**When the bug cannot be reproduced.** The debugger has `fix.max_repro_attempts` tries (default 3); each failed try is
+sent back with what the controller saw. If none fails for a real reason the run stops **before changing anything**
+with the verdict `needs-info` and exit code **4**, and a list of concrete questions (the debugger's own, plus the
+ones every bug report needs: the exact command or input, expected and actual output, versions). Answer them by
+running `fix` again with more detail (`--request`, `--trace-file`, `--repro`). `--allow-unreproduced` fixes the bug
+anyway, from the report alone: the summary then says plainly that it was **not reproduced** and nothing proves the
+bug is gone, so try your steps yourself.
+
+**What you get.** The same branch, worktree, or copy as `feature`, with one commit per stage, and in the run
+directory `CHANGE_SUMMARY.md` with a **The fix** section (reproduced or not; the red and green runs with their
+commands and exit codes; the regression test; the debugger's root cause and risk, labelled as its account and not
+evidence; the triage hypotheses), `changes.patch`, and `reports/`. `diff` and `export-patch` work as for `feature`; the
+record that proves red then green is in `pipeline.json` (`fix.red`, `fix.green`), in `events.jsonl` (`fix.red`,
+then `fix.green`), and in `verification/repro-*.json`. A failed `fix` run continues with `resume RUN` without
+reproducing again; a `needs-info` run is better started again with the answers.
+
 **`new --adopt`** is the narrow, older door: it lets `new` work in an existing directory under the workspace
 root that the tool did not create (`--project-name NAME --adopt`), in place and without isolation, so it
 refuses a Git repository (committing there would land on its current branch). The directory is marked
@@ -224,7 +270,7 @@ Safety details: [SAFETY.md](SAFETY.md#adopting-an-existing-project).
 | `1` | A runtime error, or a failed check of your setup (`doctor`). |
 | `2` | Usage or configuration error: one line on stderr, no traceback. |
 | `3` | The controller's own checks failed (not verified). |
-| `4` | Verification was partial: a required check could not run. |
+| `4` | Verification was partial (a required check could not run), or `fix` could not reproduce the bug and needs more information (verdict `needs-info`, with questions). |
 | `130` | Interrupted (Ctrl-C) or cancelled. `resume` continues it. |
 
 ## Writing a strong request

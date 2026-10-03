@@ -272,6 +272,15 @@ class AnalysisSettings(_Frozen):
     context_chars: int = Field(default=8000, ge=1000, le=100_000)
 
 
+class FixSettings(_Frozen):
+    """Fix mode: how hard the team tries to reproduce a bug before it asks you."""
+
+    # How many times the debugger may try to write a reproduction that fails because of the bug.
+    max_repro_attempts: int = Field(default=3, ge=1, le=6)
+    # Seconds the controller lets one run of the reproduction take (a hang is not a reproduction).
+    repro_timeout: int = Field(default=120, ge=5, le=1800)
+
+
 TEAM_KEY = re.compile(r"[a-z][a-z0-9_]*")
 
 
@@ -337,6 +346,7 @@ class Settings(_Frozen):
     intake: IntakeSettings = IntakeSettings()
     review: ReviewSettings = ReviewSettings()
     analysis: AnalysisSettings = AnalysisSettings()
+    fix: FixSettings = FixSettings()
     team_profile: Literal["full", "minimal"] = "full"  # minimal: no review, DevOps, or docs stage
     team: dict[str, TeamOverride] = {}
     team_file: str | None = None  # default: ./.engineering-team/team.yaml when it exists

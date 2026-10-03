@@ -16,8 +16,8 @@ from engineering_team.contracts import (
     RunManifest,
     RunStatus,
     RunSummary,
+    RunVerdict,
     StageRecord,
-    Verdict,
     utc_now,
 )
 from engineering_team.execution.backend import close_backend
@@ -122,8 +122,9 @@ class RunRecorder:
     def manifest(self) -> RunManifest:
         return self.store.load(self.ctx.run_id)
 
-    def set_verdict(self, verdict: Verdict) -> None:
-        """Record how verification ended (``verified``, ``failed``, ``partial``) in the manifest."""
+    def set_verdict(self, verdict: RunVerdict) -> None:
+        """Record how the run's verification ended (``verified``, ``failed``, ``partial``, or
+        ``needs-info``) in the manifest."""
 
         def change(manifest: RunManifest) -> None:
             manifest.verdict = verdict

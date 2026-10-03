@@ -22,6 +22,9 @@ CheckStatus = Literal["passed", "failed", "skipped", "unavailable"]
 # How a verification ended: every required check passed on the current tree (``verified``), a
 # required check failed (``failed``), or none failed but some could not run (``partial``).
 Verdict = Literal["verified", "failed", "partial"]
+# How a run ended when it verified: a ``Verdict``, or ``needs-info`` (fix mode could not reproduce
+# the bug and stopped with questions instead of changing anything blind).
+RunVerdict = Literal["verified", "failed", "partial", "needs-info"]
 CheckKind = Literal["setup", "test", "lint", "typecheck", "build", "smoke", "custom"]
 CheckType = Literal["command", "browser_script"]
 CheckSource = Literal["user", "plan", "detected"]
@@ -303,7 +306,7 @@ class RunManifest(Contract):
     strategy: str = "hierarchical"
     recipe: str | None = None
     status: RunStatus = "pending"
-    verdict: Verdict | None = None  # set by runs that verify; ``failed``/``partial`` end the run
+    verdict: RunVerdict | None = None  # set by runs that verify; all but ``verified`` end the run
     resumes: int = 0  # how many times `resume` continued this run
     stages: list[StageRecord] = Field(default_factory=list)
     created: datetime = Field(default_factory=utc_now)

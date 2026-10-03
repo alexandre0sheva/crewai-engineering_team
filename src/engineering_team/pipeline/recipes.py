@@ -22,12 +22,12 @@ if TYPE_CHECKING:
     from engineering_team.pipeline.state import PipelineState
     from engineering_team.settings import Settings
 
-StageKind = Literal["agent", "controller", "parallel", "verify", "review", "analyze"]
+StageKind = Literal["agent", "controller", "parallel", "verify", "review", "analyze", "reproduce"]
 VerificationPolicy = Literal["none", "artifacts"]
 
 # Contracts a stage can read or write; anything else must be ``file:<path>`` (outputs only) or
 # ``request`` (inputs only).
-CONTRACTS = ("spec", "plan")
+CONTRACTS = ("spec", "plan", "triage", "repro", "fix_note")
 FILE_PREFIX = "file:"
 NAME_PATTERN = re.compile(r"[a-z][a-z0-9_]*")
 
@@ -59,6 +59,9 @@ class StageSpec(BaseModel):
     findings into ``docs/review.md`` and sends serious ones to repair (``review.fail_on``).
     ``analyze`` splits an existing codebase into chunks and has its first teammate's read-only
     analysts study them side by side; the controller writes the codebase map.
+    ``reproduce`` (fix mode) has its first teammate write a failing test or script, runs it as the
+    controller and accepts it only if it fails for a real reason; ``fix.max_repro_attempts`` is
+    its retry budget and when it is spent the run stops with questions (``needs-info``).
     ``optional`` stages are skipped when none of their teammates is enabled.
     """
 
@@ -102,7 +105,8 @@ class StageSpec(BaseModel):
 
     @model_validator(mode="after")
     def _consistent(self) -> StageSpec:
-        if self.kind in ("agent", "parallel", "verify", "review", "analyze") and not self.teammates:
+        needs_team = ("agent", "parallel", "verify", "review", "analyze", "reproduce")
+        if self.kind in needs_team and not self.teammates:
             raise ValueError(f"stage {self.name!r} ({self.kind}) needs at least one teammate")
         if self.kind == "controller" and not self.action:
             raise ValueError(f"controller stage {self.name!r} needs an action")
@@ -117,6 +121,11 @@ class StageSpec(BaseModel):
             raise ValueError(
                 f"analyze stage {self.name!r} writes the codebase map itself: it takes no "
                 "outputs and no verification_policy"
+            )
+        if self.kind == "reproduce" and (self.retry or self.outputs != ["repro"]):
+            raise ValueError(
+                f"reproduce stage {self.name!r} must output exactly 'repro' and takes no retry: "
+                "its attempts are fix.max_repro_attempts"
             )
         if self.allow_shared and self.kind != "parallel":
             raise ValueError(f"only parallel stages take allow_shared (stage {self.name!r})")

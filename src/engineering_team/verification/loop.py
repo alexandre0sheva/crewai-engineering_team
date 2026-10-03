@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from engineering_team.contracts import CheckResult, CheckSpec
+from engineering_team.modes.fix_repro import fix_checks, record_green, tampered
 from engineering_team.runtime.budget import BudgetExceeded
 from engineering_team.runtime.cancel import RunCancelled, check_cancelled
 from engineering_team.runtime.context import RunContext
@@ -100,14 +101,32 @@ class VerificationLoop:
             return self._conclude([], [], Judgement("failed", [str(exc)]))
         # A change to an existing project is checked with what the project itself uses and
         # judged against its baseline; the plan's own commands do not replace them.
-        planned = build_checks(ctx, None if self.state.baseline else self.state.plan, user)
+        planned = build_checks(
+            ctx,
+            None if self.state.baseline else self.state.plan,
+            user,
+            extra=fix_checks(ctx, self.state),
+        )
         record.notes = planned.notes
         checks = planned.checks
 
         results = self._recorded(checks) or self._verify(checks)
         while self._repairable(results):
             results = self._repair(checks, results)
-        return self._conclude(checks, results, judge(results, verification_revision(ctx.workspace)))
+        return self._conclude(checks, results, self._judge(results))
+
+    def _judge(self, results: list[CheckResult]) -> Judgement:
+        """The verdict; a reproduction edited after it was seen failing proves nothing."""
+
+        judgement = judge(results, verification_revision(self.ctx.workspace))
+        changed = tampered(self.ctx, self.state)
+        if not changed:
+            return judgement
+        problem = (
+            f"The reproduction file(s) {', '.join(changed)} changed after they were seen failing, "
+            "so a pass proves nothing. Restore them (or start a new run)."
+        )
+        return Judgement("failed", [problem, *judgement.problems])
 
     def _recorded(self, checks: list[CheckSpec]) -> list[CheckResult] | None:
         """The results already recorded, if they are for this very workspace and these checks."""
@@ -248,6 +267,7 @@ class VerificationLoop:
         ctx, record = self.ctx, self.record
         record.verdict = judgement.verdict
         record.problems = judgement.problems
+        record_green(ctx, self.state, results)
         record.coverage = map_criteria(ctx.workspace, self.state.spec, checks, results)
         text = render_report(
             record,

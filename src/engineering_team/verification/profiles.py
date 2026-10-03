@@ -57,8 +57,14 @@ def _check_id(kind: CheckKind, directory: str = ".", index: int = 0) -> str:
     return f"{check_id}:{index + 1}" if index else check_id
 
 
-def build_checks(ctx: RunContext, plan: Plan | None, user: Sequence[CheckSpec]) -> ChecksPlan:
-    """The checks for ``ctx``'s workspace (see the module docstring)."""
+def build_checks(
+    ctx: RunContext,
+    plan: Plan | None,
+    user: Sequence[CheckSpec],
+    extra: Sequence[CheckSpec] = (),
+) -> ChecksPlan:
+    """The checks for ``ctx``'s workspace (see the module docstring). ``extra`` are required
+    checks a mode adds after the rest (fix mode's reproduction)."""
 
     verify = ctx.settings.verify
     dev = ctx.settings.tools.dev
@@ -145,6 +151,7 @@ def build_checks(ctx: RunContext, plan: Plan | None, user: Sequence[CheckSpec]) 
                 detected(kind, stack) for stack in stacks if getattr(stack, kind) is not None
             )
     result.checks.extend(check for check in user if check.kind == "custom")
+    result.checks.extend(extra)
     return result
 
 

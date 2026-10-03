@@ -101,7 +101,8 @@ def read_request(
     return store, manifest, request
 
 
-RESUMABLE_MODES = ("build", "feature")
+REPOSITORY_MODES = ("feature", "fix")  # modes that work in an isolated copy of your project
+RESUMABLE_MODES = ("build", *REPOSITORY_MODES)
 
 
 def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = None) -> ResumedRun:
@@ -115,7 +116,8 @@ def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = No
     store, manifest, request = read_request(settings, run_id, workspace_dir)
     if manifest.mode not in RESUMABLE_MODES:
         raise ResumeError(
-            f"Run {run_id} is a '{manifest.mode}' run; only builds and features can be resumed."
+            f"Run {run_id} is a '{manifest.mode}' run; only builds, features, and fixes can be "
+            "resumed."
         )
     if manifest.status == "succeeded":
         raise ResumeError(f"Run {run_id} already succeeded; there is nothing to resume.")
@@ -141,7 +143,7 @@ def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = No
             "two plans. Start a new run instead."
         )
     _check_same_checks(settings, saved)
-    if workspace_dir is not None and manifest.mode == "feature":
+    if workspace_dir is not None and manifest.mode in REPOSITORY_MODES:
         workspace = ProjectWorkspace.create(
             workspace_dir,
             extra_commands=settings.command_allowlist,
@@ -157,7 +159,11 @@ def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = No
     lock = WorkspaceLock(workspace.root).acquire(run_id)
     try:
         ctx = RunContext.create(
-            settings, workspace, run_id=run_id, resume=True, adopted=manifest.mode == "feature"
+            settings,
+            workspace,
+            run_id=run_id,
+            resume=True,
+            adopted=manifest.mode in REPOSITORY_MODES,
         )
         RunRecorder.reopen(ctx)
     except BaseException:

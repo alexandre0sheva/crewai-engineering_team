@@ -30,6 +30,8 @@ from engineering_team.modes.codebase_map import (
     CodebaseMap,
     map_context,
 )
+from engineering_team.modes.fix_contracts import FixNote, Repro, Triage
+from engineering_team.modes.fix_input import bug_brief
 from engineering_team.pipeline.recipes import StageSpec
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.context import RunContext
@@ -37,7 +39,13 @@ from engineering_team.team import Roster, TeamError
 from engineering_team.tools import WriteScope, build_tools
 
 # Contracts a stage can produce, by output name.
-CONTRACT_MODELS: dict[str, type[Contract]] = {"spec": Spec, "plan": Plan}
+CONTRACT_MODELS: dict[str, type[Contract]] = {
+    "spec": Spec,
+    "plan": Plan,
+    "triage": Triage,
+    "repro": Repro,
+    "fix_note": FixNote,
+}
 
 
 class StageError(RuntimeError):
@@ -301,6 +309,10 @@ class CrewStageRunner:
             "current_date": date.today().isoformat(),
             "spec": _json(request.state.spec),
             "plan": _json(request.state.plan),
+            "triage": _json(request.state.triage),
+            "repro": _json(request.state.repro),
+            "fix_note": _json(request.state.fix_note),
+            "bug": bug_brief(ctx.run_dir, ctx.workspace.root, request.state),
             "package": json.dumps(package, indent=2) if package else "",
             "packages": json.dumps(
                 {pid: p.model_dump(mode="json") for pid, p in request.state.packages.items()},
