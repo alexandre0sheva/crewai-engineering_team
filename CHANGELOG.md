@@ -16,6 +16,18 @@ as each task lands.
 
 ### Added
 
+- Benchmark suite and `engineering-team bench`: ten tasks (six greenfield: notes CLI, CSV validator, URL-shortener API, Markdown
+  to HTML, todo web app, cron scheduler; four brownfield: a feature, a seeded bug fixed from a stack trace, tests for an
+  untested module, a behaviour-preserving refactor), each with hidden behavioural checks the team never sees, a reference
+  solution, and a sabotage that proves the checks discriminate. `bench run --tasks ... --strategy pipeline,hierarchical,single
+  --repeat N --parallel P --budget-usd X` runs every run as an isolated subprocess and writes a `result.json` (criteria, cost,
+  tokens, duration, repair rounds, tool and setup failures); `bench report` writes Markdown and CSV with pass rates and **Wilson
+  95 % intervals**, cost per *successful* task, and every failure listed; `--dry-run` estimates the cost from the price table;
+  `--resume` continues a batch; held-out tasks keep tuning honest. A run's conditions are the flags and `--config FILE`
+  only (ambient `ENGINEERING_*` variables, the repository's `.env` settings and your user config are ignored), and a live
+  batch refuses to start with a model that has no price. `bench run --fake` replays the reference solutions through
+  scripted tools (no model, no cost) so CI can prove the harness works: references pass, sabotaged solutions fail. The suite is
+  excluded from the wheel and sdist; method and threat model are in `docs/BENCHMARKS.md`.
 - Live run dashboard in the web UI: a **task board** (cards move between columns as the controller moves them, with a live timer,
   lane, attempt and blocked reason) and **swimlanes** per teammate, a **timeline** of stages, parallel lanes, checks and
   repairs, a filterable, virtualised **activity feed**, a **teammate roster** (state, current card, last tool, counts,

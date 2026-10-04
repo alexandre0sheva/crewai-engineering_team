@@ -23,6 +23,7 @@ uv run engineering-team <command> --help # its options
 | `resume RUN` | Continue a cancelled, interrupted, or failed run without redoing finished stages. |
 | `report [RUN] [--format html|md] [--open]` | Write the run report: summary, timeline, board, checks, cost, changes ([Run reports](#run-reports)). |
 | `ui [--host H] [--port P] [--demo]` | Serve the web UI and its API on localhost ([Web UI](#web-ui)). Needs `uv sync --extra ui`. |
+| `bench list` / `bench run` / `bench report` | Run the benchmark suite against the team and report pass rates with confidence intervals and cost per success (`--fake` validates the harness offline; source checkout only). See [BENCHMARKS.md](BENCHMARKS.md). |
 | `status [RUN]` | Where a run stands: stages, progress, cost, blocked cards. |
 | `runs` | List runs (of every project, or one with `--project-name`), newest last. |
 | `board [RUN] [--watch]` | The task board as a kanban; `--watch` keeps it live until the run ends. |

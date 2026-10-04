@@ -181,12 +181,15 @@ def test_no_tool_calls_subprocess_directly() -> None:
 
     spawns = re.compile(r"^\s*(import subprocess|from subprocess import)", re.MULTILINE)
     # The execution backends themselves, and the web UI's launcher, which starts a *run* as a CLI
-    # process (the controller, not a tool an agent can call).
+    # process (the controller, not a tool an agent can call). The same goes for the benchmark
+    # harness (``bench/``): it starts runs of the team and the hidden checks, never a tool.
     allowed = {"local.py", "docker.py", "launcher.py"}
     offenders = [
         path.relative_to(ROOT).as_posix()
         for path in (ROOT / "src" / "engineering_team").rglob("*.py")
-        if spawns.search(path.read_text(encoding="utf-8")) and path.name not in allowed
+        if spawns.search(path.read_text(encoding="utf-8"))
+        and path.name not in allowed
+        and "bench" not in path.parts
     ]
 
     assert offenders == []

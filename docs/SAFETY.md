@@ -373,6 +373,13 @@ runs its JavaScript in a real Chromium, so keep it to the app being built. What 
   but a page on an allowlisted host can still serve hostile content). The Docker backend does not
   contain the browser (it runs on the host); keep the allowlist short for untrusted requirements.
 
+## Benchmarks
+
+`engineering-team bench` runs the team (and then programs the team wrote, as acceptance checks)
+on your machine. Use `--sandbox docker` for the team and a container or VM for the whole batch when
+you publish results; [BENCHMARKS.md](BENCHMARKS.md#threat-model) has the threat model (hidden
+checks, the held-out subset, what runs where, and what the checks' environment scrubs).
+
 ## Untrusted content
 
 Text from the repository, command output, and the web is data. Controller code never treats

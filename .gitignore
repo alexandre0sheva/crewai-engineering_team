@@ -13,3 +13,4 @@ build/
 # Generated applications and legacy output from the original skeleton.
 workspace/
 sandbox/
+benchmarks/.runs/

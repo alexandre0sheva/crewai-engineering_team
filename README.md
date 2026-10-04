@@ -89,6 +89,13 @@ watching them live (task board, teammates, activity, timeline, replay, steering)
 
 ![The live task board in demo mode](docs/assets/ui-board.png)
 
+## Benchmarks
+
+The team is measured, not assumed: a suite of greenfield and brownfield tasks judged by hidden
+behavioural checks, with pass rates, confidence intervals and cost per success
+(`engineering-team bench`; `bench run --fake` checks the harness offline). The method and threat
+model are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md); results are published there once measured.
+
 ## Generated project layout
 
 Each MVP owns a conventional project root:

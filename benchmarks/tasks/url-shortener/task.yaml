@@ -1,0 +1,18 @@
+id: url-shortener
+title: URL shortener HTTP API
+kind: greenfield
+mode: new
+subset: dev
+scale: 0.9
+criteria:
+  - {id: shorten-and-redirect, text: "POST /shorten returns a code; GET /<code> redirects to the URL"}
+  - {id: same-url-same-code, text: "shortening a URL twice returns the same code (201 first, 200 after)"}
+  - {id: validation, text: "bad input is a 400 JSON error; unknown codes are a 404"}
+  - {id: stats, text: "GET /stats/<code> counts redirects"}
+  - {id: persistence, text: "with --db the data survives a restart of the server"}
+sabotage:
+  fails: [stats]
+  edits:
+    - path: shortener/store.py
+      old: "UPDATE links SET hits = hits + 1 WHERE code = ?"
+      new: "UPDATE links SET hits = hits WHERE code = ?"

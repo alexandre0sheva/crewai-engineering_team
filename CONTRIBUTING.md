@@ -66,6 +66,14 @@ llm.assert_exhausted()
   tools to a `RunContext`; the `make_context` fixture in `tests/conftest.py` builds one.
   `tests/test_fake_llm_integration.py` is the reference example.
 
+### Benchmarks
+
+`benchmarks/` holds the benchmark tasks and their hidden checks (repository only; see
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md) for the method). `uv run engineering-team bench run --fake`
+replays each task's reference solution offline and must pass; with `--fake-solution broken` it must
+fail. `tests/test_bench_fake.py` runs both halves (about two minutes in total) so a check that stops
+telling good from bad fails CI. Live runs cost real money and are never part of the gate.
+
 Before changing CrewAI-specific code, follow the research steps in [AGENTS.md](AGENTS.md)
 (installed version, PyPI, changelog, live docs): CrewAI changes quickly.
 

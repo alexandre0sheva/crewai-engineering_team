@@ -885,6 +885,30 @@ Errors are `{"error": "..."}`. **Guard** (`ui/security.py`, one ASGI middleware)
 run directories, the UI's own `.engineering-team-ui/` folder (uploads, logs, start records), and the project files
 it serves read-only.
 
+## Benchmark harness
+
+`engineering-team bench` (`src/engineering_team/bench/`, `cli/bench_command.py`) measures the team
+against the task suite in `benchmarks/`; [BENCHMARKS.md](BENCHMARKS.md) is the method and threat
+model. The data flow of one batch:
+
+```text
+tasks.load_suite -> select_tasks -> plan.plan_runs (task x strategy x repeat)
+   -> batch.run_batch (thread pool; BudgetLedger reserves each run's cap)
+        -> execution.execute_run
+             prepare.prepare      run dir, workspace (fixture as a Git repo), argv + env
+             subprocess           `python -m engineering_team --json ...`  (or bench.fake_team)
+             metrics              the JSON summary + events.jsonl (repairs, tool/setup failures, cost)
+             acceptance           hidden checks, one process per criterion, on a workspace copy
+             results.write_result result.json
+   -> report.render_markdown / render_csv      (stats: Wilson interval, cost per success)
+```
+
+The harness imports no CrewAI itself: the team is always a subprocess (a crash, hang or runaway
+cost cannot take the batch down; a timeout kills the process group), and only the offline team
+(`fake_team`, a real `Agent` on a `ScriptedLLM` writing the reference solution through the real
+tools) loads it. The verdict is computed from the hidden checks alone; the team's own status is
+recorded, never trusted.
+
 ## Local state
 
 Each generated app contains `.engineering-team/` with the normalized request,

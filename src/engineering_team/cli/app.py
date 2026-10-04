@@ -17,6 +17,7 @@ import typer
 
 from engineering_team.cli import (
     analyze_command,
+    bench_command,
     feature_command,
     fix_command,
     init_command,
@@ -36,7 +37,7 @@ from engineering_team.runtime.context import reserve_run_id
 COMMANDS = (
     "new", "resume", "status", "runs", "board", "cancel", "note", "pause", "unpause",
     "config", "doctor", "init", "examples", "team", "analyze", "feature", "fix", "maintain",
-    "review", "recipes", "diff", "export-patch", "report", "ui",
+    "review", "recipes", "diff", "export-patch", "report", "ui", "bench",
 )  # fmt: skip
 HELP_FLAGS = ("-h", "--help")
 FLAGS = ("--json", "--quiet", "-q", "--verbose", "-v", "--no-color", "--answers-via-inbox")
@@ -64,6 +65,7 @@ app.add_typer(config_app, name="config")
 app.add_typer(examples_app, name="examples")
 app.add_typer(team_app, name="team")
 app.add_typer(recipes_command.recipes_app, name="recipes")
+app.add_typer(bench_command.bench_app, name="bench")
 
 
 def _version(value: bool) -> None:

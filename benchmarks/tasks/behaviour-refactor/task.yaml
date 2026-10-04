@@ -1,0 +1,18 @@
+id: behaviour-refactor
+title: Behaviour-preserving refactor of a long function
+kind: brownfield
+mode: maintain
+maintain_task: refactor
+subset: heldout
+scale: 0.7
+criteria:
+  - {id: behaviour-preserved, text: "summarize() returns the same result as before for 400 generated and edge-case inputs"}
+  - {id: existing-tests-intact, text: "the project's tests are unchanged and pass"}
+  - {id: functions-are-small, text: "no function in orders/ exceeds 30 lines and there are at least 5"}
+  - {id: public-api, text: "orders.summary.summarize(orders) is still the entry point"}
+sabotage:
+  fails: [behaviour-preserved]
+  edits:
+    - path: orders/summary.py
+      old: "return 9.99 if country != \"US\" else 4.99"
+      new: "return 9.9 if country != \"US\" else 4.99"

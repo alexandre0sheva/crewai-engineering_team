@@ -1,0 +1,18 @@
+id: seeded-bug
+title: Fix a ZeroDivisionError from a stack trace
+kind: brownfield
+mode: fix
+subset: dev
+scale: 0.6
+trace_file: trace.txt
+criteria:
+  - {id: empty-cart-report, text: "an empty cart prints the n/a report and exits 0"}
+  - {id: empty-cart-api, text: "Cart.average_price() is None for an empty cart"}
+  - {id: reports-unchanged, text: "non-empty reports and file errors are exactly as before"}
+  - {id: regression-test, text: "the suite passes, and its tests fail on the unfixed code"}
+sabotage:
+  fails: [empty-cart-report]
+  edits:
+    - path: shop/report.py
+      old: 'n/a" if average is None else f"{average:.2f}"'
+      new: 'n/a" if False else f"{average or 0:.2f}"'
