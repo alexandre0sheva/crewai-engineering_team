@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Literal
 from engineering_team.contracts import CheckResult, CheckSpec, Contract
 from engineering_team.modes.fix_contracts import FixRecord, Repro, ReproRun
 from engineering_team.modes.fix_input import FixInput, read_fix_input
+from engineering_team.modes.needs_info import NeedsInfo
 from engineering_team.modes.trace import parse_trace, suspect_files
 from engineering_team.runtime.budget import BudgetExceeded
 from engineering_team.runtime.cancel import RunCancelled, check_cancelled
@@ -46,14 +47,6 @@ DEFAULT_QUESTIONS = (
     "What did you expect to happen, and what happened instead (the exact error text)?",
     "Which versions or settings does it depend on (runtime, configuration, data)?",
 )
-
-
-class NeedsInfo(RuntimeError):
-    """The bug could not be reproduced: the run stops and asks questions instead of guessing."""
-
-    def __init__(self, message: str, questions: list[str]) -> None:
-        super().__init__(message)
-        self.questions = questions
 
 
 def not_a_failure(argv: Sequence[str], result: CheckResult) -> str | None:

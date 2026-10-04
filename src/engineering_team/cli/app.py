@@ -20,6 +20,9 @@ from engineering_team.cli import (
     feature_command,
     fix_command,
     init_command,
+    maintain_command,
+    recipes_command,
+    review_command,
     run_commands,
 )
 from engineering_team.cli import doctor as doctor_module
@@ -29,8 +32,8 @@ from engineering_team.cli.team_commands import team_app
 
 COMMANDS = (
     "new", "resume", "status", "runs", "board", "cancel", "note", "pause", "unpause",
-    "config", "doctor", "init", "examples", "team", "analyze", "feature", "fix", "diff",
-    "export-patch",
+    "config", "doctor", "init", "examples", "team", "analyze", "feature", "fix", "maintain",
+    "review", "recipes", "diff", "export-patch",
 )  # fmt: skip
 HELP_FLAGS = ("-h", "--help")
 FLAGS = ("--json", "--quiet", "-q", "--verbose", "-v", "--no-color")
@@ -57,6 +60,7 @@ examples_app = typer.Typer(help="The bundled example requests.", no_args_is_help
 app.add_typer(config_app, name="config")
 app.add_typer(examples_app, name="examples")
 app.add_typer(team_app, name="team")
+app.add_typer(recipes_command.recipes_app, name="recipes")
 
 
 def _version(value: bool) -> None:
@@ -98,6 +102,8 @@ app.command()(run_commands.resume)
 app.command()(analyze_command.analyze)
 app.command()(feature_command.feature)
 app.command()(fix_command.fix)
+app.command()(maintain_command.maintain)
+app.command()(review_command.review)
 app.command()(feature_command.diff)
 app.command("export-patch")(feature_command.export_patch)
 app.command()(info.status)

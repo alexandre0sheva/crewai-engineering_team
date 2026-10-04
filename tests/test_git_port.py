@@ -396,3 +396,44 @@ def test_agents_cannot_aim_git_at_its_own_metadata(history: RunContext) -> None:
         history.git.log(path=".git/config")
     with pytest.raises(ValueError, match="engineering-team"):
         history.git.blame(".engineering-team/runs/x")
+
+
+# -- finding where a branch left its base, and undoing what a failed attempt did -----------------
+
+
+def test_the_merge_base_is_where_the_branch_left_the_other_one(repo: RunContext) -> None:
+    root = repo.workspace.root
+    base = raw(root, "rev-parse", "HEAD")
+    raw(root, "checkout", "-q", "-b", "feature")
+    repo.workspace.write_file("a.txt", "a\n")
+    repo.git.checkpoint("on feature")
+    raw(root, "checkout", "-q", "main")
+    repo.workspace.write_file("b.txt", "b\n")
+    repo.git.checkpoint("on main")
+    raw(root, "checkout", "-q", "feature")
+
+    assert repo.git.merge_base("main") == base
+    assert repo.git.resolves("main") and repo.git.resolves("HEAD")
+    assert not repo.git.resolves("no-such-branch")
+    with pytest.raises(GitError, match="not a usable ref"):
+        repo.git.merge_base("--output=x")
+
+
+def test_restore_puts_back_what_changed_since_a_commit_and_removes_what_was_added(
+    repo: RunContext,
+) -> None:
+    repo.workspace.write_file("keep.txt", "one\n")
+    repo.workspace.write_file("gone.txt", "two\n")
+    sha = repo.git.checkpoint("base")
+    repo.workspace.write_file("keep.txt", "CHANGED\n")
+    repo.workspace.write_file("new.txt", "new\n")
+    (repo.workspace.root / "gone.txt").unlink()
+
+    restored = repo.git.restore(sha)
+
+    assert sorted(restored) == ["gone.txt", "keep.txt", "new.txt"]
+    assert (repo.workspace.root / "keep.txt").read_text() == "one\n"
+    assert (repo.workspace.root / "gone.txt").read_text() == "two\n"
+    assert not (repo.workspace.root / "new.txt").exists()
+    assert repo.git.changes(sha) == [] and repo.git.restore(sha) == []
+    assert raw(repo.workspace.root, "rev-parse", "HEAD") == sha  # no history was made or lost

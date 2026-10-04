@@ -74,7 +74,8 @@ def test_every_teammate_of_the_new_recipe_exists_in_agents_yaml() -> None:
 def test_a_recipe_file_can_be_loaded_by_path(tmp_path: Path) -> None:
     path = tmp_path / "mine.yaml"
     path.write_text(
-        "name: mine\nstages:\n  - name: only\n    teammates: [backend_engineer]\n",
+        "name: mine\nstages:\n  - name: only\n    teammates: [backend_engineer]\n"
+        "    instructions: Do the one thing.\n",
         encoding="utf-8",
     )
 

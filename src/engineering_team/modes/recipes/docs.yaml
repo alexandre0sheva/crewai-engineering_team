@@ -1,0 +1,42 @@
+# The recipe for documenting legacy code: the technical writer reads the code and writes the
+# documentation it lacks. Only documentation files may change (policy `docs_only`).
+name: docs
+description: The technical writer documents the existing code (documentation files only).
+policies: [docs_only]
+stages:
+  - name: profile
+    kind: controller
+    action: repo_profile
+
+  - name: baseline
+    kind: controller
+    action: baseline
+
+  - name: map
+    kind: analyze
+    teammates: [codebase_analyst]
+
+  - name: docs
+    kind: agent
+    teammates: [technical_writer]
+    inputs: [request]
+    prompt: docs_legacy
+    write_scope: docs
+    retry: 1
+
+  - name: verify
+    kind: verify
+    teammates: [technical_writer]
+    prompt: repair_docs
+    write_scope: docs
+
+  - name: review
+    kind: review
+    teammates: [code_reviewer]
+    skip_if: [minimal_team]
+    optional: true
+    prompt: review_maintain
+
+  - name: summary
+    kind: controller
+    action: change_summary

@@ -15,6 +15,9 @@ uv run engineering-team <command> --help # its options
 | `new` | Build a new project from a request (`--request`, `--request-file`, stdin, or `--example`). |
 | `feature --repo PATH --request ...` | Add a feature to an existing project on a branch, worktree, or copy, verified against its baseline ([Feature mode](#feature-mode)). |
 | `fix --repo PATH --request ...` | Fix a bug in an existing project: reproduce it (red), fix it, prove it gone (green) ([Fixing a bug](#fixing-a-bug)). |
+| `maintain --task T --repo PATH` | Maintain an existing project: `add-tests`, `refactor`, `upgrade-deps`, `docs`, `security-audit`, `custom`, or a recipe of your own ([Maintaining a project](#maintaining-a-project)). |
+| `review [--base BRANCH]` | A read-only review of a branch or your working diff; `findings.json` for CI, exit 3 on a serious finding ([Reviewing a change](#reviewing-a-change)). |
+| `recipes list` / `recipes show NAME` | Which recipes exist (bundled, yours) and what each stage does ([Your own recipes](#your-own-recipes)). |
 | `diff [RUN] [--stat]` / `export-patch [RUN] --out FILE` | What a `feature` or `fix` run changed, and that change as a patch for `git apply`. |
 | `analyze [--repo PATH] [--deep]` | Look at an existing project without changing it: languages, detected commands, tests, CI, Git state; `--deep` also writes a codebase map ([Adopting an existing project](#adopting-an-existing-project)). |
 | `resume RUN` | Continue a cancelled, interrupted, or failed run without redoing finished stages. |
@@ -145,8 +148,7 @@ project context (`analysis.context_chars`). It is a guide written by agents, not
 it. The only things `--deep` writes are in `.engineering-team/` (the map, the profile, the run record), which
 Git is told to ignore through `.git/info/exclude`; your `.gitignore` and your files are never edited.
 
-**How the team gets a place to work.** The modes that change an existing project (`feature` and `fix`; `maintain`
-follows) start from the `adopt` recipe: profile, baseline, map. They never work in your checkout blindly;
+**How the team gets a place to work.** The modes that change an existing project (`feature`, `fix` and `maintain`) start from the `adopt` recipe: profile, baseline, map. They never work in your checkout blindly;
 `modes/isolation.py` picks one of three policies:
 
 | Policy | When | What happens | Your files |
@@ -256,6 +258,97 @@ record that proves red then green is in `pipeline.json` (`fix.red`, `fix.green`)
 then `fix.green`), and in `verification/repro-*.json`. A failed `fix` run continues with `resume RUN` without
 reproducing again; a `needs-info` run is better started again with the answers.
 
+### Maintaining a project
+
+```bash
+uv run engineering-team maintain --repo ../my-service --task add-tests --goal "the billing package"
+uv run engineering-team maintain --repo ../my-service --task refactor --goal "split handlers.py by resource"
+uv run engineering-team maintain --repo ../my-service --task upgrade-deps --sandbox docker
+uv run engineering-team maintain --repo ../my-service --task docs
+uv run engineering-team maintain --repo ../my-service --task security-audit            # report only
+uv run engineering-team maintain --repo ../my-service --task security-audit --fix      # and fix the serious ones
+uv run engineering-team maintain --repo ../my-service --task custom --goal "Replace print() with logging"
+```
+
+`maintain` works like [`feature`](#feature-mode): isolated on a branch, worktree, or copy (`--worktree`, `--allow-dirty`,
+`--squash`), verified against the baseline, with `CHANGE_SUMMARY.md` and `changes.patch` in the run directory, and
+`resume` continues a failed run. Each task is a recipe (`recipes show add-tests`) that adds **policies**: what the task
+may change, measured by the controller from Git and recorded as a required check `policy:<name>` in the verification
+(a violation is handed to the repair agent like a failing test: "revert these files"), and a **write scope** that makes
+the agent's own file tools refuse a path outside its lane.
+
+| Task | What it does | May change | Also |
+|------|--------------|------------|------|
+| `add-tests` | Characterization tests for untested code: they pin what the code does today, bugs included | test files only (`tests_only`) | The controller measures coverage before and after with the project's own coverage tool (coverage.py, jest/vitest, `go test -cover`, cargo-llvm-cov) and reports the delta in the summary; with no tool it says so. |
+| `refactor` | A behaviour-preserving refactor of what `--goal` names | anything except tests and manifests (`tests_untouched`, `manifests_untouched`), at most `maintain.max_refactor_lines` lines (`diff_size`) | **Starts only if the project's tests pass**: with failing or no tests it stops, changing nothing, with exit code 4 and the next step (`fix`, or `add-tests` first). The tests run again afterwards and are compared with the baseline. |
+| `upgrade-deps` | An analyst plans the upgrades (it asks the registries; it does not assume versions); the controller applies them in groups of `maintain.upgrade_group_size`, installs, and runs the project's checks after each group | manifests and lockfiles only (`manifests_only`) | A group that fails is undone and halved until the upgrade that broke the checks is found; the summary lists what went in, what could not and **why (the check that said so)**, and what the analyst left alone. It installs packages: use `--sandbox docker` for code you do not trust. |
+| `docs` | The technical writer documents the legacy code | documentation files only (`docs_only`: Markdown, reStructuredText, `docs/`, README, CHANGELOG; not even comments) | |
+| `security-audit` | The controller runs the ecosystem's dependency audit (pip-audit, npm audit, cargo-audit; needs `tools.dev.allow_network`), the security engineer reads the code, the controller merges both | nothing, unless `--fix`: then the debugger fixes the findings at `review.fail_on` or above and the controller verifies against the baseline | `findings.json` and `findings.md` in the run directory; without `--fix` the run exits 3 when a finding reaches `review.fail_on`. |
+| `custom` | Whatever `--goal` (or `--goal-file`) says, with the smallest change, verified against the baseline | anything | The recipe to copy for your own ([below](#your-own-recipes)). |
+
+### Reviewing a change
+
+```bash
+uv run engineering-team review --base main                       # everything on this branch since main
+uv run engineering-team review                                    # your uncommitted changes, or the work since main/master
+uv run engineering-team review --base origin/main --out-dir ci-artifacts --focus "the new migration"
+```
+
+`review` is read-only and runs in place: nothing in your project is written except the controller's own state
+directory, which Git is told to ignore. `code_reviewer` and `security_engineer` read the diff against the merge base
+of `--base` (side by side, as in the other modes' review stage), and the controller consolidates their findings
+(numbers them, drops those without text or with a path outside the project, merges duplicates) and writes to the run
+directory, and to `--out-dir`:
+
+- `findings.json`: `kind`, `run_id`, `base`, `base_branch`, `head`, `fail_on`, `passed`, `counts` per severity, and the
+  `findings` (`id`, `severity`, `summary`, `file`, `line`, `suggested_fix`, `source_role`), most severe first;
+- `findings.md`: the same for people.
+
+The exit code is the contract for a pipeline: **0** when no finding reaches `review.fail_on` (default `high`), **3**
+when one does, **2** for a bad `--base` or a directory that is not a repository, 1 for a failure. A clean branch with
+nothing to compare says so and exits 0. `--json` prints the findings on stdout. A finding is a claim to check, not a
+proven defect.
+
+### Your own recipes
+
+A recipe is a YAML file: an ordered list of stages. Put yours in `.engineering-team/recipes/NAME.yaml` (the project) or
+`~/.config/engineering-team/recipes/NAME.yaml` (every project); the project's wins over yours, and either wins over a
+bundled recipe of the same name, so a file can also replace `fix` or `custom`. Run one with
+`maintain --task NAME [--goal "..."]`. `recipes list` shows what exists and which file wins (a file that is wrong is
+listed with its error); `recipes show NAME` prints its stages. The file's `name:` must be its file name, and a run keeps
+a copy of the recipe it started with, so `resume` works from a worktree and after you edit the file.
+
+```yaml
+name: tidy                         # = tidy.yaml
+description: Remove dead code and keep the tests as they are.
+policies: [tests_untouched]        # enforced by the verify stage (see below)
+stages:
+  - {name: profile, kind: controller, action: repo_profile}
+  - {name: baseline, kind: controller, action: baseline}
+  - name: sweep
+    kind: agent
+    teammates: [backend_engineer]
+    instructions: >                # the task, in your words (or `prompt:` to use one from config/stages.yaml)
+      Remove code nothing calls (check with the reference tool) and change nothing else.
+    write_scope: tests             # optional: the paths this agent's file tools may write
+    retry: 1
+  - {name: verify, kind: verify, teammates: [debugger]}
+  - {name: summary, kind: controller, action: change_summary}
+```
+
+The catalogue a recipe is validated against (an error names the file, the stage, and what to fix, before anything runs):
+
+| Part | Values |
+|------|--------|
+| `kind` | `controller` (runs an `action`, no model), `agent` (one teammate, one task; `outputs` names a contract), `parallel` (one agent per work package of the plan), `verify` (the controller's checks, with bounded repair by its first teammate), `review` (reviewers side by side, read-only), `analyze` (the codebase map), `reproduce` (fix mode's red gate), `upgrade` (upgrade-deps' grouped upgrades) |
+| `action` | `repo_profile`, `baseline`, `change_summary`, `coverage_before`, `coverage_after`, `refactor_precondition`, `dependency_audit`, `security_report`, `security_gate`, `review_target`, `review_gate` |
+| `teammates` | Keys from `team list` (including your own teammates) |
+| `prompt` / `instructions` | A prompt key of `config/stages.yaml`, or your own text for the stage (not both) |
+| `policies` (recipe) | `tests_only`, `docs_only`, `manifests_only`, `tests_untouched`, `manifests_untouched`, `diff_size`; they need a `verify` stage |
+| `write_scope` | `tests`, `docs`, `manifests` (agent, verify and upgrade stages) |
+| `skip_if` | `no_work_packages`, `minimal_team`, `fixes_requested`, `fixes_not_requested`, `no_findings`, `nothing_to_review` |
+| `retry`, `optional`, `inputs`, `outputs`, `repair: false` (review), `allow_shared` (parallel) | as in [ARCHITECTURE.md](ARCHITECTURE.md#pipeline-recipes-and-resume) |
+
 **`new --adopt`** is the narrow, older door: it lets `new` work in an existing directory under the workspace
 root that the tool did not create (`--project-name NAME --adopt`), in place and without isolation, so it
 refuses a Git repository (committing there would land on its current branch). The directory is marked
@@ -269,8 +362,8 @@ Safety details: [SAFETY.md](SAFETY.md#adopting-an-existing-project).
 | `0` | Success (a `pipeline` run: verified). |
 | `1` | A runtime error, or a failed check of your setup (`doctor`). |
 | `2` | Usage or configuration error: one line on stderr, no traceback. |
-| `3` | The controller's own checks failed (not verified). |
-| `4` | Verification was partial (a required check could not run), or `fix` could not reproduce the bug and needs more information (verdict `needs-info`, with questions). |
+| `3` | The controller's own checks failed (not verified); for `review` and an unfixed `security-audit`, a finding reached `review.fail_on`. |
+| `4` | Verification was partial (a required check could not run), or `fix` or `maintain --task refactor` stopped because it needs more information (verdict `needs-info`, with questions). |
 | `130` | Interrupted (Ctrl-C) or cancelled. `resume` continues it. |
 
 ## Writing a strong request

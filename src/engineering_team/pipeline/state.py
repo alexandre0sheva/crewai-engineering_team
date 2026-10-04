@@ -30,6 +30,12 @@ from engineering_team.intake.bundle import request_hash as request_hash  # re-ex
 from engineering_team.modes.baseline_report import BaselineReport
 from engineering_team.modes.diff_noise import DiffNoise
 from engineering_team.modes.fix_contracts import FixNote, FixRecord, Repro, Triage
+from engineering_team.modes.maintain_contracts import (
+    AuditNote,
+    CoverageDelta,
+    UpgradeOutcome,
+    UpgradePlan,
+)
 from engineering_team.modes.repo_profile import RepoProfile
 
 STATE_FILENAME = "pipeline.json"
@@ -73,6 +79,16 @@ class PipelineState(Contract):
     fix_note: FixNote | None = None
     fix: FixRecord | None = None
     needs_info: list[str] = Field(default_factory=list)  # questions when the bug is not reproduced
+    # What the command line asked for beyond the request (``modes/run_options.py``); conditions
+    # such as ``fixes_not_requested`` read it. Loaded again on resume.
+    options: dict[str, Any] = Field(default_factory=dict)
+    # Maintain mode: coverage before and after, the planned dependency upgrades and what the
+    # controller found trying them, and the dependency audits it ran.
+    coverage: CoverageDelta | None = None
+    upgrades: UpgradePlan | None = None
+    upgrade_outcomes: list[UpgradeOutcome] = Field(default_factory=list)
+    audit: list[AuditNote] = Field(default_factory=list)
+    audit_findings: list[Finding] = Field(default_factory=list)  # from the dependency audit
     error: str = ""
 
     @classmethod

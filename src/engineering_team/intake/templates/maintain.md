@@ -1,7 +1,8 @@
 <!-- ENGINEERING_TEAM_REQUEST_TEMPLATE -->
 # Project request: maintain an existing project
 
-Replace this text, then run `engineering-team new`. Delete the guidance lines in italics once
+Replace this text, then run `engineering-team maintain --repo PATH --task custom --goal-file
+THIS_FILE` (or another `--task`, see `recipes list`). Delete the guidance lines in italics once
 you have answered them.
 
 ## The maintenance goal

@@ -32,6 +32,8 @@ from engineering_team.modes.codebase_map import (
 )
 from engineering_team.modes.fix_contracts import FixNote, Repro, Triage
 from engineering_team.modes.fix_input import bug_brief
+from engineering_team.modes.maintain import coverage_brief
+from engineering_team.modes.maintain_contracts import UpgradePlan
 from engineering_team.pipeline.recipes import StageSpec
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.context import RunContext
@@ -45,6 +47,7 @@ CONTRACT_MODELS: dict[str, type[Contract]] = {
     "triage": Triage,
     "repro": Repro,
     "fix_note": FixNote,
+    "upgrades": UpgradePlan,
 }
 
 
@@ -75,6 +78,8 @@ class StageRequest:
     chunk: str = ""  # an analyze stage: the brief of the part of the codebase to study
     synthesis: str = ""  # an analyze stage's last step: the chunk analyses to combine
     profile: str = ""  # an analyze stage: the facts the controller found about the repository
+    upgrades: str = ""  # an upgrade stage: the group of upgrades to apply, as text
+    audit: str = ""  # what the controller's dependency audit found, as text
 
     @property
     def label(self) -> str:
@@ -106,6 +111,30 @@ def _yaml(name: str) -> dict[str, Any]:
     text = (resources.files("engineering_team") / "config" / name).read_text(encoding="utf-8")
     data = yaml.safe_load(text)
     return data if isinstance(data, dict) else {}
+
+
+def prompts() -> dict[str, Any]:
+    """The task prompts of ``config/stages.yaml`` by key."""
+
+    return _yaml("stages.yaml")
+
+
+def prompt_key(stage: StageSpec, *, synthesis: bool = False, findings: bool = False) -> str:
+    """The key in ``stages.yaml`` of the task prompt ``stage`` runs: its own ``prompt``, a recipe's
+    ``instructions`` (the ``custom`` prompt), or what its kind or name picks. An analyze stage's
+    last step and a verify stage's repair of review findings have prompts of their own."""
+
+    if stage.instructions is not None:
+        return "custom"
+    key = stage.prompt or {
+        "parallel": "implement", "verify": "repair", "analyze": "analyze_chunk",
+        "upgrade": "upgrade_apply", "review": "review",
+    }.get(stage.kind, stage.name)  # fmt: skip
+    if stage.kind == "analyze" and synthesis:
+        key = "analyze_synthesis"  # the last step combines what the chunk analysts found
+    if stage.kind == "verify" and findings:
+        key = "repair_review"  # a repair round for review findings, not for failing checks
+    return key
 
 
 def teammate_for(
@@ -179,6 +208,10 @@ def _context(request: StageRequest) -> str:
     return f"{note}\n\n{heading}\n\n{mapped}".strip()
 
 
+def stage_instructions(request: StageRequest) -> str:
+    return (request.stage.instructions or "").strip()
+
+
 def _json(model: BaseModel | None) -> str:
     return model.model_dump_json(indent=2) if model is not None else "(not available)"
 
@@ -191,20 +224,14 @@ class CrewStageRunner:
 
     def run(self, request: StageRequest) -> StageOutput:
         ctx, stage = request.ctx, request.stage
-        prompts = _yaml("stages.yaml")
-        key = stage.prompt or {
-            "parallel": "implement", "verify": "repair", "analyze": "analyze_chunk",
-        }.get(stage.kind, stage.name)  # fmt: skip
-        if stage.kind == "analyze" and request.synthesis:
-            key = "analyze_synthesis"  # the last step combines what the chunk analysts found
-        if stage.kind == "verify" and request.findings:
-            key = "repair_review"  # a repair round for review findings, not for failing checks
-        if key not in prompts:
+        known = prompts()
+        key = prompt_key(stage, synthesis=bool(request.synthesis), findings=bool(request.findings))
+        if key not in known:
             raise StageError(
                 f"No prompt for stage '{stage.name}' in config/stages.yaml (known: "
-                f"{', '.join(prompts)}). Add one with that name."
+                f"{', '.join(known)}). Add one with that name."
             )
-        prompt = prompts[key]
+        prompt = known[key]
         agent = self._agent(request)
         wanted: dict[str, type[Contract]] = {
             name: CONTRACT_MODELS[name] for name in stage.contract_outputs
@@ -309,6 +336,7 @@ class CrewStageRunner:
             "current_date": date.today().isoformat(),
             "spec": _json(request.state.spec),
             "plan": _json(request.state.plan),
+            "instructions": stage_instructions(request),
             "triage": _json(request.state.triage),
             "repro": _json(request.state.repro),
             "fix_note": _json(request.state.fix_note),
@@ -333,4 +361,7 @@ class CrewStageRunner:
             "chunk": request.chunk,
             "synthesis": request.synthesis,
             "profile": request.profile,
+            "upgrades": request.upgrades,
+            "audit": request.audit,
+            "coverage": coverage_brief(request.state),
         }

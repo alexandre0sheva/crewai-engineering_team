@@ -1,0 +1,54 @@
+# The recipe for adding characterization tests to code that has none (or too few). The tests pin
+# what the code does today, bugs included; no production code may change (policy `tests_only`: the
+# agent's file tools are limited to test files, and the controller checks the diff). The
+# controller measures coverage before and after with the project's own coverage tool, when there
+# is one. See docs/USAGE.md ("Maintaining a project").
+name: add-tests
+description: Characterization tests for untested code; the controller reports the coverage delta.
+policies: [tests_only]
+stages:
+  - name: profile
+    kind: controller
+    action: repo_profile
+
+  - name: baseline
+    kind: controller
+    action: baseline
+
+  - name: map
+    kind: analyze
+    teammates: [codebase_analyst]
+
+  - name: coverage_before
+    kind: controller
+    action: coverage_before
+
+  - name: tests
+    kind: agent
+    teammates: [quality_engineer]
+    inputs: [request]
+    prompt: add_tests
+    write_scope: tests
+    retry: 1
+
+  # Baseline-aware, like every repository mode, plus the policy: a diff outside the tests fails.
+  - name: verify
+    kind: verify
+    teammates: [quality_engineer]
+    prompt: repair_tests
+    write_scope: tests
+
+  - name: coverage_after
+    kind: controller
+    action: coverage_after
+
+  - name: review
+    kind: review
+    teammates: [code_reviewer]
+    skip_if: [minimal_team]
+    optional: true
+    prompt: review_maintain
+
+  - name: summary
+    kind: controller
+    action: change_summary

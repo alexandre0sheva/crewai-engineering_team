@@ -25,7 +25,7 @@ from typing import Any, TextIO, TypeVar
 from engineering_team.crew import EngineeringTeam
 from engineering_team.intake import TEMPLATE_MARKER, ContextScan, RequestBundle, install_context
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
-from engineering_team.pipeline.recipes import Recipe
+from engineering_team.pipeline.recipes import Recipe, pin_recipe
 from engineering_team.pipeline.runner import (
     execute_run,
     open_resume,
@@ -390,6 +390,8 @@ def _open_run(
             install_context(workspace.root, context)
         ctx = RunContext.create(settings, workspace, run_id=run_id, adopted=adopted)
         pin = _pin_checks(settings, ctx, mode, strategy_name)
+        if recipe is not None and recipe.source != "bundled":
+            pin_recipe(ctx.run_dir, recipe)
         recorder = RunRecorder.begin(
             ctx,
             mode=mode,
@@ -430,7 +432,7 @@ def _pin_checks(settings: Settings, ctx: RunContext, mode: str, strategy: str) -
     """Validate and pin the user's checks file (a problem with it is a usage error)."""
 
     source = settings.verify.checks_file
-    if source is None or mode not in ("build", "feature", "fix"):
+    if source is None or mode not in ("build", "feature", "fix", "maintain"):
         return ChecksPin()
     if strategy != "pipeline":
         raise ValueError(

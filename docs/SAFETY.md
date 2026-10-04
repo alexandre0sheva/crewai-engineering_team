@@ -223,6 +223,25 @@ What the adoption machinery touches in a project that is not the tool's own, and
   denied to every later agent write (the tools refuse), their SHA-256 digests are pinned, and a changed or deleted file
   fails the verification whatever the checks say (an agent that edits a file by running a command is caught the same
   way). The debugger's root cause and risk are labelled as its account in the summary, never as evidence.
+- **A maintenance task stays in its lane twice.** Its `write_scope` makes the agent's file tools refuse paths outside
+  it (tests, documentation, or manifests), and its policies are measured from Git by the controller afterwards, so a
+  command that edits a file anyway is caught and sent back as a failing required check. `refactor` also refuses to start
+  without passing tests, and may not edit an existing test.
+- **`upgrade-deps` installs packages.** The controller runs the project's package manager (`pip install`, `npm install`,
+  ...) through the execution backend after each group of manifest edits, and installs run code from the new packages.
+  On the local backend that is your machine and, for Python, the interpreter the tool finds: use `--sandbox docker` for
+  anything you do not trust. A group that fails its checks is undone with `git checkout` of the changed paths on the team's
+  own branch (ignored files, such as installed packages, are not removed).
+- **`review` and `security-audit` findings are claims.** Reviewers are read-only and the controller drops findings
+  without text or with a path outside the project, but a finding can be wrong or influenced by text in the code under
+  review: `findings.json` is for gating and triage, not proof. The dependency audit's findings (`D-n`) are the
+  ecosystem tool's own output, run by the controller; it needs `tools.dev.allow_network` and says so when it could
+  not run.
+- **Recipes you write are validated, not trusted.** A recipe can only name controller actions that exist, prompts that
+  exist, and teammates on your team, and it is checked before anything runs; it cannot add tools, widen the command
+  allowlist, or lift a write scope that a policy applies. A recipe in a repository you did not write is code that
+  decides what agents are asked to do in your project: read `.engineering-team/recipes/` before running `maintain` on
+  someone else's checkout.
 - **`--squash` rewrites only the team's own branch**, after checking that the starting commit is an ancestor of it.
 - **`export-patch` refuses to write inside the project** (the patch would become part of the change it describes).
 - **The codebase map is context, not evidence.** The analysts are told to read, never to change, and their

@@ -9,6 +9,7 @@ stage, which fails the run so ``resume`` can pick it up.
 from __future__ import annotations
 
 import threading
+from dataclasses import replace
 
 from crewai.tools import BaseTool
 
@@ -21,10 +22,16 @@ from engineering_team.contracts import (
     WorkPackage,
 )
 from engineering_team.modes import adopt as adopt  # noqa: F401  (registers the adopt actions)
+from engineering_team.modes import maintain as maintain  # noqa: F401  (registers the actions)
+from engineering_team.modes import review_mode as review_mode  # noqa: F401  (registers them too)
 from engineering_team.modes.change_report import ChangeError, measure_change, render_noise
 from engineering_team.modes.fix_contracts import Repro
-from engineering_team.modes.fix_repro import NeedsInfo, protected_paths, run_reproduction
+from engineering_team.modes.fix_repro import protected_paths, run_reproduction
+from engineering_team.modes.maintain_contracts import Upgrade
 from engineering_team.modes.map_stage import run_map
+from engineering_team.modes.needs_info import NeedsInfo
+from engineering_team.modes.policies import SCOPES
+from engineering_team.modes.upgrade import run_upgrades
 from engineering_team.pipeline.actions import CONTROLLER_ACTIONS
 from engineering_team.pipeline.board_sync import StageBoard
 from engineering_team.pipeline.checkpoints import Checkpoints
@@ -32,7 +39,7 @@ from engineering_team.pipeline.packages import SHARED_DENY, PlanError, plan_prob
 from engineering_team.pipeline.parallel import PackageOutcome, run_work_packages
 from engineering_team.pipeline.recipes import Recipe, StageSpec
 from engineering_team.pipeline.resume import RESUME_NOTE, StagePlan
-from engineering_team.pipeline.review import repair_brief
+from engineering_team.pipeline.review import blocking, repair_brief
 from engineering_team.pipeline.review_stage import run_review
 from engineering_team.pipeline.spec_stage import (
     Clarifier,
@@ -150,6 +157,8 @@ class StageExecutor:
             self._analyze(stage)
         elif stage.kind == "reproduce":
             self._reproduce(stage)
+        elif stage.kind == "upgrade":
+            self._upgrade(stage)
         else:
             self._agent(stage, note)
         self._check_artifacts(stage)
@@ -219,6 +228,7 @@ class StageExecutor:
             teammate=teammate,
             repair=repair,
             save=self._save,
+            policies=self.recipe.policies,
         )
 
     def _review(self, stage: StageSpec) -> None:
@@ -255,9 +265,38 @@ class StageExecutor:
             return "Sent to repair and verified again; the findings were not reviewed again."
 
         summary = run_review(
-            self.ctx, self.state, stage, call, repair if verify else None, self._noise_section()
+            self.ctx,
+            self.state,
+            stage,
+            call,
+            repair if verify and stage.repair else None,
+            self._noise_section(),
         )
         self.state.summaries[stage.name] = summary[:MAX_SUMMARY]
+
+    def _audit_text(self) -> str:
+        """The dependency audit's result, for a prompt (empty when none ran)."""
+
+        from engineering_team.modes.maintain import audit_brief
+
+        return audit_brief(self.state)
+
+    def _upgrade(self, stage: StageSpec) -> None:
+        """Apply the planned upgrades in groups; the controller keeps what passes its checks."""
+
+        teammate = lead_teammate(self.ctx, stage)
+
+        def apply(group: list[Upgrade], number: int) -> None:
+            text = "\n".join(
+                f"- {u.package}: {u.current or '?'} -> {u.target} in {u.manifest or 'its manifest'}"
+                + (f" ({u.reason})" if u.reason else "")
+                for u in group
+            )
+            self._call(stage, teammate, "", upgrades=text, card_id=self.board.card_for(stage.name))
+
+        self.state.summaries[stage.name] = run_upgrades(self.ctx, self.state, apply, self._save)[
+            :MAX_SUMMARY
+        ]
 
     def _noise_section(self) -> list[str]:
         """The diff-noise lines of a change to an existing project (nothing for a new one)."""
@@ -352,12 +391,19 @@ class StageExecutor:
         chunk: str = "",
         synthesis: str = "",
         profile: str = "",
+        upgrades: str = "",
+        audit: str = "",
     ) -> StageOutput:
         self.ctx.board.wait_while_paused(self.ctx.cancel_event)
         check_cancelled(self.ctx)
-        if scope is None and stage.kind != "reproduce" and (pinned := protected_paths(self.state)):
+        if scope is None and stage.write_scope is not None:
+            scope = WriteScope(allow=SCOPES[stage.write_scope])  # the recipe's lane for the stage
+        if stage.kind != "reproduce" and (pinned := protected_paths(self.state)):
             # The reproduction was seen failing: no agent may edit it to make it pass.
-            scope = WriteScope(allow=("**",), deny=pinned)
+            scope = WriteScope(
+                allow=scope.allow if scope else ("**",),
+                deny=(*(scope.deny if scope else ()), *pinned),
+            )
         request = StageRequest(
             ctx=self.ctx,
             stage=stage,
@@ -382,7 +428,16 @@ class StageExecutor:
             chunk=chunk,
             synthesis=synthesis,
             profile=profile,
+            upgrades=upgrades,
+            audit=audit or self._audit_text(),
         )
+        if stage.prompt == "fix_findings" and not findings:  # a stage that fixes the audit's
+            request = replace(
+                request,
+                findings=repair_brief(
+                    blocking(self.state.findings, self.ctx.settings.review.fail_on)
+                ),
+            )
         output = self.runner.run(request)
         check_cancelled(self.ctx)
         return output

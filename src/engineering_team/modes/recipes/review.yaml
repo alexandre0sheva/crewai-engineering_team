@@ -1,0 +1,25 @@
+# The recipe behind `engineering-team review`: a read-only review of a change, in place (nothing
+# in your project is written except the controller's own state directory). Reviewers read the diff
+# against the base; the controller writes findings.json and findings.md to the run directory and
+# fails the run (exit 3) when a finding reaches review.fail_on.
+name: review
+description: A read-only review of a branch or the working diff; findings.json for CI.
+stages:
+  - name: profile
+    kind: controller
+    action: repo_profile
+
+  - name: target
+    kind: controller
+    action: review_target
+
+  - name: review
+    kind: review
+    teammates: [code_reviewer, security_engineer]
+    prompt: review_diff
+    repair: false
+    skip_if: [nothing_to_review]
+
+  - name: gate
+    kind: controller
+    action: review_gate

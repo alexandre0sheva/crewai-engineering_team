@@ -21,6 +21,7 @@ from engineering_team.settings import (
     GitSettings,
     IntakeSettings,
     KnowledgeSettings,
+    MaintainSettings,
     NetworkSettings,
     ParallelSettings,
     ReviewSettings,
@@ -62,6 +63,7 @@ def test_every_setting_is_documented() -> None:
         "review",
         "analysis",
         "fix",
+        "maintain",
     }
     for section, model in (
         ("budget", BudgetSettings),
@@ -80,6 +82,7 @@ def test_every_setting_is_documented() -> None:
         ("review", ReviewSettings),
         ("analysis", AnalysisSettings),
         ("fix", FixSettings),
+        ("maintain", MaintainSettings),
     ):
         keys |= {f"{section}.{name}" for name in model.model_fields}
 

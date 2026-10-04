@@ -1,0 +1,58 @@
+# The recipe for a security audit: the controller runs the ecosystem's dependency audit, the
+# security engineer reads the code, and the controller merges both into findings.json and
+# findings.md (exit 3 when a finding reaches review.fail_on). It changes nothing unless the
+# command line says --fix: then the debugger fixes the serious findings and the controller
+# verifies against the baseline.
+name: security-audit
+description: Dependency audit plus a security review of the code; fixes only with --fix.
+stages:
+  - name: profile
+    kind: controller
+    action: repo_profile
+
+  # Only needed to judge fixes against what already failed.
+  - name: baseline
+    kind: controller
+    action: baseline
+    skip_if: [fixes_not_requested]
+
+  - name: map
+    kind: analyze
+    teammates: [codebase_analyst]
+
+  - name: dependency_audit
+    kind: controller
+    action: dependency_audit
+
+  - name: audit
+    kind: review
+    teammates: [security_engineer]
+    prompt: audit_security
+    repair: false
+
+  - name: report
+    kind: controller
+    action: security_report
+
+  - name: fix
+    kind: agent
+    teammates: [debugger]
+    prompt: fix_findings
+    skip_if: [fixes_not_requested, no_findings]
+    retry: 1
+
+  - name: verify
+    kind: verify
+    teammates: [debugger]
+    skip_if: [fixes_not_requested, no_findings]
+
+  # Without --fix the audit is the result: it fails (exit 3) when a finding is serious.
+  - name: gate
+    kind: controller
+    action: security_gate
+    skip_if: [fixes_requested]
+
+  - name: summary
+    kind: controller
+    action: change_summary
+    skip_if: [fixes_not_requested]

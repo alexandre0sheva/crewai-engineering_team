@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from engineering_team.contracts import RunManifest
-from engineering_team.pipeline.recipes import Recipe, load_recipe
+from engineering_team.pipeline.recipes import Recipe, load_recipe, pinned_recipe
 from engineering_team.pipeline.resume import ResumeError
 from engineering_team.pipeline.state import (
     PipelineState,
@@ -101,7 +101,11 @@ def read_request(
     return store, manifest, request
 
 
-REPOSITORY_MODES = ("feature", "fix")  # modes that work in an isolated copy of your project
+REPOSITORY_MODES = (
+    "feature",
+    "fix",
+    "maintain",
+)  # modes that work in an isolated copy of your project
 RESUMABLE_MODES = ("build", *REPOSITORY_MODES)
 
 
@@ -129,7 +133,7 @@ def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = No
         )
     # The single-agent strategy supplies its own one-stage recipe; the pipeline loads its own.
     recipe = (
-        load_recipe(manifest.recipe)
+        pinned_recipe(store.run_dir(run_id)) or load_recipe(manifest.recipe, workspace_dir)
         if manifest.strategy == "pipeline" and manifest.recipe
         else None
     )

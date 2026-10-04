@@ -15,6 +15,7 @@ from crewai.flow.flow import Flow, listen, or_, router, start
 from pydantic import PrivateAttr
 
 from engineering_team.contracts import RunStatus, StageRecord
+from engineering_team.modes.run_options import read_run_options
 from engineering_team.pipeline.board_sync import StageBoard
 from engineering_team.pipeline.executor import StageExecutor, reset_for
 from engineering_team.pipeline.recipes import CONDITIONS, Recipe
@@ -76,6 +77,15 @@ class PipelineFlow(Flow[PipelineState]):
             for name in PipelineState.model_fields:
                 setattr(state, name, getattr(loaded, name))
         state.recipe, state.recipe_digest, state.request_hash = recipe.name, digest, requested
+        state.options = read_run_options(ctx.run_dir)
+        missing = [
+            key for stage in recipe.stages for key in stage.teammates if key not in ctx.team.members
+        ]
+        if missing:
+            raise ResumeError(
+                f"Recipe '{recipe.name}' names teammate(s) who are not on the team: "
+                f"{', '.join(dict.fromkeys(missing))}. Fix the recipe or the team."
+            )
         if loaded is None:  # a fresh run pins the user's checks; a resumed one keeps its own
             state.verification.checks_digest = self._bundle.checks_digest
             state.verification.script_digests = dict(self._bundle.script_digests)

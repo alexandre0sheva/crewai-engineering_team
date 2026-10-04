@@ -281,6 +281,17 @@ class FixSettings(_Frozen):
     repro_timeout: int = Field(default=120, ge=5, le=1800)
 
 
+class MaintainSettings(_Frozen):
+    """Maintenance tasks (``engineering-team maintain``) and the read-only ``review``."""
+
+    # The most lines a ``refactor`` may change (added plus removed): a behaviour-preserving change
+    # that grows past this is split into smaller ones, not reviewed in one piece.
+    max_refactor_lines: int = Field(default=800, ge=10, le=100_000)
+    # How many upgrades one ``upgrade-deps`` attempt may apply together before a failure is
+    # bisected; 1 tries them strictly one by one.
+    upgrade_group_size: int = Field(default=8, ge=1, le=50)
+
+
 TEAM_KEY = re.compile(r"[a-z][a-z0-9_]*")
 
 
@@ -347,6 +358,7 @@ class Settings(_Frozen):
     review: ReviewSettings = ReviewSettings()
     analysis: AnalysisSettings = AnalysisSettings()
     fix: FixSettings = FixSettings()
+    maintain: MaintainSettings = MaintainSettings()
     team_profile: Literal["full", "minimal"] = "full"  # minimal: no review, DevOps, or docs stage
     team: dict[str, TeamOverride] = {}
     team_file: str | None = None  # default: ./.engineering-team/team.yaml when it exists
@@ -858,6 +870,15 @@ def _read_toml(path: Path, label: str) -> tuple[str, dict[str, Any]]:
     except OSError as exc:
         raise SettingsError(f"Cannot read {path}: {exc.strerror or exc}") from None
     return f"{label} {path}", data
+
+
+def user_config_directory() -> Path | None:
+    """``~/.config/engineering-team`` (``$XDG_CONFIG_HOME`` first); ``None`` with no home."""
+
+    try:
+        return user_config_path(os.environ, Path.home()).parent
+    except RuntimeError:
+        return None
 
 
 def user_config_path(env: Mapping[str, str], home: Path) -> Path:

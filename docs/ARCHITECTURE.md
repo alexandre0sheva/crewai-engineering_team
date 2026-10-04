@@ -219,6 +219,9 @@ from reading `commands/` logs. This is the single description of its layout:
 | `pipeline.json` | `PipelineState` | The pipeline's hand-offs between stages (spec, plan, work-package status, board card ids, agent summaries, the latest check results and the `VerificationRecord`); see [Pipeline, recipes, and resume](#pipeline-recipes-and-resume) |
 | `verification/round-<n>.json` | `Verifier` | The results of each check run (status, exit code, duration, log path, the workspace revision it ran against, the parsed test or diagnostic report); see [Verification and repair](#verification-and-repair) |
 | `fix-input.json` | `fix` | `fix` runs only: the person's `--repro` command, the whole `--trace-file`, and `--allow-unreproduced`; read by the controller, never by agents |
+| `run-options.json` | the repository-mode commands | What the command line asked beyond the request (`maintain --fix`, `review --base`); read again when the pipeline starts or resumes, never by agents |
+| `recipe.yaml` | `pin_recipe` | The recipe, for a run that used one from a file (yours); a resume prefers it |
+| `findings.json`, `findings.md` | `modes/findings_report` | `review` and `security-audit`: the consolidated findings for CI and for people |
 | `checks.yaml` | `pin_checks` | The pinned copy of the user's `--checks` file (its hash is in `pipeline.json`) |
 | `cancel` | `engineering-team cancel` | Flag file the running controller polls; deleted when a run starts or resumes |
 | `board.json`, `board.md` | `BoardStore` | The task board: every card with its history (`BoardState`), and a Markdown view of it ([Task board](#task-board)) |
@@ -721,6 +724,45 @@ and `FixNote` (`modes/fix_contracts.py`) are the debugger's accounts and are nev
 - **Run record.** `pipeline.json` (`fix`, `triage`, `repro`, `fix_note`, `needs_info`), `events.jsonl` (`fix.red`,
   `fix.green`, `fix.not_red`, `fix.unreproduced`, `fix.needs_info`), `verification/repro-red-<n>.json` and the
   verification rounds hold the evidence; `modes/fix_report.py` renders it into `CHANGE_SUMMARY.md`.
+
+### Maintenance, review, and your own recipes
+
+`modes/recipes/` holds `add-tests`, `refactor`, `upgrade-deps`, `docs`, `security-audit`, `custom` and `review` next to the
+others; `cli/maintain_command.maintain` is a thin caller of the same `run_repository_mode` as `feature` and `fix`.
+
+- **Policies** (`modes/policies.py`, `modes/policy_checks.py`). A recipe lists policy names; `VerificationLoop` evaluates
+  them after the checks against `GitPort.changes(base)` and appends one required `CheckResult` per policy
+  (`policy:<name>`; `unavailable` when there is no base, never a pass). A violation therefore fails the verdict, shows
+  in the report, and goes to the repair agent with the offending paths. The same classification (`is_test_path`,
+  `is_doc_path`, `is_manifest_path`) feeds the named `write_scope`s that `StageExecutor._call` turns into a `WriteScope`,
+  merged with the reproduction protection of `fix`.
+- **Coverage** (`modes/maintain`): the `coverage_before`/`coverage_after` actions call `DevRunner.coverage` for each
+  project root and keep a `CoverageDelta` in the pipeline state; `{coverage}` hands the least-covered files to the test
+  writer.
+- **Refactor precondition**: `refactor_precondition` raises `NeedsInfo` (`modes/needs_info.py`, shared with `fix`) unless
+  the baseline's tests passed, so the run ends `needs-info` (exit 4) before any change.
+- **Upgrades** (`modes/upgrade.py`). The `upgrade` stage kind runs `bisect_upgrades` over the plan's upgrades: each
+  attempt has the agent edit the manifests, checks that only manifests and lockfiles changed, installs
+  (`DevRunner.install`), runs `verification/quick.quick_verify` (the detected and pinned checks, judged against the
+  baseline, no repair), and either commits (`upgrade: ...`) or undoes the group with `GitPort.restore("HEAD")` and halves
+  it. Outcomes are saved as they are decided, so a resume does not decide them again.
+- **Audit and findings**: `dependency_audit` runs `DevRunner.audit` per project (`D-n` findings with the tool's severity
+  mapped to the review scale), the `audit` review stage has `repair: false`, `security_report` merges and writes
+  `findings.json`/`findings.md`, and `security_gate`/`review_gate` (`modes/findings_report.gate`) set the verdict and raise
+  `VerificationError`, which is what makes the exit code 3.
+- **`review`** (`cli/review_command.py`) opens a run in place (like `analyze --deep`: no isolation, `git.enabled = false`,
+  the workspace lock, reports in the run directory) with the `review` recipe: `review_target` finds the merge base (or the
+  dirty tree's `HEAD`, or the default branch) and records it as the run's base commit; the reviewers use the same
+  prompt machinery as the `review` stage of the other modes.
+- **Recipe sources** (`pipeline/recipes.py`). `load_recipe(name, root)` looks in `<root>/.engineering-team/recipes`, then
+  `~/.config/engineering-team/recipes` (`settings.user_config_directory`), then the bundled ones. A recipe from a file is
+  also checked by `pipeline/recipe_check.check_recipe` (controller actions that exist, prompts that exist,
+  teammates on the team; the run start checks the team again with the real roster), reports each problem with its file,
+  stage, and field, and must be named like its file. `Recipe.source` and `path` are not part of its digest. Stages
+  gained `instructions` (the `custom` prompt wraps them), `write_scope`, `repair`, and the kinds `upgrade` and
+  `reproduce`; recipes gained `policies`. The recipe is checked before the team gets a branch, worktree, or copy.
+- **Run options** (`modes/run_options.py`): `PipelineState.options` is read from `run-options.json` at every start, so
+  conditions such as `fixes_not_requested` hold on resume.
 
 ## Settings and model routing
 

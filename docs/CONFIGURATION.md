@@ -342,6 +342,16 @@ How hard `engineering-team fix` tries to reproduce a bug before it stops and ask
 | `fix.max_repro_attempts` | `3` | How many times the debugger may try to write a test or script that fails because of the bug. Each try is checked by the controller, which runs the reproduction itself. When none fails, the run ends `needs-info` (exit 4) with questions. 1 to 6. |
 | `fix.repro_timeout` | `120` | Seconds one run of the reproduction may take; a hang is not a reproduction. 5 to 1,800. |
 
+### Maintenance (`[maintain]`)
+
+Limits for `engineering-team maintain` ([USAGE.md](USAGE.md#maintaining-a-project)). The threshold that makes
+`review` and `security-audit` exit 3 is `review.fail_on` above.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `maintain.max_refactor_lines` | `800` | The most lines (added plus removed) a `refactor` may change; a larger change fails the `diff_size` policy and is handed back to be split. 10 to 100,000. |
+| `maintain.upgrade_group_size` | `8` | How many dependency upgrades `upgrade-deps` applies together before it checks. A failing group is halved until the upgrade that broke the checks is found; `1` goes strictly one by one. 1 to 50. |
+
 ## Models
 
 Each role (the manager `engineering_lead` and every specialist) resolves to a model in this order,

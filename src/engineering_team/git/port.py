@@ -279,6 +279,42 @@ class GitPort:
         self._emit("git.squash", sha=sha, base=reference[:12])
         return sha
 
+    def merge_base(self, first: str, second: str = "HEAD") -> str:
+        """The commit where ``first`` and ``second`` last agreed (where a branch left its base)."""
+
+        self._require_repo()
+        return self._sha(self._run("merge-base", _clean_ref(first), _clean_ref(second)))
+
+    def resolves(self, ref: str) -> bool:
+        """Whether ``ref`` names a commit here."""
+
+        self._require_repo()
+        try:
+            self._run("rev-parse", "--verify", "-q", f"{_clean_ref(ref)}^{{commit}}")
+        except GitError:
+            return False
+        return True
+
+    def restore(self, ref: str = "HEAD") -> list[str]:
+        """Put the work tree back as it was at ``ref``: changed and deleted files are restored,
+        files added since are removed. Returns the paths it touched. Nothing is committed, no
+        history changes, and ignored files (installed packages, caches) are left alone: this is
+        the undo for an attempt that did not work, on a branch the controller made."""
+
+        self._require_repo()
+        reference = _clean_ref(ref)
+        touched: list[str] = []
+        for change in self.changes(reference):
+            if change.status == "A":
+                target = self.workspace.root / change.path
+                target.unlink(missing_ok=True)
+            else:
+                self._run("checkout", reference, "--", change.path)
+            touched.append(change.path)
+        if touched:
+            self._emit("git.restore", ref=reference[:12], files=len(touched))
+        return touched
+
     def diff_stat(self, base: str | None = None) -> str:
         return self._work_diff(base, ("--stat",), ())
 

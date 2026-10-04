@@ -1,0 +1,46 @@
+# The recipe for a behaviour-preserving refactor. It starts only if the project's own tests pass
+# (otherwise it stops with questions: nothing can say that behaviour is preserved), may not touch
+# an existing test or a dependency manifest, and may not grow past maintain.max_refactor_lines.
+# The controller runs the tests again afterwards and compares them with the baseline.
+name: refactor
+description: A behaviour-preserving refactor, tests green before and after, with diff limits.
+policies: [tests_untouched, manifests_untouched, diff_size]
+stages:
+  - name: profile
+    kind: controller
+    action: repo_profile
+
+  - name: baseline
+    kind: controller
+    action: baseline
+
+  - name: precondition
+    kind: controller
+    action: refactor_precondition
+
+  - name: map
+    kind: analyze
+    teammates: [codebase_analyst]
+
+  - name: refactor
+    kind: agent
+    teammates: [backend_engineer]
+    inputs: [request]
+    prompt: refactor
+    retry: 1
+
+  - name: verify
+    kind: verify
+    teammates: [debugger]
+    prompt: repair_refactor
+
+  - name: review
+    kind: review
+    teammates: [code_reviewer]
+    skip_if: [minimal_team]
+    optional: true
+    prompt: review_maintain
+
+  - name: summary
+    kind: controller
+    action: change_summary

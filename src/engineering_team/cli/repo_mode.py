@@ -23,10 +23,12 @@ from engineering_team.cli.run_commands import present_run, wants_questions
 from engineering_team.intake.bundle import RequestBundle
 from engineering_team.modes.change_report import PATCH_FILE, SUMMARY_FILE
 from engineering_team.modes.isolation import Isolation, isolate
+from engineering_team.modes.run_options import write_run_options
 from engineering_team.pipeline.recipes import load_recipe
 from engineering_team.runtime.context import new_run_id
 from engineering_team.runtime.run_index import register_workspace
 from engineering_team.settings import Settings, load_settings
+from engineering_team.team import build_roster
 from engineering_team.tools.workspace import ProjectWorkspace
 from engineering_team.workspaces import slugify_project_name
 
@@ -56,10 +58,11 @@ def project_name_of(root: Path, given: str | None) -> str:
 class RepoRun:
     """How one repository-mode command differs from another."""
 
-    mode: str  # the run's mode, and the name of its recipe
+    mode: str  # the run's mode (``feature``, ``fix``, ``maintain``)
     root: Path
     load: LoadRequest
     options: SimpleNamespace  # the engine's CLI options (provider, profile, allow_web, ...)
+    recipe: str = ""  # the recipe's name (default: the mode's own)
     worktree: bool = False
     allow_dirty: bool = False
     squash: bool = False
@@ -68,6 +71,10 @@ class RepoRun:
     project_name: str | None = None
     config: str | None = None
     overrides: dict[str, Any] = field(default_factory=dict)
+    # What the command line asked beyond the request (``modes/run_options.py``).
+    run_options: dict[str, Any] = field(default_factory=dict)
+    # Checked after the recipe is loaded; raise ``ValueError`` for a usage error.
+    check: Callable[[Settings], None] | None = None
     slug_fallback: str = "change"
     # Called once the run is open (its directory exists), before it starts.
     opened: Callable[[Any], None] | None = None
@@ -96,9 +103,15 @@ def run_repository_mode(g: Globals, run: RepoRun) -> None:
             **run.overrides,
         }
         settings = load_settings(overrides=overrides, config_file=run.config)
+        if run.check is not None:
+            run.check(settings)
         bundle = run.load(settings)
         settings = settings.for_request(bundle.text)
         settings.check_ready(require_credentials=True)
+        # A recipe that cannot run is refused before the team gets a branch, worktree, or copy.
+        recipe = load_recipe(
+            run.recipe or run.mode, run.root, teammates=build_roster(settings).members
+        )
         run_id = new_run_id()
         isolation = isolate(
             run.root,
@@ -124,8 +137,10 @@ def run_repository_mode(g: Globals, run: RepoRun) -> None:
             context=bundle.context,
             workspace=workspace,
             run_id=run_id,
-            recipe=load_recipe(run.mode),
+            recipe=recipe,
         )
+        if run.run_options:
+            write_run_options(prepared.ctx.run_dir, run.run_options)
         if run.opened is not None:
             try:
                 run.opened(prepared)

@@ -1,0 +1,39 @@
+# The recipe for upgrading dependencies. An analyst plans which to upgrade (and what to leave
+# alone); the `upgrade` stage applies them in groups, installs, and runs the project's checks after
+# each group, undoing a group that fails and bisecting it to find the upgrade that broke things.
+# Only manifests and lockfiles may change (policy `manifests_only`). It installs packages, so use
+# --sandbox docker for code you do not trust. See docs/USAGE.md ("Maintaining a project").
+name: upgrade-deps
+description: Upgrade dependencies group by group, undoing and bisecting what breaks the checks.
+policies: [manifests_only]
+stages:
+  - name: profile
+    kind: controller
+    action: repo_profile
+
+  - name: baseline
+    kind: controller
+    action: baseline
+
+  - name: plan_upgrades
+    kind: agent
+    teammates: [devops_engineer]
+    inputs: [request]
+    outputs: [upgrades]
+    prompt: dependency_plan
+    retry: 1
+
+  - name: upgrade
+    kind: upgrade
+    teammates: [devops_engineer]
+    write_scope: manifests
+
+  - name: verify
+    kind: verify
+    teammates: [devops_engineer]
+    prompt: repair_upgrade
+    write_scope: manifests
+
+  - name: summary
+    kind: controller
+    action: change_summary

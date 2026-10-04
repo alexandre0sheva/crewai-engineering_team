@@ -15,6 +15,7 @@ from engineering_team.contracts import (
 )
 from engineering_team.modes.codebase_map import ChunkAnalysis, CodebaseMap, ModuleNote
 from engineering_team.modes.fix_contracts import FixNote, Hypothesis, Repro, Triage
+from engineering_team.modes.maintain_contracts import UpgradePlan
 from engineering_team.pipeline.stages import StageOutput, StageRequest
 from engineering_team.settings import Settings, load_settings
 
@@ -124,6 +125,7 @@ class FakeRunner:
         triage: Triage | None = None,
         repros: list[Repro] | None = None,
         fix_note: FixNote | None = None,
+        upgrade_plan: UpgradePlan | None = None,
     ) -> None:
         # Fix mode: what the triage, reproduce (one per attempt; the last repeats) and fix stages
         # return.
@@ -132,6 +134,7 @@ class FakeRunner:
             hypotheses=[Hypothesis(summary="The cause is in the code.", suspects=["app/store.py"])],
         )
         self.repros = list(repros or [Repro()])
+        self.upgrade_plan = upgrade_plan or UpgradePlan()  # what ``plan_upgrades`` returns
         self.fix_note = fix_note or FixNote(root_cause="The cause.", change="The fix.", risk="Low.")
         self.codebase_map = codebase_map or CODEBASE_MAP  # what an ``analyze`` synthesis returns
         self.plan = PLAN if plan is None else plan
@@ -176,6 +179,10 @@ class FakeRunner:
             contracts["plan"] = self.plan
         elif stage == "impact":  # the feature recipe's plan: it promises no file
             contracts["plan"] = self.plan
+        elif request.stage.kind == "review":  # any review stage: a reviewer's own report
+            contracts["review"] = self.reviews.get(request.teammate, ReviewReport(summary="Clean."))
+        elif stage == "plan_upgrades":
+            contracts["upgrades"] = self.upgrade_plan
         elif stage == "triage":
             contracts["triage"] = self.triage
         elif stage == "reproduce":
@@ -190,8 +197,6 @@ class FakeRunner:
             write(f"src/{package.id.lower()}.py", f"# {package.title}\nVALUE = 1\n")
         elif stage == "integrate":
             write("docs/integration.md", "# Integration\n" + BODY)
-        elif stage == "review":
-            contracts["review"] = self.reviews.get(request.teammate, ReviewReport(summary="Clean."))
         elif stage == "devops":
             write("docs/devops.md", "# DevOps\n" + BODY)
         elif stage == "docs":

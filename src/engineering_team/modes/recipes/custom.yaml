@@ -1,0 +1,41 @@
+# The recipe for a maintenance task written in plain words: `maintain --task custom --goal "..."`.
+# One agent stage does the goal (the stage's own instructions say how); the controller verifies
+# against the baseline. Copy this file into .engineering-team/recipes/ to make a recipe of your own.
+name: custom
+description: Do the goal you describe, verified against the project's baseline.
+stages:
+  - name: profile
+    kind: controller
+    action: repo_profile
+
+  - name: baseline
+    kind: controller
+    action: baseline
+
+  - name: map
+    kind: analyze
+    teammates: [codebase_analyst]
+
+  - name: work
+    kind: agent
+    teammates: [generalist_engineer]
+    inputs: [request]
+    instructions: >
+      Carry out the goal in the request, on the existing code, with the smallest change that
+      achieves it. If the goal is unclear or unsafe, say so in your summary and change nothing.
+    retry: 1
+
+  - name: verify
+    kind: verify
+    teammates: [debugger]
+
+  - name: review
+    kind: review
+    teammates: [code_reviewer]
+    skip_if: [minimal_team]
+    optional: true
+    prompt: review_maintain
+
+  - name: summary
+    kind: controller
+    action: change_summary

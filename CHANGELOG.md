@@ -16,6 +16,18 @@ as each task lands.
 
 ### Added
 
+- `engineering-team maintain --task ...`: maintenance tasks on an existing project, each a recipe with policies the
+  controller checks from Git: `add-tests` (characterization tests, test files only, with a coverage delta measured by the
+  project's coverage tool), `refactor` (behaviour-preserving: stops with questions unless the tests pass first, never
+  edits a test, size-limited by `maintain.max_refactor_lines`), `upgrade-deps` (grouped upgrades, checked and undone on
+  failure, bisected to find the upgrade that broke the checks, with what could not be upgraded and why), `docs`
+  (documentation files only), `security-audit` (the ecosystem's dependency audit plus a security review, `--fix` to fix
+  serious findings), and `custom` (`--goal`).
+- `engineering-team review [--base BRANCH]`: a read-only review of a branch or the working diff by parallel reviewers,
+  writing `findings.json` and `findings.md` (also to `--out-dir`) and exiting 3 when a finding reaches `review.fail_on`.
+- User recipes: YAML files in `.engineering-team/recipes/` or `~/.config/engineering-team/recipes/` add or replace
+  recipes (stages written with `instructions:` need no Python), are validated with errors that name the file and stage,
+  and run with `maintain --task NAME`; `engineering-team recipes list|show`.
 - `engineering-team fix --repo PATH`: fix a bug in an existing project from a bug report, a `--trace-file` (Python, Node,
   and Java traces are parsed and their project files become the suspects), and/or a `--repro "<command>"`. The `fix` recipe
   (profile, baseline, map, triage, reproduce, fix, verify, review, summary) has the `debugger` write a failing test or script;

@@ -11,12 +11,13 @@ edited the project.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from engineering_team.contracts import CheckResult, CheckSpec
 from engineering_team.modes.fix_repro import fix_checks, record_green, tampered
+from engineering_team.modes.policy_checks import POLICY_PREFIX, policy_results
 from engineering_team.runtime.budget import BudgetExceeded
 from engineering_team.runtime.cancel import RunCancelled, check_cancelled
 from engineering_team.runtime.context import RunContext
@@ -74,6 +75,7 @@ class VerificationLoop:
         teammate: str,
         repair: RepairAgent | None,
         save: Callable[[], None],
+        policies: Sequence[str] = (),
     ) -> None:
         self.ctx = ctx
         self.state = state
@@ -85,6 +87,7 @@ class VerificationLoop:
         self.cards = CheckCards(ctx, self.record.check_cards, stage=stage, parent=stage_card)
         self.verifier = Verifier(ctx, cards=self.cards, script_digests=self.record.script_digests)
         self.max_rounds = ctx.settings.budget.max_repair_rounds
+        self.policies = list(policies)
 
     # -- the loop --------------------------------------------------------------------------
 
@@ -132,7 +135,9 @@ class VerificationLoop:
         """The results already recorded, if they are for this very workspace and these checks."""
 
         state, record = self.state, self.record
-        same = {c.id for c in checks} == {r.id for r in state.checks}
+        same = {c.id for c in checks} == {
+            r.id for r in state.checks if not r.id.startswith(POLICY_PREFIX)
+        }
         if state.checks and same and record.revision == verification_revision(self.ctx.workspace):
             self.ctx.events.emit("verify.reused", revision=record.revision)
             return list(state.checks)
@@ -140,6 +145,7 @@ class VerificationLoop:
 
     def _verify(self, checks: list[CheckSpec], number: int | None = None) -> list[CheckResult]:
         results = self.verifier.run(checks, round=self._next_file() if number is None else number)
+        results = [*results, *policy_results(self.ctx, self.state, self.policies)]
         if self.state.baseline is not None:
             results = apply_baseline(
                 results, {check.id: check.cwd for check in checks}, self.state.baseline

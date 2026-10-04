@@ -12,8 +12,14 @@
 # a change to an existing project ({base} is the commit the team started from; {context} carries
 # the codebase map). ``triage``, ``reproduce``, ``fix``, ``repair_fix`` and ``review_fix`` are the
 # ``fix`` recipe's: {bug} is what the controller knows about the report (a parsed stack trace, the
-# person's repro command), {triage}, {repro} and {fix_note} are earlier stages' JSON, and
-# {resume_note} also carries the controller's verdict on the previous reproduction attempt.
+# person's repro command), {instructions} is the task a recipe's own stage wrote (``custom``),
+# {triage}, {repro} and {fix_note} are earlier stages' JSON ({upgrades} is the group of dependency
+# upgrades an ``upgrade`` stage applies, {audit} what the controller's dependency audit found), and
+# {resume_note} also carries the controller's verdict on the previous reproduction attempt. The
+# ``maintain`` recipes' prompts are ``add_tests`` ({coverage}: where the tests are thinnest),
+# ``refactor``, ``docs_legacy``, ``dependency_plan``, ``upgrade_apply``, ``audit_security``,
+# ``fix_findings`` (the serious findings are {findings}) and their ``repair_*`` and
+# ``review_maintain`` companions; ``review_diff`` is the ``review`` command's.
 
 spec:
   description: >
@@ -775,3 +781,368 @@ review_fix:
   expected_output: >
     A JSON review report: a one- or two-sentence summary and a findings list (each finding has
     severity, summary, file, line, and suggested_fix).
+
+custom:
+  description: >
+    Do one step of a task on the existing project {project_name} in {workspace_path}. The task
+    for this step is written by whoever set up the recipe:
+
+    {instructions}
+
+    The request this run was started with:
+
+    {requirements}
+
+    {context}
+
+    Read the code you will touch first and follow the conventions you find. Keep the change as
+    small as the step needs, never weaken, delete, or skip a test to get a check green, and run
+    the project's own checks for what you changed. Reply with a short summary: what you did, the
+    files you changed, and what you could not do.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The step done in the workspace, and a short summary of what was done, which files changed, and
+    what is left.
+
+add_tests:
+  description: >
+    Add characterization tests to the existing project {project_name} in {workspace_path}: tests
+    that pin what the code does TODAY, so a later change that alters behaviour fails them. You
+    may write test files and test support only; the file tools refuse anything else, and the
+    controller checks the diff. Do not change production code, even to make it testable.
+
+    The request (what to cover, if the person said):
+
+    {requirements}
+
+    {coverage}
+
+    {context}
+
+    First find how this project tests itself: the test directories, the framework, the naming and
+    fixture conventions, and tests written for nearby code. Then find the code with no tests (the
+    coverage list above, the symbol, reference and test-finding tools, and Git history show what is
+    untested and what changes often) and write tests for it in exactly that style: the public
+    behaviour of each untested module first, then its edge cases and error paths. Assert what the
+    code really does, even where that looks wrong: if a behaviour looks like a bug, pin it with
+    a comment saying so and report it in your summary, do not fix it. Tests must be deterministic
+    (no network, clock, or random without control) and fast. Run the new tests and make them pass
+    against the unchanged code; a test you cannot make pass honestly is dropped, not weakened.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    New test files in the workspace that pass on the unchanged code, and a short summary: the
+    modules covered, what each test pins, behaviour that looks like a bug, and what is still
+    untested.
+
+repair_tests:
+  description: >
+    The controller ran its own independent checks after characterization tests were added to
+    {project_name} in {workspace_path}, and some required ones failed. What you report does not
+    change the outcome: the controller runs the checks again when you finish. You may change test
+    files only, and the controller checks the diff.
+
+    What failed:
+
+    {failures}
+
+    A characterization test that fails on the unchanged code is wrong, not the code: fix the test
+    so it describes what the code really does (run it to see), or delete it if it cannot be made
+    deterministic. If the policy check lists files that are not tests, revert them. Never touch
+    production code and never weaken a test that passed before this work.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The failing checks fixed by correcting the new tests, and a short summary of what changed.
+
+refactor:
+  description: >
+    Refactor the existing project {project_name} in {workspace_path} WITHOUT changing its
+    behaviour. The project's tests pass now; they must pass unchanged afterwards.
+
+    What to refactor (the person's goal):
+
+    {requirements}
+
+    {context}
+
+    Read the code and its tests first (the symbol, reference and import tools show who depends on
+    what). Make the smallest set of behaviour-preserving changes that achieves the goal (extract,
+    rename, simplify, remove duplication) and follow the conventions around the code. Hard rules,
+    checked by the controller: never edit, delete or skip an existing test; never touch a
+    dependency manifest or lockfile; keep the diff within maintain.max_refactor_lines (split a
+    bigger refactor and do the first part). Do not change public interfaces, outputs, error
+    messages, or file formats. Run the project's tests after each step and stop at a state where
+    they pass. If the goal cannot be reached without changing behaviour, do the safe part and say
+    what is left and why.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The refactor in the workspace with the project's tests passing, and a short summary: what was
+    changed and why behaviour is unchanged, files touched, commands run with exit codes, and what
+    was left alone.
+
+repair_refactor:
+  description: >
+    The controller ran its own independent checks after a behaviour-preserving refactor of
+    {project_name} in {workspace_path}, and some required ones failed (a test, or a policy about
+    the diff). What you report does not change the outcome: the controller runs the checks again
+    when you finish.
+
+    What failed:
+
+    {failures}
+
+    A test that passed before the refactor and fails now means the refactor changed behaviour:
+    undo or correct the refactor, never the test (existing tests may not be edited, deleted or
+    skipped). If a policy names files (a test, a manifest, too many lines), revert them or shrink
+    the change. Run the failing command again before you finish and reply with a short summary.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The refactor corrected so the checks pass, and a short summary of what you undid or changed.
+
+docs_legacy:
+  description: >
+    Document the existing code of {project_name} in {workspace_path}. You may write documentation
+    files only (Markdown, reStructuredText, the docs directory, the README and CHANGELOG); the
+    file tools refuse anything else and the controller checks the diff. Do not change code,
+    including comments and docstrings.
+
+    The request (what to document, if the person said):
+
+    {requirements}
+
+    {context}
+
+    Read the code, its tests, and the existing documentation first (the codebase map above is a
+    guide, not evidence: confirm it in the code). Then write what a new maintainer needs and the
+    project lacks: what it is and who uses it; how to set it up, run, and test it (use the
+    commands that really work; run them); the architecture and the main flows with real module
+    and function names; configuration and environment variables the code reads; data formats and
+    external services; conventions to follow; known quirks and risks. Update wrong or stale
+    existing documentation instead of adding a second version. Mark anything you could not verify
+    as unchecked and never describe behaviour you have not read in the code.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    Accurate documentation files in the workspace and a short summary: the files written or
+    changed, what was verified by running it, and what is unchecked.
+
+repair_docs:
+  description: >
+    The controller ran its own independent checks after documentation was written for
+    {project_name} in {workspace_path}, and some required ones failed (usually a policy: a file
+    that is not documentation was changed). What you report does not change the outcome: the
+    controller runs the checks again when you finish. You may change documentation files only.
+
+    What failed:
+
+    {failures}
+
+    Revert every change the policy lists (code, tests, configuration, comments) and keep the
+    documentation. Reply with a short summary of what you reverted.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The non-documentation changes reverted, and a short summary.
+
+review_maintain:
+  description: >
+    Review the CHANGE the team made to the existing project {project_name} in {workspace_path}
+    as a maintenance task. You can only read it: do not write or change any file, and do not
+    report anything you have not seen in the code.
+
+    The task:
+
+    {requirements}
+
+    The team started from commit {base}. Read the change with Git Diff Between Refs (first {base},
+    second HEAD; start with stat=true) and Git Info diff for anything not committed yet, then the
+    changed files in full where the diff is not enough. Judge the change against the task: does
+    it do what was asked and nothing else? Does it keep behaviour (a refactor) or pin it (tests)?
+    Is anything in the diff noise (unrelated reformatting, renames, files nobody asked for)?
+    Report only real defects, each once, with the file and line, a severity (critical, high,
+    medium, low, info) that reflects its impact, and a concrete suggested fix. Leave out style
+    preferences. If you find nothing, say so with an empty list. If you ran a tool, name it and
+    what it reported; if a tool could not run, say that instead of guessing.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON review report: a one- or two-sentence summary and a findings list (each finding has
+    severity, summary, file, line, and suggested_fix).
+
+review_diff:
+  description: >
+    Review a change to the project {project_name} in {workspace_path}. You can only read it: do
+    not write or change any file, and do not report anything you have not seen in the code.
+
+    The person's focus for this review, if any:
+
+    {requirements}
+
+    The change is everything since commit {base}: the commits on this branch and any uncommitted
+    work. Read it with Git Diff Between Refs (first {base}, second HEAD; start with stat=true)
+    and Git Info diff for what is not committed, then read the changed files in full where the
+    diff is not enough, and the code that calls them (the symbol, reference and import tools show
+    who depends on what). Judge the change, not the whole project: report only defects the
+    change introduced or left behind, each once, with the file and line, a severity (critical,
+    high, medium, low, info) that reflects its real impact, and a concrete suggested fix. Your
+    checklist covers correctness, error handling, security, data loss, concurrency, API and
+    compatibility breaks, missing or weak tests for the new behaviour, and maintainability that
+    will cost the next person. Leave out style preferences and anything the project's linter
+    owns. If you find nothing, say so with an empty list. If you ran a tool, name it and what it
+    reported; if a tool could not run, say that instead of guessing.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON review report: a one- or two-sentence summary and a findings list (each finding has
+    severity, summary, file, line, and suggested_fix).
+
+dependency_plan:
+  description: >
+    Plan the dependency upgrades for the existing project {project_name} in {workspace_path}.
+    Do not edit any file in this step: you decide what to try, the next step applies it in groups
+    and the controller checks each group with the project's own tests.
+
+    The request (which dependencies, and how far, if the person said):
+
+    {requirements}
+
+    {context}
+
+    Read the dependency manifests and lockfiles (the Inspect Dependencies tool lists the declared
+    and locked versions) and find newer versions: ask the package registries with the package
+    information and web tools when they are available, or the project's package manager through
+    the command tool (for example `pip list --outdated`, `npm outdated`, `cargo outdated`)
+    when it works offline. Propose an upgrade only to a version you found, never one you assume.
+    Prefer, in this order: versions that fix a known vulnerability, patch and minor updates, and
+    only then majors (a major is one upgrade of its own, with the migration risk in the reason).
+    Return the plan as JSON: each upgrade names the package, the manifest that declares it
+    (relative path), the current version, the target version, and why. List in skipped every
+    dependency you chose to leave alone, each with the reason (pinned on purpose, no newer
+    version, abandoned). Order the upgrades with the safest first.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON upgrade plan: upgrades (package, manifest, current, target, reason) and skipped
+    (package and reason).
+
+upgrade_apply:
+  description: >
+    Apply this group of dependency upgrades to the existing project {project_name} in
+    {workspace_path}:
+
+    {upgrades}
+
+    Edit the dependency manifest that declares each package (pyproject.toml, requirements*.txt,
+    package.json, Cargo.toml, go.mod, pom.xml, ...) to the target version, keeping its style
+    and any version range convention the file uses. You may change manifests and lockfiles only;
+    the file tools refuse anything else and the controller checks the diff. Regenerate a
+    lockfile only with the project's own package manager when it works offline; the controller
+    installs the dependencies and runs the project's checks itself afterwards, and undoes the
+    whole group if they fail, so do not try to fix application code to make an upgrade fit.
+    Reply with a short summary of the edits, and name any upgrade you could not apply and why.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The manifests edited for exactly this group, and a short summary of the edits and anything
+    that could not be applied.
+
+repair_upgrade:
+  description: >
+    The controller ran its own independent checks on the upgraded project {project_name} in
+    {workspace_path}, and some required ones failed (usually a policy: a file that is not a
+    manifest or lockfile changed). What you report does not change the outcome: the controller
+    runs the checks again when you finish. You may change manifests and lockfiles only.
+
+    What failed:
+
+    {failures}
+
+    Revert what the policy lists. If a manifest edit itself is the cause, restore the previous
+    version of that dependency. Reply with a short summary.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The failing checks fixed by reverting or correcting manifest edits, and a short summary.
+
+audit_security:
+  description: >
+    Audit the security of the existing project {project_name} in {workspace_path}. You can only
+    read it: do not write or change any file, and do not report anything you have not seen in the
+    code.
+
+    The request (the focus, if the person said):
+
+    {requirements}
+
+    {audit}
+
+    {context}
+
+    Read the code with the eyes of an attacker: where untrusted input enters (requests, files,
+    environment, command line, deserialization), where it reaches a dangerous sink (SQL, shell,
+    paths, templates, eval, redirects, outbound requests), authentication and authorization checks
+    and where they are missing, secrets in code or history, unsafe defaults, weak cryptography,
+    unsafe dependency use, and logging of sensitive data. Use the search, symbol, reference and
+    Git history tools to trace flows end to end; run the dependency tools if they help. The
+    dependency audit above was run by the controller: do not repeat its findings, but say what a
+    vulnerable dependency means for how this project uses it when you can see it. Report each
+    real problem once, with the file and line, a severity (critical, high, medium, low, info)
+    that reflects exploitability and impact, and a concrete suggested fix. Leave out theoretical
+    issues you cannot point to in the code. If you find nothing, say so with an empty list.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON review report: a one- or two-sentence summary and a findings list (each finding has
+    severity, summary, file, line, and suggested_fix).
+
+fix_findings:
+  description: >
+    Fix the serious security findings in the existing project {project_name} in {workspace_path}
+    with the smallest correct changes.
+
+    The findings (from the audit; each is a claim, confirm it in the code first):
+
+    {findings}
+
+    For each finding: confirm it in the code (leave a wrong finding alone and say why), fix the
+    cause, and keep the diff minimal and in the project's style. For a vulnerable dependency,
+    edit the manifest to the fixed version only if the project's tests can tell it still works;
+    otherwise say that it needs a human. Never weaken, skip, or delete a test. Run the project's
+    tests for what you changed. Reply with a short summary: for each finding id, fixed or not
+    and why, and the files you changed.
+
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The confirmed findings fixed in the workspace and a short summary per finding id.

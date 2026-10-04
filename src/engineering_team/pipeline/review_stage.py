@@ -80,7 +80,7 @@ def run_review(
             REVIEW, render_review(findings, reviews, fail_on=fail_on, outcome=outcome, extra=extra)
         )
     elif serious:
-        outcome = "No verify stage in this recipe, so nothing was sent to repair."
+        outcome = "Nothing was sent to repair (this recipe does not repair what its review finds)."
     done = sum(1 for r in reviews if r.report is not None)
     return (
         f"{done} reviewer(s) reported {len(findings)} finding(s), {len(serious)} at "

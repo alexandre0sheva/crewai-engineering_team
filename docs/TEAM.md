@@ -149,3 +149,21 @@ change at the root cause; the reproduction's files are read-only for it), and th
 `code_reviewer` and `security_engineer` review the fix since the starting commit (`review_fix`: does it remove the cause
 or hide the symptom, is the regression test meaningful). To change who triages or fixes, override the `debugger` or give
 a custom teammate the `triage`, `reproduce`, or `fix` stage under `stages`.
+
+## Teammates in `maintain` and `review`
+
+No new teammates: each task of [`maintain`](USAGE.md#maintaining-a-project) is a recipe that gives existing ones a lane.
+
+| Task / stage | Teammate | Lane |
+|--------------|----------|------|
+| `add-tests`: `tests` and the repair rounds of `verify` | `quality_engineer` | test files only (`write_scope: tests`, policy `tests_only`) |
+| `refactor`: `refactor` | `backend_engineer` | everything but tests and manifests, at most `maintain.max_refactor_lines`; `debugger` repairs |
+| `upgrade-deps`: `plan_upgrades`, `upgrade`, `verify` | `devops_engineer` | manifests and lockfiles (`write_scope: manifests`); it plans from the registries (`web` and the package tools when enabled) |
+| `docs`: `docs` and repairs | `technical_writer` | documentation files only |
+| `security-audit`: `audit`; `fix` (with `--fix`) | `security_engineer` (read-only, with the dev tools); `debugger` | nothing, unless `--fix` |
+| `custom`: `work` | `generalist_engineer` | anything, verified against the baseline |
+| `review` (the command and the stage after a change) | `code_reviewer`, `security_engineer` | read-only |
+
+`codebase_analyst` maps the code for the tasks that read it. To change who does a stage, override the teammate
+(`[team.<key>]`) or write a recipe of your own ([USAGE.md](USAGE.md#your-own-recipes)); a recipe may name any teammate on
+the team and is refused if it names one who is not.
