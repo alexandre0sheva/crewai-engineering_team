@@ -10,12 +10,15 @@ resume. The demo only ever writes under ``engineering_team_demo/`` in the projec
 
 from __future__ import annotations
 
+import contextlib
 import sys
+import threading
 import time
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+from engineering_team.board.rules import BoardError
 from engineering_team.contracts import (
     AcceptanceCriterion,
     Contract,
@@ -34,10 +37,20 @@ from engineering_team.pipeline.stages import StageOutput, StageRequest
 
 DEMO_DIR = "engineering_team_demo"
 DEMO_MODEL = "openai/gpt-6.1-sol"
+DEMO_BUDGET_USD = 1.0  # the cost limit ``ui --demo`` sets, so the run shows a budget warning
+TARGET_SPEND = 0.82  # what the demo tops its spending up to (82% of the limit)
+ASK_TIMEOUT = 90.0  # seconds the demo waits for a person to answer its question
+FINAL_STAGES = ("review", "release", "build")
 PAUSE = 0.35  # seconds between a teammate's tool calls (``--demo-pause`` changes it)
 TOOLS: dict[str, Sequence[tuple[str, str]]] = {
     "read": (("List Files", "."), ("Read File", "README.md"), ("Search Text", "def main")),
-    "write": (("Read File", "{path}"), ("Write File", "{path}"), ("Run Command", "pytest -q")),
+    "write": (
+        ("List Files", "."),
+        ("Search Text", "def "),
+        ("Read File", "{path}"),
+        ("Write File", "{path}"),
+        ("Run Command", "pytest -q"),
+    ),
 }
 MODULES = {
     "Storage": "NOTES: list[str] = []\n\n\ndef add(text: str) -> int:\n"
@@ -54,6 +67,7 @@ TESTS = (
     "def test_ac_1_add_stores_a_note() -> None:  # AC-1\n    assert add(' hello ') >= 1\n\n\n"
     "def test_ac_2_listing_returns_notes() -> None:  # AC-2\n    assert add('x') >= 1\n"
 )
+TESTS_BROKEN = TESTS.replace("assert add('x') >= 1", "assert add('x') == 99  # not yet true")
 BODY = "Written by the demo runner; no model was called. " * 3
 
 SPEC = Spec(
@@ -103,17 +117,29 @@ CODEBASE_MAP = CodebaseMap(
     how_to_test=["See the README."],
 )
 REVIEWS = {
-    "security_reviewer": ReviewReport(
+    "security_engineer": ReviewReport(
         summary="Nothing dangerous; one hardening suggestion.",
         findings=[
             Finding(
-                severity="low",
+                severity="medium",
                 summary="Notes are written without checking the path stays inside the project.",
                 file=f"{DEMO_DIR}/storage.py",
                 suggested_fix="Resolve the path and compare it with the project root.",
             )
         ],
-    )
+    ),
+    "code_reviewer": ReviewReport(
+        summary="Readable; two small things.",
+        findings=[
+            Finding(
+                severity="low",
+                summary="add() returns a count the callers never use.",
+                file=f"{DEMO_DIR}/storage.py",
+                line=6,
+            ),
+            Finding(severity="info", summary="Consider a docstring for the listing module."),
+        ],
+    ),
 }
 
 
@@ -121,11 +147,21 @@ class DemoRunner:
     """A :class:`StageRunner` that acts out the stage and returns scripted contracts."""
 
     pause = PAUSE
+    spent = 0.0  # what this process has "spent" so far, in USD
+    guard = threading.Lock()  # parallel lanes share ``spent``
 
     def run(self, request: StageRequest) -> StageOutput:
         ctx, stage, package = request.ctx, request.stage, request.package
         path = f"{DEMO_DIR}/{package.title.lower().replace(' ', '_')}.py" if package else ""
         self._act(request, "write" if package or stage.kind == "verify" else "read", path)
+        if request.steering:  # a note from the person, delivered once (see the board)
+            ctx.events.emit(
+                "tool.call", tool="Read Steering", args={"note": request.steering},
+                duration=0.0, ok=True, agent=request.teammate, lane=request.lane,
+            )  # fmt: skip
+        notes = "plain text"
+        if package is not None and package.id == "WP-2":
+            notes = self._ask(request) or notes
         write = ctx.workspace.write_file
         contracts: dict[str, Contract] = {}
         name = stage.name
@@ -158,11 +194,13 @@ class DemoRunner:
                 root_cause="Demo root cause.", change="Demo change.", risk="Low."
             )
         elif package is not None:
-            header = f'"""{package.title} (written by the demo runner)."""\n\n'
+            header = f'"""{package.title} (written by the demo runner; notes are {notes})."""\n\n'
             write(path, header + MODULES[package.title])
         elif name == "tests" or name == "integrate":
             write(f"{DEMO_DIR}/__init__.py", "")
-            write(f"{DEMO_DIR}/test_notes.py", TESTS)
+            write(f"{DEMO_DIR}/test_notes.py", TESTS_BROKEN)  # a check fails; verify repairs it
+        elif stage.kind == "verify":
+            write(f"{DEMO_DIR}/test_notes.py", TESTS)  # the repair
         for path in stage.file_outputs:  # what a recipe promises (only a new project's does)
             write(path, f"# {path}\n{BODY}\n")
         return StageOutput(contracts=contracts, summary=f"{name}: done (demo)")
@@ -184,12 +222,54 @@ class DemoRunner:
                 agent=agent,
                 lane=request.lane,
             )
-        ctx.events.emit(
-            "llm.call",
+        self._spend(request, 9_000, 1_500)
+        if request.stage.name in FINAL_STAGES:
+            self._top_up(request)
+
+    def _spend(self, request: StageRequest, prompt: int, completion: int) -> None:
+        ctx = request.ctx
+        usage = {"prompt_tokens": prompt, "completion_tokens": completion}
+        ctx.events.emit("llm.call", agent=request.teammate, model=DEMO_MODEL, usage=usage)
+        price = ctx.settings.price_table().lookup(DEMO_MODEL)
+        if price is not None:
+            with DemoRunner.guard:
+                DemoRunner.spent += (prompt * price.input + completion * price.output) / 1e6
+
+    def _top_up(self, request: StageRequest) -> None:
+        """One long, expensive call in the last stage, so every run ends at the same share of the
+        demo's cost limit and shows the budget warning whatever its mode."""
+
+        price = request.ctx.settings.price_table().lookup(DEMO_MODEL)
+        if price is None or price.output <= 0:
+            return
+        with DemoRunner.guard:
+            missing = TARGET_SPEND * DEMO_BUDGET_USD - DemoRunner.spent
+            DemoRunner.spent += max(missing, 0.0)  # claimed now, so no other lane tops up too
+        if missing > 0:
+            usage = {"prompt_tokens": 0, "completion_tokens": int(missing / price.output * 1e6)}
+            ctx = request.ctx
+            ctx.events.emit("llm.call", agent=request.teammate, model=DEMO_MODEL, usage=usage)
+
+    def _ask(self, request: StageRequest) -> str | None:
+        """Block the card, ask the person, and carry on with the answer (or an assumption)."""
+
+        ctx, agent, card = request.ctx, request.teammate, request.card_id
+        if card:
+            with contextlib.suppress(BoardError):
+                ctx.board.move(
+                    card, "blocked", actor=agent, reason="Waiting for the person's answer"
+                )
+        answer = ctx.human.ask(
+            "Should the notes be stored as plain text or as Markdown?",
             agent=agent,
-            model=DEMO_MODEL,
-            usage={"prompt_tokens": 9_000, "completion_tokens": 1_500},
+            card_id=card,
+            timeout=ASK_TIMEOUT,
+            cancel_event=ctx.cancel_event,
         )
+        if card:
+            with contextlib.suppress(BoardError):
+                ctx.board.move(card, "in_progress", actor=agent)
+        return answer.strip() or None if answer else None
 
 
 SAMPLE_FILES = {

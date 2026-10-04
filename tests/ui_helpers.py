@@ -55,6 +55,30 @@ def make_client(
     return client, launcher
 
 
+def make_demo_client(pause: str = "0.01") -> tuple[TestClient, Path]:
+    """An API client whose runs are the scripted demo (``ui --demo``) on a sample repository;
+    ``pause`` is the seconds between a teammate's tool calls."""
+
+    from engineering_team.ui.demo import DEMO_BUDGET_USD, ensure_sample_repo
+
+    root = workspace_root()
+    repo = ensure_sample_repo(Path.cwd() / "demo-home")
+    launcher = RunLauncher(
+        str(root),
+        max_concurrent=2,
+        command=[sys.executable, "-m", "engineering_team.ui.demo", "--demo-pause", pause],
+        environment={
+            "ENGINEERING_STRATEGY": "pipeline",
+            "ENGINEERING_BUDGET_MAX_COST_USD": str(DEMO_BUDGET_USD),
+        },
+    )
+    settings = settings_for(root, **{"budget.max_cost_usd": DEMO_BUDGET_USD})
+    app = create_app(settings, launcher=launcher, demo_repo=str(repo))
+    client = TestClient(app, base_url="http://localhost")
+    client.headers.update({"X-Engineering-Team": "1"})
+    return client, repo
+
+
 @contextlib.contextmanager
 def serve(client: TestClient) -> Iterator[httpx.Client]:
     """The client's app on a real localhost socket (``TestClient`` buffers a streamed response

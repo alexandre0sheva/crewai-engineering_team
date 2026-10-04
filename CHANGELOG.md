@@ -16,6 +16,14 @@ as each task lands.
 
 ### Added
 
+- Live run dashboard in the web UI: a **task board** (cards move between columns as the controller moves them, with a live timer,
+  lane, attempt and blocked reason) and **swimlanes** per teammate, a **timeline** of stages, parallel lanes, checks and
+  repairs, a filterable, virtualised **activity feed**, a **teammate roster** (state, current card, last tool, counts,
+  tokens, model), live **checks and findings**, a **needs-attention** strip (questions answered in a dialog, blocked cards,
+  budget, failed checks), a **budget** meter, a **card drawer** (history, tool-call trail, evidence, files, **steering
+  notes**), and **replay** of a finished run at 1×–16×. `ui --demo` now also shows a blocked card, a question, a failed and
+  repaired check, a budget warning and review findings. New: `GET /runs/{id}/timeline`, `agents?at=SEQ`, and
+  `budget`/`checks`/`attention` on a run.
 - Web UI app shell, served by `engineering-team ui` at `http://127.0.0.1:8765/` (no build step, no CDN): **New run**
   (mode tabs, request text and `.md`/`.txt` uploads, live project-folder check with an isolation recommendation, team
   preset and per-teammate toggles with their tool groups, provider/profile with model prices, budget fields with a cost

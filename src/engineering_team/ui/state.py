@@ -11,7 +11,7 @@ from fastapi import HTTPException, Request
 from engineering_team.runtime.context import RUN_ID_PATTERN
 from engineering_team.runtime.run_index import RunRef, locate_run
 from engineering_team.runtime.run_store import EVENTS_FILENAME, RunNotFound
-from engineering_team.settings import Settings
+from engineering_team.settings import BudgetSettings, Settings
 from engineering_team.ui.eventlog import EventLog
 from engineering_team.ui.launcher import RunLauncher
 from engineering_team.ui.security import Security
@@ -32,6 +32,18 @@ class UiState:
             if path not in self._logs:
                 self._logs[path] = EventLog(path, self.settings.price_table())
             return self._logs[path]
+
+    def budget_for(self, run_id: str) -> BudgetSettings:
+        """The budget a run is under: the settings, with what its start changed (a run started
+        elsewhere is assumed to use the settings as they are)."""
+
+        record = self.launcher.record(run_id)
+        changed = {
+            key.removeprefix("budget."): value
+            for key, value in (record.overrides if record else {}).items()
+            if key.startswith("budget.")
+        }
+        return self.settings.budget.model_copy(update=changed)
 
     def find(self, run_id: str) -> RunRef | None:
         """The run with this exact id, or ``None`` (unknown, or not started far enough yet)."""

@@ -148,12 +148,13 @@ export function advancedPanel(opts) {
   const squash = h("input", { type: "checkbox", id: "squash" });
   const noGit = h("input", { type: "checkbox", id: "nogit" });
   const web = h("input", { type: "checkbox", id: "web" });
+  const ask = h("input", { type: "checkbox", id: "ask", checked: true });
   const webNote = tools.web.search_providers.length ? `Search provider keys found: ${tools.web.search_providers.join(", ")}.` : "No search provider key is set, so only Fetch URL and Package Info will work.";
   const check = (box, label, desc) => h("label", { class: "check", for: box.id }, box, h("span", {}, label, h("span", { class: "desc" }, desc)));
   const repoOnly = h("div", { class: "stack" }, field("Isolation", isolation, "Where the team works in your repository.", "isolation"), check(dirty, "Allow uncommitted changes", "Start from a dirty tree."), check(squash, "Squash stage commits", "One commit on the team's branch."));
   const newOnly = h("div", { class: "stack" }, strategyField, check(noGit, "No Git repository", "Skip the repository and stage commits."));
   const availability = h("div", { class: "row" }, chip(`browser tools ${tools.browser.installed ? "installed" : "not installed"}`, tools.browser.installed ? "good" : "", tools.browser.installed ? "check" : "alert"), chip(`docker ${tools.docker.installed ? "found" : "not found"}`, tools.docker.installed ? "good" : "", tools.docker.installed ? "check" : "alert"));
-  const body = h("div", { class: "stack" }, h("div", { class: "grid-2" }, field("Parallel agents", parallel, null, "parallel"), field("Command sandbox", sandbox, null, "sandbox")), newOnly, repoOnly, check(web, "Allow web tools", webNote), availability);
+  const body = h("div", { class: "stack" }, h("div", { class: "grid-2" }, field("Parallel agents", parallel, null, "parallel"), field("Command sandbox", sandbox, null, "sandbox")), newOnly, repoOnly, check(ask, "Let the team ask me questions", "A question blocks its card until you answer; you are asked on the run page."), check(web, "Allow web tools", webNote), availability);
   const element = h("details", { class: "panel" }, h("summary", {}, "Advanced"), h("div", { class: "panel-body" }, body));
   return {
     element,
@@ -166,6 +167,7 @@ export function advancedPanel(opts) {
       if (parseInt(parallel.value, 10) !== defaults.max_parallel_agents && parallel.value) options.max_parallel_agents = parseInt(parallel.value, 10);
       if (sandbox.value !== defaults.sandbox) options.sandbox = sandbox.value;
       if (web.checked) options.allow_web = true;
+      if (!ask.checked) spec.interactive = false;
       if (spec.mode === "new") {
         if (strategy.value) options.strategy = strategy.value;
         if (noGit.checked) spec.no_git = true;

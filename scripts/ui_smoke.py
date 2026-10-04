@@ -73,9 +73,32 @@ def drive(base: str, headed: bool, shots: Path | None) -> list[str]:
         expect(page).to_have_url(__import__("re").compile(r"#/runs/\d{8}-\d{6}-[0-9a-f]{6}$"))
         expect(page.get_by_role("heading", level=1)).to_contain_text("Add feature", timeout=30_000)
         expect(page.locator("#live")).not_to_be_empty()
+        # The demo team asks a question and blocks a card until it is answered.
+        answer = page.locator("dialog[open] #answer-text")
+        expect(answer).to_be_visible(timeout=120_000)
+        answer.fill("Markdown")
+        page.get_by_role("button", name="Send answer").click()
+        expect(page.locator(".kcard").first).to_be_visible()
         expect(page.get_by_text("Succeeded").first).to_be_visible(timeout=180_000)
+        expect(page.locator(".b-cell[data-status=done] .kcard").first).to_be_visible()
         if shots:
             page.screenshot(path=str(shots / "run.png"))
+
+        # A card opens in the drawer with its history and tool calls; the feed and replay work.
+        page.locator(".kcard[data-id='K-001']").click()
+        expect(page.locator("dialog.drawer[open] h2")).to_be_visible()
+        expect(page.get_by_text("Status history")).to_be_visible()
+        page.keyboard.press("Escape")
+        page.get_by_role("tab", name="Timeline").click()
+        expect(page.locator(".g-bar").first).to_be_visible()
+        page.get_by_role("tab", name="Activity").click()
+        expect(page.locator(".f-row").first).to_be_visible()
+        page.get_by_role("tab", name="Board").click()
+        page.get_by_role("button", name="Replay this run").click()
+        expect(page.locator("#replay-slider")).to_be_visible()
+        page.locator("#replay-slider").fill("40")
+        expect(page.locator(".replay-time")).to_contain_text(":")
+        page.get_by_role("button", name="Back to the end").click()
 
         page.get_by_role("link", name="Results").click()
         expect(page.get_by_role("heading", level=1)).to_contain_text("Verified")

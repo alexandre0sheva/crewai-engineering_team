@@ -96,16 +96,22 @@ def _demo(settings: Settings, config: str | None) -> tuple[Settings, Any, str]:
     import tempfile
     from pathlib import Path
 
-    from engineering_team.ui.demo import ensure_sample_repo
+    from engineering_team.ui.demo import DEMO_BUDGET_USD, ensure_sample_repo
     from engineering_team.ui.launcher import RunLauncher
 
     root = Path(tempfile.mkdtemp(prefix="engineering-team-demo-"))
-    settings = settings.with_overrides({"workspace_root": str(root / "runs")}, source="--demo")
+    settings = settings.with_overrides(
+        {"workspace_root": str(root / "runs"), "budget.max_cost_usd": DEMO_BUDGET_USD},
+        source="--demo",
+    )
     launcher = RunLauncher(
         settings.workspace_root,
         max_concurrent=settings.ui.max_concurrent_runs,
         command=[sys.executable, "-m", "engineering_team.ui.demo"],
         config_file=config,
-        environment={"ENGINEERING_STRATEGY": "pipeline"},  # the scripted runner is the pipeline's
+        environment={
+            "ENGINEERING_STRATEGY": "pipeline",  # the scripted runner is the pipeline's
+            "ENGINEERING_BUDGET_MAX_COST_USD": str(DEMO_BUDGET_USD),  # so the run warns about it
+        },
     )
     return settings, launcher, str(ensure_sample_repo(root))

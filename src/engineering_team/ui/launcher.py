@@ -117,6 +117,7 @@ class StartRecord(BaseModel):
     log: str
     started: float
     argv: list[str]
+    overrides: dict[str, Any] = Field(default_factory=dict)  # the settings this start changed
 
 
 def overrides_for(options: RunOptions) -> dict[str, Any]:
@@ -406,6 +407,7 @@ class RunLauncher:
             log=str(log_path),
             started=time.time(),
             argv=full,
+            overrides=overrides,
         )
         atomic_write_json(self.state_dir / "starts" / f"{run_id}.json", record.model_dump())
         return record

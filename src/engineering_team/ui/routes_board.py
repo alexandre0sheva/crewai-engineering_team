@@ -6,10 +6,13 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from engineering_team.report.collect import build_report
 from engineering_team.runtime.inbox import post_command
+from engineering_team.runtime.run_store import RunNotFound
 from engineering_team.ui.routes_runs import Text
 from engineering_team.ui.state import state_of
 from engineering_team.ui.views import (
@@ -90,10 +93,36 @@ def comment(request: Request, run_id: str, card_id: str, body: Text) -> dict[str
 
 
 @router.get("/runs/{run_id}/agents")
-def agents(request: Request, run_id: str) -> list[AgentView]:
+def agents(request: Request, run_id: str, at: int | None = None) -> list[AgentView]:
+    """The teammates now, or (``?at=SEQ``) as they stood after event SEQ."""
+
     state = state_of(request)
     ref = state.need(run_id)
-    return agents_view(ref, state.log_for(ref))
+    if at is not None and at < 0:
+        raise HTTPException(422, "at must be an event sequence number (0 or more).")
+    return agents_view(ref, state.log_for(ref), at)
+
+
+@router.get("/runs/{run_id}/timeline")
+def timeline(request: Request, run_id: str) -> dict[str, Any]:
+    """Stages and the parallel lanes inside them as bars (seconds from the run's start), plus the
+    review findings and criteria coverage so far; the report's data, read while the run goes."""
+
+    ref = state_of(request).need(run_id)
+    try:
+        report = build_report(ref.run_dir)
+    except RunNotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
+    data: dict[str, Any] = jsonable_encoder(
+        {
+            "seconds": report.timeline_seconds,
+            "stages": report.stages,
+            "lanes": report.lanes,
+            "findings": report.findings,
+            "coverage": report.coverage,
+        }
+    )
+    return data
 
 
 # -- artifacts -------------------------------------------------------------------------------------

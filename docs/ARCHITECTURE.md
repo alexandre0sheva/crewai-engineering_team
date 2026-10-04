@@ -843,14 +843,15 @@ over what the CLI already writes; nothing runs a team inside the server.
 | Endpoint (`/api/v1`) | What it does |
 |---|---|
 | `POST /runs` | Start a run (`mode` new/feature/fix/maintain/review, request text, uploads as multipart, `repo`, options); 202 with the run id, 429 at the concurrency limit, 422 for a bad request |
-| `GET /runs`, `GET /runs/{id}` | Runs of every project; one run with its manifest, progress, usage, open questions, last event `seq`, and the process the UI started for it (`status` is `starting` before the manifest exists, `failed` with the process log's tail if it never got one) |
+| `GET /runs`, `GET /runs/{id}` | Runs of every project; one run with its manifest, progress, usage, budget against its limits, checks, `attention` (questions, blocked cards, budget, failed checks), open questions, last event `seq`, and the process the UI started for it (`status` is `starting` before the manifest exists, `failed` with the process log's tail if it never got one) |
 | `GET /runs/{id}/events` | SSE tail of `events.jsonl`; `id` is the event `seq`; resume with `Last-Event-ID` or `?after=`; `?follow=false`, `?types=board.,stage.`; ends with `event: end` once the run is over |
 | `POST /runs/{id}/cancel`, `/resume` | As the CLI commands (resume waits briefly for the old process to exit) |
 | `GET /runs/{id}/questions`, `POST .../answer` | Questions the team asked (needs `interactive`, the default) and a reply (empty text declines) |
 | `GET /runs/{id}/board[?at=SEQ]` | The board now, or replayed |
 | `GET /runs/{id}/cards/{card}` | A card with its history, comments, board events, and the tool-call trail of its assignee while it was in progress |
 | `POST /runs/{id}/cards/{card}/comments`, `/notes`, `/pause`, `/unpause` | Steering through the inbox |
-| `GET /runs/{id}/agents` | Teammate presence: `working`, `waiting`, or `idle`, its current card, last tool call, counters |
+| `GET /runs/{id}/agents[?at=SEQ]` | Teammates now or as they stood after an event: `working`, `waiting` (for a human), `blocked` or `idle`, current card, last tool call, counters, tokens, cost, model |
+| `GET /runs/{id}/timeline` | Stage and lane bars (seconds from the start), review findings and criteria coverage so far |
 | `GET /runs/{id}/artifacts[/path]` | Screenshots, command logs, reports, the patch: only what the listing names |
 | `GET /runs/{id}/files[/path]` | Read-only project files, with the agents' path rules plus: no secrets (`.env`, keys, `.ssh/`, ...) |
 | `GET /runs/{id}/diff`, `/report` | The change since the starting commit (feature/fix/maintain); the run report (`?format=html|md`, served with a sandboxing CSP) |
@@ -869,6 +870,11 @@ vocabulary (chips, meters, tabs, states) the live dashboard reuses, `js/api.js` 
 `EventSource` cannot send headers). Routes are hash-based (`#/runs/ID`), so the server has nothing to rewrite. The
 page is sent with a policy that allows only same-origin scripts and styles (no inline code, no `eval`), which a test
 enforces for every shipped file. `ui --demo` runs `ui/demo.py`, the CLI with a scripted stage runner in place of the model.
+
+**Dashboard data flow.** The run page keeps one `Store` (`js/dash/store.js`): it loads `GET /runs/{id}` (progress, usage, budget, checks and
+`attention`, all computed in `ui/views.py`), `/board`, `/agents` and `/timeline`, then applies the whole card each
+`board.*` SSE event carries and re-fetches the rest at most every second or so. Replay swaps those for `/board?at=SEQ` and
+`/agents?at=SEQ`, folded server-side from `events.jsonl`, so the views never compute state.
 
 Errors are `{"error": "..."}`. **Guard** (`ui/security.py`, one ASGI middleware): in local mode only
 `localhost`/`127.0.0.1`/`[::1]` Host headers are served (DNS rebinding); a request with a foreign `Origin` or

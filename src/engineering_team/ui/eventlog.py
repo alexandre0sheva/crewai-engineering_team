@@ -52,6 +52,30 @@ class OpenQuestion:
     asked: datetime
 
 
+@dataclass(frozen=True)
+class BudgetNote:
+    """The latest ``budget.warning`` or ``budget.exceeded`` for one limit."""
+
+    limit: str
+    exceeded: bool
+    used: float | None
+    max: float | None
+    note: str
+
+
+@dataclass(frozen=True)
+class CheckLine:
+    """What the events say about one independent check: the latest of its start and finish."""
+
+    id: str
+    name: str
+    kind: str
+    status: str  # running | passed | failed | skipped | unavailable
+    summary: str
+    duration: float | None
+    seq: int
+
+
 @dataclass
 class Digest:
     """What a pass over the events established so far."""
@@ -63,6 +87,8 @@ class Digest:
     questions: dict[str, OpenQuestion] = field(default_factory=dict)
     cancel_requested: bool = False
     finished: bool = False  # the last ``run.*`` event was ``run.finished``
+    budget: dict[str, BudgetNote] = field(default_factory=dict)
+    checks: dict[str, CheckLine] = field(default_factory=dict)
 
 
 def _short(value: object, limit: int = 160) -> str:
@@ -130,44 +156,8 @@ class EventLog:
 
     def _absorb(self, line: bytes) -> None:
         event = _parse(line)
-        if event is None:
-            return
-        digest, data, kind = self._digest, event.data, event.type
-        digest.last_seq, digest.last_ts = max(digest.last_seq, event.seq), event.ts
-        self._usage.emit(kind, stage=event.stage, agent=event.agent, **data)
-        if kind == "tool.call":
-            agent = event.agent or "unknown"
-            record = ToolRecord(
-                event.seq,
-                event.ts,
-                agent,
-                None if event.lane is None else str(event.lane),
-                str(data.get("tool", "tool")),
-                bool(data.get("ok", True)),
-                float(data.get("duration") or 0),
-                _short(data.get("args", "")),
-            )
-            stats = digest.agents.setdefault(agent, AgentStats())
-            stats.calls += 1
-            stats.failed += 0 if record.ok else 1
-            stats.last = record
-            digest.trail.append(record)
-        elif kind == "question":
-            qid = str(data.get("question_id", ""))
-            if data.get("interactive"):
-                digest.questions[qid] = OpenQuestion(
-                    qid, str(data.get("text", "")), event.agent, data.get("card_id"), event.ts
-                )
-        elif kind in ("question.answered", "question.unanswered"):
-            digest.questions.pop(str(data.get("question_id", "")), None)
-        elif kind == "run.cancel_requested":
-            digest.cancel_requested = True
-        elif kind == "run.started":
-            digest.finished = False
-            digest.cancel_requested = False
-            digest.questions.clear()  # a resumed run's old questions are gone
-        elif kind == "run.finished":
-            digest.finished = True
+        if event is not None:
+            fold(event, self._digest, self._usage)
 
     # -- reading events -------------------------------------------------------------------
 
@@ -193,6 +183,14 @@ class EventLog:
             return found
         return found
 
+    def digest_upto(self, seq: int) -> tuple[Digest, UsageReport]:
+        """The digest and usage as they stood after event ``seq`` (a replay of the teammates)."""
+
+        digest, usage = Digest(), UsageTracker()
+        for event in self.events_upto(seq):
+            fold(event, digest, usage)
+        return digest, usage.report(self._prices)
+
     def events_upto(self, seq: int) -> list[Event]:
         """Every event with ``seq`` at most ``seq`` (the board replay folds these)."""
 
@@ -209,6 +207,74 @@ class EventLog:
                 if event is not None:
                     events.append(event)
             after = batch[-1][0]
+
+
+def fold(event: Event, digest: Digest, usage: UsageTracker) -> None:
+    """Add one event to a digest and a usage tracker (also how a replay is rebuilt)."""
+
+    data, kind = event.data, event.type
+    digest.last_seq, digest.last_ts = max(digest.last_seq, event.seq), event.ts
+    usage.emit(kind, stage=event.stage, agent=event.agent, **data)
+    if kind == "tool.call":
+        agent = event.agent or "unknown"
+        record = ToolRecord(
+            event.seq,
+            event.ts,
+            agent,
+            None if event.lane is None else str(event.lane),
+            str(data.get("tool", "tool")),
+            bool(data.get("ok", True)),
+            float(data.get("duration") or 0),
+            _short(data.get("args", "")),
+        )
+        stats = digest.agents.setdefault(agent, AgentStats())
+        stats.calls += 1
+        stats.failed += 0 if record.ok else 1
+        stats.last = record
+        digest.trail.append(record)
+    elif kind == "question":
+        qid = str(data.get("question_id", ""))
+        if data.get("interactive"):
+            digest.questions[qid] = OpenQuestion(
+                qid, str(data.get("text", "")), event.agent, data.get("card_id"), event.ts
+            )
+    elif kind in ("question.answered", "question.unanswered"):
+        digest.questions.pop(str(data.get("question_id", "")), None)
+    elif kind == "run.cancel_requested":
+        digest.cancel_requested = True
+    elif kind == "run.started":
+        digest.finished = False
+        digest.cancel_requested = False
+        digest.questions.clear()  # a resumed run's old questions are gone
+    elif kind == "run.finished":
+        digest.finished = True
+    elif kind in ("budget.warning", "budget.exceeded"):
+        limit = str(data.get("limit", ""))
+        digest.budget[limit] = BudgetNote(
+            limit=limit,
+            exceeded=kind == "budget.exceeded",
+            used=data.get("used"),
+            max=data.get("max"),
+            note=str(data.get("note") or data.get("message") or ""),
+        )
+    elif kind == "check.started":
+        cid = str(data.get("check", ""))
+        digest.checks[cid] = CheckLine(
+            cid, str(data.get("name") or cid), str(data.get("kind", "")), "running", "", None,
+            event.seq,
+        )  # fmt: skip
+    elif kind == "check.finished":
+        cid = str(data.get("check", ""))
+        before = digest.checks.get(cid)
+        digest.checks[cid] = CheckLine(
+            cid,
+            before.name if before else cid,
+            before.kind if before else "",
+            str(data.get("status", "")),
+            str(data.get("summary") or ""),
+            data.get("duration"),
+            event.seq,
+        )
 
 
 def _parse(line: bytes) -> Event | None:

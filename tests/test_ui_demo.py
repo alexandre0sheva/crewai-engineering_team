@@ -2,39 +2,23 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
 pytest.importorskip("fastapi")
 
-from cli_helpers import workspace_root  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from git_helpers import require_git  # noqa: E402
-from pipeline_fakes import settings_for  # noqa: E402
-from ui_helpers import API, wait_status  # noqa: E402
+from ui_helpers import API, make_demo_client, wait_status  # noqa: E402
 
-from engineering_team.ui.app import create_app  # noqa: E402
 from engineering_team.ui.demo import DEMO_DIR, ensure_sample_repo  # noqa: E402
-from engineering_team.ui.launcher import RunLauncher  # noqa: E402
 
 
 @pytest.fixture
 def demo() -> tuple[TestClient, Path]:
     require_git()
-    root = workspace_root()
-    repo = ensure_sample_repo(Path.cwd() / "demo-home")
-    launcher = RunLauncher(
-        str(root),
-        max_concurrent=2,
-        command=[sys.executable, "-m", "engineering_team.ui.demo", "--demo-pause", "0.01"],
-        environment={"ENGINEERING_STRATEGY": "pipeline"},
-    )
-    app = create_app(settings_for(root), launcher=launcher, demo_repo=str(repo))
-    client = TestClient(app, base_url="http://localhost")
-    client.headers.update({"X-Engineering-Team": "1"})
-    return client, repo
+    return make_demo_client()
 
 
 def test_the_sample_project_is_a_clean_repository_made_once() -> None:
@@ -54,7 +38,12 @@ def test_a_demo_feature_run_produces_a_diff_criteria_and_a_report(demo) -> None:
 
     started = client.post(
         f"{API}/runs",
-        json={"mode": "feature", "repo": str(repo), "request": "Add notes. AC-1 add. AC-2 list."},
+        json={
+            "mode": "feature",
+            "repo": str(repo),
+            "request": "Add notes. AC-1 add. AC-2 list.",
+            "interactive": False,
+        },
     )
     run_id = started.json()["run_id"]
     wait_status(client, run_id, "succeeded", "failed", timeout=120)
@@ -84,7 +73,13 @@ def test_a_demo_new_project_run_succeeds_whatever_strategy_was_asked(
     options = {"strategy": strategy} if strategy else {}
 
     started = client.post(
-        f"{API}/runs", json={"mode": "new", "request": "Build a notes CLI.", "options": options}
+        f"{API}/runs",
+        json={
+            "mode": "new",
+            "request": "Build a notes CLI.",
+            "options": options,
+            "interactive": False,
+        },
     )
     run_id = started.json()["run_id"]
     wait_status(client, run_id, "succeeded", "failed", timeout=120)

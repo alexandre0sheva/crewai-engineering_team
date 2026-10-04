@@ -136,7 +136,12 @@ def list_runs(request: Request, project: str | None = None, limit: int = 50) -> 
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     views = [
-        run_view(ref, state.log_for(ref), state.launcher.process_info(ref.run_id))
+        run_view(
+            ref,
+            state.log_for(ref),
+            state.launcher.process_info(ref.run_id),
+            state.budget_for(ref.run_id),
+        )
         for ref in found[-limit:]
     ]
     known = {view.run_id for view in views}
@@ -157,7 +162,9 @@ def get_run(request: Request, run_id: str) -> RunView:
         if starting is None:
             raise HTTPException(404, f"No run {run_id!r}.")
         return starting
-    return run_view(ref, state.log_for(ref), state.launcher.process_info(run_id))
+    return run_view(
+        ref, state.log_for(ref), state.launcher.process_info(run_id), state.budget_for(run_id)
+    )
 
 
 # -- events (SSE) --------------------------------------------------------------------------------

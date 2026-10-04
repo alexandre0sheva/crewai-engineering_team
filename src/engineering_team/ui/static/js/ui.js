@@ -24,6 +24,12 @@ const STATUS = {
   fail: ["Failing", "bad", "x"],
   info: ["Info", "info", "circle"],
   paused: ["Paused", "warn", "pause"],
+  backlog: ["Backlog", "", "circle"],
+  ready: ["Ready", "", "circle"],
+  in_progress: ["In progress", "info", "spinner", true],
+  verifying: ["Verifying", "info", "shield"],
+  blocked: ["Blocked", "warn", "lock"],
+  done: ["Done", "good", "check"],
 };
 
 export function statusChip(status, label) {

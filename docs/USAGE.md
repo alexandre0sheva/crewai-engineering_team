@@ -408,12 +408,7 @@ fetched from elsewhere, and a content security policy that allows only its own f
   hint turns a dollar limit into roughly how many tokens it buys on the lead model); and, under **Advanced**,
   parallelism, the command sandbox, the strategy, isolation, and the web tools. Fix, Maintain and Review add their own
   fields (a reproduction command and a stack trace, the task, the base to compare against).
-- **Run page** (`#/runs/ID`). Status, progress by task-board weight, elapsed time, cost and tokens; **Pause**,
-  **Cancel** and **Resume**; what needs you (the team's questions, with an answer box, blocked cards, budget
-  warnings); the stage list; and the raw event stream (it follows the end of the log until you scroll up).
-
-  ![A run in progress](assets/ui-run.png)
-
+- **Run page** (`#/runs/ID`): the live dashboard, described under [Watching a run](#watching-a-run).
 - **Results** (`#/runs/ID/results`). The verdict and why, then tabs: **Summary** (warnings, review findings, who did
   what), **Criteria** (each acceptance criterion with the checks that back it: *verified*, *referenced*, or
   *unverified*, so nothing unproven looks done), **Checks** (with log excerpts), **Changes** (a per-file diff),
@@ -434,13 +429,60 @@ fetched from elsewhere, and a content security policy that allows only its own f
 
 The page is keyboard-navigable (tabs use the arrow keys), keeps a visible focus ring, announces status changes through
 a screen-reader live region, follows light/dark (the button in the header overrides it), and works down to phone
-width. The run page is a basic live view; a richer dashboard (task board, teammate cards, activity feed, replay) is planned for it.
+width.
+
+### Watching a run
+
+The run page is the dashboard. Everything on it comes from the server's own snapshots and the run's event stream (the
+page computes no state), so it is the same whether the run was started from the page, the API or the terminal.
+
+![The task board with three agents working in parallel](assets/ui-board.png)
+
+- **Header.** Status, elapsed time, **progress** (by task-board weight, not time: there is no ETA), cost and tokens, and
+  the **budget** meter: the tightest limit, amber from 80 % and red when passed. **Pause** holds the team at its next
+  safe point, **Cancel** stops the run (kept work can be resumed), **Resume** continues a stopped one.
+- **Needs attention.** One strip for everything that wants a person: the team's **questions** (a dialog opens with an
+  answer box; "Let the team assume" declines), **blocked** cards with their reasons, budget warnings, and checks that
+  failed or could not run. It clears itself as they are resolved.
+- **Board.** Backlog, Ready, In progress, Verifying, Blocked and Done, with Failed and Cancelled folded away until a card
+  lands there; columns with nothing in them shrink so the others fit. A card shows its id and kind, title, who has it
+  (each teammate has one colour everywhere), its parallel lane, a live timer while it works, the criteria it serves,
+  an attempt badge after a retry, and why it is blocked. Cards **move on their own** as the controller moves them (a
+  short message goes to the screen reader's live region; `prefers-reduced-motion` turns the animation off); people do
+  not drag them. Arrow keys move between cards, Enter opens one. On a phone the columns scroll sideways and snap.
+- **Swimlanes** puts a row per teammate under the same columns.
+
+  ![Swimlanes, with a blocked card and the question that blocks it](assets/ui-swimlanes.png)
+
+- **Timeline** is a Gantt chart of the stages with the parallel lanes inside them, then the checks and repairs; a failed
+  bar is hatched and marked ✕, and a stage that took more than one attempt says so.
+
+  ![The timeline](assets/ui-timeline.png)
+
+- **Activity** is every event, newest at the bottom, filterable by teammate, kind, severity and card. Tool calls are one
+  line (click for the details); errors and repair attempts are highlighted. It scrolls with the run until you scroll up
+  ("Jump to latest" returns), and only the visible rows exist, so thousands of events stay smooth.
+- **Team** (beside every view): per teammate its state (working, waiting for you, blocked, idle), current card, last
+  tool call, call and error counts, tokens, cost and model. **Checks and findings** lists the controller's own checks as
+  they run and the reviewers' findings by severity.
+- **Card drawer** (click a card): description, status history, comments, the files and screenshots it produced, the tool
+  calls its assignee made while it worked on it, and the checks that justify it. **Send a steering note** delivers
+  your text to the assignee's next step, once (the comment shows who has received it); the same goes for the run-level
+  note of `engineering-team note`.
+
+  ![The card drawer with the steering form](assets/ui-drawer.png)
+
+- **Replay.** When a run is over, **Replay this run** gives a slider over its events and play/pause at 1× to 16× real time.
+  The board, the teammates and the feed show exactly what they showed at that moment (the server rebuilds them from
+  `events.jsonl`; the same position always gives the same board).
 
 ### Demo mode
 
 `ui --demo` replaces the model with a script: the **real** pipeline, task board, checks, report, cancel and resume all
-run, but every teammate's answers and tool calls are scripted (3 parallel work packages, a passing check, a review
-finding), so no key is needed and nothing is billed. Pick **Add feature**, press **Use the demo sample project**, write
+run, but every teammate's answers and tool calls are scripted, so no key is needed and nothing is billed. Every state
+of the dashboard shows up: three work packages in parallel lanes, a card **blocked** while a teammate **asks you a
+question**, a check that **fails** and is **repaired**, a **budget warning** (the demo's limit is $1.00 and the run
+ends at about 85 % of it), and review findings. Leave "Let the team ask me questions" ticked (Advanced) to be asked. Pick **Add feature**, press **Use the demo sample project**, write
 anything, and start. It works in a temporary workspace and only writes under `engineering_team_demo/` in the project you
 point it at (default: a small sample repository it creates).
 
