@@ -27,6 +27,7 @@ from engineering_team.settings import (
     ReviewSettings,
     RuntimeSettings,
     Settings,
+    UiSettings,
     VerifySettings,
     WebSettings,
     _build,
@@ -64,6 +65,7 @@ def test_every_setting_is_documented() -> None:
         "analysis",
         "fix",
         "maintain",
+        "ui",
     }
     for section, model in (
         ("budget", BudgetSettings),
@@ -83,6 +85,7 @@ def test_every_setting_is_documented() -> None:
         ("analysis", AnalysisSettings),
         ("fix", FixSettings),
         ("maintain", MaintainSettings),
+        ("ui", UiSettings),
     ):
         keys |= {f"{section}.{name}" for name in model.model_fields}
 

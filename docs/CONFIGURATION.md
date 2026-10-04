@@ -16,6 +16,9 @@ Highest precedence first:
 
 1. **Command-line options** (`--provider`, `--profile`, `--project-name`, `--workspace-root`, …)
 2. **Environment variables** (`ENGINEERING_*`; a `.env` file is loaded too). Blank values count as unset.
+   `ENGINEERING_OVERRIDES` takes a JSON object of dotted keys (`{"budget.max_cost_usd": 2,
+   "team.qa.enabled": false}`) and ranks above the other variables; the web UI uses it to pass a run's options to the
+   process it starts, and any key it names is validated like every other setting.
 3. **Project config**: `engineering-team.toml` in the current directory (or the file given by
    `--config` / `ENGINEERING_CONFIG_FILE`, which replaces it).
 4. **User config**: `$XDG_CONFIG_HOME/engineering-team/config.toml` (default
@@ -310,6 +313,17 @@ stages = ["implement"]
 [team.frontend_engineer]
 enabled = false
 ```
+
+### Web UI (`[ui]`)
+
+Limits of `engineering-team ui` ([USAGE.md](USAGE.md#web-ui)). The server's own options (`--host`, `--port`,
+`--allow-remote`) are command-line only.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `ui.max_concurrent_runs` | `2` | Runs the UI keeps going at once (each is a process of its own). Another start is refused with HTTP 429 until one ends; the workspace lock still lets only one run write to a project. |
+| `ui.max_upload_bytes` | `2000000` | The most bytes of uploaded request and reference files in one start request (HTTP 413 beyond it). |
+| `ui.max_request_bytes` | `200000` | The most bytes of any other request body (HTTP 413 beyond it). |
 
 ### Review (`[review]` and `team_profile`)
 

@@ -136,6 +136,7 @@ def run_checks(
     checks.extend(_runtime_checks(settings, which, probe))
     checks.extend(_provider_checks(settings))
     checks.append(_browser_check(settings))
+    checks.append(_ui_check())
     checks.append(_team_check(settings))
     checks.append(_workspace_check(settings))
     if online:
@@ -194,6 +195,21 @@ def _browser_check(settings: Settings) -> Check:
         "ok",
         "Playwright installed",
         "If a browser tool fails: playwright install chromium.",
+    )
+
+
+def _ui_check() -> Check:
+    from engineering_team.ui import INSTALL_HINT, missing_dependencies
+
+    if missing := missing_dependencies():
+        return Check(
+            "Web UI",
+            "info",
+            f"not installed ({', '.join(missing)} missing)",
+            f"Optional: {INSTALL_HINT}, then `engineering-team ui`.",
+        )
+    return Check(
+        "Web UI", "ok", "FastAPI and uvicorn installed", "Start it with: engineering-team ui"
     )
 
 

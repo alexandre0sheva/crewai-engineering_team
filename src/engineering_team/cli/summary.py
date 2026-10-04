@@ -13,6 +13,7 @@ from rich.text import Text
 
 from engineering_team.contracts import utc_now
 from engineering_team.pipeline.state import PipelineState, RunResult
+from engineering_team.report import report_path
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.run_store import RunStore
 from engineering_team.runtime.session import format_summary
@@ -68,6 +69,7 @@ def build(ctx: RunContext, result: RunResult, exit_code: int, *, resumable: bool
     checks = state.checks if state else []
     workspace = Path(result.workspace or ctx.workspace.root)
     shown_report = next((p for p in REPORT_CANDIDATES if (workspace / p).is_file()), None)
+    run_report = report_path(ctx.run_dir)
     return {
         "run_id": result.run_id,
         "project": ctx.settings.project_name,
@@ -104,6 +106,7 @@ def build(ctx: RunContext, result: RunResult, exit_code: int, *, resumable: bool
         "questions": list(state.needs_info) if state else [],
         "workspace": str(workspace),
         "report": str(workspace / shown_report) if shown_report else None,
+        "run_report": str(run_report) if run_report.is_file() else None,
         "next_steps": next_steps(result.run_id, result.status, result.verdict, resumable),
     }
 
@@ -132,6 +135,8 @@ def render_plain(data: dict[str, Any], console: Console) -> None:
     lines.append(f"Workspace: {data['workspace']}")
     if data["report"]:
         lines.append(f"Report: {data['report']}")
+    if data["run_report"]:
+        lines.append(f"Run report: {data['run_report']}")
     if data["error"]:
         lines.append(f"Error: {data['error']}")
     lines.extend(f"Question {i}: {q}" for i, q in enumerate(data["questions"], 1))
@@ -172,6 +177,8 @@ def render(data: dict[str, Any], console: Console) -> None:
     facts.add_row("Workspace", Text(data["workspace"], overflow="fold"))
     if data["report"]:
         facts.add_row("Report", Text(data["report"], overflow="fold"))
+    if data["run_report"]:
+        facts.add_row("Run report", Text(data["run_report"], overflow="fold"))
     parts: list[Any] = [facts]
     if data["error"]:
         parts.append(Text(f"\n{data['error']}", style="red"))

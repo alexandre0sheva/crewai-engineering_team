@@ -22,22 +22,25 @@ from engineering_team.cli import (
     init_command,
     maintain_command,
     recipes_command,
+    report_command,
     review_command,
     run_commands,
+    ui_command,
 )
 from engineering_team.cli import doctor as doctor_module
 from engineering_team.cli import info_commands as info
 from engineering_team.cli.context import Globals
 from engineering_team.cli.team_commands import team_app
+from engineering_team.runtime.context import reserve_run_id
 
 COMMANDS = (
     "new", "resume", "status", "runs", "board", "cancel", "note", "pause", "unpause",
     "config", "doctor", "init", "examples", "team", "analyze", "feature", "fix", "maintain",
-    "review", "recipes", "diff", "export-patch",
+    "review", "recipes", "diff", "export-patch", "report", "ui",
 )  # fmt: skip
 HELP_FLAGS = ("-h", "--help")
-FLAGS = ("--json", "--quiet", "-q", "--verbose", "-v", "--no-color")
-VALUE_OPTIONS = ("--workspace-root",)
+FLAGS = ("--json", "--quiet", "-q", "--verbose", "-v", "--no-color", "--answers-via-inbox")
+VALUE_OPTIONS = ("--workspace-root", "--run-id")
 BARE_DEPRECATION = (
     "Deprecated: bare `engineering-team` reading ./PROJECT_REQUEST.md is the 0.1.0 form. "
     "Use `engineering-team new`; the old form is removed in 0.3.0."
@@ -91,9 +94,26 @@ def global_options(
     version: Annotated[
         bool, typer.Option("--version", callback=_version, is_eager=True, help="Show the version.")
     ] = False,
+    run_id: Annotated[
+        str | None, typer.Option(hidden=True, help="Name the run (used by the web UI).")
+    ] = None,
+    answers_via_inbox: Annotated[
+        bool,
+        typer.Option(hidden=True, help="Take the team's questions' answers from the inbox."),
+    ] = False,
 ) -> None:
+    try:
+        reserve_run_id(run_id)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     ctx.obj = Globals(
-        json=json, quiet=quiet, verbose=verbose, no_color=no_color, workspace_root=workspace_root
+        json=json,
+        quiet=quiet,
+        verbose=verbose,
+        no_color=no_color,
+        workspace_root=workspace_root,
+        run_id=run_id,
+        answers_via_inbox=answers_via_inbox,
     )
 
 
@@ -106,6 +126,8 @@ app.command()(maintain_command.maintain)
 app.command()(review_command.review)
 app.command()(feature_command.diff)
 app.command("export-patch")(feature_command.export_patch)
+app.command()(report_command.report)
+app.command()(ui_command.ui)
 app.command()(info.status)
 app.command()(info.runs)
 app.command()(info.board)

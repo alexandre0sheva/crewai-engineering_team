@@ -53,6 +53,8 @@ def present_run(
     # Anything CrewAI or a tool prints must not corrupt the JSON document on stdout.
     stdout = contextlib.redirect_stdout(sys.stderr) if g.json else contextlib.nullcontext()
     answering: Any = contextlib.nullcontext()
+    if g.answers_via_inbox:  # answers arrive as inbox files (the web UI); nobody is at a terminal
+        ctx.human.enable(True)
     if ask:
         pause = display.paused if isinstance(display, LiveDisplay) else None
         answering = TerminalAnswerer(ctx.human, g.console(stderr=True), pause=pause)

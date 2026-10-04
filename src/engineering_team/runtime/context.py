@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 import threading
 from collections.abc import Callable
@@ -43,9 +44,24 @@ if TYPE_CHECKING:  # imported when a context is created: ``board`` itself import
 ToolGate = Callable[[str], str | None]
 
 
+RUN_ID_PATTERN = re.compile(r"\d{8}-\d{6}-[0-9a-f]{6}")
+_reserved_run_id: list[str] = []
+
+
+def reserve_run_id(run_id: str | None) -> None:
+    """Make the next :func:`new_run_id` return ``run_id`` (the web UI names a run before it
+    starts the process that creates it, so it can find the run again). ``None`` clears it."""
+
+    if run_id is not None and not RUN_ID_PATTERN.fullmatch(run_id):
+        raise ValueError(f"{run_id!r} is not a run id (expected YYYYMMDD-HHMMSS-<6 hex>).")
+    _reserved_run_id[:] = [] if run_id is None else [run_id]
+
+
 def new_run_id() -> str:
     """A unique id that sorts by creation time: ``YYYYMMDD-HHMMSS-<6 hex>``."""
 
+    if _reserved_run_id:
+        return _reserved_run_id.pop()
     return f"{datetime.now(UTC):%Y%m%d-%H%M%S}-{secrets.token_hex(3)}"
 
 

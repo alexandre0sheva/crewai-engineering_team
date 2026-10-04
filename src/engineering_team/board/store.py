@@ -453,6 +453,8 @@ class BoardStore:
             agent=card.assignee,
             lane=card.lane,
             stage=card.stage,
+            # The whole card as it is now: a viewer (or a replay) needs no other source.
+            card=card.model_dump(mode="json"),
             **data,
         )
 

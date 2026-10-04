@@ -36,6 +36,12 @@ google = ["crewai[google-genai]>=1.15.23,<1.16"]
 azure = ["crewai[azure-ai-inference]>=1.15.23,<1.16"]
 # Headless-browser tools for UI verification (then `playwright install chromium`).
 browser = ["playwright>=1.63,<2"]
+# The local web UI's API server (`engineering-team ui`).
+ui = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "python-multipart>=0.0.9",  # file uploads when starting a run
+]
 
 [project.urls]
 Homepage = "https://github.com/alexandre0sheva/crewai-engineering_team"
@@ -54,6 +60,9 @@ run_with_trigger = "engineering_team.main:run_with_trigger"
 
 [dependency-groups]
 dev = [
+    "fastapi>=0.115",  # the web UI's tests (also the [ui] extra)
+    "httpx>=0.27",  # FastAPI's TestClient
+    "python-multipart>=0.0.9",
     "mypy>=2.4.0",
     "pytest>=9.1.0",
     "ruff>=0.16.10",

@@ -227,6 +227,8 @@ from reading `commands/` logs. This is the single description of its layout:
 | `board.json`, `board.md` | `BoardStore` | The task board: every card with its history (`BoardState`), and a Markdown view of it ([Task board](#task-board)) |
 | `notes/<key>.md` | `NoteStore` | Shared notes agents wrote with `Write Note` |
 | `crew-log.json`, `crew-log-<stage>.json` | CrewAI | CrewAI's own execution log (one per stage crew in the pipeline) |
+| `inbox/` | `engineering-team note\|pause\|unpause`, the web UI | Commands (and answers to the team's questions) waiting for the process working on the run to apply them |
+| `report.html`, `report.md` | `report/` | The run report, written when the run ends (HTML; `engineering-team report --format md` writes Markdown). Read from the files above only; see [Run report](#run-report) |
 | `commands/<n>.log` | `LocalBackend` | Full output of each project command (including `git` commands) |
 | `verification/baseline.json` | `Verifier` | The baseline's batch of check results ([Adopting an existing project](#adopting-an-existing-project)); not a verification round |
 
@@ -287,6 +289,34 @@ at 80%.
 variable whose name contains `KEY`, `TOKEN`, `SECRET`, or `PASSWORD` (at least 8 characters) is
 replaced with `[REDACTED]`, anywhere in the event, including nested data.
 
+## Run report
+
+`report/` turns a run directory into one page. `collect.build_report` reads the manifest (required),
+`events.jsonl` (one pass: tool calls per teammate, lane intervals, screenshot records, the failure
+message of `run.finished`), `board.json`, `pipeline.json` (checks, criteria coverage, findings, diff
+noise), `usage.json`, `changes.patch`, and `screenshots/` into a `RunReport`; `render_html` and
+`render_md` render it. Every file except the manifest is optional, so a failed, cancelled, still
+running, or half-written run still gets a report. It reads files only (no `RunContext`), so the
+`report` command works on a run from another process.
+
+- **Written by the controller, quoting agents.** Statuses, the banner and its reasons, warnings
+  (budget, unavailable required checks, unproven criteria, unreproduced bugs, out-of-scope changes)
+  come from the manifest and check results; card notes and agent summaries are only quoted and
+  labelled agent-reported.
+- **Self-contained and inert.** Inline CSS and one inline script (the theme toggle), no CDN, a
+  `Content-Security-Policy` that allows no network, and `html.escape` on every string that did not
+  come from the renderer (logs, titles, paths, diff lines). Screenshots are embedded as `data:` URIs
+  (at most 1 MB each and 3 MB in all; the rest are listed by path), only from the real files of
+  `screenshots/` (never a path taken from an event, never a symlink).
+- **Bounded and deterministic.** Logs keep their tail (4,000 characters, saying where the full log
+  is), diffs are cut per file and in total, and the page carries no "generated at" clock: the same run
+  directory renders the same bytes, with stages in manifest order and lanes, teammates, and findings
+  sorted. Known secret values in the environment are scrubbed from the text.
+- Plain Python templating with `html.escape`, not Jinja2, so there is no new dependency.
+
+`RunRecorder` writes `report.html` as the last step of ending a run (so `new`, `resume`, `feature`,
+`fix`, `maintain`, and `review` all get one) and never lets a report failure change the run's outcome.
+
 ## Task board
 
 The board is the run's kanban: what is planned, who is doing it, and whether it is really done.
@@ -327,7 +357,9 @@ parent's agent); the controller sending a card back after failed checks is exemp
 **Persistence and events.** `BoardStore` (`board/store.py`) is thread-safe: every mutation runs
 under one lock, rewrites `board.json` atomically (the file alone explains the run: each card carries
 its history), and emits a `board.*` event in the same order: `card_created`, `card_moved`,
-`card_commented`, `card_updated`, `paused`/`unpaused`, `steering_delivered`. `board.md`
+`card_commented`, `card_updated`, `paused`/`unpaused`, `steering_delivered`. Each card event carries
+the whole card as it is after the change (`data.card`), so a viewer or a replay needs no other source.
+`board.md`
 (`board/render.py`) is a Markdown view with one section per column, rewritten shortly after a change
 (debounced) and when the run ends; `board.json` is the machine format the CLI and web UI read.
 
@@ -786,6 +818,53 @@ Defaults, tiers, profiles, and every setting are documented once in
 
 The bundled `tiny-notes` example request (`--example tiny-notes`) carries a smoke-profile marker,
 which selects the `smoke` profile unless a profile was chosen explicitly.
+
+## Web UI backend
+
+`engineering-team ui` serves a FastAPI app (`ui/`, optional extra `ui`) under `/api/v1`. It is a thin layer
+over what the CLI already writes; nothing runs a team inside the server.
+
+- **Runs are subprocesses.** `ui/launcher.py` starts `python -m engineering_team --workspace-root R --run-id ID
+  [--answers-via-inbox] <mode> ...` in its own session, so a run outlives the server and cancels the way a CLI run
+  does (the `cancel` flag, SIGINT). The server names the run first (`--run-id`, hidden) so it can find it again; per
+  start it keeps a record (pid, log file) under `<workspace root>/.engineering-team-ui/`, which explains a run that
+  died before writing a manifest and counts the runs it has going (`ui.max_concurrent_runs`; the workspace lock still
+  admits one writer per project). Per-run options reach the process as CLI flags or as `ENGINEERING_OVERRIDES`
+  (budget, parallelism, roster toggles), validated against the settings before anything starts.
+- **State is read, not held.** `ui/eventlog.py` tails `events.jsonl` incrementally (sparse byte index for resuming at
+  an event, a digest of teammates' tool calls, open questions, and cancel/finish state); `ui/views.py` builds run,
+  board, teammate, and card views from it and from `board.json`; the report and the diff are the CLI's own.
+- **Steering** goes through the inbox (`runtime/inbox.py`: `note`, `pause`, `unpause`, and `answer`, which delivers
+  a reply to a question the team asked: `HumanChannel` is enabled in the run by `--answers-via-inbox`). A command for a
+  run nobody is working on waits for the next resume.
+- **Replay.** `GET .../board?at=SEQ` folds the `board.*` events up to `SEQ` (each carries the whole card) into the
+  board as it stood, with progress measured at that event's time: the same `SEQ` always gives the same board.
+
+| Endpoint (`/api/v1`) | What it does |
+|---|---|
+| `POST /runs` | Start a run (`mode` new/feature/fix/maintain/review, request text, uploads as multipart, `repo`, options); 202 with the run id, 429 at the concurrency limit, 422 for a bad request |
+| `GET /runs`, `GET /runs/{id}` | Runs of every project; one run with its manifest, progress, usage, open questions, last event `seq`, and the process the UI started for it (`status` is `starting` before the manifest exists, `failed` with the process log's tail if it never got one) |
+| `GET /runs/{id}/events` | SSE tail of `events.jsonl`; `id` is the event `seq`; resume with `Last-Event-ID` or `?after=`; `?follow=false`, `?types=board.,stage.`; ends with `event: end` once the run is over |
+| `POST /runs/{id}/cancel`, `/resume` | As the CLI commands (resume waits briefly for the old process to exit) |
+| `GET /runs/{id}/questions`, `POST .../answer` | Questions the team asked (needs `interactive`, the default) and a reply (empty text declines) |
+| `GET /runs/{id}/board[?at=SEQ]` | The board now, or replayed |
+| `GET /runs/{id}/cards/{card}` | A card with its history, comments, board events, and the tool-call trail of its assignee while it was in progress |
+| `POST /runs/{id}/cards/{card}/comments`, `/notes`, `/pause`, `/unpause` | Steering through the inbox |
+| `GET /runs/{id}/agents` | Teammate presence: `working`, `waiting`, or `idle`, its current card, last tool call, counters |
+| `GET /runs/{id}/artifacts[/path]` | Screenshots, command logs, reports, the patch: only what the listing names |
+| `GET /runs/{id}/files[/path]` | Read-only project files, with the agents' path rules plus: no secrets (`.env`, keys, `.ssh/`, ...) |
+| `GET /runs/{id}/diff`, `/report` | The change since the starting commit (feature/fix/maintain); the run report (`?format=html|md`, served with a sandboxing CSP) |
+| `GET /config`, `/doctor`, `/team`, `/recipes`, `/repo/inspect?path=` | Masked settings, the machine check, teammates, recipes, and a project directory's stack and Git state |
+| `GET /health` | Version and whether a token is needed (the only call that needs none) |
+
+Errors are `{"error": "..."}`. **Guard** (`ui/security.py`, one ASGI middleware): in local mode only
+`localhost`/`127.0.0.1`/`[::1]` Host headers are served (DNS rebinding); a request with a foreign `Origin` or
+`Sec-Fetch-Site: cross-site` is refused and no CORS header is ever sent; mutating calls need `X-Engineering-Team: 1`
+(a browser cannot add it cross-origin without a preflight the server never approves); beyond localhost
+(`--allow-remote`) every call but `/health` needs the random bearer token printed at start; bodies are capped
+(`ui.max_request_bytes`, `ui.max_upload_bytes`; chunked bodies are refused). The server reads and writes only the
+run directories, the UI's own `.engineering-team-ui/` folder (uploads, logs, start records), and the project files
+it serves read-only.
 
 ## Local state
 

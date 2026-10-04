@@ -16,6 +16,19 @@ as each task lands.
 
 ### Added
 
+- `engineering-team ui [--host --port --allow-remote]`: the local web UI's backend (FastAPI, optional extra `ui`): a versioned
+  JSON API (`/api/v1`) to start runs (JSON or uploads), list them, stream their events (SSE, resumable), cancel, resume, answer
+  the team's questions, steer a card or the run, read the board now or replayed at any event, teammates, cards with their
+  tool-call trail, artifacts, project files, the diff, the report, and configuration, `doctor`, team, recipes, and project
+  inspection. Runs are separate processes (`--run-id`), at most `ui.max_concurrent_runs` at a time. Localhost only by
+  default; beyond it `--allow-remote` and a printed bearer token, no cross-origin requests, no secrets or `.env` served.
+- `ENGINEERING_OVERRIDES` (a JSON object of dotted settings), the `[ui]` settings, and `board.*` events that carry the whole
+  card; `doctor` reports whether the `ui` extra is installed.
+- `engineering-team report [RUN] [--format html|md] [--open]` and an automatic `report.html` at the end of every run: a
+  self-contained page (no network, light and dark) with the status and why a run failed, warnings, the stage timeline with
+  parallel lanes, the final task board with card history, tool calls per teammate, screenshots, cost against the budget,
+  checks with log excerpts, the criteria-coverage matrix, findings, and a diff viewer. Everything from agents or the
+  repository is escaped.
 - `engineering-team maintain --task ...`: maintenance tasks on an existing project, each a recipe with policies the
   controller checks from Git: `add-tests` (characterization tests, test files only, with a coverage delta measured by the
   project's coverage tool), `refactor` (behaviour-preserving: stops with questions unless the tests pass first, never

@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 INBOX_DIRECTORY = "inbox"
 POLL_SECONDS = 0.5
-KINDS = ("note", "pause", "unpause")
+KINDS = ("note", "pause", "unpause", "answer")
 MAX_FILE_BYTES = 20_000
 USER = "user"
 
@@ -35,8 +35,16 @@ def inbox_dir(run_dir: Path) -> Path:
     return run_dir / INBOX_DIRECTORY
 
 
-def post_command(run_dir: Path, kind: str, *, text: str = "", card: str | None = None) -> Path:
-    """Queue a command for the run in ``run_dir``; returns the file written."""
+def post_command(
+    run_dir: Path,
+    kind: str,
+    *,
+    text: str = "",
+    card: str | None = None,
+    question: str | None = None,
+) -> Path:
+    """Queue a command for the run in ``run_dir``; returns the file written. An ``answer``
+    names the ``question`` id and carries the ``text`` (empty: decline, the team assumes)."""
 
     if kind not in KINDS:
         raise ValueError(f"Unknown command {kind!r}; expected one of {', '.join(KINDS)}.")
@@ -47,6 +55,11 @@ def post_command(run_dir: Path, kind: str, *, text: str = "", card: str | None =
         payload["text"] = text.strip()
         if card:
             payload["card"] = card.strip()
+    if kind == "answer":
+        if not question or not question.strip():
+            raise ValueError("An answer names the question it answers.")
+        payload["question"] = question.strip()
+        payload["text"] = text.strip()
     # Time-ordered names, so commands apply in the order they were posted.
     path = inbox_dir(run_dir) / f"{time.time_ns():020d}-{secrets.token_hex(2)}.json"
     atomic_write_json(path, payload)
@@ -95,6 +108,13 @@ def _apply(ctx: RunContext, data: object) -> None:
             ctx.board.comment(card, text, author=USER)
         else:
             ctx.board.add_user_note(text)
+    elif kind == "answer":
+        question, text = data.get("question"), data.get("text")
+        if not isinstance(question, str) or not isinstance(text, str):
+            raise ValueError("an answer needs a question id and text")
+        delivered = ctx.human.answer(question, text) if text.strip() else ctx.human.skip(question)
+        if not delivered:
+            raise ValueError(f"no open question {question}")
     else:
         raise ValueError(f"unknown command {kind!r}")
 

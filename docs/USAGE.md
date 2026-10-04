@@ -21,6 +21,8 @@ uv run engineering-team <command> --help # its options
 | `diff [RUN] [--stat]` / `export-patch [RUN] --out FILE` | What a `feature` or `fix` run changed, and that change as a patch for `git apply`. |
 | `analyze [--repo PATH] [--deep]` | Look at an existing project without changing it: languages, detected commands, tests, CI, Git state; `--deep` also writes a codebase map ([Adopting an existing project](#adopting-an-existing-project)). |
 | `resume RUN` | Continue a cancelled, interrupted, or failed run without redoing finished stages. |
+| `report [RUN] [--format html|md] [--open]` | Write the run report: summary, timeline, board, checks, cost, changes ([Run reports](#run-reports)). |
+| `ui [--host H] [--port P]` | Serve the web UI's API on localhost ([Web UI](#web-ui)). Needs `uv sync --extra ui`. |
 | `status [RUN]` | Where a run stands: stages, progress, cost, blocked cards. |
 | `runs` | List runs (of every project, or one with `--project-name`), newest last. |
 | `board [RUN] [--watch]` | The task board as a kanban; `--watch` keeps it live until the run ends. |
@@ -80,6 +82,30 @@ price), files changed, the controller's checks, the workspace, the report, and w
 
 The board is only filled in by the `pipeline` strategy; the default `hierarchical` strategy shows its
 stages and activity but an empty board.
+
+### Run reports
+
+Every run ends by writing `report.html` in its run directory (`.engineering-team/runs/<run-id>/`); the
+end-of-run summary prints its path (`run_report` in `--json`). Open it in any browser: it is one
+self-contained file (no network, light and dark), so you can attach it to a ticket or keep it with the run.
+
+```bash
+uv run engineering-team report                    # (re)write the latest run's report.html
+uv run engineering-team report 20261003 --open    # a run by id prefix, then open it
+uv run engineering-team report --format md        # report.md, for a PR or a chat
+```
+
+It starts with a status banner; when the run did not succeed, the banner lists why (the failing stage and
+its error, the failed required checks, the unmet budget, the questions for you). Below: warnings (budget,
+checks that could not run, criteria no check proves, a bug that was not reproduced), the stage timeline
+with parallel lanes, the final task board with each card's history, tool calls per teammate, screenshots
+from the browser tools, usage and cost against the budget, the checks with log excerpts, the
+criteria-coverage matrix (unproven criteria are flagged), review findings, a diff viewer with per-file
+stats (for `feature`, `fix`, and `maintain` runs), and the versions and settings the run used.
+
+The report is written by the controller from files in the run directory; text written by agents or taken
+from your repository is shown escaped and is never used to decide a status. `report` works on a run that is
+still going or that died, and rewrites the file each time.
 
 ### Steering a run
 
@@ -354,6 +380,47 @@ root that the tool did not create (`--project-name NAME --adopt`), in place and 
 refuses a Git repository (committing there would land on its current branch). The directory is marked
 *adopted* (`.engineering-team/owner.json`): `--reset` refuses to delete it without `--force-reset`.
 Safety details: [SAFETY.md](SAFETY.md#adopting-an-existing-project).
+
+## Web UI
+
+```bash
+uv sync --extra ui                     # FastAPI and uvicorn (`doctor` says if they are missing)
+uv run engineering-team ui             # http://127.0.0.1:8765/api/v1 ; interactive docs at /api/v1/docs
+```
+
+`ui` serves a JSON API over the runs of the workspace root (`--workspace-root`, `--config` as for every command): start
+a run (`POST /runs`: JSON, or `multipart/form-data` with a `spec` field and `request_files` / `context_files`), list and
+inspect runs, stream their events (Server-Sent Events, resumable with `Last-Event-ID`), cancel, resume, pause, steer a card
+or the run, answer the team's questions, read the board (now, or replayed at any event with `?at=SEQ`), teammates,
+cards with their tool-call trail, artifacts, project files, the diff, and the run report, plus `GET /config`, `/doctor`,
+`/team`, `/recipes`, and `/repo/inspect?path=`. The endpoint reference is in
+[ARCHITECTURE.md](ARCHITECTURE.md#web-ui-backend).
+
+```bash
+H='X-Engineering-Team: 1'              # required on every POST
+curl -s -H "$H" -X POST localhost:8765/api/v1/runs -H 'Content-Type: application/json' \
+  -d '{"mode": "new", "request": "Build a CLI that stores and lists notes.", "options": {"profile": "smoke"}}'
+curl -N localhost:8765/api/v1/runs/RUN_ID/events                       # live events
+curl -s -H "$H" -X POST localhost:8765/api/v1/runs/RUN_ID/cancel       # then .../resume
+```
+
+**Runs are separate processes** (`engineering-team ... --run-id`), so a run keeps going if you stop the server, and `status`,
+`board`, `note`, and `cancel` work on a run the UI started. At most `ui.max_concurrent_runs` (default 2) are kept going;
+the workspace lock lets one write to a project at a time. A start's options are the ones the CLI has (`strategy`,
+`profile`, `provider`, `sandbox`, `allow_web`, the isolation flags of `feature`/`fix`/`maintain`) plus `budget`,
+`max_parallel_agents`, and `disabled_teammates`; a request that the settings would refuse is a 422 before anything starts.
+When a run's team asks a question, `GET /runs/{id}/questions` lists it and `POST /runs/{id}/answer` replies (an empty reply
+lets the team assume; start with `"interactive": false` to never be asked).
+
+**Security.** The server listens on `127.0.0.1` and answers only requests addressed to `localhost`, `127.0.0.1` or
+`[::1]`; a request from another origin is refused, no CORS headers are sent, and POST calls need the header
+`X-Engineering-Team: 1`, so a web page you visit cannot drive it. To listen on another address you must pass
+`--host ADDRESS --allow-remote`; the server then requires `Authorization: Bearer <token>` (a new random token, printed
+at start; use TLS or an SSH tunnel, the server speaks plain HTTP). Anyone with the token can start runs that use your
+model credentials and read the files of any project you can name, so treat it like a password. Never served: `.env`,
+private keys and other credential-looking files, `.git`, and the controller's state directory; paths cannot leave the
+project (symlinks included), uploads are text files with a size cap, and request bodies are capped
+([CONFIGURATION.md](CONFIGURATION.md#web-ui-ui)).
 
 ## Exit codes
 

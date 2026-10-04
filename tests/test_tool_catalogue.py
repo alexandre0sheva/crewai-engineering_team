@@ -180,7 +180,9 @@ def test_no_tool_calls_subprocess_directly() -> None:
     """Execution goes through the backend, so the Docker sandbox covers every tool."""
 
     spawns = re.compile(r"^\s*(import subprocess|from subprocess import)", re.MULTILINE)
-    allowed = {"local.py", "docker.py"}  # the execution backends themselves
+    # The execution backends themselves, and the web UI's launcher, which starts a *run* as a CLI
+    # process (the controller, not a tool an agent can call).
+    allowed = {"local.py", "docker.py", "launcher.py"}
     offenders = [
         path.relative_to(ROOT).as_posix()
         for path in (ROOT / "src" / "engineering_team").rglob("*.py")

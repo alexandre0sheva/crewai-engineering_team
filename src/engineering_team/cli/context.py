@@ -23,6 +23,9 @@ class Globals:
     verbose: bool = False
     no_color: bool = False
     workspace_root: str | None = None
+    # Set by the web UI when it starts a run in a process of its own (hidden options).
+    run_id: str | None = None
+    answers_via_inbox: bool = False
 
     def console(self, *, stderr: bool = False) -> Console:
         """A Rich console. With ``--json`` stdout belongs to the JSON, so humans get stderr."""

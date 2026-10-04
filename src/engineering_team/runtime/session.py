@@ -274,6 +274,9 @@ class RunRecorder:
             manifest.status = outcome
 
         self.store.update(ctx.run_id, record)
+        from engineering_team.report import write_run_report  # reads what is now final
+
+        write_run_report(ctx.run_dir)
 
 
 def format_summary(summary: RunSummary) -> str:

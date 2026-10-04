@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import difflib
 import importlib.util
+import json
 import os
 import re
 import tomllib
@@ -292,6 +293,18 @@ class MaintainSettings(_Frozen):
     upgrade_group_size: int = Field(default=8, ge=1, le=50)
 
 
+class UiSettings(_Frozen):
+    """The local web UI (``engineering-team ui``): how many runs it starts and what it accepts."""
+
+    # Runs the UI keeps going at once; another start is refused (429) until one ends. Each run is
+    # a process of its own, and the workspace lock still lets only one write to a project.
+    max_concurrent_runs: int = Field(default=2, ge=1, le=16)
+    # The most bytes of uploaded request and reference files in one start request.
+    max_upload_bytes: int = Field(default=2_000_000, ge=10_000, le=50_000_000)
+    # The most bytes of any other request body (JSON).
+    max_request_bytes: int = Field(default=200_000, ge=1_000, le=5_000_000)
+
+
 TEAM_KEY = re.compile(r"[a-z][a-z0-9_]*")
 
 
@@ -359,6 +372,7 @@ class Settings(_Frozen):
     analysis: AnalysisSettings = AnalysisSettings()
     fix: FixSettings = FixSettings()
     maintain: MaintainSettings = MaintainSettings()
+    ui: UiSettings = UiSettings()
     team_profile: Literal["full", "minimal"] = "full"  # minimal: no review, DevOps, or docs stage
     team: dict[str, TeamOverride] = {}
     team_file: str | None = None  # default: ./.engineering-team/team.yaml when it exists
@@ -752,9 +766,23 @@ def _build_env_table() -> dict[str, tuple[str, Callable[[str], Any]]]:
 
 ENV_SETTINGS = _build_env_table()
 CONFIG_FILE_ENV = "ENGINEERING_CONFIG_FILE"
+# A JSON object of dotted setting keys (``{"budget.max_cost_usd": 2, "team.qa.enabled": false}``):
+# how the web UI hands per-run options to the process it starts. Applied after the other
+# environment variables and before command-line options; unknown keys are an error as anywhere.
+OVERRIDES_ENV = "ENGINEERING_OVERRIDES"
 
 
 # --- layered loading ------------------------------------------------------------------------
+
+
+def _parse_overrides(raw: str) -> dict[str, Any]:
+    try:
+        data = json.loads(raw)
+    except ValueError as exc:
+        raise SettingsError(f"{OVERRIDES_ENV} is not valid JSON: {exc}.") from None
+    if not isinstance(data, dict) or not all(isinstance(key, str) for key in data):
+        raise SettingsError(f"{OVERRIDES_ENV} must be a JSON object of dotted setting keys.")
+    return data
 
 
 def _nest(flat: Mapping[str, Any]) -> dict[str, Any]:
@@ -890,6 +918,13 @@ def user_config_path(env: Mapping[str, str], home: Path) -> Path:
 SECRET_ENV_NAME = re.compile(r"(KEY|TOKEN|SECRET|PASSWORD)", re.IGNORECASE)
 
 
+def child_environment(extra: Mapping[str, str] | None = None) -> dict[str, str]:
+    """The process environment plus ``extra``: what a run started by the web UI inherits (it needs
+    the same credentials and settings variables). Settings is the one place that reads it."""
+
+    return {**os.environ, **(extra or {})}
+
+
 def secret_values(env: Mapping[str, str] | None = None) -> frozenset[str]:
     """Values of environment variables whose names look like credentials (``*KEY*``,
     ``*TOKEN*``, ``*SECRET*``, ``*PASSWORD*``), for scrubbing them out of logs and events."""
@@ -941,6 +976,9 @@ def load_settings(
         except ValueError as exc:
             raise SettingsError(f"Invalid value for {name}: {exc} (got {raw.strip()!r}).") from None
         layers.append((f"env {name}", _nest({key: value})))
+
+    if raw_overrides := (environment.get(OVERRIDES_ENV) or "").strip():
+        layers.append((f"env {OVERRIDES_ENV}", _nest(_parse_overrides(raw_overrides))))
 
     if overrides:
         layers.append((override_source, _nest(overrides)))
