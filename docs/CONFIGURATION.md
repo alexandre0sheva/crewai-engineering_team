@@ -36,7 +36,7 @@ a profile.
 |---|---|---|---|
 | `provider` | `ENGINEERING_PROVIDER` | `openai` | Model preset: `openai`, `anthropic`, `google`, `ollama` (`azure` needs `enable_azure`) |
 | `profile` | `ENGINEERING_RUN_PROFILE` | `standard` | `standard`, `smoke` (cheap end-to-end check), `max-quality` |
-| `strategy` | `ENGINEERING_STRATEGY` | `hierarchical` | How the team is orchestrated: `hierarchical` (the 0.1.0 manager-led crew), `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)), or `single` (one agent with every tool, the benchmark baseline). `--strategy` overrides it. The default stays `hierarchical` until the benchmarks decide. |
+| `strategy` | `ENGINEERING_STRATEGY` | `pipeline` | How the team is orchestrated: `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)), `hierarchical` (the 0.1.0 manager-led crew), or `single` (one agent with every tool, the benchmark baseline). `--strategy` overrides it. Chosen with the [benchmarks](BENCHMARKS.md#results-2026-10-04); only `new` follows it, the repository modes always use `pipeline`. |
 | `team_profile` | `ENGINEERING_TEAM_PROFILE` | `full` | `full` runs every stage of the `new` recipe; `minimal` leaves out the optional ones (review, DevOps, docs), as `--profile smoke` does. See [Review](#review-review-and-team_profile) |
 | `project_name` | `ENGINEERING_PROJECT_NAME` | `mvp-app` | Workspace directory name |
 | `workspace_root` | `ENGINEERING_WORKSPACE_ROOT` | `workspace` | Parent of generated projects (relative → current directory) |
@@ -389,8 +389,10 @@ Tiers are `max`, `lead`, `reviewer`, `worker`, `cheap`. Profiles pick them:
 Presets are organised **by price**: a tier never costs less than the tier below it, and only models
 worth their price are included. Prices (USD per million input/output tokens) and IDs were checked
 against the providers' documentation on 2026-10-02; they change often, so treat the presets as
-starting points and override per tier or role. They are *defaults*, not measured recommendations
-(the benchmark work in 0.2.0 will tune them). `config show` prints the price of every resolved model.
+starting points and override per tier or role. They are *defaults*: only the OpenAI preset was
+exercised by the benchmarks ([results](BENCHMARKS.md#results-2026-10-04); its model IDs worked end to
+end on 2026-10-04), and the only change they led to is the architect's tier. The other providers are
+untested starting points. `config show` prints the price of every resolved model.
 
 | Model | Price (in / out) | Role in the ladder |
 |---|---|---|

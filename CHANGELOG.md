@@ -250,6 +250,15 @@ as each task lands.
 
 ### Changed
 
+- **The default strategy is now `pipeline`** (the staged, resumable team), no longer `hierarchical`. Measured on five dev tasks
+  (two runs each, OpenAI `gpt-6` models): `pipeline` passed 10/10 at an estimated $0.21 per success and `hierarchical` 0/3, all
+  three at the 30-minute limit; the one-agent `single` baseline passed 9/10 at $0.0054 (intervals overlap) and stays available
+  as `--strategy single`. Evidence, caveats and every failure: `docs/BENCHMARKS.md` and `benchmarks/results/2026-10-04/`. Set
+  `strategy = "hierarchical"` to get the 0.1.0 behaviour.
+- The solution architect plans on the `reviewer` tier (`gpt-6.1-sol` under the OpenAI preset) instead of `worker`: with the cheap
+  model 3 of 11 pipeline plans were rejected for breaking the ownership rules, with the reviewer tier 0 of 15.
+- The `markdown-html` benchmark request now states three behaviours its checks required but it never said (underscores inside a
+  word, the end of a code block, which characters are escaped).
 - Each pipeline teammate's tools now come from its roster entry (the product analyst is read-only; the browser tools go to the
   frontend, quality, and generalist teammates) instead of one shared list; the `hierarchical` strategy reads prompts, tiers, and
   iteration limits from the roster too.
@@ -304,6 +313,9 @@ as each task lands.
 
 ### Fixed
 
+- Every model call to a GPT-6 model failed with `Responses.create() got an unexpected keyword argument 'context_window_size'`:
+  CrewAI's native providers forward unknown constructor options to the API, so the context window is now set on the model object
+  instead. (Found by the first live benchmark run.)
 - Commands that time out now have their whole process tree killed (SIGTERM, then SIGKILL), so grandchildren
   no longer survive; command output is streamed to a capped log instead of being buffered without limit.
 

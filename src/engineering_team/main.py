@@ -255,8 +255,9 @@ def _run_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--strategy",
         choices=list(STRATEGY_NAMES),
-        help="How the team is orchestrated: hierarchical (default), pipeline (staged, "
-        "resumable), or single (one agent, the benchmark baseline).",
+        help="How the team is orchestrated: pipeline (staged, resumable; the default, see "
+        "docs/BENCHMARKS.md), hierarchical (the 0.1.0 manager-led crew), or single (one agent, "
+        "the benchmark baseline).",
     )
     parser.add_argument(
         "--allow-web",

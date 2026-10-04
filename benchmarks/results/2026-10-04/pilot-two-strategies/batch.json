@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "batch": "pilot-two-strategies",
+  "created": "2026-10-04T15:05:23+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openai",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "pipeline",
+    "hierarchical"
+  ],
+  "repeat": 1,
+  "parallel": 2,
+  "budget_usd": 2.0,
+  "run_budget_usd": 1.0,
+  "planned_runs": 2,
+  "not_applicable": [],
+  "tasks": {
+    "notes-cli": {
+      "subset": "dev",
+      "digest": "cc8d9ab205533f03"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.23",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "<repo>/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "notes-cli",
+    "--strategy",
+    "pipeline,hierarchical",
+    "--repeat",
+    "1",
+    "--provider",
+    "openai",
+    "--budget-usd",
+    "2.00",
+    "--run-budget-usd",
+    "1.00",
+    "--parallel",
+    "2",
+    "--batch",
+    "pilot-two-strategies"
+  ]
+}

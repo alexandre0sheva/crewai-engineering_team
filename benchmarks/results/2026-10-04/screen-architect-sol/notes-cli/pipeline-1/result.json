@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "batch": "screen-architect-sol",
+  "task": "notes-cli",
+  "strategy": "pipeline",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261004-163907-2bddb1",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 557.62,
+  "tokens": 1779220,
+  "prompt_tokens": 1749284,
+  "completion_tokens": 29936,
+  "model_calls": 116,
+  "tool_calls": 173,
+  "cost_usd": 0.19686383999999998,
+  "models": [
+    "gpt-6-luna",
+    "gpt-6.1-sol"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 10,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.26
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.34
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.37
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.34
+    },
+    {
+      "id": "storage-file",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    }
+  ],
+  "started": "2026-10-04T16:39:07+00:00",
+  "finished": "2026-10-04T16:48:26+00:00",
+  "run_dir": "notes-cli/pipeline-1",
+  "workspace": "notes-cli/pipeline-1/ws/app"
+}

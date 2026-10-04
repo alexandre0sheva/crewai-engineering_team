@@ -234,6 +234,7 @@ def test_workspace_safety_errors_are_usage_errors(capsys, tmp_path: Path) -> Non
     assert "was not created by engineering-team" in capsys.readouterr().err
 
 
+@pytest.mark.usefixtures("crew_strategy")
 def test_runtime_failure_exits_with_one_and_reports_the_cause(capsys, monkeypatch) -> None:
     class ExplodingTeam:
         def __init__(self, ctx=None) -> None:
@@ -273,6 +274,7 @@ def test_validation_errors_inside_the_crew_are_runtime_failures_not_usage_errors
     assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 1
 
 
+@pytest.mark.usefixtures("crew_strategy")
 def test_keyboard_interrupt_exits_with_130(capsys, monkeypatch) -> None:
     class InterruptedTeam:
         def __init__(self, ctx=None) -> None:
@@ -291,6 +293,7 @@ def test_keyboard_interrupt_exits_with_130(capsys, monkeypatch) -> None:
     assert "Interrupted" in capsys.readouterr().err
 
 
+@pytest.mark.usefixtures("crew_strategy")
 def test_successful_run_returns_zero_so_console_scripts_exit_cleanly(monkeypatch) -> None:
     """Regression: run() used to return the crew output, which ``sys.exit`` turns into 1."""
 
@@ -362,6 +365,7 @@ def test_prepare_only_works_without_credentials(monkeypatch) -> None:
     assert main.run(["--example", "tiny-notes", "--prepare-only"]) == 0
 
 
+@pytest.mark.usefixtures("crew_strategy")
 def test_cli_profile_and_environment_reach_the_crew_via_settings(monkeypatch) -> None:
     seen = []
 
@@ -448,6 +452,7 @@ def test_a_workspace_in_use_by_another_run_is_a_usage_error(capsys, monkeypatch)
     assert "Traceback" not in captured.err
 
 
+@pytest.mark.usefixtures("crew_strategy")
 def test_the_run_context_points_at_a_fresh_run_directory(monkeypatch) -> None:
     contexts = []
 

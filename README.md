@@ -5,8 +5,10 @@
 ![Python 3.11–3.13](https://img.shields.io/badge/python-3.11%E2%80%933.13-blue.svg)
 
 A reusable CrewAI project that turns a product request into a tested MVP in a
-persistent, normal project directory. A high-capability engineering lead
-orchestrates lower-cost architecture, backend, frontend, and quality specialists.
+persistent, normal project directory. By default a staged, resumable pipeline of specialists
+(`pipeline`) builds it; the 0.1.0 manager-led crew (`hierarchical`) and a one-agent baseline
+(`single`) are still available. [What was measured](docs/BENCHMARKS.md#results-2026-10-04) decided the
+default.
 
 The team is stack-agnostic. It can build web apps, APIs, CLIs, automations, data
 tools, mobile-oriented projects, or other small products when the required
@@ -17,8 +19,8 @@ stack and a conventional nested project structure.
 
 - Product requests can come from a Markdown file, CLI argument, or environment
   variable.
-- A custom `engineering_lead` manages a hierarchical CrewAI process and validates
-  every task.
+- The `hierarchical` strategy (`--strategy hierarchical`, the 0.1.0 behaviour) has a custom
+  `engineering_lead` manage a hierarchical CrewAI process and validate every task.
 - Model tiers are explicit and configurable: flagship lead, lower-cost workers.
 - Four stack-agnostic specialists cover architecture, backend, frontend, and
   quality.
@@ -94,7 +96,23 @@ watching them live (task board, teammates, activity, timeline, replay, steering)
 The team is measured, not assumed: a suite of greenfield and brownfield tasks judged by hidden
 behavioural checks, with pass rates, confidence intervals and cost per success
 (`engineering-team bench`; `bench run --fake` checks the harness offline). The method and threat
-model are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md); results are published there once measured.
+model are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+
+First measured results (OpenAI `gpt-6` models, five dev tasks, two runs each; every number is in
+[`benchmarks/results/2026-10-04/`](benchmarks/results/2026-10-04/)):
+
+| Strategy | Passed | Cost per success (estimated) | Median time |
+|----------|--------|------------------------------|-------------|
+| `pipeline` (default) | 10/10 | $0.21 | 10.4 min |
+| `single` (one agent, the baseline) | 9/10 | $0.0054 | 1.2 min |
+| `hierarchical` (0.1.0) | 0/3 (all hit the 30-minute limit) | – | 30.2 min |
+
+Ten runs per strategy cannot separate `pipeline` from `single` on pass rate (95 % intervals 72–100 %
+and 60–98 %), and `single` costs far less on tasks this small. `pipeline` is the default because it
+is the orchestrated strategy that finished the work (the 0.1.0 crew did not within 30 minutes) and
+because it adds staged review and a controller-run verification report that the benchmark does not
+score. Read the caveats in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#limits-of-this-evaluation) before
+quoting these.
 
 ## Generated project layout
 
@@ -122,6 +140,9 @@ repository (an initial commit, then one commit per finished stage; `--no-git` sk
 initialize a separate repository inside a finished MVP if you want to keep it.
 
 ## How orchestration works
+
+This section describes the `hierarchical` strategy (`--strategy hierarchical`). The default,
+`pipeline`, is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#pipeline-recipes-and-resume).
 
 CrewAI's hierarchical process gives the custom lead three responsibilities:
 

@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "batch": "screen-architect-sol",
+  "task": "markdown-html",
+  "strategy": "pipeline",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: inline-formatting, code-blocks (the team ended: Stage 'verify' failed: Not verified (partial): Required check 'tests' could not run (unavailable): Install .venv/bin/python and make sure it is on PATH.; Required check 'tests:2' could not run (unavai)",
+  "run_id": "20261004-162937-23c4ed",
+  "exit_code": 4,
+  "team_status": "failed",
+  "team_verdict": "partial",
+  "duration_seconds": 387.36,
+  "tokens": 1267170,
+  "prompt_tokens": 1247841,
+  "completion_tokens": 19329,
+  "model_calls": 79,
+  "tool_calls": 104,
+  "cost_usd": 0.09570094,
+  "models": [
+    "gpt-6-luna",
+    "gpt-6.1-sol"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 5,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "headings-and-paragraphs",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.17
+    },
+    {
+      "id": "inline-formatting",
+      "passed": false,
+      "required": true,
+      "detail": "FAILED: for 'snake_case_name stays' expected '<p>snake_case_name stays</p>', got '<p>snake<em>case</em>name stays</p>'",
+      "duration": 0.13
+    },
+    {
+      "id": "lists",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "code-blocks",
+      "passed": false,
+      "required": true,
+      "detail": "FAILED: for \"```\\nprint('a < b')\\n**x**\\n```\" expected \"<pre><code>print('a &lt; b')\\n**x**</code></pre>\", got \"<pre><code>print('a &lt; b')\\n**x**\\n</code></pre>\"",
+      "duration": 0.13
+    },
+    {
+      "id": "quotes-and-rules",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "escaping",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "cli",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.23
+    }
+  ],
+  "started": "2026-10-04T16:29:37+00:00",
+  "finished": "2026-10-04T16:36:05+00:00",
+  "run_dir": "markdown-html/pipeline-1",
+  "workspace": "markdown-html/pipeline-1/ws/app"
+}

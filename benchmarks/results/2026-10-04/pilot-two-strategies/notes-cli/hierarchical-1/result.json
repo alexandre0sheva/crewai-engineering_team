@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "batch": "pilot-two-strategies",
+  "task": "notes-cli",
+  "strategy": "hierarchical",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "timeout",
+  "reason": "exceeded the 1800s time limit",
+  "run_id": "20261004-150523-2a28e1",
+  "exit_code": -9,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 1810.13,
+  "tokens": 4131080,
+  "prompt_tokens": 3965254,
+  "completion_tokens": 165826,
+  "model_calls": 306,
+  "tool_calls": 390,
+  "cost_usd": 0.8783359700000001,
+  "models": [
+    "gpt-6-luna",
+    "gpt-6.1-sol"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 87,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.24
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.32
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    },
+    {
+      "id": "storage-file",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    }
+  ],
+  "started": "2026-10-04T15:05:23+00:00",
+  "finished": "2026-10-04T15:35:34+00:00",
+  "run_dir": "notes-cli/hierarchical-1",
+  "workspace": "notes-cli/hierarchical-1/ws/app"
+}

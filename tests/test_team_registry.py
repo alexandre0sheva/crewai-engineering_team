@@ -79,6 +79,14 @@ def test_the_built_in_teammates_are_valid_and_come_from_agents_yaml() -> None:
     assert roster.get("engineering_lead").allow_delegation is True
 
 
+def test_the_architect_plans_on_the_reviewer_tier() -> None:
+    """Measured in docs/BENCHMARKS.md: a worker-tier architect broke the plan rules too often."""
+
+    roster = builtin_roster()
+    assert roster.get("solution_architect").tier == "reviewer"
+    assert roster.get("backend_engineer").tier == "worker"  # volume work stays on the cheap model
+
+
 def test_default_tool_groups_follow_the_roles() -> None:
     roster = builtin_roster()
     writers = {"fs_write", "command"}

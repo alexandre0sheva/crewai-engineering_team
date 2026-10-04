@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "batch": "local-lmstudio-llama32-3b-single",
+  "task": "notes-cli",
+  "strategy": "single",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "timeout",
+  "reason": "exceeded the 1800s time limit",
+  "run_id": "20261004-173556-c13b53",
+  "exit_code": -9,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 1810.42,
+  "tokens": 27840,
+  "prompt_tokens": 27729,
+  "completion_tokens": 111,
+  "model_calls": 2,
+  "tool_calls": 2,
+  "cost_usd": null,
+  "models": [
+    "llama-3.2-3b-instruct"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 2,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": false,
+      "required": true,
+      "detail": "FAILED: add: '' <repo>/.venv/bin/python3: No module named notes",
+      "duration": 0.73
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": false,
+      "required": true,
+      "detail": "FAILED: delete must print 'Deleted note 2'",
+      "duration": 0.32
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": false,
+      "required": true,
+      "detail": "FAILED: list --tag home is wrong",
+      "duration": 0.27
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": false,
+      "required": true,
+      "detail": "FAILED: stderr was '<repo>/.venv/bin/python3: No module named notes\\n'",
+      "duration": 0.12
+    },
+    {
+      "id": "storage-file",
+      "passed": false,
+      "required": true,
+      "detail": "FAILED: NOTES_FILE was not written",
+      "duration": 0.11
+    }
+  ],
+  "started": "2026-10-04T17:35:56+00:00",
+  "finished": "2026-10-04T18:06:08+00:00",
+  "run_dir": "notes-cli/single-1",
+  "workspace": "notes-cli/single-1/ws/app"
+}

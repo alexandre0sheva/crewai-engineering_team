@@ -8,11 +8,11 @@ recorder, so every one leaves a manifest, an event log, and usage:
 
 | Strategy | What it is | Resumable |
 |----------|-----------|-----------|
-| `hierarchical` (default) | The 0.1.0 crew: a manager delegating to four specialists over six fixed tasks (`config/tasks.yaml`); described next | no |
-| `pipeline` | A recipe's stages as a CrewAI Flow with typed hand-offs, a task board, resume, and cancellation ([below](#pipeline-recipes-and-resume)) | yes |
+| `hierarchical` | The 0.1.0 crew: a manager delegating to four specialists over six fixed tasks (`config/tasks.yaml`); described next | no |
+| `pipeline` (default) | A recipe's stages as a CrewAI Flow with typed hand-offs, a task board, resume, and cancellation ([below](#pipeline-recipes-and-resume)) | yes |
 | `single` | One agent (`generalist_engineer`) with every tool and one task: the baseline for the benchmarks. It runs through the pipeline machinery as a one-stage recipe, so it has a board card, a stage record, resume, and cancellation too | yes |
 
-The default stays `hierarchical` until the benchmark task has measured `pipeline`.
+The default is `pipeline`; the evidence and its limits are in [BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04). `hierarchical` was the 0.1.0 default and hit the time limit on all three measured runs.
 
 ## Why hierarchical
 

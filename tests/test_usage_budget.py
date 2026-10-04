@@ -558,6 +558,7 @@ class _SpendingTeam:
         return _Crew()
 
 
+@pytest.mark.usefixtures("crew_strategy")
 def test_a_fake_run_prints_exact_token_counts_and_a_cost(capsys, monkeypatch) -> None:
     monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _SpendingTeam)
 
@@ -571,6 +572,7 @@ def test_a_fake_run_prints_exact_token_counts_and_a_cost(capsys, monkeypatch) ->
     assert "Estimated cost: $0.0003" in out  # 1200 x $0.10/M + 300 x $0.50/M
 
 
+@pytest.mark.usefixtures("crew_strategy")
 def test_a_fake_run_with_an_unpriced_model_prints_unknown_never_zero(capsys, monkeypatch) -> None:
     class Unpriced(_SpendingTeam):
         model = "someone/new-model"
@@ -584,6 +586,7 @@ def test_a_fake_run_with_an_unpriced_model_prints_unknown_never_zero(capsys, mon
     assert "$0" not in out
 
 
+@pytest.mark.usefixtures("crew_strategy")
 def test_the_cli_leaves_usage_and_summary_in_the_run_directory(monkeypatch) -> None:
     monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _SpendingTeam)
     assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 0
@@ -599,6 +602,7 @@ def test_the_cli_leaves_usage_and_summary_in_the_run_directory(monkeypatch) -> N
     )
 
 
+@pytest.mark.usefixtures("crew_strategy")
 def test_a_budget_stop_in_the_cli_is_a_clean_failure(capsys, monkeypatch) -> None:
     monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _SpendingTeam)
     monkeypatch.setenv("ENGINEERING_BUDGET_MAX_TOKENS", "1000")

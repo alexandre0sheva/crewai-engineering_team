@@ -15,7 +15,7 @@ engineering-team team show product_analyst
 |---|---|---|---|
 | `engineering_lead` | Manages the `hierarchical` strategy's crew: delegates and validates. Never used by `pipeline` or `single`. | `lead` | none (CrewAI gives it delegation tools) |
 | `product_analyst` | Turns the request into the specification (`spec` stage). Read-only: the controller writes `docs/spec.md`. | `worker` | `fs_read`, `search`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
-| `solution_architect` | Designs the solution and splits the work (`plan` stage); writes `docs/architecture.md`. | `worker` | read tools as above, plus `fs_write` |
+| `solution_architect` | Designs the solution and splits the work (`plan` stage); writes `docs/architecture.md`. | `reviewer` (measured: the cheap `worker` model broke the plan rules in 3 of 11 pipeline runs, see [BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) | read tools as above, plus `fs_write` |
 | `backend_engineer` | Foundation, backend work packages, integration. | `worker` | `fs_read`, `fs_write`, `search`, `command`, `dev`, `runtime`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
 | `frontend_engineer` | Frontend work packages. | `worker` | as `backend_engineer`, plus `browser` |
 | `quality_engineer` | Writes tests and the release report (`release` stage). | `worker` | as `frontend_engineer` (it needs `browser` to look at the UI) |

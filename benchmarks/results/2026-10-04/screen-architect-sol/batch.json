@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "batch": "screen-architect-sol",
+  "created": "2026-10-04T16:29:37+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openai",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": "6b6928f338d4be65",
+  "strategies": [
+    "pipeline"
+  ],
+  "repeat": 2,
+  "parallel": 3,
+  "budget_usd": 2.7,
+  "run_budget_usd": 0.6,
+  "planned_runs": 10,
+  "not_applicable": [],
+  "tasks": {
+    "csv-validator": {
+      "subset": "dev",
+      "digest": "b659ba247b925f9d"
+    },
+    "markdown-html": {
+      "subset": "dev",
+      "digest": "d0d5713ab830fa86"
+    },
+    "notes-cli": {
+      "subset": "dev",
+      "digest": "cc8d9ab205533f03"
+    },
+    "todo-web": {
+      "subset": "dev",
+      "digest": "fda54f845f389757"
+    },
+    "url-shortener": {
+      "subset": "dev",
+      "digest": "2d7dcfc573919c5e"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.23",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "<repo>/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "notes-cli,csv-validator,url-shortener,markdown-html,todo-web",
+    "--strategy",
+    "pipeline",
+    "--repeat",
+    "2",
+    "--provider",
+    "openai",
+    "--config",
+    "benchmarks/configs/architect-reviewer.toml",
+    "--budget-usd",
+    "2.70",
+    "--run-budget-usd",
+    "0.60",
+    "--parallel",
+    "3",
+    "--batch",
+    "screen-architect-sol",
+    "--allow-failures"
+  ]
+}

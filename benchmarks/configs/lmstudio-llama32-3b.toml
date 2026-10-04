@@ -1,0 +1,23 @@
+# Smoke test of a small local model through LM Studio's OpenAI-compatible server (not a
+# recommendation). CrewAI has no LM Studio provider; hosted_vllm is OpenAI-compatible. Run with
+# VLLM_BASE_URL=http://localhost:1234/v1 in the environment.
+provider = "openai"
+
+[models.tiers.max]
+model = "hosted_vllm/llama-3.2-3b-instruct"
+
+[models.tiers.lead]
+model = "hosted_vllm/llama-3.2-3b-instruct"
+
+[models.tiers.reviewer]
+model = "hosted_vllm/llama-3.2-3b-instruct"
+
+[models.tiers.worker]
+model = "hosted_vllm/llama-3.2-3b-instruct"
+
+[models.tiers.cheap]
+model = "hosted_vllm/llama-3.2-3b-instruct"
+
+[pricing."hosted_vllm/llama-3.2-3b-instruct"]
+input = 0
+output = 0

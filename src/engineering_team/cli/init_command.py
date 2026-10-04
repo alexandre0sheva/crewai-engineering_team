@@ -73,7 +73,7 @@ def init(
 
     chosen_provider = pick(provider, "Model provider", list(PROVIDERS), "openai")
     chosen_profile = pick(profile, "Profile (quality vs cost)", list(PROFILE_NAMES), "standard")
-    chosen_strategy = pick(strategy, "Strategy", list(STRATEGY_NAMES), "hierarchical")
+    chosen_strategy = pick(strategy, "Strategy", list(STRATEGY_NAMES), "pipeline")
     chosen_sandbox = pick(sandbox, "Where commands run", ["local", "docker"], "local")
     name = project_name or (
         str(typer.prompt("Project name", default="mvp-app")) if ask else "mvp-app"

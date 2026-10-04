@@ -331,6 +331,7 @@ def _only_run(root: Path) -> tuple[RunManifest, Path]:
     return runs[0], root / "workspace" / "demo" / ".engineering-team" / "runs" / runs[0].run_id
 
 
+@pytest.mark.usefixtures("crew_strategy")
 def test_a_cli_run_leaves_a_manifest_and_event_log(monkeypatch) -> None:
     monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _FakeTeam)
 
@@ -345,6 +346,7 @@ def test_a_cli_run_leaves_a_manifest_and_event_log(monkeypatch) -> None:
     assert not (legacy / "request.md").exists() and not (legacy / "run.json").exists()
 
 
+@pytest.mark.usefixtures("crew_strategy")
 def test_a_failing_cli_run_is_recorded_as_failed(monkeypatch) -> None:
     class Exploding:
         def __init__(self, ctx: RunContext) -> None:
@@ -369,6 +371,7 @@ def test_prepare_only_is_recorded_as_a_prepare_run(monkeypatch) -> None:
     assert manifest.mode == "prepare" and manifest.status == "succeeded"
 
 
+@pytest.mark.usefixtures("crew_strategy")
 def test_every_run_of_a_workspace_is_listed_in_order(monkeypatch) -> None:
     monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _FakeTeam)
 

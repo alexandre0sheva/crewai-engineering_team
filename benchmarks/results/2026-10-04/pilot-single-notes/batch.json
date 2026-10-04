@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "batch": "pilot-single-notes",
+  "created": "2026-10-04T15:04:13+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openai",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "single"
+  ],
+  "repeat": 1,
+  "parallel": 1,
+  "budget_usd": 0.5,
+  "run_budget_usd": 0.5,
+  "planned_runs": 1,
+  "not_applicable": [],
+  "tasks": {
+    "notes-cli": {
+      "subset": "dev",
+      "digest": "cc8d9ab205533f03"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.23",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "<repo>/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "notes-cli",
+    "--strategy",
+    "single",
+    "--repeat",
+    "1",
+    "--provider",
+    "openai",
+    "--budget-usd",
+    "0.50",
+    "--batch",
+    "pilot-single-notes"
+  ]
+}

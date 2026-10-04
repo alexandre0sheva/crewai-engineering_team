@@ -1,0 +1,5 @@
+batch,task,strategy,repeat,kind,mode,subset,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,completion_tokens,model_calls,tool_calls,cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+heldout-cron,cron-scheduler,pipeline,1,greenfield,new,heldout,openai,,False,passed,,,4,failed,partial,337.73,1005540,987896,17644,65,84,0.091529,0,6,0,20261004-165929-8480fe,cron-scheduler/pipeline-1
+heldout-cron,cron-scheduler,pipeline,2,greenfield,new,heldout,openai,,False,passed,,,4,failed,partial,997.75,1326562,1307123,19439,85,96,0.100792,0,11,0,20261004-170923-df76db,cron-scheduler/pipeline-2
+heldout-cron,cron-scheduler,single,1,greenfield,new,heldout,openai,,False,passed,,,0,succeeded,,84.59,221292,215198,6094,19,23,0.005844,0,1,0,20261004-165929-0acaa4,cron-scheduler/single-1
+heldout-cron,cron-scheduler,single,2,greenfield,new,heldout,openai,,False,passed,,,0,succeeded,,50.62,109075,106147,2928,11,12,0.003572,0,1,0,20261004-165929-b65dd0,cron-scheduler/single-2

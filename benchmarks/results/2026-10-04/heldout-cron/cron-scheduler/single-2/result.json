@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "batch": "heldout-cron",
+  "task": "cron-scheduler",
+  "strategy": "single",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "heldout",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261004-165929-b65dd0",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": null,
+  "duration_seconds": 50.62,
+  "tokens": 109075,
+  "prompt_tokens": 106147,
+  "completion_tokens": 2928,
+  "model_calls": 11,
+  "tool_calls": 12,
+  "cost_usd": 0.0035717200000000005,
+  "models": [
+    "gpt-6-luna"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 1,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "simple-schedules",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "ranges-steps-lists",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "calendar-rollover",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "dom-dow-rule",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "validation",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "cli",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.21
+    }
+  ],
+  "started": "2026-10-04T16:59:29+00:00",
+  "finished": "2026-10-04T17:00:20+00:00",
+  "run_dir": "cron-scheduler/single-2",
+  "workspace": "cron-scheduler/single-2/ws/app"
+}

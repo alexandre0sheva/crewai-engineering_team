@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "batch": "brownfield-pipeline",
+  "task": "legacy-feature",
+  "strategy": "pipeline",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "feature",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261004-170511-ed93ca",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 238.28,
+  "tokens": 797391,
+  "prompt_tokens": 778668,
+  "completion_tokens": 18723,
+  "model_calls": 73,
+  "tool_calls": 91,
+  "cost_usd": 0.10015585,
+  "models": [
+    "gpt-6-luna",
+    "gpt-6.1-sol"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 8,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "low-stock-report",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "low-stock-validation",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "existing-behaviour",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "existing-tests-pass",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    },
+    {
+      "id": "tests-added",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    }
+  ],
+  "started": "2026-10-04T17:05:11+00:00",
+  "finished": "2026-10-04T17:09:10+00:00",
+  "run_dir": "legacy-feature/pipeline-1",
+  "workspace": "legacy-feature/pipeline-1/repo"
+}

@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "batch": "screen-hierarchical",
+  "task": "todo-web",
+  "strategy": "hierarchical",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "timeout",
+  "reason": "exceeded the 1800s time limit",
+  "run_id": "20261004-154605-ae087c",
+  "exit_code": -9,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 1810.28,
+  "tokens": 3452974,
+  "prompt_tokens": 3319029,
+  "completion_tokens": 133945,
+  "model_calls": 260,
+  "tool_calls": 316,
+  "cost_usd": 0.60663999,
+  "models": [
+    "gpt-6-luna",
+    "gpt-6.1-sol"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 53,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "page-renders",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.19
+    },
+    {
+      "id": "add-via-form",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.19
+    },
+    {
+      "id": "toggle-and-delete",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    },
+    {
+      "id": "json-api",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    },
+    {
+      "id": "escaping",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    }
+  ],
+  "started": "2026-10-04T15:46:05+00:00",
+  "finished": "2026-10-04T16:16:16+00:00",
+  "run_dir": "todo-web/hierarchical-1",
+  "workspace": "todo-web/hierarchical-1/ws/app"
+}

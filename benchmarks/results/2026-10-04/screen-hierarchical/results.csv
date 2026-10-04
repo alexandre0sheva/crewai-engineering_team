@@ -1,0 +1,3 @@
+batch,task,strategy,repeat,kind,mode,subset,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,completion_tokens,model_calls,tool_calls,cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+screen-hierarchical,csv-validator,hierarchical,1,greenfield,new,dev,openai,,False,timeout,exceeded the 1800s time limit,,-9,,,1810.48,2827170,2699196,127974,224,333,0.578215,0,39,0,20261004-154605-864c3e,csv-validator/hierarchical-1
+screen-hierarchical,todo-web,hierarchical,1,greenfield,new,dev,openai,,False,timeout,exceeded the 1800s time limit,,-9,,,1810.28,3452974,3319029,133945,260,316,0.606640,0,53,0,20261004-154605-ae087c,todo-web/hierarchical-1

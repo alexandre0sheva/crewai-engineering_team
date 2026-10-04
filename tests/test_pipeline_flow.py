@@ -580,7 +580,7 @@ def test_a_busy_workspace_refuses_a_resume(
 # -- strategy selection --------------------------------------------------------------------------
 
 
-def test_the_strategy_comes_from_the_flag_the_environment_or_defaults_to_hierarchical(
+def test_the_strategy_comes_from_the_flag_the_environment_or_defaults_to_pipeline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class Team:
@@ -591,19 +591,20 @@ def test_the_strategy_comes_from_the_flag_the_environment_or_defaults_to_hierarc
             return type("Crew", (), {"kickoff": staticmethod(lambda inputs: None)})()
 
     monkeypatch.setattr(strategies, "EngineeringTeam", Team)
+    use_runner(monkeypatch, FakeRunner())
     base = ["--request", REQUEST, "--workspace-root", str(Path.cwd() / ROOT)]
+    checks = ["--checks", str(write_checks())]
 
-    assert main.run([*base, "--project-name", "default"]) == 0
-    assert RunStore(project("default")).latest().strategy == "hierarchical"  # type: ignore[union-attr]
+    # The default was chosen by the benchmarks (docs/BENCHMARKS.md): the staged pipeline.
+    assert main.run([*base, "--project-name", "default", *checks]) == 0
+    assert RunStore(project("default")).latest().strategy == "pipeline"  # type: ignore[union-attr]
 
     monkeypatch.setenv("ENGINEERING_STRATEGY", "single")
-    use_runner(monkeypatch, FakeRunner())
     assert main.run([*base, "--project-name", "from-env"]) == 0
     assert RunStore(project("from-env")).latest().strategy == "single"  # type: ignore[union-attr]
 
-    checks = ["--checks", str(write_checks())]
-    assert main.run([*base, "--project-name", "flag", "--strategy", "pipeline", *checks]) == 0
-    assert RunStore(project("flag")).latest().strategy == "pipeline"  # type: ignore[union-attr]
+    assert main.run([*base, "--project-name", "flag", "--strategy", "hierarchical"]) == 0
+    assert RunStore(project("flag")).latest().strategy == "hierarchical"  # type: ignore[union-attr]
 
 
 def test_an_unknown_strategy_is_rejected(capsys: pytest.CaptureFixture[str]) -> None:

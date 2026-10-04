@@ -15,14 +15,17 @@ Output is compared after removing whitespace between tags, so how you lay it out
 - Headings: `#` to `######` followed by a space become `<h1>` to `<h6>`.
 - Paragraphs: consecutive non-blank lines form a `<p>`; the lines are joined with a single space.
 - Inline: `**bold**` is `<strong>`, `*italic*` and `_italic_` are `<em>`, `` `code` `` is `<code>`, and
-  `[text](url)` is `<a href="url">text</a>`. Nothing inside inline code is formatted.
+  `[text](url)` is `<a href="url">text</a>`. Nothing inside inline code is formatted. An underscore
+  between two letters or digits is plain text: `snake_case_name` stays as it is.
 - Unordered lists (lines starting with `- ` or `* `) become `<ul>` with one `<li>` per item;
   ordered lists (`1. `, `2. `, ...) become `<ol>`. Inline formatting works inside items.
 - Fenced code blocks (a line of three backticks, up to the next such line) become
-  `<pre><code>...</code></pre>` with the content exactly as written (escaped, nothing formatted).
+  `<pre><code>...</code></pre>` with the content exactly as written (escaped, nothing formatted):
+  the lines between the fences joined with `\n`, with no newline after the last one.
 - Block quotes: consecutive lines starting with `>` become `<blockquote>` around the converted
   content of those lines (with the `>` and one following space removed).
 - A line consisting only of `---` is `<hr>`.
 - `&`, `<` and `>` in the text, including inside code, are escaped as `&amp;`, `&lt;` and `&gt;`.
+  Nothing else is escaped, quotes included.
 
 Blank input gives an empty string. Add tests and a short README.

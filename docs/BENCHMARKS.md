@@ -2,9 +2,8 @@
 
 How the team is measured: a suite of tasks, each judged by **hidden behavioural checks** the team
 never sees, run as isolated subprocesses, summarised with confidence intervals and an honest cost
-per success. This file is the **method**. Measured results (and the decisions they led to) are
-added by task 34; until then the repository publishes no numbers, and the offline mode below says
-nothing about quality.
+per success. This file holds the **method** and the **measured results** ([below](#results-2026-10-04));
+the offline mode says nothing about quality.
 
 ```bash
 uv run engineering-team bench list                      # the tasks
@@ -154,6 +153,125 @@ and writes `report.md` and `results.csv` (one row per run) into the batch.
   with median time, repairs per run, tool failures and setup failures.
 - **Every failure is listed** with the criteria it missed and why. Nothing is averaged away.
 
+## Results (2026-10-04)
+
+One evaluation, on one developer laptop (macOS, Apple silicon), `engineering_team` 0.2.0, `crewai`
+1.15.23, Python 3.12.12, `--sandbox local`, OpenAI models. The files behind every number are
+committed in [`benchmarks/results/2026-10-04/`](../benchmarks/results/2026-10-04/): per batch a
+`report.md`, `results.csv`, `batch.json` (options, versions, command, task digests) and one
+`result.json` per run. **Costs are estimates from the price table (`pricing.toml`, checked
+2026-10-02), not invoices;** the whole evaluation was estimated at $6.13 over 53 run records.
+
+Which models ran: `single` used only `openai/gpt-6-luna` (the cheap worker tier); `pipeline` and
+`hierarchical` used `openai/gpt-6.1-sol` for lead and reviewer work and `gpt-6-luna` for the rest
+(tiers in [CONFIGURATION.md](CONFIGURATION.md#provider-presets)). So **`single` against `pipeline`
+compares a cheap model working alone with a team that also has the stronger model, not only the
+structure.** Anthropic and Google presets were not measured (no key was available for them).
+
+### Strategies on the dev tasks
+
+Five greenfield dev tasks, two repeats each (`notes-cli`, `csv-validator`, `url-shortener`,
+`todo-web`, `markdown-html`). `markdown-html` counts at its amended request (see
+[Failures](#every-failure-and-its-cause)); its first version was defective.
+
+| Strategy | Passed | Pass rate (Wilson 95 %) | Mean cost / run | Cost / success | Median time | Batches |
+|----------|--------|-------------------------|-----------------|----------------|-------------|---------|
+| `single` | 9/10 | 60 %–98 % | $0.0048 | $0.0054 | 1.2 min | `screen-default`, `markdown-html-v2` |
+| `pipeline`, architect on the `worker` tier (the preset before this task) | 7/8 (four tasks) | 53 %–98 % | $0.119 | $0.136 | 10.6 min | `screen-default` |
+| `pipeline`, architect on the `reviewer` tier (the new default) | 10/10 | 72 %–100 % | $0.209 | $0.209 | 10.4 min | `screen-architect-sol`, `screen-architect-sol-url`, `markdown-html-v2` |
+| `hierarchical` (the 0.1.0 crew) | 0/3 | 0 %–56 % | $0.69 | – (no success) | 30.2 min | `pilot-two-strategies`, `screen-hierarchical` |
+
+What the table supports, and what it does not:
+
+- **`hierarchical` is the only strategy the data separates from the others:** all three runs hit the
+  30-minute limit (224 to 306 model calls and 316 to 390 tool calls, $0.58 to $0.88 each) without a finished project. That
+  is a timeout, not a wrong answer: with no limit it might finish, at a higher cost.
+- **`single` and `pipeline` are not distinguished on pass rate:** their intervals overlap almost
+  entirely. On this suite the team structure bought no measurable correctness.
+- **`pipeline` costs 25 to 39 times more per success and takes about nine times longer.** That is the
+  measured price of staging, review, and verification on tasks this small.
+- With the first request version of `markdown-html` the same batches read 7/10 (`single`), 7/10
+  (`pipeline`, worker architect) and 8/10 (`pipeline`, reviewer architect): same ordering, wider
+  spread, and the `markdown-html` failures are the task's, not the strategies'.
+
+### Held-out and repository tasks
+
+Too small to compare anything; they are here so the held-out tasks are not hidden. The architect
+setting was chosen before these ran, but on the dev tasks only.
+
+| Task | Strategy | Passed | Cost / run | Batch |
+|------|----------|--------|------------|-------|
+| `cron-scheduler` (held out) | `single` | 2/2 | $0.0047 | `heldout-cron` |
+| `cron-scheduler` (held out) | `pipeline` | 2/2 | $0.096 | `heldout-cron` |
+| `behaviour-refactor` (held out) | `pipeline` | 1/1 | $0.024 | `brownfield-pipeline` |
+| `legacy-feature`, `seeded-bug`, `add-tests` (dev) | `pipeline` | 3/3 | $0.056 | `brownfield-pipeline` |
+
+### Local models (smoke tests only)
+
+One `notes-cli` run each with the `single` strategy, on a laptop that was busy with other
+applications. These show that the plumbing works, not what the models can do.
+
+| Model | Served by | Result | What happened |
+|-------|-----------|--------|---------------|
+| `llama3.2` (3B) | Ollama | failed, 41 s | One answer in plain text, no tool call, no files written |
+| `gemma3:270m` | Ollama | failed, 27 s | Same |
+| `llama-3.2-3b-instruct` | LM Studio (16K context) | timeout, 30 min | Two tool calls, both failed, then no progress (a full test suite was running at the same time, so this is inconclusive) |
+| `deepseek-r1-distill-llama-8b-mlx` | LM Studio | not run end to end | A one-line prompt worked (270 of 275 tokens were reasoning); the model has no tool calling, so it cannot drive the team |
+
+The configs are in [`benchmarks/configs/`](../benchmarks/configs/). LM Studio has no CrewAI provider of
+its own; `hosted_vllm/<model>` with `VLLM_BASE_URL=http://localhost:1234/v1` reaches its
+OpenAI-compatible server. The Ollama and LM Studio runs report an unknown cost although a zero price override was
+configured; why was not investigated.
+
+### Every failure and its cause
+
+| Batch / run | Outcome | Cause |
+|-------------|---------|-------|
+| first pilot, `single` on `notes-cli` (not kept; $0) | failed in 6 s | **A bug, fixed in this task:** the OpenAI client rejected the `context_window_size` option the preset passed for GPT-6 models, so no model call ever worked. Regression test in `tests/test_crew.py` |
+| `pilot-two-strategies`, `pipeline` `notes-cli` | failed, 80 s | The architect (worker tier) gave a work package `README.md`, which belongs to foundation and integrate; the plan was rejected twice |
+| `screen-default`, `pipeline` `markdown-html` 1 and `url-shortener` 2 | failed, about 90 s each | Same plan rejection |
+| `pilot-two-strategies` `hierarchical` `notes-cli`; `screen-hierarchical` `todo-web`, `csv-validator` | timeout, 30.2 min | Ran until the limit without finishing: 224 to 306 model calls and 39 to 87 failed tool calls per run |
+| `screen-default`, `single` `csv-validator` 2 | failed | A real defect in the generated program: the check that a value equal to both bounds must pass failed (criterion `constraints`; the program reported "expected 1 fields, got 7") |
+| `screen-default` (`single` 1 and 2, `pipeline` 2) and `screen-architect-sol` (1 and 2), `markdown-html` | failed | **A defect in the task, not the team.** All five failed the check that `snake_case_name` stays plain and four also failed the code-block check (no newline after the last line, quotes not escaped). The request stated none of it. It now states all three; the rerun in `markdown-html-v2` passed 4/4 |
+| `screen-architect-sol`, `markdown-html` 1 and 2 | verification "partial" | The generated project's `.venv` had no `python` binary, so the controller's own test check could not run; cause not found |
+| `screen-architect-sol`, `url-shortener` 1 and 2 | skipped | The batch budget could not reserve their per-run caps; rerun in `screen-architect-sol-url` (2/2). Likewise one `heldout-cron` run, resumed |
+| local models | see above | |
+
+### Decisions
+
+| Setting | Before | Now | Evidence |
+|---------|--------|-----|----------|
+| `strategy` (for `new`) | `hierarchical` | **`pipeline`** | A product decision, not a cost result: the project's default must be an orchestrated strategy, and `pipeline` is the only one that finished the work (10/10, against 0/3 for `hierarchical`). It did **not** win on quality per cost: `single` passed 9/10 (overlapping intervals) at $0.0054 a success against $0.21, and stays available as `--strategy single` for a quick, cheap run. The repository modes (`feature`, `fix`, `maintain`) always use `pipeline` |
+| `solution_architect` tier | `worker` | **`reviewer`** | Plan rejected in 3 of 11 pipeline runs with the worker tier, 0 of 15 with the reviewer tier (one-sided Fisher exact p = 0.06: suggestive, not conclusive). Costs about $0.09 more per run |
+| `budget.max_repair_rounds` | 3 | 3 (kept) | No run used more than one repair round, so the cap was never the limit; nothing to tune |
+| `parallel.max_parallel_agents` | 3 | 3 (kept) | **Not measured.** There was no budget to compare it |
+| Tier models | | unchanged | Nothing was measured against other models |
+| Default sandbox | `local` | `local` (kept) | **Not measured:** every run was local. Docker stays recommended in [SAFETY.md](SAFETY.md) |
+
+The architect change was picked after seeing the default's plan failures, on the same dev tasks it
+was then scored on, so its 10/10 is not independent evidence; the held-out tasks (three runs) did not
+contradict it.
+
+### Limits of this evaluation
+
+- Ten dev runs per strategy and three held-out tasks: the intervals above are wide, and one more
+  failure moves a rate by ten points.
+- `single` and `pipeline` differ in models as well as structure (see the top of this section); a
+  `single` run on `gpt-6.1-sol` was not measured.
+- Tasks are small Python programs judged on behaviour only. Documentation, code quality, review
+  findings, and the verification report, which the `pipeline` produces and `single` mostly does not,
+  are not scored, so this says nothing for or against them.
+- Models are non-deterministic; one machine, one day, one provider.
+
+### Reproduce
+
+```bash
+uv run engineering-team bench run --tasks notes-cli,csv-validator,url-shortener,markdown-html,todo-web \
+  --strategy single,pipeline --repeat 2 --provider openai \
+  --config benchmarks/configs/architect-reviewer.toml --budget-usd 3 --run-budget-usd 0.6 --parallel 3
+uv run engineering-team bench report benchmarks/results/2026-10-04/screen-default   # an existing batch
+```
+
 ## Offline mode (`--fake`)
 
 `bench run --fake` replaces the team with a scripted one: a real CrewAI `Agent` on a `ScriptedLLM`
@@ -220,4 +338,4 @@ runs and every acceptance check get a scrubbed environment with no keys.
 |------|------|
 | `src/engineering_team/bench/` | the harness (in the wheel): `tasks` (schema, loading), `plan` and `prepare` (what runs and how), `execution` (one run), `batch` (parallel, budget, resume), `acceptance` and `checklib` (the hidden checks' runner and helpers), `metrics` and `results` (what a run records), `report` and `stats`, `estimate` (`--dry-run`), `fake_team` (offline mode) |
 | `src/engineering_team/cli/bench_command.py` | `bench list`, `bench run`, `bench report` |
-| `benchmarks/` | the suite (repository only) and `benchmarks/.runs/` (results, git-ignored) |
+| `benchmarks/` | the suite (repository only), `benchmarks/configs/` (settings files for the measured variants), `benchmarks/results/` (committed results), and `benchmarks/.runs/` (working results, git-ignored) |

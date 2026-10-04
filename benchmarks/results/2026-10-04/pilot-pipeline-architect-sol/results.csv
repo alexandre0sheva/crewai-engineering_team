@@ -1,0 +1,2 @@
+batch,task,strategy,repeat,kind,mode,subset,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,completion_tokens,model_calls,tool_calls,cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+pilot-pipeline-architect-sol,notes-cli,pipeline,1,greenfield,new,dev,openai,,False,passed,,,0,succeeded,verified,538.07,2163734,2131344,32390,137,182,0.232506,0,18,0,20261004-153636-9b132d,notes-cli/pipeline-1

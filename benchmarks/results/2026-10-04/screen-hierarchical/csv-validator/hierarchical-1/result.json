@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "batch": "screen-hierarchical",
+  "task": "csv-validator",
+  "strategy": "hierarchical",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "timeout",
+  "reason": "exceeded the 1800s time limit",
+  "run_id": "20261004-154605-864c3e",
+  "exit_code": -9,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 1810.48,
+  "tokens": 2827170,
+  "prompt_tokens": 2699196,
+  "completion_tokens": 127974,
+  "model_calls": 224,
+  "tool_calls": 333,
+  "cost_usd": 0.57821503,
+  "models": [
+    "gpt-6-luna",
+    "gpt-6.1-sol"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 39,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "valid-file",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "type-errors",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    },
+    {
+      "id": "required-and-unique",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    },
+    {
+      "id": "constraints",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.17
+    },
+    {
+      "id": "header-and-usage",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.33
+    },
+    {
+      "id": "quoted-fields",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.16
+    }
+  ],
+  "started": "2026-10-04T15:46:05+00:00",
+  "finished": "2026-10-04T16:16:16+00:00",
+  "run_dir": "csv-validator/hierarchical-1",
+  "workspace": "csv-validator/hierarchical-1/ws/app"
+}

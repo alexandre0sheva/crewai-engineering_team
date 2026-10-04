@@ -1,0 +1,17 @@
+# Smoke test of a small local model through Ollama (not a recommendation).
+provider = "ollama"
+
+[models.tiers.max]
+model = "ollama/llama3.2"
+[models.tiers.lead]
+model = "ollama/llama3.2"
+[models.tiers.reviewer]
+model = "ollama/llama3.2"
+[models.tiers.worker]
+model = "ollama/llama3.2"
+[models.tiers.cheap]
+model = "ollama/llama3.2"
+
+[pricing."ollama/*"]
+input = 0
+output = 0

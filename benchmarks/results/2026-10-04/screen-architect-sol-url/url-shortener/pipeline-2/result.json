@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "batch": "screen-architect-sol-url",
+  "task": "url-shortener",
+  "strategy": "pipeline",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261004-165929-8c295e",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 1334.32,
+  "tokens": 2336374,
+  "prompt_tokens": 2299962,
+  "completion_tokens": 36412,
+  "model_calls": 138,
+  "tool_calls": 195,
+  "cost_usd": 0.2384363,
+  "models": [
+    "gpt-6-luna",
+    "gpt-6.1-sol"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 15,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "shorten-and-redirect",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.23
+    },
+    {
+      "id": "same-url-same-code",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.2
+    },
+    {
+      "id": "validation",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.21
+    },
+    {
+      "id": "stats",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.21
+    },
+    {
+      "id": "persistence",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.31
+    }
+  ],
+  "started": "2026-10-04T16:59:29+00:00",
+  "finished": "2026-10-04T17:21:44+00:00",
+  "run_dir": "url-shortener/pipeline-2",
+  "workspace": "url-shortener/pipeline-2/ws/app"
+}

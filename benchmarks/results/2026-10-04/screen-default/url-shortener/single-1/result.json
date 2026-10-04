@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "batch": "screen-default",
+  "task": "url-shortener",
+  "strategy": "single",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261004-161546-2e95fd",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": null,
+  "duration_seconds": 72.65,
+  "tokens": 195283,
+  "prompt_tokens": 191611,
+  "completion_tokens": 3672,
+  "model_calls": 18,
+  "tool_calls": 17,
+  "cost_usd": 0.00441613,
+  "models": [
+    "gpt-6-luna"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 1,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "shorten-and-redirect",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.23
+    },
+    {
+      "id": "same-url-same-code",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    },
+    {
+      "id": "validation",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    },
+    {
+      "id": "stats",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    },
+    {
+      "id": "persistence",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    }
+  ],
+  "started": "2026-10-04T16:15:46+00:00",
+  "finished": "2026-10-04T16:16:59+00:00",
+  "run_dir": "url-shortener/single-1",
+  "workspace": "url-shortener/single-1/ws/app"
+}

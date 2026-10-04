@@ -252,9 +252,9 @@ def test_a_resumed_context_continues_the_usage_and_the_event_log(
 # -- settings --------------------------------------------------------------------------------
 
 
-def test_strategy_defaults_to_hierarchical_and_is_validated() -> None:
-    assert load_settings().strategy == "hierarchical"
-    assert load_settings(env={"ENGINEERING_STRATEGY": "pipeline"}).strategy == "pipeline"
+def test_strategy_defaults_to_pipeline_and_is_validated() -> None:
+    assert load_settings().strategy == "pipeline"
+    assert load_settings(env={"ENGINEERING_STRATEGY": "hierarchical"}).strategy == "hierarchical"
     assert load_settings(overrides={"strategy": "single"}).strategy == "single"
     with pytest.raises(SettingsError, match="strategy"):
         load_settings(env={"ENGINEERING_STRATEGY": "swarm"})

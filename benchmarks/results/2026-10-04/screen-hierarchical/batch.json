@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "batch": "screen-hierarchical",
+  "created": "2026-10-04T15:46:05+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openai",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "hierarchical"
+  ],
+  "repeat": 1,
+  "parallel": 2,
+  "budget_usd": 1.4,
+  "run_budget_usd": 0.7,
+  "planned_runs": 2,
+  "not_applicable": [],
+  "tasks": {
+    "csv-validator": {
+      "subset": "dev",
+      "digest": "b659ba247b925f9d"
+    },
+    "todo-web": {
+      "subset": "dev",
+      "digest": "fda54f845f389757"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.23",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "<repo>/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "csv-validator,todo-web",
+    "--strategy",
+    "hierarchical",
+    "--repeat",
+    "1",
+    "--provider",
+    "openai",
+    "--budget-usd",
+    "1.40",
+    "--run-budget-usd",
+    "0.70",
+    "--parallel",
+    "2",
+    "--batch",
+    "screen-hierarchical",
+    "--allow-failures"
+  ]
+}

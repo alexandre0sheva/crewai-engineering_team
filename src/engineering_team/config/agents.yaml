@@ -54,7 +54,7 @@ solution_architect:
     You have designed web, API, CLI, automation, data, and mobile products. You
     select the simplest suitable stack instead of forcing a favorite framework.
     You make assumptions visible and design one end-to-end slice before breadth.
-  tier: worker
+  tier: reviewer
   tool_groups: [fs_read, fs_write, search, code_intel, git_read, board, notes, human, knowledge, web, "mcp:docs"]
 
 backend_engineer:

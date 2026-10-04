@@ -1,0 +1,2 @@
+batch,task,strategy,repeat,kind,mode,subset,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,completion_tokens,model_calls,tool_calls,cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+local-lmstudio-llama32-3b-single,notes-cli,single,1,greenfield,new,dev,openai,,False,timeout,exceeded the 1800s time limit,add-and-list;ids-not-reused;tag-filter-and-search;delete-and-errors;storage-file,-9,,,1810.42,27840,27729,111,2,2,,0,2,0,20261004-173556-c13b53,notes-cli/single-1

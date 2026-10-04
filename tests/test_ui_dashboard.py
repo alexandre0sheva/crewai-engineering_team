@@ -72,11 +72,14 @@ def test_a_demo_run_shows_every_state_the_dashboard_has() -> None:
     assert working and all(a["tokens"] > 0 and a["model"] for a in working)
 
     # Replay: the same event always gives the same teammates, and the question was open then.
-    seqs = [e["seq"] for e in events_of(client, run_id, "question")]
-    at = seqs[0] + 1
+    # (The question's own seq: the next event may be its answer, when the other lanes are idle.)
+    seqs = {e["type"]: e["seq"] for e in events_of(client, run_id, "question")}
+    at = seqs["question"]
     first = client.get(f"{API}/runs/{run_id}/agents?at={at}").json()
     assert first == client.get(f"{API}/runs/{run_id}/agents?at={at}").json()
     assert any(a["state"] == "waiting" for a in first)
+    answered = client.get(f"{API}/runs/{run_id}/agents?at={seqs['question.answered']}").json()
+    assert not any(a["state"] == "waiting" for a in answered)  # and not once it is answered
     assert all(a["state"] == "idle" for a in client.get(f"{API}/runs/{run_id}/agents?at=0").json())
     last = events_of(client, run_id)[-1]["seq"]
     clamped = client.get(f"{API}/runs/{run_id}/agents?at={last + 1000}").json()

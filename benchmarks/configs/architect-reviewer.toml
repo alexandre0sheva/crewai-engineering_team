@@ -1,0 +1,4 @@
+# Candidate tuning measured in task 34: the solution architect plans on the reviewer tier
+# (gpt-6.1-sol, medium effort) instead of the worker tier (gpt-6-luna).
+[team.solution_architect]
+tier = "reviewer"

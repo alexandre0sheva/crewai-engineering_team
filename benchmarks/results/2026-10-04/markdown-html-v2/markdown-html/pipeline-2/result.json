@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "batch": "markdown-html-v2",
+  "task": "markdown-html",
+  "strategy": "pipeline",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261004-172027-b7eac5",
+  "exit_code": 4,
+  "team_status": "failed",
+  "team_verdict": "partial",
+  "duration_seconds": 327.59,
+  "tokens": 1057004,
+  "prompt_tokens": 1041642,
+  "completion_tokens": 15362,
+  "model_calls": 73,
+  "tool_calls": 90,
+  "cost_usd": 0.08740925,
+  "models": [
+    "gpt-6-luna",
+    "gpt-6.1-sol"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 7,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "headings-and-paragraphs",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    },
+    {
+      "id": "inline-formatting",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "lists",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "code-blocks",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "quotes-and-rules",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    },
+    {
+      "id": "escaping",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "cli",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.22
+    }
+  ],
+  "started": "2026-10-04T17:20:27+00:00",
+  "finished": "2026-10-04T17:25:56+00:00",
+  "run_dir": "markdown-html/pipeline-2",
+  "workspace": "markdown-html/pipeline-2/ws/app"
+}

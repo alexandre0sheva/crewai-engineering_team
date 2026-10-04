@@ -277,6 +277,26 @@ def test_a_question_is_listed_answered_through_the_api_and_the_run_goes_on() -> 
     assert client.get(f"{API}/runs/{run_id}/questions").json() == []
 
 
+def test_the_replay_has_the_teammate_waiting_exactly_while_the_question_is_open() -> None:
+    client, _ = make_client()
+    run_id = start_running(client, "ASK")  # one lane: its answer is the very next event
+    question = wait_for(lambda: client.get(f"{API}/runs/{run_id}/questions").json(), "a question")[
+        0
+    ]
+    client.post(f"{API}/runs/{run_id}/answer", json={"question_id": question["id"], "text": "x"})
+    wait_status(client, run_id, "succeeded")
+    frames = sse_events(client.get(f"{API}/runs/{run_id}/events?follow=false&types=question").text)
+    seqs = {f["data"]["type"]: f["data"]["seq"] for f in frames}
+    assert seqs["question.answered"] == seqs["question"] + 1
+
+    asked = client.get(f"{API}/runs/{run_id}/agents?at={seqs['question']}").json()
+    assert [(a["agent"], a["state"], a["waiting_for"]) for a in asked] == [
+        ("backend", "waiting", question["id"])
+    ]
+    answered = client.get(f"{API}/runs/{run_id}/agents?at={seqs['question.answered']}").json()
+    assert [(a["state"], a["waiting_for"]) for a in answered] == [("working", None)]
+
+
 def test_a_question_can_be_declined_with_an_empty_answer() -> None:
     client, _ = make_client()
     run_id = start_running(client, "ASK")

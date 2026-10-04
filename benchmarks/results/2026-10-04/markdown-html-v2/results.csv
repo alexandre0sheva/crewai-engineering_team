@@ -1,0 +1,5 @@
+batch,task,strategy,repeat,kind,mode,subset,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,completion_tokens,model_calls,tool_calls,cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+markdown-html-v2,markdown-html,pipeline,1,greenfield,new,dev,openai,,False,passed,,,0,succeeded,verified,722.71,2753764,2714323,39441,168,217,0.229055,1,22,0,20261004-172017-b31024,markdown-html/pipeline-1
+markdown-html-v2,markdown-html,pipeline,2,greenfield,new,dev,openai,,False,passed,,,4,failed,partial,327.59,1057004,1041642,15362,73,90,0.087409,0,7,0,20261004-172027-b7eac5,markdown-html/pipeline-2
+markdown-html-v2,markdown-html,single,1,greenfield,new,dev,openai,,False,passed,,,0,succeeded,,65.31,135866,130831,5035,13,12,0.004400,0,1,0,20261004-171921-2c5e4a,markdown-html/single-1
+markdown-html-v2,markdown-html,single,2,greenfield,new,dev,openai,,False,passed,,,0,succeeded,,55.46,147911,144808,3103,14,13,0.003494,0,1,0,20261004-171921-932462,markdown-html/single-2

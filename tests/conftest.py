@@ -136,6 +136,17 @@ def hermetic_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pat
     return sandbox
 
 
+@pytest.fixture
+def crew_strategy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run the 0.1.0 manager-led crew: tests that patch ``EngineeringTeam`` need this strategy.
+
+    The default strategy is ``pipeline`` (docs/BENCHMARKS.md); without this fixture such a test
+    would run the pipeline with real agents and call the model provider.
+    """
+
+    monkeypatch.setenv("ENGINEERING_STRATEGY", "hierarchical")
+
+
 @pytest.fixture(autouse=True)
 def no_stage_commits(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """A pipeline run commits after every stage, which costs several ``git`` processes a stage.

@@ -81,8 +81,8 @@ with its latest tool call; and a rolling activity feed. A narrow terminal gets a
 columns. At the end, a summary: status, duration, usage and cost (or `unknown` when a model has no
 price), files changed, the controller's checks, the workspace, the report, and what to run next.
 
-The board is only filled in by the `pipeline` strategy; the default `hierarchical` strategy shows its
-stages and activity but an empty board.
+The board has a card per work package in a `pipeline` run (the default) and one card in a `single` run;
+the `hierarchical` strategy shows its stages and activity but an empty board.
 
 ### Run reports
 
@@ -132,9 +132,11 @@ or `team_profile = "minimal"`, which keep only the essential stages ([TEAM.md](T
 
 
 `--strategy pipeline` (or `ENGINEERING_STRATEGY=pipeline`) runs the team as a staged, resumable
-pipeline (spec, plan, foundation, implement, integrate, verify, review, devops, docs, release); `--strategy single` runs one agent with
-every tool, the baseline the other strategies are measured against; the default `hierarchical` is the
-manager-led crew. In a pipeline run the controller, not an agent, runs the tests and checks (`--checks
+pipeline (spec, plan, foundation, implement, integrate, verify, review, devops, docs, release); `--strategy single` runs one agent with every
+tool (no stages, no controller-run checks: fast and cheap, the benchmark baseline); `--strategy
+hierarchical` is the 0.1.0 manager-led crew. `pipeline` is the default: in the benchmarks
+([BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) it passed 10/10 where the 0.1.0 crew finished 0/3, and
+`single` did as well on pass rate for far less money but skips the staged review and verification report. In a pipeline run the controller, not an agent, runs the tests and checks (`--checks
 FILE` adds your own) and writes `docs/verification.md` from what it saw. A pipeline run that was
 cancelled, interrupted, or failed continues where it stopped with `resume RUN`; a changed request starts
 a new run instead. How it works is in [ARCHITECTURE.md](ARCHITECTURE.md#pipeline-recipes-and-resume).

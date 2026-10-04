@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "batch": "heldout-cron",
+  "created": "2026-10-04T17:09:23+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openai",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": "6b6928f338d4be65",
+  "strategies": [
+    "single",
+    "pipeline"
+  ],
+  "repeat": 2,
+  "parallel": 1,
+  "budget_usd": 1.2,
+  "run_budget_usd": 0.4,
+  "planned_runs": 4,
+  "not_applicable": [],
+  "tasks": {
+    "cron-scheduler": {
+      "subset": "heldout",
+      "digest": "e17db3e8fd6995af"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.23",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "<repo>/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "cron-scheduler",
+    "--strategy",
+    "single,pipeline",
+    "--repeat",
+    "2",
+    "--provider",
+    "openai",
+    "--config",
+    "benchmarks/configs/architect-reviewer.toml",
+    "--budget-usd",
+    "1.20",
+    "--run-budget-usd",
+    "0.40",
+    "--parallel",
+    "1",
+    "--batch",
+    "heldout-cron",
+    "--resume",
+    "--allow-failures"
+  ]
+}

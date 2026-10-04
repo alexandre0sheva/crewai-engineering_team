@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "batch": "screen-default",
+  "task": "csv-validator",
+  "strategy": "single",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: constraints",
+  "run_id": "20261004-154605-2647fb",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": null,
+  "duration_seconds": 96.67,
+  "tokens": 260121,
+  "prompt_tokens": 252793,
+  "completion_tokens": 7328,
+  "model_calls": 22,
+  "tool_calls": 21,
+  "cost_usd": 0.0068411900000000005,
+  "models": [
+    "gpt-6-luna"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 1,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "valid-file",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    },
+    {
+      "id": "type-errors",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    },
+    {
+      "id": "required-and-unique",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "constraints",
+      "passed": false,
+      "required": true,
+      "detail": "FAILED: a value equal to min and max must pass: row 1, column <row>: expected 1 fields, got 7\nFAILED: 1 error(s)",
+      "duration": 0.13
+    },
+    {
+      "id": "header-and-usage",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.26
+    },
+    {
+      "id": "quoted-fields",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    }
+  ],
+  "started": "2026-10-04T15:46:05+00:00",
+  "finished": "2026-10-04T15:47:43+00:00",
+  "run_dir": "csv-validator/single-2",
+  "workspace": "csv-validator/single-2/ws/app"
+}

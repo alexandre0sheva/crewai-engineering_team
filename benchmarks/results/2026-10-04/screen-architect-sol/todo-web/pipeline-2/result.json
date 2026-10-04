@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "batch": "screen-architect-sol",
+  "task": "todo-web",
+  "strategy": "pipeline",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261004-164826-2bdeb0",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 618.43,
+  "tokens": 2178269,
+  "prompt_tokens": 2147607,
+  "completion_tokens": 30662,
+  "model_calls": 143,
+  "tool_calls": 187,
+  "cost_usd": 0.21259751,
+  "models": [
+    "gpt-6-luna",
+    "gpt-6.1-sol"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 14,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "page-renders",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.23
+    },
+    {
+      "id": "add-via-form",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.24
+    },
+    {
+      "id": "toggle-and-delete",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.21
+    },
+    {
+      "id": "json-api",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.21
+    },
+    {
+      "id": "escaping",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.21
+    }
+  ],
+  "started": "2026-10-04T16:48:26+00:00",
+  "finished": "2026-10-04T16:58:46+00:00",
+  "run_dir": "todo-web/pipeline-2",
+  "workspace": "todo-web/pipeline-2/ws/app"
+}

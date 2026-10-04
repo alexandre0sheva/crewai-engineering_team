@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "batch": "screen-default",
+  "task": "csv-validator",
+  "strategy": "pipeline",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261004-154605-9f3ff4",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 1141.12,
+  "tokens": 2089096,
+  "prompt_tokens": 2057391,
+  "completion_tokens": 31705,
+  "model_calls": 140,
+  "tool_calls": 174,
+  "cost_usd": 0.13993932,
+  "models": [
+    "gpt-6-luna",
+    "gpt-6.1-sol"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 16,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "valid-file",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.23
+    },
+    {
+      "id": "type-errors",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.16
+    },
+    {
+      "id": "required-and-unique",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.16
+    },
+    {
+      "id": "constraints",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.17
+    },
+    {
+      "id": "header-and-usage",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.32
+    },
+    {
+      "id": "quoted-fields",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.17
+    }
+  ],
+  "started": "2026-10-04T15:46:05+00:00",
+  "finished": "2026-10-04T16:05:07+00:00",
+  "run_dir": "csv-validator/pipeline-1",
+  "workspace": "csv-validator/pipeline-1/ws/app"
+}

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "batch": "local-llama32-single",
+  "created": "2026-10-04T17:32:35+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "ollama",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": "795b6d3cefd12d8a",
+  "strategies": [
+    "single"
+  ],
+  "repeat": 1,
+  "parallel": 1,
+  "budget_usd": 1.0,
+  "run_budget_usd": 1.0,
+  "planned_runs": 1,
+  "not_applicable": [],
+  "tasks": {
+    "notes-cli": {
+      "subset": "dev",
+      "digest": "cc8d9ab205533f03"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.23",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "<repo>/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "notes-cli",
+    "--strategy",
+    "single",
+    "--repeat",
+    "1",
+    "--provider",
+    "ollama",
+    "--config",
+    "benchmarks/configs/ollama-llama32.toml",
+    "--budget-usd",
+    "1",
+    "--batch",
+    "local-llama32-single",
+    "--allow-failures"
+  ]
+}

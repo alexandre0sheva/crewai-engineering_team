@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "batch": "screen-default",
+  "task": "markdown-html",
+  "strategy": "pipeline",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: inline-formatting, code-blocks",
+  "run_id": "20261004-155131-e59794",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 1197.5,
+  "tokens": 2206932,
+  "prompt_tokens": 2171484,
+  "completion_tokens": 35448,
+  "model_calls": 161,
+  "tool_calls": 198,
+  "cost_usd": 0.14135797,
+  "models": [
+    "gpt-6-luna",
+    "gpt-6.1-sol"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 21,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "headings-and-paragraphs",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "inline-formatting",
+      "passed": false,
+      "required": true,
+      "detail": "FAILED: for 'snake_case_name stays' expected '<p>snake_case_name stays</p>', got '<p>snake<em>case</em>name stays</p>'",
+      "duration": 0.08
+    },
+    {
+      "id": "lists",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "code-blocks",
+      "passed": false,
+      "required": true,
+      "detail": "FAILED: for \"```\\nprint('a < b')\\n**x**\\n```\" expected \"<pre><code>print('a &lt; b')\\n**x**</code></pre>\", got \"<pre><code>print('a &lt; b')\\n**x**\\n</code></pre>\"",
+      "duration": 0.08
+    },
+    {
+      "id": "quotes-and-rules",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "escaping",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "cli",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    }
+  ],
+  "started": "2026-10-04T15:51:31+00:00",
+  "finished": "2026-10-04T16:11:30+00:00",
+  "run_dir": "markdown-html/pipeline-2",
+  "workspace": "markdown-html/pipeline-2/ws/app"
+}

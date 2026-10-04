@@ -1,0 +1,5 @@
+batch,task,strategy,repeat,kind,mode,subset,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,completion_tokens,model_calls,tool_calls,cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+brownfield-pipeline,add-tests,pipeline,1,brownfield,maintain,dev,openai,,False,passed,,,0,succeeded,verified,121.06,307781,301551,6230,36,38,0.027356,1,0,0,20261004-170511-09208f,add-tests/pipeline-1
+brownfield-pipeline,behaviour-refactor,pipeline,1,brownfield,maintain,heldout,openai,,False,passed,,,0,succeeded,verified,80.32,201039,195400,5639,25,53,0.023771,0,2,0,20261004-170511-b52672,behaviour-refactor/pipeline-1
+brownfield-pipeline,legacy-feature,pipeline,1,brownfield,feature,dev,openai,,False,passed,,,0,succeeded,verified,238.28,797391,778668,18723,73,91,0.100156,0,8,0,20261004-170511-ed93ca,legacy-feature/pipeline-1
+brownfield-pipeline,seeded-bug,pipeline,1,brownfield,fix,dev,openai,,False,passed,,,0,succeeded,verified,128.4,455055,447979,7076,49,75,0.039571,0,5,0,20261004-170632-91eb4c,seeded-bug/pipeline-1

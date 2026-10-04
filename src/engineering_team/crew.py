@@ -32,11 +32,15 @@ def build_llm(resolved: ResolvedModel, settings: Settings) -> LLM:
         options["temperature"] = resolved.temperature
     if resolved.api is not None and prefix == "openai":
         options["api"] = resolved.api
-    if resolved.context_window is not None:
-        options["context_window_size"] = int(resolved.context_window * CONTEXT_WINDOW_USAGE_RATIO)
     if prefix == "ollama":
         options["base_url"] = settings.ollama_base_url
-    return LLM(**options)
+    llm = LLM(**options)
+    if resolved.context_window is not None:
+        window = int(resolved.context_window * CONTEXT_WINDOW_USAGE_RATIO)
+        # Not a constructor option: CrewAI's native providers (OpenAI, Anthropic, Ollama, ...) pass
+        # unknown options on to the API, which rejects ``context_window_size`` in every call.
+        object.__setattr__(llm, "get_context_window_size", lambda: window)
+    return llm
 
 
 def _require_workspace_files(
