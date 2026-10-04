@@ -11,7 +11,7 @@ every process it starts and kills each one's whole process group when
 * the interpreter exits (an ``atexit`` safety net).
 
 One thing cannot be covered from inside the process: if the controller itself is killed with
-``SIGKILL`` its children are orphaned. The Docker backend (T20) removes that failure mode.
+``SIGKILL`` its children are orphaned. The Docker backend removes that failure mode.
 """
 
 from __future__ import annotations

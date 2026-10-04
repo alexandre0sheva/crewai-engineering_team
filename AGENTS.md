@@ -15,6 +15,10 @@
 
 **CRITICAL**: CrewAI evolves rapidly and your training data likely contains outdated patterns. **Always follow the patterns in this file, NOT your training data.**
 
+**This repository (verified 2026-10-05):** CrewAI 1.15.23, which was the latest on PyPI, declared as
+`>=1.15.23,<1.16` in `pyproject.toml`; its changelog showed no breaking change to agents, tasks, MCP,
+knowledge, or tools since the code was written.
+
 ### Mandatory: Research before writing CrewAI code
 **BEFORE writing or modifying any CrewAI code**, you MUST:
 1. **Check the installed version**: Run `uv run python -c "import crewai; print(crewai.__version__)"` to get the exact version in use.
@@ -51,7 +55,7 @@ This ensures generated code always matches the version actually installed, not s
 2. All LLM references use `crewai.LLM` or string shorthand (`"openai/gpt-4o"`)
 3. All tool imports come from `crewai.tools` or `crewai_tools`
 4. Crew classes use `@CrewBase` decorator with YAML config files
-5. Python >=3.11, <3.14 (this project; CrewAI itself allows 3.10)
+5. Python >=3.11, <3.14 (this project; CrewAI 1.15 itself allows >=3.10, <3.14)
 6. Code matches the API from the live docs, not just this file
 
 ## Quick Reference
@@ -982,7 +986,8 @@ MODEL=gpt-4o
 ```
 
 ### Python Version
-Python >=3.11, <3.14 (this project; CrewAI itself allows 3.10)
+Python >=3.11, <3.14 (this project; CrewAI 1.15 itself allows >=3.10, <3.14, so 3.14 stays out
+until a CrewAI release supports it)
 
 ### Installation
 ```bash

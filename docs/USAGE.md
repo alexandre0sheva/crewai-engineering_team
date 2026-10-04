@@ -35,6 +35,7 @@ uv run engineering-team <command> --help # its options
 | `init` | Write `engineering-team.toml` and a request template here (`--mode new|feature|fix|maintain`). |
 | `examples list` / `examples run NAME` | The bundled example requests. |
 | `team [list]` / `team show KEY` | The teammates and how each is set up; change or add teammates in config ([TEAM.md](TEAM.md)). |
+| `plugins [list] [--markdown]` | The plugin tools this setup would load, and what was found but not loaded ([CONFIGURATION.md](CONFIGURATION.md#plugin-tools-plugins-and-allow_project_plugins)). |
 
 `RUN` is a run id or enough of its start to be unambiguous; leave it out for the latest run. Runs are
 found across every project under the workspace root, so `--project-name` is only needed to narrow the
@@ -71,6 +72,40 @@ model call).
 notice; it is removed in 0.3.0. The `crewai run|train|replay|test` entry points are unchanged, except that
 `replay` names its project explicitly: `replay TASK_ID --run RUN_ID` (or `--project-name NAME`) instead of
 guessing it from the environment.
+
+### What a new project looks like
+
+Each project owns a conventional root under `workspace/<project-name>/` (reset is explicit, `--reset`, and only
+deletes projects this tool created):
+
+```text
+workspace/
+└── habit-tracker/
+    ├── .engineering-team/
+    │   └── runs/<run-id>/        # manifest, event log, request, board, checks, report.html, logs
+    ├── docs/
+    │   ├── spec.md               # the specification (acceptance criteria AC-1, AC-2, ...)
+    │   ├── architecture.md
+    │   ├── verification.md       # written by the controller from checks it ran itself
+    │   ├── review.md             # the reviewers' findings
+    │   ├── devops.md, usage.md
+    │   └── release-report.md
+    ├── README.md
+    ├── src/ or apps/ or packages/
+    ├── tests/
+    └── stack-specific configuration
+```
+
+The source tree is chosen for the product and the stack; the files under `docs/` are the stages' deliverables
+(the hierarchical strategy writes `docs/implementation-plan.md` instead of `spec.md` and `review.md`). A `pipeline`
+or `single` run makes a new project its own Git repository (an initial commit, then one commit per finished
+stage; `--no-git` skips it). Generated workspaces are git-ignored by this repository. A run changes only files
+inside the project; for an existing project use `feature`, `fix` or `maintain`, which never touch your checkout
+directly.
+
+The CrewAI maintenance entry points keep their 0.1.0 meaning and take the same request options as `new`:
+`uv run train <iterations> <training-file>`, `uv run replay <task-id> --run <run-id>` and
+`uv run test <iterations> <evaluation-model>`. They spend model tokens like any run.
 
 ### What you see
 

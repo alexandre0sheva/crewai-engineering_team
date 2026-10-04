@@ -1,4 +1,5 @@
-"""Per-run runtime state: the run context and the workspace lock."""
+"""Per-run runtime state: the run context, events, budget, usage, processes, the run store, and
+the workspace lock."""
 
 from engineering_team.runtime.context import RunContext, new_run_id
 from engineering_team.runtime.locks import WorkspaceBusy, WorkspaceLock

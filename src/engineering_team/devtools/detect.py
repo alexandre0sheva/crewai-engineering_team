@@ -1,7 +1,7 @@
 """Stack and tool detection: what a directory is, and which tools it uses.
 
-One implementation shared by the developer tools, the verification profiles (T18), and the
-repository analyzer (T25). Detection reads manifests and config files only; it never runs a
+One implementation shared by the developer tools, the verification profiles, and the
+repository analyzer. Detection reads manifests and config files only; it never runs a
 tool, so a detected tool may still be missing (the runners report that as ``unavailable``).
 """
 

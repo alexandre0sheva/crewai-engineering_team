@@ -2,8 +2,8 @@
 
 Everything here is derived from files and Git by code, never by a model, so a profile costs
 nothing and always says the same thing about the same tree. The analyzer
-(``modes/repo_analyzer.py``) builds it; the baseline, the codebase map, and (from T26) the
-repository modes read it.
+(``modes/repo_analyzer.py``) builds it; the baseline, the codebase map, and the repository modes
+read it.
 """
 
 from __future__ import annotations

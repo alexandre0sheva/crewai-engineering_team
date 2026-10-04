@@ -5,7 +5,7 @@ root ``.gitignore``, skipping heavy directories) and reads manifests and a few l
 files, then asks Git (read-only, through :class:`~engineering_team.git.port.GitPort`) for the
 branch and whether the tree is dirty. The result is a :class:`RepoProfile`.
 
-Stack and tool detection is ``devtools.detect`` (T11), the same one the verifier uses; the
+Stack and tool detection is ``devtools.detect``, the same one the verifier uses; the
 commands it implies are in ``modes/repo_commands.py``.
 """
 

@@ -4,15 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Every implementation task in [docs/IMPLEMENTATION_PLAN_0.2.0.md](docs/IMPLEMENTATION_PLAN_0.2.0.md)
-adds its user-visible changes to the `Unreleased` section below. The final
-release task renames that section to `0.2.0` and dates it.
+Every user-visible change adds a line to `Unreleased` (see [CONTRIBUTING.md](CONTRIBUTING.md)); a release
+renames that section and dates it.
 
-## [Unreleased] — 0.2.0
+## [Unreleased]
 
-Work in progress. Planned scope is tracked in
-[docs/IMPLEMENTATION_PLAN_0.2.0.md](docs/IMPLEMENTATION_PLAN_0.2.0.md); entries are added
-as each task lands.
+## [0.2.0] — 2026-10-05
+
+A rewrite of the engine around a controller that runs the checks and owns the task board: new,
+feature, fix, maintain, review and analyze modes, parallel work packages, a Docker sandbox, run
+reports, a web UI, a benchmark suite, and extension points. Coming from 0.1.0? Read
+*Migration from 0.1.0*, the last subsection of this release, first. The implementation plan and its decision log are in
+[docs/IMPLEMENTATION_PLAN_0.2.0.md](docs/IMPLEMENTATION_PLAN_0.2.0.md).
 
 ### Added
 
@@ -281,8 +284,8 @@ as each task lands.
   size-based artifact guardrail still applies to the other promised files and to the `hierarchical` strategy.
 - The `new` recipe gained an `integrate` stage after `implement`. A parallel stage's `retry` now applies per work
   package, and `WorkPackage` has an optional `required` flag.
-- New `strategy` setting (`--strategy`, `ENGINEERING_STRATEGY`, `strategy` in the config file): `hierarchical` (the default,
-  unchanged), `pipeline`, or `single`. The 0.1.0 invocation keeps working and still uses the hierarchical crew.
+- New `strategy` setting (`--strategy`, `ENGINEERING_STRATEGY`, `strategy` in the config file): `pipeline` (the default),
+  `hierarchical` (the 0.1.0 crew), or `single`.
 - A run that ends `failed`, `cancelled`, or `interrupted` can now be reopened by `resume`; `succeeded` stays final. Stage
   records in the manifest carry the workspace revision at their start and end.
 - `config show` takes model prices from the price table (and marks models without one as `price unknown`).
@@ -351,6 +354,40 @@ as each task lands.
   engineering-team installation; `--force-reset` is required for foreign directories.
 - Existing non-empty directories that this tool did not create are no longer written into.
 
+### Migration from 0.1.0
+
+What to change, and what keeps working:
+
+- **Command line.** `engineering-team` is now a set of commands (`new`, `feature`, `fix`, `maintain`, `review`,
+  `analyze`, `resume`, `status`, `ui`, `doctor`, ...; see `docs/USAGE.md`). The 0.1.0 form
+  `engineering-team --request-file FILE` still works: it runs `new` and prints a deprecation notice, and it is removed
+  in 0.3.0. Bare `engineering-team` reading `./PROJECT_REQUEST.md` is deprecated the same way. The `crewai
+  run|train|replay|test` entry points and the other script names still exist; `replay` now needs `--run RUN_ID` (or
+  `--project-name`). Exit codes are `0` success, `1` runtime failure, `2` usage or configuration error, `130`
+  interrupted. CrewAI's own console output is off unless you pass `-v`.
+- **Default strategy.** Runs use the staged `pipeline` instead of the manager-led crew. Set `strategy =
+  "hierarchical"` (or `--strategy hierarchical`) for the 0.1.0 behaviour; the crew's prompts, tiers and iteration limits
+  now come from the roster (`docs/TEAM.md`).
+- **Workspace location.** The default workspace root is `./workspace` relative to where you run the command (0.1.0
+  resolved it next to the installed package), and a relative `ENGINEERING_WORKSPACE_ROOT` resolves against the current
+  directory. Move 0.1.0 projects, or pass `--workspace-root`.
+- **Request files.** The repository-root `PROJECT_REQUEST.md` was removed; the bundled example is
+  `--example tiny-notes`. The request sources and their precedence are in `docs/USAGE.md`: explicit `--request` and
+  `--request-file` (merged in order) or `--example` beat `ENGINEERING_PROJECT_REQUEST`, then
+  `ENGINEERING_REQUEST_FILE`, then `PROJECT_REQUEST.md` in the current directory.
+- **Environment variables.** Every 0.1.0 `ENGINEERING_*` variable still works, including the model variables
+  (`ENGINEERING_LEAD_MODEL`, `ENGINEERING_SMOKE_*`, ...) and `ENGINEERING_DOCS_MCP_URLS`. New settings can also live
+  in `engineering-team.toml`, and `engineering-team config show` says where each effective value came from. The
+  default OpenAI models changed (`gpt-6.1-sol` lead, `gpt-6-luna` workers); pin yours with the same variables.
+- **Run directory layout.** `.engineering-team/request.md` and `run.json` moved into each run's directory,
+  `.engineering-team/runs/<run-id>/`, which now holds `manifest.json`, `settings.json`, `request.md`,
+  `events.jsonl`, the board, usage, check results, command logs, `crew-log.json` and `report.html`.
+- **Your 0.1.0 projects.** They carry no ownership marker, so 0.2.0 will not write into them or `--reset` them.
+  To keep working on one, use `engineering-team feature --repo PATH` or `fix --repo PATH` (they work on a branch,
+  worktree or copy) or `new --adopt`.
+- **Python and CrewAI.** Python 3.11–3.13 and CrewAI `>=1.15.23,<1.16` (0.1.0 used an older release); refresh your
+  environment with `uv sync`.
+
 ## [0.1.0] — 2026-07-30
 
 First usable version: a hierarchical CrewAI crew that turns a product request
@@ -403,5 +440,6 @@ into a tested MVP inside a persistent, normal project directory.
 - Greenfield only: no mode for existing repositories, features, or bug fixes.
 - CLI only, no run history or reports.
 
-[Unreleased]: https://github.com/alexandre0sheva/crewai-engineering_team/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/alexandre0sheva/crewai-engineering_team/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/alexandre0sheva/crewai-engineering_team/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/alexandre0sheva/crewai-engineering_team/releases/tag/v0.1.0

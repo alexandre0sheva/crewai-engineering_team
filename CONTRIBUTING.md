@@ -25,6 +25,7 @@ uv run ruff check .
 uv run ruff format --check .      # `uv run ruff format .` fixes formatting
 uv run mypy
 uv run pytest -q
+uv run python scripts/check_docs.py   # env vars documented, one row per setting, links resolve
 uv build
 ```
 
@@ -106,14 +107,45 @@ One home per fact: update the canonical file and link to it from elsewhere inste
 | Topic | Canonical file | Notes |
 |-------|----------------|-------|
 | Pitch, install, 5-minute quickstart, mode overview, links | `README.md` | Short. No env tables, no architecture, no CLI reference. |
-| CLI/UI usage, workflows per mode, writing a good request | `docs/USAGE.md` (created T21) | |
-| Settings, env vars, config file, model presets, budgets | `docs/CONFIGURATION.md` (created T4) | Remove the env table from README in T4. |
+| CLI/UI usage, workflows per mode, writing a good request | `docs/USAGE.md` | |
+| Settings, env vars, config file, model presets, budgets | `docs/CONFIGURATION.md` | The README has no environment table. |
 | Design, modules, data flow, parallelism, run state | `docs/ARCHITECTURE.md` | |
-| Tool catalogue: every agent tool, its group, limits, safety notes, which teammates get it | `docs/TOOLS.md` (created T7; each tool task appends its rows) | Single home for tool facts; TEAM.md only references groups. |
-| Execution boundary, Docker sandbox, threat model | `docs/SAFETY.md` (created T7/T20) | `SECURITY.md` = vulnerability reporting only. |
-| Teammates and how to add one; default tool groups per teammate | `docs/TEAM.md` (created T23) | |
-| Task board / dashboard behaviour and card lifecycle | `docs/ARCHITECTURE.md` (board section, T10) + `docs/USAGE.md` (viewing progress, T21/T32) | |
-| Benchmark method + results | `docs/BENCHMARKS.md` (created T33) | README links only. |
-| Dev workflow, doc map, release process | `CONTRIBUTING.md` (created T2) | This table. |
+| Tool catalogue: every agent tool, its group, limits, safety notes, which teammates get it | `docs/TOOLS.md` (every new tool adds its row) | Single home for tool facts; TEAM.md only references groups. |
+| Execution boundary, Docker sandbox, threat model | `docs/SAFETY.md` | `SECURITY.md` = vulnerability reporting only. |
+| Teammates and how to add one; default tool groups per teammate | `docs/TEAM.md` | |
+| Task board / dashboard behaviour and card lifecycle | `docs/ARCHITECTURE.md` (board section) + `docs/USAGE.md` (viewing progress) | |
+| Runnable examples and their sample run reports | `examples/` | Reports are regenerated offline by `scripts/make_example_reports.py`. |
+| Benchmark method + results | `docs/BENCHMARKS.md` | README links only. |
+| Dev workflow, doc map, release process | `CONTRIBUTING.md` | This table. |
 | History | `CHANGELOG.md` | |
 | Assistant instructions | `AGENTS.md` | Only update version facts; do not duplicate project docs into it. |
+
+## Releasing
+
+Releases are tagged from `main` and published by `.github/workflows/release.yml`. Nothing below is run
+for you.
+
+1. **Make the release commit.** The version in `pyproject.toml` is the version to ship. In
+   [CHANGELOG.md](CHANGELOG.md) move the `[Unreleased]` entries under `## [X.Y.Z] — YYYY-MM-DD`, add a
+   migration note if users must change something, leave an empty `## [Unreleased]` above it, and update the
+   compare links at the end. `uv run python scripts/release_notes.py --check` says whether the changelog is
+   ready; `uv run python scripts/release_notes.py X.Y.Z` prints the notes the GitHub Release will carry.
+2. **Run the gate** (above) and wait for CI to be green on that commit, on every platform.
+3. **Tag and push.**
+
+   ```bash
+   git tag -a vX.Y.Z -m "X.Y.Z"
+   git push origin main --tags
+   ```
+
+   The workflow refuses a tag that does not match the `pyproject.toml` version or has no changelog section,
+   builds the sdist and wheel, installs the wheel in a clean environment on Linux and macOS (Python 3.11 and
+   3.13) and runs `engineering-team --help` from an unrelated directory, then creates the GitHub Release with
+   the wheel, the sdist and the changelog section.
+4. **PyPI (optional, off by default).** Create the project on PyPI, add this repository's `release.yml` as a
+   [trusted publisher](https://docs.pypi.org/trusted-publishers/) (no token is stored), create a `pypi`
+   environment in the repository settings, and set the repository variable `PUBLISH_TO_PYPI` to `true`. The
+   next tag then also publishes to PyPI; until then the last job is skipped.
+5. **Widening Python.** Python 3.14 is out of range because CrewAI declares `<3.14`. When a CrewAI release
+   supports it, change `requires-python`, the classifiers, `target-version` and `python_version` (Ruff and
+   mypy), the CI and release matrices and the README badge in one commit.

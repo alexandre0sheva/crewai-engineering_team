@@ -94,7 +94,7 @@ functions from that report to the shapes in `models.py` (`TestReport`, `Diagnost
 `ctx.backend`, applies the timeout, and reads the report back; `render.py` writes the compact text
 the tools return. A tool that is not installed is `unavailable` (with an install hint) and a run
 that produced no usable result is `error`; neither can read as a pass. The agent tools in
-`tools/dev_tools.py` are thin wrappers, and the verifier (T18) calls `DevRunner` directly.
+`tools/dev_tools.py` are thin wrappers, and the verifier calls `DevRunner` directly.
 
 ### Code intelligence
 
@@ -110,7 +110,7 @@ Python, indentation for Ruby, declaration regexes plus brace counting for the re
 `ctx.backend` (fixed argv, no pager or external programs) for `hotspots.py` and `todos.py`, and
 raises `GitUnavailable` when there is no history so the tools degrade to a plain answer;
 `render.py` writes the compact text. The agent tools in `tools/codeintel_tools.py` are thin
-wrappers; the repository analyzer (T25) calls these modules directly. `codeintel/__init__.py`
+wrappers; the repository analyzer calls these modules directly. `codeintel/__init__.py`
 imports `engineering_team.tools` first so the two packages, which import each other's modules,
 load in a fixed order whichever one is imported first.
 
@@ -215,7 +215,7 @@ from reading `commands/` logs. This is the single description of its layout:
 | `events.jsonl` | `JsonlSink` | One `Event` per line: `seq`, `ts`, `run_id`, `type`, optional `stage`/`agent`/`lane`, `data` |
 | `request.md` | `RunRecorder` | The request exactly as given |
 | `usage.json` | `RunRecorder` | `UsageReport`: token totals and a breakdown by stage, agent, and model, with per-model cost (`null` when the price is unknown) |
-| `settings.json` | `RunRecorder` | The effective `Settings` (no secrets: credentials are read from the environment, never stored) |
+| `settings.json` | `RunRecorder` | The effective `Settings` for the record (no secrets: credentials are read from the environment, never stored; hook addresses and MCP server environments are replaced) |
 | `pipeline.json` | `PipelineState` | The pipeline's hand-offs between stages (spec, plan, work-package status, board card ids, agent summaries, the latest check results and the `VerificationRecord`); see [Pipeline, recipes, and resume](#pipeline-recipes-and-resume) |
 | `verification/round-<n>.json` | `Verifier` | The results of each check run (status, exit code, duration, log path, the workspace revision it ran against, the parsed test or diagnostic report); see [Verification and repair](#verification-and-repair) |
 | `fix-input.json` | `fix` | `fix` runs only: the person's `--repro` command, the whole `--trace-file`, and `--allow-unreproduced`; read by the controller, never by agents |
@@ -229,6 +229,7 @@ from reading `commands/` logs. This is the single description of its layout:
 | `crew-log.json`, `crew-log-<stage>.json` | CrewAI | CrewAI's own execution log (one per stage crew in the pipeline) |
 | `inbox/` | `engineering-team note\|pause\|unpause`, the web UI | Commands (and answers to the team's questions) waiting for the process working on the run to apply them |
 | `report.html`, `report.md` | `report/` | The run report, written when the run ends (HTML; `engineering-team report --format md` writes Markdown). Read from the files above only; see [Run report](#run-report) |
+| `devtools/last_tests.json` | `Run Tests` | The failing tests of the last run, which `Rerun Failed Tests` reads |
 | `commands/<n>.log` | `LocalBackend` | Full output of each project command (including `git` commands) |
 | `verification/baseline.json` | `Verifier` | The baseline's batch of check results ([Adopting an existing project](#adopting-an-existing-project)); not a verification round |
 
@@ -321,7 +322,7 @@ running, or half-written run still gets a report. It reads files only (no `RunCo
 
 The board is the run's kanban: what is planned, who is doing it, and whether it is really done.
 **The controller is the source of truth.** It creates cards and moves them from stage, work-package,
-and check events (the pipeline, T16, drives this), so the board is correct even when an agent
+and check events (the pipeline drives this), so the board is correct even when an agent
 forgets to update it. Agents use the board tools ([TOOLS.md](TOOLS.md)) to add subtasks to their
 own cards, start and hand over their own work, flag blockers, comment, and report progress; every
 move is validated.
@@ -551,7 +552,7 @@ only to repair.
 build, smoke): the user's `--checks` file, then the commands the plan declares, then what
 `devtools/detect.py` finds in the project (one detector, shared with the developer tools); custom
 user checks are added. Detected tests, lint, type-check, and build checks run the structured developer tools
-(`DevRunner`, T11), so the result carries the parsed `TestReport`/`DiagnosticReport`; commands from
+(`DevRunner`), so the result carries the parsed `TestReport`/`DiagnosticReport`; commands from
 the user or the plan run as plain commands (exit code, log tail, and the files the output points
 at). Each project of a monorepo gets its own checks. A required `tests` check always exists.
 
@@ -939,6 +940,44 @@ cost cannot take the batch down; a timeout kills the process group), and only th
 (`fake_team`, a real `Agent` on a `ScriptedLLM` writing the reference solution through the real
 tools) loads it. The verdict is computed from the hidden checks alone; the team's own status is
 recorded, never trusted.
+
+## Module map
+
+`src/engineering_team/`, by responsibility. Dependencies point downwards: nothing in a lower row imports
+a higher one, apart from a few imports deferred to avoid cycles (`settings` and `contracts` import no run
+code at load time; the tools import the runtime context only for type checking).
+
+| Layer | Modules | Responsibility |
+|-------|---------|----------------|
+| Entry | `main.py`, `__main__.py`, `cli/` | The Typer commands, the live Rich views, `doctor`, and the CrewAI entry points (`train`, `replay`, `test`) |
+| Web UI | `ui/` | FastAPI app over the run directories, SSE events, the static single-page app, `ui --demo` |
+| Orchestration | `pipeline/`, `modes/`, `team/`, `crew.py` | Recipes, the Flow pipeline, parallel work packages, resume, strategies; the mode recipes and their actions; the roster; the 0.1.0 crew |
+| Control | `verification/`, `board/`, `git/`, `report/`, `intake/` | Controller-run checks and bounded repair, the task board and notes, `GitPort` and checkpoints, the run report, requirements intake |
+| Run state | `runtime/`, `contracts.py`, `artifacts.py`, `atomic_io.py`, `workspaces.py` | `RunContext`, events, budget, usage, processes, the run store, locks, cancellation; the typed contracts; crash-safe file writes; project directories |
+| Agent tools | `tools/`, `devtools/`, `codeintel/`, `webtools/`, `browsertools/` | Every tool an agent can call ([TOOLS.md](TOOLS.md)) and the engines behind them |
+| Execution | `execution/` | `ExecutionBackend`: the local backend and the Docker sandbox; no tool spawns a process any other way |
+| Configuration | `settings.py`, `model_routing.py`, `pricing.py`, `config/`, `data/`, `extensions/`, `plugins.py` | Layered settings, model presets and routing, prices, the built-in teammates and prompts, MCP / conventions / plugins / hooks |
+| Evaluation | `bench/`, `testing/` | The benchmark harness; `ScriptedLLM` and the offline test helpers (shipped in the wheel) |
+
+## Decisions and rejected alternatives
+
+The reasons behind the choices that shape the code, with what was weighed. Decisions made while
+building 0.2.0 are in the [implementation plan's decision log](IMPLEMENTATION_PLAN_0.2.0.md#7-decision-log).
+
+| Decision | Instead of | Why |
+|----------|------------|-----|
+| The controller runs the checks and owns every card's final state; agents only report | Trusting an agent's "done" | Agent-authored text is never evidence ([SAFETY.md](SAFETY.md#untrusted-content)); the 0.1.0 guardrails only checked that files existed |
+| `pipeline` (a Flow of single-agent stage crews) is the default strategy | The 0.1.0 manager-led `hierarchical` crew, or one `single` agent | Measured: the 0.1.0 crew did not finish in the time limit; `single` is cheaper and not distinguishable on pass rate at this sample size ([BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) |
+| Parallel work packages **own paths** (a `WriteScope`) | Git worktrees per package, merged afterwards | A merge conflict needs a model to resolve it, which is the nondeterminism ownership avoids |
+| Per-stage state is readable JSON beside the manifest, written atomically | CrewAI's native checkpointing; a database | A stage is one agent and one task, so a task-boundary checkpoint holds nothing; the files the tools changed are in the workspace, which the tree hash covers |
+| Every process goes through `ExecutionBackend` | Each tool calling `subprocess` | One place to sandbox (the Docker backend), time out, log and cancel; a test fails any tool that imports `subprocess` |
+| Web tools use one SSRF-safe client, and are off unless enabled | CrewAI's `SerperDevTool` / `ScrapeWebsiteTool` | They make their own HTTP calls, so DNS pinning, per-hop checks and the request cap could not apply ([TOOLS.md](TOOLS.md#web-and-knowledge-tools)) |
+| `Search Docs` is local BM25; embeddings are opt-in `knowledge.sources` | Embedding by default | Offline, free and deterministic; embeddings send text to a provider and cost money |
+| No interactive shell tool | A PTY session for agents | Unbounded, invisible to the controller and not deterministic; one-shot commands plus background processes cover the need ([TOOLS.md](TOOLS.md#runtime-tools)) |
+| The web UI is FastAPI plus static files, with no build step and no CDN | A JavaScript toolchain | Nothing to build or fetch to install it; works offline |
+| Tests and the benchmark's offline mode use a scripted model (`ScriptedLLM`) | Mocking at the HTTP layer, or live calls | A real CrewAI `Agent` and the real tools run deterministically and free |
+| Plugins and hooks are configuration-only and off or loud by default | Loading project code automatically | A repository you cloned must not execute code because you opened it ([SAFETY.md](SAFETY.md#extensions-mcp-plugins-and-hooks)) |
+| Python stays `>=3.11,<3.14` | Widening to 3.14 | CrewAI 1.15 itself declares `<3.14`; widen the range, classifiers, the CI matrix and the README badge together once a CrewAI release supports it |
 
 ## Local state
 

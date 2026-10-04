@@ -1,239 +1,163 @@
-# Universal MVP Engineering Team
+# Engineering Team
 
 [![CI](https://github.com/alexandre0sheva/crewai-engineering_team/actions/workflows/ci.yml/badge.svg)](https://github.com/alexandre0sheva/crewai-engineering_team/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.11–3.13](https://img.shields.io/badge/python-3.11%E2%80%933.13-blue.svg)
 
-A reusable CrewAI project that turns a product request into a tested MVP in a
-persistent, normal project directory. By default a staged, resumable pipeline of specialists
-(`pipeline`) builds it; the 0.1.0 manager-led crew (`hierarchical`) and a one-agent baseline
-(`single`) are still available. [What was measured](docs/BENCHMARKS.md#results-2026-10-04) decided the
-default.
+**A team of AI specialists that builds, changes and fixes software, and proves what it did:** a CrewAI
+pipeline in which a controller, not the agents, runs the checks, moves the task board and decides what
+counts as done.
 
-The team is stack-agnostic. It can build web apps, APIs, CLIs, automations, data
-tools, mobile-oriented projects, or other small products when the required
-runtime is available locally. The generated application can use any suitable
-stack and a conventional nested project structure.
+![A tour of the web UI in demo mode: new run, task board, swimlanes, timeline, results](docs/assets/ui-tour.gif)
 
-## Capabilities
+*The web UI on a scripted run (`ui --demo`: the real pipeline and board, no model, no key). A terminal
+recording of a live run is not committed yet; see [Try it without a key](#try-it-without-a-key).*
 
-- Product requests can come from a Markdown file, CLI argument, or environment
-  variable.
-- The `hierarchical` strategy (`--strategy hierarchical`, the 0.1.0 behaviour) has a custom
-  `engineering_lead` manage a hierarchical CrewAI process and validate every task.
-- Model tiers are explicit and configurable: flagship lead, lower-cost workers.
-- Four stack-agnostic specialists cover architecture, backend, frontend, and
-  quality.
-- Six tasks cover architecture, foundation, backend/core, frontend/experience,
-  verification, and release review.
-- Generated projects use conventional nested files under
-  `workspace/<project-name>/`.
-- Workspaces persist across runs by default; reset is explicit.
-- Filesystem tools prevent traversal and symlink escapes, and keep agents out of `.git` and
-  the orchestrator's own `.engineering-team/` state.
-- Command execution returns stdout, stderr, exit code, and timeouts; it uses no
-  shell and strips secrets from child processes. `--sandbox docker` runs every command in a
-  hardened container instead (no network except installs, only the project mounted; see
-  [docs/SAFETY.md](docs/SAFETY.md#docker-backend)).
-- Interim artifact guardrails require architecture, README, verification, and
-  release documents to exist and contain real content before tasks can pass.
-- Tracing and remote documentation MCPs are opt-in.
+## What it does
 
-## Requirements
+| Mode | Command | Result |
+|------|---------|--------|
+| **new** | `engineering-team new` | A project from a request, in a Git repository of its own: spec, architecture, code, tests, docs |
+| **feature** | `engineering-team feature` | A feature in an existing project, on a branch, checked against the project's own tests before and after |
+| **fix** | `engineering-team fix` | A bug reproduced first (red), fixed, and shown fixed (green) |
+| **maintain** | `engineering-team maintain` | Tests added, a refactor, dependency upgrades, docs, or a security audit |
+| **review** | `engineering-team review` | A read-only review of a branch or diff, with `findings.json` for CI |
+| **analyze** | `engineering-team analyze` | What an existing project is made of, and (with `--deep`) a codebase map |
 
-- Python 3.11–3.13 (CrewAI does not yet support 3.14)
-- [uv](https://docs.astral.sh/uv/)
-- An API key for the configured model provider
-- Any language runtimes required by the MVP you ask the team to build
+Every run records a manifest, an event log, the task board and a self-contained HTML report you can open
+or attach to a pull request. The team is stack-agnostic: it uses the runtimes you have installed.
 
-The supported CrewAI version range is declared in `pyproject.toml`.
+## Install
 
-## Setup
+You need Python 3.11–3.13, [uv](https://docs.astral.sh/uv/) and an API key for a model provider (OpenAI by
+default; Anthropic, Google, Ollama and Azure are presets).
 
 ```bash
-uv sync --group dev
-cp .env.example .env
+uv tool install --python 3.13 git+https://github.com/alexandre0sheva/crewai-engineering_team
+# or: pipx install --python python3.13 git+https://github.com/alexandre0sheva/crewai-engineering_team
 ```
 
-Add `OPENAI_API_KEY` to `.env`. Never commit `.env`.
+Pin the interpreter (3.11, 3.12 or 3.13): without `--python`, `uv tool install` can pick a newer Python
+that CrewAI does not support yet, and the tool then fails on start. Once the package is on PyPI it will be
+`uv tool install --python 3.13 engineering_team`. To work on the project itself, see
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-Models, profiles, budgets, and every `ENGINEERING_*` variable are documented in
-[docs/CONFIGURATION.md](docs/CONFIGURATION.md); `uv run engineering-team config show` prints what
-is in effect and where each value came from. The default provider is OpenAI; Anthropic, Google,
-Ollama, and Azure presets are available with `--provider` (or `provider = ...` in
-`engineering-team.toml`). Keep the lead on your quality-first tier and workers on a balanced
-lower-cost tier.
-
-## Quick start
+## Quickstart
 
 ```bash
-uv run engineering-team doctor                       # is this machine ready?
-uv run engineering-team new --example tiny-notes     # a cheap bundled example
-uv run engineering-team new --request-file my-idea.md --project-name my-idea
+export OPENAI_API_KEY=...                          # or put it in a .env file
+engineering-team doctor                            # is this machine ready?
+engineering-team new --example tiny-notes          # a cheap bundled example (the smoke profile)
+engineering-team new --request-file my-idea.md --project-name my-idea
 ```
 
-In a terminal you get a live view of the run: progress, the task board as a kanban, parallel lanes, and
-cost against your budget. Steer it from another terminal with `board --watch`, `note`, `pause`, and
-`cancel`; continue an interrupted run with `resume`. Everything, including exit codes, `--json` output,
-and how to write a request the team can succeed with, is in [docs/USAGE.md](docs/USAGE.md).
+In a terminal you get a live view: progress, the task board as a kanban, parallel lanes and cost against
+your budget. The project appears in `./workspace/my-idea/`. Steer a run from another terminal with
+`board --watch`, `note`, `pause` and `cancel`; continue an interrupted one with `resume`.
 
-Projects are created under `./workspace/<project-name>/`; reset is explicit (`--reset`) and only deletes
-projects this tool created. The bundled example selects the lower-cost `smoke` profile (see
-[docs/CONFIGURATION.md](docs/CONFIGURATION.md#models)), so a first run stays cheap.
-
-The 0.1.0 form (`engineering-team --request-file FILE`) still works and prints a deprecation notice.
-
-## Web UI
-
-`uv sync --extra ui && uv run engineering-team ui` opens a local app at http://127.0.0.1:8765/ for starting runs,
-watching them live (task board, teammates, activity, timeline, replay, steering) and reviewing the diff, criteria coverage and report; `ui --demo` tries it without an API key. See
-[docs/USAGE.md](docs/USAGE.md#web-ui).
-
-![The live task board in demo mode](docs/assets/ui-board.png)
-
-## Benchmarks
-
-The team is measured, not assumed: a suite of greenfield and brownfield tasks judged by hidden
-behavioural checks, with pass rates, confidence intervals and cost per success
-(`engineering-team bench`; `bench run --fake` checks the harness offline). The method and threat
-model are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
-
-First measured results (OpenAI `gpt-6` models, five dev tasks, two runs each; every number is in
-[`benchmarks/results/2026-10-04/`](benchmarks/results/2026-10-04/)):
-
-| Strategy | Passed | Cost per success (estimated) | Median time |
-|----------|--------|------------------------------|-------------|
-| `pipeline` (default) | 10/10 | $0.21 | 10.4 min |
-| `single` (one agent, the baseline) | 9/10 | $0.0054 | 1.2 min |
-| `hierarchical` (0.1.0) | 0/3 (all hit the 30-minute limit) | – | 30.2 min |
-
-Ten runs per strategy cannot separate `pipeline` from `single` on pass rate (95 % intervals 72–100 %
-and 60–98 %), and `single` costs far less on tasks this small. `pipeline` is the default because it
-is the orchestrated strategy that finished the work (the 0.1.0 crew did not within 30 minutes) and
-because it adds staged review and a controller-run verification report that the benchmark does not
-score. Read the caveats in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#limits-of-this-evaluation) before
-quoting these.
-
-## Generated project layout
-
-Each MVP owns a conventional project root:
-
-```text
-workspace/
-└── habit-tracker/
-    ├── .engineering-team/
-    │   └── runs/<run-id>/        # manifest, event log, request, logs per run
-    ├── docs/
-    │   ├── architecture.md
-    │   ├── implementation-plan.md
-    │   ├── verification.md
-    │   └── release-report.md
-    ├── README.md
-    ├── src/ or apps/ or packages/
-    ├── tests/
-    └── stack-specific configuration
-```
-
-The exact source tree is chosen for the product and stack. Generated workspaces
-are git-ignored by this orchestrator. A `pipeline` or `single` run makes a new project its own Git
-repository (an initial commit, then one commit per finished stage; `--no-git` skips it); for other runs,
-initialize a separate repository inside a finished MVP if you want to keep it.
-
-## How orchestration works
-
-This section describes the `hierarchical` strategy (`--strategy hierarchical`). The default,
-`pipeline`, is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#pipeline-recipes-and-resume).
-
-CrewAI's hierarchical process gives the custom lead three responsibilities:
-
-1. Assign each stage to the specialist best suited to the project state.
-2. Supply context and reconcile decisions across specialists.
-3. Validate task output and require rework when acceptance criteria or required
-   artifacts are missing.
-
-CrewAI 1.15 requires a custom hierarchical manager to start without ordinary
-tools. The lead therefore receives CrewAI's scoped delegation and coworker tools,
-while specialists receive the project filesystem, command, and optional
-documentation tools. When the lead needs a file inspected or corrected, it
-delegates that concrete action and evaluates the specialist's evidence.
-
-The worker pool contains:
-
-- `solution_architect`
-- `backend_engineer`
-- `frontend_engineer`
-- `quality_engineer`
-
-Tasks do not hardcode an assignee. This lets the lead route backend-free apps,
-CLI products, integration-heavy automations, or unusual stacks intelligently
-according to the requirements and current workspace state.
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for boundaries and design
-details.
-
-## Filesystem and command safety
-
-Agents work only inside the generated project: paths are relative and checked after symlink
-resolution, `.git` and the orchestrator's `.engineering-team/` state are off limits, and
-commands run without a shell from an executable allowlist with a scrubbed environment and a
-timeout that kills the whole process tree. This reduces accidental damage; it is not a VM
-boundary, so run the orchestrator in a container or VM for untrusted requests or dependencies.
-See [docs/SAFETY.md](docs/SAFETY.md) for the full model and
-[docs/TOOLS.md](docs/TOOLS.md) for every tool.
-
-Add a required executable narrowly, and pass an environment variable to generated programs only
-when necessary:
-
-```dotenv
-ENGINEERING_COMMAND_ALLOWLIST=just,flutter
-ENGINEERING_SUBPROCESS_ENV_ALLOWLIST=DATABASE_URL
-```
-
-## Optional documentation tools and extensions
-
-MCP servers are disabled by default. To give specialist agents a documentation
-server:
-
-```dotenv
-ENGINEERING_DOCS_MCP_URLS=https://your-trusted-server.example/mcp
-```
-
-Only configure servers you trust. They add latency, network access, and their
-own data-handling boundary. Servers per teammate, repository conventions, plugin
-tools, and hooks (a Slack message when a run finishes) are configured in
-`engineering-team.toml`: see [docs/CONFIGURATION.md](docs/CONFIGURATION.md#mcp-servers-mcpname).
-
-## Verification
-
-Test and lint the orchestrator itself:
+Prefer a browser?
 
 ```bash
-uv run pytest
-uv run ruff check .
+uv tool install --python 3.13 "engineering_team[ui] @ git+https://github.com/alexandre0sheva/crewai-engineering_team"
+engineering-team ui                                # http://127.0.0.1:8765/
 ```
 
-Validate CLI setup without an LLM call:
+Start runs, watch them live (task board, teammates, activity, timeline, replay), steer them and review
+the diff, the criteria coverage and the report. Commands, exit codes and how to write a request the team
+can succeed with are in [docs/USAGE.md](docs/USAGE.md).
 
-```bash
-uv run engineering-team new --project-name smoke-test --prepare-only \
-  --request "Build a CLI that stores and lists notes in a local JSON file."
+### Try it without a key
+
+`engineering-team ui --demo` runs the real pipeline, board, checks and report with a **script instead of a
+model**: every state of the dashboard shows up and nothing is billed. The [`examples/`](examples/) have
+three scenarios (a new project, a feature on a legacy service, a bug fix) with their requests, the
+outcome to expect, and a committed run report each. Those reports were produced the same scripted way, so
+they show what a report looks like, not what a model writes.
+
+## The team
+
+Thirteen teammates, each with its own prompt, model tier and tool groups, all changeable in configuration
+or YAML ([docs/TEAM.md](docs/TEAM.md)):
+
+| Role | Teammates |
+|------|-----------|
+| Plan | `product_analyst` (specification), `solution_architect` (design and work split), `engineering_lead` (manages the 0.1.0 `hierarchical` crew) |
+| Build | `backend_engineer`, `frontend_engineer`, `quality_engineer` (tests, release report), `devops_engineer`, `technical_writer`, `generalist_engineer` |
+| Check | `code_reviewer`, `security_engineer` (read-only reviewers), `debugger` (reproduces failures and repairs) |
+| Understand | `codebase_analyst` (explains an existing project) |
+
+Add your own teammate, tool, MCP server or hook without changing the code
+([docs/CONFIGURATION.md](docs/CONFIGURATION.md)).
+
+## How it works
+
+```mermaid
+flowchart LR
+    R[Request] --> I[Intake and spec]
+    I --> P[Plan: work packages with owned paths]
+    P --> W1[Work package A]
+    P --> W2[Work package B]
+    W1 --> V[Controller runs the checks]
+    W2 --> V
+    V -- failing --> D[Debugger repairs, bounded rounds]
+    D --> V
+    V -- passing --> Q[Read-only review]
+    Q --> O[Docs, delivery, release]
+    O --> X[Report, Git history, verdict]
+    C[(Task board and event log)] -. controller-owned .- V
 ```
 
-An actual crew run consumes model tokens and may install dependencies selected
-for the generated MVP. The quality and release stages record exact evidence in
-the generated project's `docs/release-report.md`; in a pipeline run `docs/verification.md` is written by the
-controller from checks it ran itself.
+- **The controller decides.** Agents report; the controller runs the tests, linters and the project's own
+  commands itself, writes `docs/verification.md` from what it saw, and is the only thing that moves a card to
+  done. An agent's claim that it finished is a request for verification, not evidence.
+- **Parallel without merging.** Work packages run side by side, each agent allowed to write only the paths
+  its package owns, so there is nothing for a model to merge.
+- **Resumable and bounded.** Stages are recorded, so a cancelled or failed run continues without redoing
+  finished work, and budgets (cost, tokens, time, tool calls) stop a run that overspends.
+- **Safe by default, sandbox on request.** Agents work inside the project, commands run without a shell from
+  an allowlist with a scrubbed environment, the web and MCP are off until you enable them, and
+  `--sandbox docker` runs every command in a hardened container.
 
-## CrewAI maintenance commands
+Design, module map, run state and the alternatives that were rejected: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The execution boundary and threat model: [docs/SAFETY.md](docs/SAFETY.md).
 
-Use these entry points for training, replay, and evaluation:
+## Tools
 
-```bash
-uv run train <iterations> <training-file> [request options]
-uv run replay <task-id> --run <run-id>
-uv run test <iterations> <evaluation-model> [request options]
-```
+Agents get a catalogue of structured tools rather than a shell: reading and searching, atomic multi-file
+patches, test/lint/type-check/build runners that return parsed results, code intelligence (symbols,
+references, importers, hotspots), read-only Git, background processes with an HTTP client, a headless
+browser for UI checks, and, only when enabled, web search and fetching. Every tool, its group and its limits
+are in [docs/TOOLS.md](docs/TOOLS.md).
 
-CrewAI evolves quickly. Before changing CrewAI-specific code, check the installed
-version, PyPI, changelog, and relevant live documentation as required by
-[AGENTS.md](AGENTS.md).
+## Measured, not assumed
+
+A benchmark suite of greenfield and brownfield tasks, judged by hidden behavioural checks the team never
+sees, decided the default strategy; pass rates come with confidence intervals and cost per success.
+Method, threat model and every number: [docs/BENCHMARKS.md](docs/BENCHMARKS.md#results-2026-10-04) and
+[`benchmarks/results/`](benchmarks/results/2026-10-04/). `engineering-team bench run --fake` checks the
+harness offline.
+
+## Limitations
+
+- **Small samples.** The first evaluation is ten runs per strategy on small Python programs, one provider,
+  one day. Its intervals are wide, it cannot separate the default pipeline from a single agent on pass rate
+  (the single agent was far cheaper on tasks that small), and it does not score code quality, docs or
+  review. [Read the caveats](docs/BENCHMARKS.md#limits-of-this-evaluation) before quoting a number.
+- **Models are not deterministic**, and a live run costs real money. Set `budget.max_cost_usd` and use the
+  `smoke` profile while you learn what a run costs ([docs/CONFIGURATION.md](docs/CONFIGURATION.md#budgets)).
+- **The local backend is a project boundary, not a sandbox.** Use `--sandbox docker`, or a container or VM,
+  for untrusted requests or dependencies. Plugins, MCP `command` servers and hooks run outside it by design.
+- **Acceptance criteria are verified only when you say how**: without a checks file the report lists them
+  as unverified and marks a test suite that merely mentions one as referenced.
+- **Python 3.11–3.13.** CrewAI 1.15 itself declares `<3.14`.
+- **0.2.0 is alpha.** Interfaces may still change before 1.0.
+
+## Contributing and license
+
+Issues and pull requests are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) has the gate (the tests run offline,
+no key needed), the testing helpers and the release process. Report vulnerabilities privately
+([SECURITY.md](SECURITY.md)). Be kind: [Code of Conduct](CODE_OF_CONDUCT.md). Changes by version:
+[CHANGELOG.md](CHANGELOG.md). MIT licensed ([LICENSE](LICENSE)).
+
+Built on [CrewAI](https://docs.crewai.com/); coding assistants working on this repository should read
+[AGENTS.md](AGENTS.md) first.

@@ -99,7 +99,12 @@ line-length = 100
 target-version = "py311"
 # Benchmark fixtures and reference solutions are *data* (what the team starts from, what a good
 # answer looks like): they are compared and replayed byte for byte, never linted or reformatted.
-extend-exclude = ["benchmarks/tasks/*/fixture", "benchmarks/tasks/*/reference"]
+# So are the example projects the team is pointed at (``examples/*/repo``).
+extend-exclude = [
+    "benchmarks/tasks/*/fixture",
+    "benchmarks/tasks/*/reference",
+    "examples/*/repo",
+]
 
 [tool.ruff.format]
 # Ruff 0.16 also formats fenced code in Markdown; keep docs (e.g. AGENTS.md) untouched.

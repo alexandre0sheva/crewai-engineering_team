@@ -1,4 +1,4 @@
-"""Typed contracts shared by the controller, the run store, and (later) the agents.
+"""Typed contracts shared by the controller, the run store, and the agents.
 
 Every model carries ``schema_version`` and tolerates unknown fields (they are ignored), so a
 manifest or event written by a newer version still loads. Bump ``schema_version`` only for a

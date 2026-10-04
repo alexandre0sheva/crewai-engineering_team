@@ -2,7 +2,7 @@
 
 Two sources, project scripts first: what the project defines for itself (``package.json``
 scripts, ``Makefile`` and ``justfile`` targets, ``tox.ini``, ``noxfile.py``) and what the shared
-stack detector (``devtools.detect``, T11) says about the tools it uses. Several commands of one
+stack detector (``devtools.detect``) says about the tools it uses. Several commands of one
 kind are kept, the most authoritative first, so a consumer takes the first of its kind.
 """
 

@@ -1,6 +1,6 @@
 """``DevRunner``: every structured developer tool for one run, behind one object.
 
-The agent tools (``tools/dev_tools.py``) call it, and so will the verifier (T18). It builds each
+The agent tools (``tools/dev_tools.py``) call it, and so will the verifier. It builds each
 command from a plan, runs it through the run's execution backend (allowlist, command gate,
 timeout), reads the tool's own report, and returns a typed report from ``devtools.models``.
 """

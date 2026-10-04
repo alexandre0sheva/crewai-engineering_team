@@ -2,7 +2,7 @@
 
 Parsers turn a tool's own output into these; the runners add where the log is and how the
 command went. They are :class:`~engineering_team.contracts.Contract` models so the verifier
-(T18) can store and compare them.
+can store and compare them.
 """
 
 from __future__ import annotations

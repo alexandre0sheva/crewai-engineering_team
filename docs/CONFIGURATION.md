@@ -37,7 +37,7 @@ a profile.
 | `provider` | `ENGINEERING_PROVIDER` | `openai` | Model preset: `openai`, `anthropic`, `google`, `ollama` (`azure` needs `enable_azure`) |
 | `profile` | `ENGINEERING_RUN_PROFILE` | `standard` | `standard`, `smoke` (cheap end-to-end check), `max-quality` |
 | `strategy` | `ENGINEERING_STRATEGY` | `pipeline` | How the team is orchestrated: `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)), `hierarchical` (the 0.1.0 manager-led crew), or `single` (one agent with every tool, the benchmark baseline). `--strategy` overrides it. Chosen with the [benchmarks](BENCHMARKS.md#results-2026-10-04); only `new` follows it, the repository modes always use `pipeline`. |
-| `team_profile` | `ENGINEERING_TEAM_PROFILE` | `full` | `full` runs every stage of the `new` recipe; `minimal` leaves out the optional ones (review, DevOps, docs), as `--profile smoke` does. See [Review](#review-review-and-team_profile) |
+| `team_profile` | `ENGINEERING_TEAM_PROFILE` | `full` | `full` runs every stage of the `new` recipe; `minimal` leaves out the optional ones (review, DevOps, docs), as `--profile smoke` does. To drop only one, disable its teammates instead (`[team.code_reviewer] enabled = false`; a stage is skipped when none of its teammates is enabled). See [Review](#review-review-and-team_profile) |
 | `project_name` | `ENGINEERING_PROJECT_NAME` | `mvp-app` | Workspace directory name |
 | `workspace_root` | `ENGINEERING_WORKSPACE_ROOT` | `workspace` | Parent of generated projects (relative → current directory) |
 | `request` | `ENGINEERING_PROJECT_REQUEST` | – | Inline request used when no `--request`/`--example`/`--request-file` is given |
@@ -153,11 +153,10 @@ variables. A missing key is reported before a run starts (preparation with `--pr
 
 Applies to `Web Search`, `Fetch URL`, `Package Info`, and `Search Docs` ([TOOLS.md](TOOLS.md#web-and-knowledge-tools)).
 **Off by default**: with `web.enabled = false` the three web tools are not even registered. Turn
-them on per run with `--allow-web` or `ENGINEERING_ALLOW_WEB=true`, or in the config file.
+them on per run with `--allow-web`, `ENGINEERING_ALLOW_WEB=true`, or `web.enabled` in the config file (the first table).
 
 | Key (TOML) | Default | Meaning |
 |---|---|---|
-| `web.enabled` | `false` | The switch described above (environment variable `ENGINEERING_ALLOW_WEB`, flag `--allow-web`) |
 | `web.roles` | – | Only these teammates get the web tools (names such as `researcher`, case-insensitive); empty means every teammate |
 | `web.search_provider` | – | `serper`, `brave`, or `tavily`; unset picks the first provider whose key is set, in that order |
 | `web.allow_domains` | – | When set, `Fetch URL` may only reach these hosts (`docs.python.org` or `*.example.com`; the wildcard is for subdomains) |
@@ -277,7 +276,7 @@ Line endings are normalised, a still-unedited template (`init`) is refused, and 
 `resume` is the same whichever way the text arrived. `--context-dir DIR` copies reference documents
 (`.md`, `.mdx`, `.rst`, `.txt`, `.adoc`) into the workspace for the team to search; the other keys cap them
 and the clarifying questions. `--interactive` (never the default, and ignored when stdin is not a terminal)
-lets the team ask those questions; see [Usage](USAGE.md#writing-a-request).
+lets the team ask those questions; see [Usage](USAGE.md#writing-a-strong-request).
 
 | Key (TOML) | Default | Meaning |
 |---|---|---|
@@ -370,7 +369,6 @@ elsewhere; relative paths use the current directory; a missing file is a usage e
 | `conventions.enabled` | `true` | `false` turns all of it off, including `conventions_file` |
 | `conventions.max_chars` | `12000` | Characters of all files together; files that do not fit are left out |
 | `conventions.max_file_chars` | `6000` | Characters of any one file; a longer one is cut and marked |
-| `conventions_file` | – | The extra file (also in the table above) |
 
 The run log records a `conventions.loaded` event with each file's name, size, and whether it was cut.
 New projects have no repository files to load: use `conventions_file` for them.
@@ -416,7 +414,6 @@ and an example are in `engineering_team.plugins`). It is found in two places:
 
 | Key (TOML) | Default | Meaning |
 |---|---|---|
-| `allow_project_plugins` | `false` | Load `.engineering-team/tools/*.py` (the table above; `ENGINEERING_ALLOW_PROJECT_PLUGINS`) |
 | `plugins.entry_points` | `true` | Load plugin tools from installed packages |
 | `plugins.disable` | – | Entry-point names or project file names (without `.py`) to skip |
 
@@ -501,7 +498,6 @@ findings go to `docs/review.md`; see [Review and optional stages](ARCHITECTURE.m
 | Key (TOML) | Default | Meaning |
 |---|---|---|
 | `review.fail_on` | `high` | Findings of this severity or higher (`low`, `medium`, `high`, `critical`) are sent to the repair agent (one round of `budget.max_repair_rounds`), then the project is verified again. Lower findings are only reported. |
-| `team_profile` | `full` | `minimal` skips the review, DevOps, and docs stages (the smoke profile does too). To drop one of them, disable its teammates instead: `[team.code_reviewer] enabled = false` (the stage is skipped when none of its teammates is enabled). |
 
 ### Adopting existing projects (`[analysis]`)
 
@@ -643,7 +639,7 @@ If you set these variables to models from an older release, they keep working as
 not list any more.
 
 Other settings for command safety and the run directory are described in the
-[README](../README.md#filesystem-and-command-safety) and [ARCHITECTURE](ARCHITECTURE.md).
+[SAFETY](SAFETY.md#command-execution) and [ARCHITECTURE](ARCHITECTURE.md).
 
 ## Budgets, usage, and cost
 
