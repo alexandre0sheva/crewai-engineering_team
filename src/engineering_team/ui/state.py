@@ -22,6 +22,7 @@ class UiState:
     settings: Settings
     launcher: RunLauncher
     security: Security
+    demo_repo: str | None = None  # the sample project of ``ui --demo``
     _logs: dict[Path, EventLog] = field(default_factory=dict)
     _guard: threading.Lock = field(default_factory=threading.Lock)
 

@@ -854,14 +854,27 @@ over what the CLI already writes; nothing runs a team inside the server.
 | `GET /runs/{id}/artifacts[/path]` | Screenshots, command logs, reports, the patch: only what the listing names |
 | `GET /runs/{id}/files[/path]` | Read-only project files, with the agents' path rules plus: no secrets (`.env`, keys, `.ssh/`, ...) |
 | `GET /runs/{id}/diff`, `/report` | The change since the starting commit (feature/fix/maintain); the run report (`?format=html|md`, served with a sandboxing CSP) |
-| `GET /config`, `/doctor`, `/team`, `/recipes`, `/repo/inspect?path=` | Masked settings, the machine check, teammates, recipes, and a project directory's stack and Git state |
-| `GET /health` | Version and whether a token is needed (the only call that needs none) |
+| `GET /runs/{id}/results` | The run report as JSON (banner, summaries, criteria coverage, checks, findings, parsed diff, screenshots, warnings) plus `merge`: where the work is and the commands to take it (`null` for a new project) |
+| `GET /config`, `/doctor`, `/team`, `/recipes` | Masked settings, the machine check, teammates, recipes |
+| `GET /repo/inspect?path=` | A project directory's stack and Git state, and how the team would be isolated from it (`branch`, `worktree`, `copy`) |
+| `GET /options[?provider=&profile=]` | What the start form offers: modes, request templates, defaults, the models (with prices) the choice would use, which optional tools this machine has, and the demo sample project when serving `--demo` |
+| `GET /health`, `GET /`, `GET /static/...` | Version and whether a token is needed; the app shell. These are the only calls that need no token |
+
+**App shell** (`ui/static/`, served at `/` and `/static/`). Vanilla ES modules and one stylesheet, no build step and no
+third-party code: the pages are small, nothing needs a framework's reactivity, and a bundler or CDN would add a
+supply chain to a tool that runs with your model keys. Each screen is a module with `mount(root, params)` under
+`js/pages/`; `js/dom.js` builds elements from text only (never from HTML strings), `js/ui.js` is the one component
+vocabulary (chips, meters, tabs, states) the live dashboard reuses, `js/api.js` is the only code that calls the server
+(it adds the header mutating calls need and the bearer token, and reads the event stream with `fetch` because
+`EventSource` cannot send headers). Routes are hash-based (`#/runs/ID`), so the server has nothing to rewrite. The
+page is sent with a policy that allows only same-origin scripts and styles (no inline code, no `eval`), which a test
+enforces for every shipped file. `ui --demo` runs `ui/demo.py`, the CLI with a scripted stage runner in place of the model.
 
 Errors are `{"error": "..."}`. **Guard** (`ui/security.py`, one ASGI middleware): in local mode only
 `localhost`/`127.0.0.1`/`[::1]` Host headers are served (DNS rebinding); a request with a foreign `Origin` or
 `Sec-Fetch-Site: cross-site` is refused and no CORS header is ever sent; mutating calls need `X-Engineering-Team: 1`
 (a browser cannot add it cross-origin without a preflight the server never approves); beyond localhost
-(`--allow-remote`) every call but `/health` needs the random bearer token printed at start; bodies are capped
+(`--allow-remote`) every call but `/health` and the app shell needs the random bearer token printed at start; bodies are capped
 (`ui.max_request_bytes`, `ui.max_upload_bytes`; chunked bodies are refused). The server reads and writes only the
 run directories, the UI's own `.engineering-team-ui/` folder (uploads, logs, start records), and the project files
 it serves read-only.

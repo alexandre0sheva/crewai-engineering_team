@@ -81,6 +81,14 @@ projects this tool created. The bundled example selects the lower-cost `smoke` p
 
 The 0.1.0 form (`engineering-team --request-file FILE`) still works and prints a deprecation notice.
 
+## Web UI
+
+`uv sync --extra ui && uv run engineering-team ui` opens a local app at http://127.0.0.1:8765/ for starting runs,
+watching them, and reviewing the diff, criteria coverage and report; `ui --demo` tries it without an API key. See
+[docs/USAGE.md](docs/USAGE.md#web-ui).
+
+![The results screen](docs/assets/ui-results.png)
+
 ## Generated project layout
 
 Each MVP owns a conventional project root:

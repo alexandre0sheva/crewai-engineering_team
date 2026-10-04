@@ -12,7 +12,9 @@ A pure ASGI middleware, so streaming responses (SSE) pass through untouched. In 
 5. **Body size**: ``Content-Length`` and the bytes actually received are capped (a larger upload
    cap for ``multipart/form-data``, which is how files arrive).
 
-``/health`` skips the token check (and only that) so a client can find out whether it needs one.
+``/health`` and the app shell (``/`` and ``/static/``: HTML, CSS and JavaScript, nothing
+about any run) skip the token check (and only that), so a browser can load the page, find out it
+needs a token, and then send it with every API call.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "[::1]", "::1"})
 MUTATING = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 CUSTOM_HEADER = "x-engineering-team"
 OPEN_PATHS = ("/health",)
+SHELL_PREFIXES = ("/static/",)
 MULTIPART_OVERHEAD = 64 * 1024  # form boundaries and field names around the files
 
 
@@ -141,7 +144,9 @@ class GuardMiddleware:
 
 def _open(scope: Scope) -> bool:
     path = str(scope.get("path", ""))
-    return any(path.endswith(suffix) for suffix in OPEN_PATHS) and scope["method"] == "GET"
+    if scope["method"] != "GET":
+        return False
+    return path == "/" or path.startswith(SHELL_PREFIXES) or path.endswith(OPEN_PATHS)
 
 
 async def _reply(send: Send, status: int, message: str) -> None:

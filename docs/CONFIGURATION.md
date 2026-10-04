@@ -317,7 +317,7 @@ enabled = false
 ### Web UI (`[ui]`)
 
 Limits of `engineering-team ui` ([USAGE.md](USAGE.md#web-ui)). The server's own options (`--host`, `--port`,
-`--allow-remote`) are command-line only.
+`--allow-remote`, `--demo`) are command-line only.
 
 | Key (TOML) | Default | Meaning |
 |---|---|---|

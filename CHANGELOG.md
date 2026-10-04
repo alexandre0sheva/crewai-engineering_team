@@ -16,6 +16,14 @@ as each task lands.
 
 ### Added
 
+- Web UI app shell, served by `engineering-team ui` at `http://127.0.0.1:8765/` (no build step, no CDN): **New run**
+  (mode tabs, request text and `.md`/`.txt` uploads, live project-folder check with an isolation recommendation, team
+  preset and per-teammate toggles with their tool groups, provider/profile with model prices, budget fields with a cost
+  hint, advanced options), a **run page** (status, progress, cost, stages, raw event stream, pause/cancel/resume,
+  questions), **results** (verdict, criteria-coverage matrix, checks, per-file diff, file viewer, screenshots, report
+  download, patch export, how to merge the branch), **run history** (search, filter, progress per run), and
+  **settings/doctor**. Keyboard navigable, light/dark, usable at phone width. `GET /options` and `GET /runs/{id}/results`
+  feed it, `team_profile` is a start option, and `ui --demo` runs the real pipeline with scripted teammates (no model or key).
 - `engineering-team ui [--host --port --allow-remote]`: the local web UI's backend (FastAPI, optional extra `ui`): a versioned
   JSON API (`/api/v1`) to start runs (JSON or uploads), list them, stream their events (SSE, resumable), cancel, resume, answer
   the team's questions, steer a card or the run, read the board now or replayed at any event, teammates, cards with their

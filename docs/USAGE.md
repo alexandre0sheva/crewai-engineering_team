@@ -22,7 +22,7 @@ uv run engineering-team <command> --help # its options
 | `analyze [--repo PATH] [--deep]` | Look at an existing project without changing it: languages, detected commands, tests, CI, Git state; `--deep` also writes a codebase map ([Adopting an existing project](#adopting-an-existing-project)). |
 | `resume RUN` | Continue a cancelled, interrupted, or failed run without redoing finished stages. |
 | `report [RUN] [--format html|md] [--open]` | Write the run report: summary, timeline, board, checks, cost, changes ([Run reports](#run-reports)). |
-| `ui [--host H] [--port P]` | Serve the web UI's API on localhost ([Web UI](#web-ui)). Needs `uv sync --extra ui`. |
+| `ui [--host H] [--port P] [--demo]` | Serve the web UI and its API on localhost ([Web UI](#web-ui)). Needs `uv sync --extra ui`. |
 | `status [RUN]` | Where a run stands: stages, progress, cost, blocked cards. |
 | `runs` | List runs (of every project, or one with `--project-name`), newest last. |
 | `board [RUN] [--watch]` | The task board as a kanban; `--watch` keeps it live until the run ends. |
@@ -385,15 +385,73 @@ Safety details: [SAFETY.md](SAFETY.md#adopting-an-existing-project).
 
 ```bash
 uv sync --extra ui                     # FastAPI and uvicorn (`doctor` says if they are missing)
-uv run engineering-team ui             # http://127.0.0.1:8765/api/v1 ; interactive docs at /api/v1/docs
+uv run engineering-team ui             # open http://127.0.0.1:8765/ ; the JSON API is /api/v1 (docs at /api/v1/docs)
+uv run engineering-team ui --demo      # try it without a model or an API key (see "Demo mode")
 ```
 
-`ui` serves a JSON API over the runs of the workspace root (`--workspace-root`, `--config` as for every command): start
-a run (`POST /runs`: JSON, or `multipart/form-data` with a `spec` field and `request_files` / `context_files`), list and
-inspect runs, stream their events (Server-Sent Events, resumable with `Last-Event-ID`), cancel, resume, pause, steer a card
-or the run, answer the team's questions, read the board (now, or replayed at any event with `?at=SEQ`), teammates,
-cards with their tool-call trail, artifacts, project files, the diff, and the run report, plus `GET /config`, `/doctor`,
-`/team`, `/recipes`, and `/repo/inspect?path=`. The endpoint reference is in
+![The new-run screen](assets/ui-new-run.png)
+
+`ui` serves a browser app and the JSON API behind it, over the runs of the workspace root (`--workspace-root`,
+`--config` as for every command). Start a run from the page, close the tab, come back later: runs are separate
+processes. The app is plain HTML, CSS and JavaScript shipped inside the package: no build step, no CDN, nothing
+fetched from elsewhere, and a content security policy that allows only its own files.
+
+### The screens
+
+- **New run.** Pick what to do (**Build new**, **Add feature**, **Fix bug**, **Maintain**, **Review**), write the
+  request (Markdown works; a counter shows its size and **Insert a request template** gives the mode's template) and/or
+  drop one or more `.md`/`.txt` files on it. For a project on this machine give its folder: the page checks it as you
+  type and shows the stack, test files, Git state, and how the team would be kept apart from your checkout (own branch
+  for a clean tree, a worktree for a dirty one, a copy outside Git). On the right: the team preset (**Full**, or
+  **Minimal** without review, DevOps and docs) with a toggle and the tool groups for each teammate; the provider and
+  profile with the model each slot would use and its price; optional limits on cost, tokens, minutes and tool calls (the
+  hint turns a dollar limit into roughly how many tokens it buys on the lead model); and, under **Advanced**,
+  parallelism, the command sandbox, the strategy, isolation, and the web tools. Fix, Maintain and Review add their own
+  fields (a reproduction command and a stack trace, the task, the base to compare against).
+- **Run page** (`#/runs/ID`). Status, progress by task-board weight, elapsed time, cost and tokens; **Pause**,
+  **Cancel** and **Resume**; what needs you (the team's questions, with an answer box, blocked cards, budget
+  warnings); the stage list; and the raw event stream (it follows the end of the log until you scroll up).
+
+  ![A run in progress](assets/ui-run.png)
+
+- **Results** (`#/runs/ID/results`). The verdict and why, then tabs: **Summary** (warnings, review findings, who did
+  what), **Criteria** (each acceptance criterion with the checks that back it: *verified*, *referenced*, or
+  *unverified*, so nothing unproven looks done), **Checks** (with log excerpts), **Changes** (a per-file diff),
+  **Files** (the project tree with a viewer; secrets are never served), **Screenshots** (taken by the browser tools),
+  and **Take the change** (copyable commands to merge the team's branch or apply a patch; the team never merges or
+  pushes). **Export patch** and **Download report** save files from the header.
+
+  ![A finished run's changes](assets/ui-results.png)
+
+- **Runs** lists every run, including ones started from the terminal, with search, a status filter, and a mini
+  progress bar each; it refreshes while any run is active.
+
+  ![The run history](assets/ui-history.png)
+
+- **Settings** shows the effective configuration with its sources (secrets masked), the `doctor` checks, and whether
+  the browser tools, Docker and web search are available. It is read-only: change values in the config file or the
+  environment.
+
+The page is keyboard-navigable (tabs use the arrow keys), keeps a visible focus ring, announces status changes through
+a screen-reader live region, follows light/dark (the button in the header overrides it), and works down to phone
+width. The run page is a basic live view; a richer dashboard (task board, teammate cards, activity feed, replay) is planned for it.
+
+### Demo mode
+
+`ui --demo` replaces the model with a script: the **real** pipeline, task board, checks, report, cancel and resume all
+run, but every teammate's answers and tool calls are scripted (3 parallel work packages, a passing check, a review
+finding), so no key is needed and nothing is billed. Pick **Add feature**, press **Use the demo sample project**, write
+anything, and start. It works in a temporary workspace and only writes under `engineering_team_demo/` in the project you
+point it at (default: a small sample repository it creates).
+
+### The API
+
+Everything the page does is a call to the JSON API, which you can use directly: start a run (`POST /runs`: JSON, or
+`multipart/form-data` with a `spec` field and `request_files` / `context_files`), list and inspect runs, stream their
+events (Server-Sent Events, resumable with `Last-Event-ID`), cancel, resume, pause, steer a card or the run, answer the
+team's questions, read the board (now, or replayed at any event with `?at=SEQ`), teammates, cards with their tool-call
+trail, artifacts, project files, the diff, the run report and its JSON form (`/results`), plus `GET /config`, `/doctor`,
+`/team`, `/recipes`, `/options` (what the start form offers), and `/repo/inspect?path=`. The endpoint reference is in
 [ARCHITECTURE.md](ARCHITECTURE.md#web-ui-backend).
 
 ```bash

@@ -18,7 +18,7 @@ import signal
 import subprocess
 import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -74,6 +74,7 @@ class RunOptions(BaseModel):
     allow_web: bool = False
     budget: Budget | None = None
     max_parallel_agents: int | None = Field(default=None, ge=1, le=16)
+    team_profile: Literal["full", "minimal"] | None = None  # minimal: no review, DevOps, docs
     disabled_teammates: list[str] = Field(default_factory=list)  # roster toggles
 
 
@@ -128,6 +129,8 @@ def overrides_for(options: RunOptions) -> dict[str, Any]:
                 found[f"budget.{key}"] = value
     if options.max_parallel_agents is not None:
         found["parallel.max_parallel_agents"] = options.max_parallel_agents
+    if options.team_profile is not None:
+        found["team_profile"] = options.team_profile
     for key in options.disabled_teammates:
         found[f"team.{key}.enabled"] = False
     return found
@@ -143,8 +146,8 @@ def safe_name(name: str, suffixes: Sequence[str]) -> str:
 
 
 class RunLauncher:
-    """Starts runs and keeps their records. ``command`` is how to invoke the CLI (tests replace
-    it)."""
+    """Starts runs and keeps their records. ``command`` is how to invoke the CLI (tests and demo
+    mode replace it); ``environment`` is extra variables for the processes it starts."""
 
     def __init__(
         self,
@@ -153,12 +156,14 @@ class RunLauncher:
         max_concurrent: int,
         command: Sequence[str] | None = None,
         config_file: str | None = None,
+        environment: Mapping[str, str] | None = None,
     ) -> None:
         self.root = resolve_workspace_root(workspace_root)
         self.state_dir = self.root / STATE_DIRECTORY
         self.max_concurrent = max_concurrent
         self.command = list(command or (sys.executable, "-m", "engineering_team"))
         self.config_file = config_file
+        self.environment = dict(environment or {})  # added to every run's environment
         self._children: dict[str, subprocess.Popen[bytes]] = {}
 
     # -- records ------------------------------------------------------------------------
@@ -378,7 +383,7 @@ class RunLauncher:
         logs = self.state_dir / "logs"
         logs.mkdir(parents=True, exist_ok=True)
         log_path = logs / f"{run_id}{'-resume' if resume else ''}.log"
-        extra = {"PYTHONUNBUFFERED": "1", "NO_COLOR": "1"}
+        extra = {"PYTHONUNBUFFERED": "1", "NO_COLOR": "1", **self.environment}
         if overrides:
             extra[OVERRIDES_ENV] = json.dumps(overrides)
         env = child_environment(extra)

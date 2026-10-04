@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>engineering-team</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/js/theme.js"></script>
+  <script type="module" src="/static/js/main.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="topbar">
+    <a class="brand" href="#/" aria-label="engineering-team, new run">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V6l8 6-8 6Zm8 0V6l8 6-8 6Z"/></svg>
+      <span class="brand-name">engineering<i>·</i>team</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#/" data-nav="new">New run</a>
+      <a href="#/runs" data-nav="runs">Runs</a>
+      <a href="#/settings" data-nav="settings">Settings</a>
+    </nav>
+    <button class="btn ghost icon-btn" id="theme-toggle" type="button" aria-label="Switch colour theme"></button>
+  </header>
+  <div id="banner-slot"></div>
+  <main id="main" tabindex="-1">
+    <p class="boot">Loading the app…</p>
+    <noscript><p class="boot">This app needs JavaScript. Everything it shows is also in the CLI: <code>engineering-team --help</code>.</p></noscript>
+  </main>
+  <div id="live" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+</body>
+</html>

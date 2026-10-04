@@ -12,6 +12,7 @@ from engineering_team.cli.doctor import run_checks
 from engineering_team.cli.recipes_command import recipe_doc
 from engineering_team.cli.team_commands import describe
 from engineering_team.modes.repo_analyzer import analyze_repo
+from engineering_team.modes.repo_profile import GitState
 from engineering_team.pipeline.recipe_list import list_recipes
 from engineering_team.team import TeamError, build_roster
 from engineering_team.ui import missing_dependencies
@@ -82,4 +83,34 @@ def inspect(path: str) -> dict[str, Any]:
 
     root = _directory(path)
     profile = analyze_repo(root)
-    return {"path": str(root), "profile": profile.model_dump(mode="json")}
+    return {
+        "path": str(root),
+        "profile": profile.model_dump(mode="json"),
+        "isolation": isolation_advice(profile.git),
+    }
+
+
+def isolation_advice(git: GitState) -> dict[str, str]:
+    """How the team would be kept apart from the person's checkout (``modes/isolation.py`` decides
+    the same way when asked for ``auto``): ``branch`` for a clean repository, ``worktree`` for
+    a dirty one, ``copy`` for a directory that is not a repository."""
+
+    if not git.available:
+        return {"mode": "copy", "why": "Git is not installed, so the team works on a copy."}
+    if not git.is_repo:
+        where = f" (inside the repository at {git.enclosing})" if git.enclosing else ""
+        return {
+            "mode": "copy",
+            "why": f"Not the top level of a Git repository{where}: the team works on a copy.",
+        }
+    if git.dirty:
+        count = git.changed_files + git.untracked_files
+        return {
+            "mode": "worktree",
+            "why": f"{count} uncommitted change(s): the team works in a separate worktree, so "
+            "your checkout is untouched.",
+        }
+    return {
+        "mode": "branch",
+        "why": f"Clean tree on '{git.branch}': the team works on its own branch.",
+    }
