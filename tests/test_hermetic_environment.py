@@ -26,6 +26,15 @@ def test_environment_is_isolated(hermetic_environment: Path) -> None:
     assert Path(os.environ["HOME"]).is_relative_to(hermetic_environment)
 
 
+def test_downloaded_browsers_stay_findable_although_home_is_moved(
+    hermetic_environment: Path,
+) -> None:
+    # Playwright locates its browsers through HOME; the sandboxed HOME must not hide them.
+    browsers = Path(os.environ["PLAYWRIGHT_BROWSERS_PATH"])
+    assert not browsers.is_relative_to(hermetic_environment)
+    assert browsers.name == "ms-playwright"
+
+
 @pytest.mark.skipif(
     os.environ.get("ENGINEERING_TEST_NESTED") == "1",
     reason="avoid recursive pytest invocation",

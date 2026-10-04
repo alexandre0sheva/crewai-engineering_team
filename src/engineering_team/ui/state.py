@@ -56,6 +56,11 @@ class UiState:
             return None
         return ref if ref.run_id == run_id else None
 
+    def starting(self, run_id: str) -> bool:
+        """True for a run that was launched but has not written its run directory yet."""
+
+        return self.find(run_id) is None and self.launcher.record(run_id) is not None
+
     def need(self, run_id: str) -> RunRef:
         ref = self.find(run_id)
         if ref is None:

@@ -273,6 +273,25 @@ def test_unknown_and_malformed_run_ids_are_404s() -> None:
     assert client.get(f"{API}/runs/20250101-000000-abcdef/board").status_code == 404
 
 
+def test_a_run_that_is_still_starting_has_an_empty_board_not_a_404() -> None:
+    client, launcher = make_client()
+    run_id = "20250101-000000-abcdef"
+    starts = launcher.state_dir / "starts"
+    starts.mkdir(parents=True, exist_ok=True)
+    (starts / f"{run_id}.json").write_text(
+        json.dumps(
+            {"run_id": run_id, "pid": 1, "mode": "new", "log": "x.log", "started": 0, "argv": []}
+        ),
+        encoding="utf-8",
+    )
+
+    board = client.get(f"{API}/runs/{run_id}/board")
+    assert board.status_code == 200 and board.json()["cards"] == []
+    assert client.get(f"{API}/runs/{run_id}/agents").json() == []
+    assert client.get(f"{API}/runs/{run_id}/timeline").json()["stages"] == []
+    assert client.get(f"{API}/runs/20250101-000000-fedcba/board").status_code == 404
+
+
 # -- the start request -------------------------------------------------------------------------
 
 

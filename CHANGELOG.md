@@ -327,6 +327,10 @@ reports, a web UI, a benchmark suite, and extension points. Coming from 0.1.0? R
 
 ### Fixed
 
+- The web UI no longer reports 404 errors in the browser console while a run is starting: the board, teammates and
+  timeline of a run that has been launched but has not written its run directory yet are now empty instead of "not found".
+- The browser tests and the UI smoke test (`scripts/ui_smoke.py`) pass on CI: the tests now keep Playwright's browser
+  cache findable although they sandbox `HOME`, and the smoke test no longer trips over the two "Runs" links.
 - Every model call to a GPT-6 model failed with `Responses.create() got an unexpected keyword argument 'context_window_size'`:
   CrewAI's native providers forward unknown constructor options to the API, so the context window is now set on the model object
   instead. (Found by the first live benchmark run.)

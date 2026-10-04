@@ -6,6 +6,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -31,6 +32,29 @@ PROVIDER_KEY_NAMES = (
     "GEMINI_API_KEY",
     "AZURE_API_KEY",
 )
+
+
+def playwright_browsers_path() -> str:
+    """Where Playwright keeps its downloaded browsers, resolved against the *real* home directory.
+
+    Playwright finds them through ``HOME`` unless ``PLAYWRIGHT_BROWSERS_PATH`` says otherwise, and
+    the hermetic fixture below moves ``HOME`` into a temporary directory: without this, a Chromium
+    that ``playwright install`` put in the real cache is invisible to the tests that launch it.
+    """
+
+    configured = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+    if configured:
+        return configured
+    home = Path.home()
+    if sys.platform == "darwin":
+        return str(home / "Library" / "Caches" / "ms-playwright")
+    if sys.platform == "win32":
+        local = os.environ.get("LOCALAPPDATA") or str(home / "AppData" / "Local")
+        return str(Path(local) / "ms-playwright")
+    return str(home / ".cache" / "ms-playwright")
+
+
+REAL_PLAYWRIGHT_BROWSERS_PATH = playwright_browsers_path()
 
 
 def docker_is_available() -> bool:
@@ -129,6 +153,7 @@ def hermetic_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pat
     monkeypatch.setenv("OPENAI_API_KEY", TEST_API_KEY)
     for name in PROVIDER_KEY_NAMES[1:]:
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", REAL_PLAYWRIGHT_BROWSERS_PATH)
     monkeypatch.setenv("HOME", str(sandbox / "home"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(sandbox / "xdg-config"))
     monkeypatch.setenv("XDG_DATA_HOME", str(sandbox / "xdg-data"))

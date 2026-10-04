@@ -10,6 +10,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from engineering_team.board.progress import compute_progress
+from engineering_team.contracts import utc_now
 from engineering_team.report.collect import build_report
 from engineering_team.runtime.inbox import post_command
 from engineering_team.runtime.run_store import RunNotFound
@@ -60,6 +62,8 @@ def board(request: Request, run_id: str, at: int | None = None) -> BoardView:
     """The board now, or (``?at=SEQ``) as it stood after event SEQ."""
 
     state = state_of(request)
+    if state.starting(run_id):  # launched, nothing written yet: an empty board, not a 404
+        return BoardView(run_id=run_id, seq=0, progress=compute_progress([], utc_now()), cards=[])
     ref = state.need(run_id)
     log = state.log_for(ref)
     if at is None:
@@ -97,9 +101,11 @@ def agents(request: Request, run_id: str, at: int | None = None) -> list[AgentVi
     """The teammates now, or (``?at=SEQ``) as they stood after event SEQ."""
 
     state = state_of(request)
-    ref = state.need(run_id)
     if at is not None and at < 0:
         raise HTTPException(422, "at must be an event sequence number (0 or more).")
+    if state.starting(run_id):
+        return []
+    ref = state.need(run_id)
     return agents_view(ref, state.log_for(ref), at)
 
 
@@ -108,7 +114,10 @@ def timeline(request: Request, run_id: str) -> dict[str, Any]:
     """Stages and the parallel lanes inside them as bars (seconds from the run's start), plus the
     review findings and criteria coverage so far; the report's data, read while the run goes."""
 
-    ref = state_of(request).need(run_id)
+    state = state_of(request)
+    if state.starting(run_id):
+        return {"seconds": 0, "stages": [], "lanes": [], "findings": [], "coverage": []}
+    ref = state.need(run_id)
     try:
         report = build_report(ref.run_dir)
     except RunNotFound as exc:

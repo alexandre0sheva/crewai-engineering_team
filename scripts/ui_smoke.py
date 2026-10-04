@@ -60,6 +60,12 @@ def drive(base: str, headed: bool, shots: Path | None) -> list[str]:
         console: list[str] = []
         page.on("console", lambda m: m.type == "error" and console.append(m.text))
         page.on("pageerror", lambda e: console.append(str(e)))
+        page.on(  # the console message for a failed load does not say which URL it was
+            "response",
+            lambda r: (
+                r.status >= 400 and console.append(f"HTTP {r.status} {r.request.method} {r.url}")
+            ),
+        )
         page.goto(f"{base}/")
         expect(page.get_by_role("heading", name="New run")).to_be_visible()
         expect(page.get_by_text("Demo mode.")).to_be_visible()
@@ -112,7 +118,7 @@ def drive(base: str, headed: bool, shots: Path | None) -> list[str]:
         if shots:
             page.screenshot(path=str(shots / "results.png"))
 
-        page.get_by_role("link", name="Runs", exact=True).click()
+        page.get_by_role("navigation", name="Main").get_by_role("link", name="Runs").click()
         expect(page.get_by_role("heading", level=1)).to_have_text("Runs")
         expect(page.locator("tbody tr")).to_have_count(1)
 
