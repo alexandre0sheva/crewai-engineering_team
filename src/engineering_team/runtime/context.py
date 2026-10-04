@@ -13,6 +13,12 @@ from typing import TYPE_CHECKING
 
 from engineering_team.execution.backend import ExecutionBackend
 from engineering_team.execution.factory import create_backend
+from engineering_team.extensions.conventions import (
+    Conventions,
+    check_conventions_file,
+    load_conventions,
+)
+from engineering_team.extensions.plugin_loader import PluginSet, load_plugins
 from engineering_team.pricing import PriceTable
 from engineering_team.runtime.browsers import BrowserDriver, BrowserRegistry
 from engineering_team.runtime.budget import Budget, BudgetGuard
@@ -75,6 +81,32 @@ def _browser_driver(
     return create_driver(settings, processes, events, run_dir)
 
 
+def _announce_extensions(
+    events: EventSink,
+    settings: Settings,
+    team: Roster,
+    plugins: PluginSet,
+    conventions: Conventions,
+) -> None:
+    """Tell the run's log (and so its report) which extension points are in play: the trust
+    warnings of MCP servers and project plugins, and which convention files were loaded."""
+
+    from engineering_team.extensions.mcp import trust_notes
+
+    for note in (*trust_notes(settings, team.all()), *plugins.notes):
+        events.emit("extension.warning", message=note)
+    if plugins.tools:
+        events.emit("plugins.loaded", tools=[f"{p.tool.name} ({p.source})" for p in plugins.tools])
+    if conventions.files:
+        events.emit(
+            "conventions.loaded",
+            files=[
+                {"file": item.label, "chars": item.chars, "truncated": item.truncated}
+                for item in conventions.files
+            ],
+        )
+
+
 @dataclass(frozen=True, eq=False)
 class RunContext:
     """Everything one run needs: settings, workspace, state directory, and shared controls.
@@ -95,7 +127,9 @@ class RunContext:
     model calls per minute that parallel agents share, and ``team`` the roster of teammates
     (the built-ins plus the project's changes and additions; see ``docs/TEAM.md``), and ``reports``
     where the controller's own write-ups go (the project's ``docs/``, or the run directory for a
-    project the team did not create).
+    project the team did not create), ``plugins`` the plugin tools this run offers and
+    ``conventions`` the repository conventions the agents' context carries (both:
+    ``docs/CONFIGURATION.md``).
     """
 
     run_id: str
@@ -121,6 +155,8 @@ class RunContext:
     tool_gate: ToolGate | None = None
     web_requests: RequestLimiter = field(default_factory=lambda: RequestLimiter(40))
     llm_rate: RateLimiter | None = None
+    plugins: PluginSet = field(default_factory=PluginSet)
+    conventions: Conventions = field(default_factory=Conventions)
 
     @classmethod
     def create(
@@ -148,7 +184,14 @@ class RunContext:
 
         from engineering_team.team import build_roster
 
-        team = build_roster(settings)  # a bad team definition is a usage error, before any state
+        plugins = load_plugins(settings)  # a broken plugin is a usage error, before any state
+        team = build_roster(settings, plugin_groups=plugins.groups)  # so is a bad team definition
+        conventions = load_conventions(
+            settings.conventions,
+            workspace.root,
+            adopted=adopted,
+            explicit=check_conventions_file(settings.conventions_file, Path.cwd()),
+        )
         from engineering_team.board.notes import NoteStore
         from engineering_team.board.store import BoardStore
         from engineering_team.git.port import GitPort
@@ -177,6 +220,7 @@ class RunContext:
             guard,
         )
         guard.attach(sink)
+        _announce_extensions(sink, settings, team, plugins, conventions)
         controller_dir = workspace.root / CONTROLLER_DIRECTORY
         processes = ProcessRegistry(
             run_backend,
@@ -224,4 +268,6 @@ class RunContext:
                 if settings.parallel.max_rpm
                 else None
             ),
+            plugins=plugins,
+            conventions=conventions,
         )

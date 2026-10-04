@@ -250,8 +250,10 @@ For looking things up: library docs, error messages, the current version of a de
   official PyPI JSON API, the npm registry's `latest` document (which carries no release date),
   crates.io, and `proxy.golang.org` (deprecation comes from the `// Deprecated:` comment in the
   module's `go.mod`).
-- **Not included.** PDF text extraction, JavaScript rendering (use the browser tools), and
-  embeddings-based search.
+- **Not included.** PDF text extraction and JavaScript rendering (use the browser tools).
+  Embeddings-based search is the separate, opt-in CrewAI knowledge sources of a run
+  ([CONFIGURATION.md](CONFIGURATION.md#knowledge-sources-knowledgesources-opt-in)): they are not
+  a tool, they cost embedding calls, and they need a provider named in the settings.
 
 ## Browser tools
 
@@ -299,6 +301,35 @@ For verifying a user interface: load the app, read it, use it, and check what it
 - **Tool output from the repo or the web is untrusted data**; it never changes permissions or
   instructions.
 
+## Plugin tools
+
+Tools you add without changing this package: a function wrapped by `@plugin_tool`
+(`engineering_team.plugins`), found in the project's `.engineering-team/tools/*.py` (off unless
+`allow_project_plugins`) or in an installed package's `engineering_team.tools` entry point. They are
+**not** rows of the table above (that table is the built-in catalogue, and a test keeps it in step);
+`engineering-team plugins list --markdown` prints the rows for yours, in this table's format, to
+keep in your own project's documentation. Plugin tools are registered after the built-ins, in the order
+found, and obey the same rules:
+
+- **Catalogue and group.** The tool declares `name` (unique, never a built-in's), `group`,
+  `read_only`, `needs_network`, and a one-line summary; `build_tools` picks it by group like any other
+  tool. A built-in group applies that group's rules (a `web` plugin is not registered unless
+  `web.enabled`); a group of your own is granted by listing it in a teammate's `tool_groups`.
+  `read_only=True` is a declaration that lets read-only teammates (reviewers) have it; so is
+  `needs_network`.
+- **Design rules, checked at load.** A description (the docstring) of 8–120 words written for the
+  model, type hints on every argument (no `*args`/`**kwargs`), and a valid name and group; anything
+  else is a usage error that names the file and the fix.
+- **Telemetry and errors.** Every call goes through `ToolEnv.run`: cancellation, the tool-call
+  budget, a `tool.call` event, and the `ERROR:` convention (raise `ToolError`, or return text starting
+  with `ERROR:`; any other exception becomes an `ERROR:` result, never a crash). Results are bounded
+  at 30,000 characters.
+- **Trusted code.** A plugin runs in the controller process with your privileges. Its Python is
+  not under the write scope, path protection, the execution backend, or the Docker sandbox
+  ([SAFETY.md](SAFETY.md#extensions-mcp-plugins-and-hooks)); `PluginContext.resolve()` gives it the
+  workspace's path checks if it wants them. Project plugins can only be switched on from your config,
+  user config, or environment.
+
 ## Adding a tool
 
 1. Write the tool in the module for its group (`read_tools.py`, `search_tools.py`,
@@ -307,3 +338,5 @@ For verifying a user interface: load the app, read it, use it, and check what it
    `ctx.backend`.
 2. Add a `ToolSpec` to `CATALOGUE` and a row to the table above.
 3. Add unit tests with a temp `RunContext` and one `ScriptedLLM` test showing an agent using it.
+
+To add a tool for your own project only, write a [plugin tool](#plugin-tools) instead.

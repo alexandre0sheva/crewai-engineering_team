@@ -189,17 +189,19 @@ ENGINEERING_COMMAND_ALLOWLIST=just,flutter
 ENGINEERING_SUBPROCESS_ENV_ALLOWLIST=DATABASE_URL
 ```
 
-## Optional documentation tools
+## Optional documentation tools and extensions
 
-Remote MCP servers are disabled by default. To give specialist agents a
-documentation server:
+MCP servers are disabled by default. To give specialist agents a documentation
+server:
 
 ```dotenv
 ENGINEERING_DOCS_MCP_URLS=https://your-trusted-server.example/mcp
 ```
 
 Only configure servers you trust. They add latency, network access, and their
-own data-handling boundary.
+own data-handling boundary. Servers per teammate, repository conventions, plugin
+tools, and hooks (a Slack message when a run finishes) are configured in
+`engineering-team.toml`: see [docs/CONFIGURATION.md](docs/CONFIGURATION.md#mcp-servers-mcpname).
 
 ## Verification
 

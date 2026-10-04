@@ -69,6 +69,10 @@ def _notice(event: Event) -> tuple[str, str] | None:
         return "warn", f"Git: {_text(data.get('error', ''))}"
     if kind == "pipeline.board_warning":
         return "info", f"The task board could not be updated: {_text(data.get('error', ''))}"
+    if kind == "extension.warning":
+        return "warn", _text(data.get("message", ""))
+    if kind == "hook.ran" and not data.get("ok", True):
+        return "warn", f"A {data.get('hook')} hook failed: {_text(data.get('detail', ''))}"
     if kind == "fix.unreproduced":
         return "warn", f"The bug was not reproduced after {data.get('attempts')} attempt(s)."
     if kind == "parallel.optional_missing":

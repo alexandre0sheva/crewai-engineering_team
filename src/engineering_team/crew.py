@@ -12,6 +12,7 @@ from crewai.project import CrewBase, agent, crew, task
 from crewai.tasks.task_output import TaskOutput
 
 from engineering_team.artifacts import missing_artifacts
+from engineering_team.extensions.agents import agent_extensions
 from engineering_team.model_routing import REASONING_EFFORT_PREFIXES, ResolvedModel
 from engineering_team.runtime.context import RunContext
 from engineering_team.settings import Settings
@@ -125,9 +126,7 @@ class EngineeringTeam:
             backstory=member.backstory,
             llm=build_llm(resolved, self.settings),
             tools=build_tools(self.ctx, groups=PROJECT_GROUPS),
-            mcps=self.settings.docs_mcp_urls or None
-            if member.uses_docs_mcp and self.settings.docs_mcp_enabled
-            else None,
+            **agent_extensions(self.settings, member),
             allow_delegation=False,
             max_iter=resolved.max_iter,
             verbose=self.settings.verbose,

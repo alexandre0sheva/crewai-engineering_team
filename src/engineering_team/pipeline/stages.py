@@ -24,6 +24,7 @@ from pydantic import BaseModel
 
 from engineering_team.contracts import Contract, Plan, ReviewReport, Spec, WorkPackage
 from engineering_team.crew import build_llm
+from engineering_team.extensions.agents import agent_extensions
 from engineering_team.intake.context_docs import context_note
 from engineering_team.modes.codebase_map import (
     ChunkAnalysis,
@@ -190,14 +191,16 @@ def lead_teammate(ctx: RunContext, stage: StageSpec) -> str:
 
 
 def _context(request: StageRequest) -> str:
-    """The project context a prompt carries: the reference documents the user supplied, and, for
-    an adopted project, the codebase map (size-capped). The analysts that write the map do not
+    """The project context a prompt carries: the reference documents the user supplied, the
+    repository's conventions (``AGENTS.md`` and the like, size-capped), and, for an adopted
+    project, the codebase map (size-capped). The analysts that write the map do not
     get it: they must read the code as it is now."""
 
     ctx = request.ctx
     note = context_note(ctx.workspace.root)
     if request.stage.kind == "analyze":
         return note
+    note = f"{note}\n\n{ctx.conventions.text}".strip()
     mapped = map_context(ctx.workspace.root, ctx.settings.analysis.context_chars)
     if not mapped:
         return note
@@ -301,9 +304,7 @@ class CrewStageRunner:
                 agent=teammate,
                 lane=request.lane,
             ),
-            mcps=ctx.settings.docs_mcp_urls or None
-            if member.uses_docs_mcp and ctx.settings.docs_mcp_enabled
-            else None,
+            **agent_extensions(ctx.settings, member),
             allow_delegation=False,  # a stage crew has one agent: nobody to delegate to
             max_iter=resolved.max_iter,
             verbose=ctx.settings.verbose,

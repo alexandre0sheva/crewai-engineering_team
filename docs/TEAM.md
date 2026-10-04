@@ -55,8 +55,16 @@ simply does not run. See [CONFIGURATION.md](CONFIGURATION.md#review-review-and-t
 
 Every group, and what is in it, is listed in [TOOLS.md](TOOLS.md): `fs_read`, `search`, `fs_write`,
 `command`, `dev`, `code_intel`, `git_read`, `knowledge`, `web`, `browser`, `runtime`, `board`, `notes`,
-`human`. `mcp:docs` is not a tool group: it attaches the documentation MCP servers from
-`docs_mcp_urls` (off in the `smoke` profile). Anything else is rejected with the list of known groups.
+`human`. `mcp:<name>` is not a tool group: it attaches the MCP server `[mcp.<name>]` of the
+configuration ([CONFIGURATION.md](CONFIGURATION.md#mcp-servers-mcpname)); `mcp:docs` attaches the
+`docs_mcp_urls` servers of 0.1.0 and the server `[mcp.docs]` if there is one (no MCP at all in the
+`smoke` profile). A [plugin tool](TOOLS.md#plugin-tools)'s own group can be listed too. Anything else
+is rejected with the list of known groups.
+
+A server can also name its teammates itself (`[mcp.<name>] roles = [...]`), which is how you give one
+teammate an MCP server without rewriting its `tool_groups`. A teammate in the `hierarchical`
+strategy gets its MCP servers the same way; plugin tools, which come from the tool groups, only reach
+the `pipeline` and `single` strategies.
 
 ## Changing a teammate, or adding one
 
@@ -75,7 +83,7 @@ A key that is not built in adds a new teammate. `team show KEY` says which layer
 |---|---|
 | `role`, `goal`, `backstory` | The prompt. `{project_name}` is filled in per run. A new teammate needs all three. |
 | `tier` | `lead`, `worker` (default), `cheap`, or `reviewer`: which model tier it uses under the `standard` profile. `smoke` and `max-quality` fix the models of their two slots, so a cheap run stays cheap. To pin an exact model use `[models.roles.<key>]` (see [CONFIGURATION.md](CONFIGURATION.md#models)). |
-| `tool_groups` | The groups above, plus `mcp:docs`. Default for a new teammate: read-only (`fs_read`, `search`, `code_intel`, `git_read`, `knowledge`, `board`, `notes`, `human`). |
+| `tool_groups` | The groups above, plus `mcp:<name>` and plugin groups. Default for a new teammate: read-only (`fs_read`, `search`, `code_intel`, `git_read`, `knowledge`, `board`, `notes`, `human`). |
 | `allow_delegation` | Used by the `hierarchical` strategy's manager. Ignored by the pipeline (a stage runs one agent). |
 | `max_iter` | Most reasoning steps per task (default: from the profile). |
 | `enabled` | `false` takes a teammate out; see "Who steps in" below. |

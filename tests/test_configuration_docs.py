@@ -7,6 +7,13 @@ import tomllib
 from datetime import date
 from pathlib import Path
 
+from engineering_team.extensions.config import (
+    ConventionsSettings,
+    EmbedderSettings,
+    Hook,
+    McpServer,
+    PluginSettings,
+)
 from engineering_team.model_routing import MODEL_FACTS, PROVIDER_PRESETS
 from engineering_team.pricing import build_table, default_prices
 from engineering_team.settings import (
@@ -66,6 +73,10 @@ def test_every_setting_is_documented() -> None:
         "fix",
         "maintain",
         "ui",
+        "mcp",
+        "conventions",
+        "plugins",
+        "hooks",
     }
     for section, model in (
         ("budget", BudgetSettings),
@@ -86,6 +97,11 @@ def test_every_setting_is_documented() -> None:
         ("fix", FixSettings),
         ("maintain", MaintainSettings),
         ("ui", UiSettings),
+        ("mcp.<name>", McpServer),
+        ("conventions", ConventionsSettings),
+        ("plugins", PluginSettings),
+        ("knowledge.embedder", EmbedderSettings),
+        ("hooks.<event>", Hook),
     ):
         keys |= {f"{section}.{name}" for name in model.model_fields}
 

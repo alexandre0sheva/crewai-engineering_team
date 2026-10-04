@@ -21,12 +21,14 @@ from engineering_team.contracts import (
     utc_now,
 )
 from engineering_team.execution.backend import close_backend
+from engineering_team.extensions.hooks import HookRunner
 from engineering_team.runtime.bridge import bind_run, flush_bridge
 from engineering_team.runtime.cancel import RunCancelled
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import stage_scope
 from engineering_team.runtime.run_store import RunStore
 from engineering_team.runtime.snapshot import workspace_revision
+from engineering_team.settings import redacted_dump
 
 
 def _sha256(text: str) -> str:
@@ -59,6 +61,7 @@ class RunRecorder:
     def __init__(self, ctx: RunContext, store: RunStore) -> None:
         self.ctx = ctx
         self.store = store
+        self.hooks = HookRunner(ctx)
         self._failure: str | None = None
 
     @classmethod
@@ -72,8 +75,8 @@ class RunRecorder:
         recipe: str | None = None,
     ) -> RunRecorder:
         store = RunStore(ctx.workspace.root)
-        settings_payload = ctx.settings.model_dump(mode="json")
-        canonical = json.dumps(settings_payload, sort_keys=True, default=str)
+        canonical = json.dumps(ctx.settings.model_dump(mode="json"), sort_keys=True, default=str)
+        settings_payload = redacted_dump(ctx.settings)  # the record never holds a webhook address
         atomic_write_text(ctx.run_dir / "request.md", request.rstrip() + "\n")
         atomic_write_json(ctx.run_dir / "settings.json", settings_payload)
         store.create(
@@ -194,6 +197,7 @@ class RunRecorder:
         status: str = "succeeded"
         detail = ""
         try:
+            self.hooks.before_stage(name)
             with stage_scope(name):
                 yield
             flush_bridge()
@@ -220,6 +224,7 @@ class RunRecorder:
             )
             self.store.record_stage(ctx.run_id, record)
             ctx.events.emit("stage.finished", stage=name, status=status)
+            self.hooks.after_stage(name, status, detail)
 
     def skip_stage(self, name: str, reason: str) -> None:
         """Record a stage that was not needed (its revision is the unchanged workspace's)."""
@@ -274,6 +279,7 @@ class RunRecorder:
             manifest.status = outcome
 
         self.store.update(ctx.run_id, record)
+        self.hooks.on_finish(outcome, error, summary)  # never raises; its events are in the report
         from engineering_team.report import write_run_report  # reads what is now final
 
         write_run_report(ctx.run_dir)

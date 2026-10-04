@@ -33,6 +33,16 @@ from pydantic import (
     model_validator,
 )
 
+from engineering_team.extensions.config import (
+    NAME as EXTENSION_NAME,
+)
+from engineering_team.extensions.config import (
+    ConventionsSettings,
+    EmbedderSettings,
+    HooksSettings,
+    McpServer,
+    PluginSettings,
+)
 from engineering_team.model_routing import (
     CREDENTIAL_ENV,
     DEFAULT_OLLAMA_BASE_URL,
@@ -220,9 +230,27 @@ class WebSettings(_Frozen):
 
 
 class KnowledgeSettings(_Frozen):
-    """Where Search Docs looks besides the project's own markdown and the run's web cache."""
+    """Where Search Docs looks besides the project's own markdown and the run's web cache, and
+    the optional CrewAI knowledge sources (``sources``: embedded by ``embedder``'s provider)."""
 
     context_dirs: list[str] = []
+    sources: list[str] = []  # files or directories of text documents; empty: CrewAI knowledge off
+    embedder: EmbedderSettings | None = None  # required with ``sources``
+    roles: list[str] = []  # only these teammates get the sources; empty = every teammate
+
+    @field_validator("roles")
+    @classmethod
+    def _role_keys(cls, value: list[str]) -> list[str]:
+        return [item.strip().lower().replace(" ", "_") for item in value if item.strip()]
+
+    @model_validator(mode="after")
+    def _sources_need_an_embedder(self) -> KnowledgeSettings:
+        if self.sources and self.embedder is None:
+            raise ValueError(
+                "knowledge.sources needs knowledge.embedder (provider and model): the documents "
+                "are sent to that provider to be embedded, which can cost money"
+            )
+        return self
 
 
 class BrowserSettings(_Frozen):
@@ -348,7 +376,8 @@ class Settings(_Frozen):
     request_file: str | None = None
     verbose: bool = True
     tracing: bool = False
-    docs_mcp_urls: list[str] = []
+    docs_mcp_urls: list[str] = []  # alias: attached to every teammate with ``mcp:docs``
+    mcp: dict[str, McpServer] = {}
     command_allowlist: list[str] = []
     subprocess_env_allowlist: list[str] = []
     ollama_base_url: str = DEFAULT_OLLAMA_BASE_URL
@@ -376,6 +405,11 @@ class Settings(_Frozen):
     team_profile: Literal["full", "minimal"] = "full"  # minimal: no review, DevOps, or docs stage
     team: dict[str, TeamOverride] = {}
     team_file: str | None = None  # default: ./.engineering-team/team.yaml when it exists
+    conventions: ConventionsSettings = ConventionsSettings()
+    conventions_file: str | None = None  # extra conventions for any project, e.g. a style guide
+    plugins: PluginSettings = PluginSettings()
+    allow_project_plugins: bool = False  # run .engineering-team/tools/*.py: code execution
+    hooks: HooksSettings = HooksSettings()
 
     _layers: list[tuple[str, dict[str, Any]]] = PrivateAttr(default_factory=list)
     _sources: dict[str, str] = PrivateAttr(default_factory=dict)
@@ -401,6 +435,17 @@ class Settings(_Frozen):
                 raise ValueError(
                     f"teammate key {key!r} must be lowercase letters, digits and _ "
                     "(for example 'data_engineer')"
+                )
+        return value
+
+    @field_validator("mcp")
+    @classmethod
+    def _mcp_names(cls, value: dict[str, McpServer]) -> dict[str, McpServer]:
+        for key in value:
+            if not EXTENSION_NAME.fullmatch(key):
+                raise ValueError(
+                    f"MCP server name {key!r} must be lowercase letters, digits and _ "
+                    "(for example 'docs'); teammates refer to it as 'mcp:<name>'"
                 )
         return value
 
@@ -560,16 +605,34 @@ class Settings(_Frozen):
                 missing.append(f"{' or '.join(names)} is not set (needed by {provider} models)")
         return missing
 
+    def missing_embedder_credentials(self) -> list[str]:
+        """The knowledge embedder's credential, when it needs one that is not set."""
+
+        embedder = self.knowledge.embedder
+        provider = {"openai": "openai", "google-generativeai": "google"}.get(
+            embedder.provider if embedder else ""
+        )
+        names = CREDENTIAL_ENV.get(provider or "", ())
+        if names and not any(name in self._credential_names for name in names):
+            return [
+                f"{' or '.join(names)} is not set (needed to embed knowledge.sources with "
+                f"{embedder.provider if embedder else provider})"
+            ]
+        return []
+
     def check_ready(self, *, require_credentials: bool) -> None:
         """Fail early, in one line each, when the chosen providers cannot work."""
 
+        from engineering_team.extensions.checks import check_extensions
         from engineering_team.team import build_roster
 
         self.resolved_models()  # raises SettingsError for unresolvable models
         build_roster(self)  # raises TeamError (a ValueError) for an invalid team definition
+        check_extensions(self)  # raises ValueError for a missing conventions file or source
         problems = self.sdk_problems()
         if require_credentials:
             problems += [f"{item}." for item in self.missing_credentials()]
+            problems += [f"{item}." for item in self.missing_embedder_credentials()]
         if problems:
             raise SettingsError(" ".join(problems))
 
@@ -675,11 +738,32 @@ def mask_url(value: str) -> str:
     return urlunsplit((parts.scheme, netloc, parts.path, query, ""))
 
 
+def hide_address(value: str) -> str:
+    """Keep only where a webhook points (``https://host/***``): its whole path is the secret."""
+
+    try:
+        parts = urlsplit(value)
+    except ValueError:
+        return "****"
+    return f"{parts.scheme}://{parts.hostname}/***" if parts.hostname else "****"
+
+
+def _hides_value(key: str) -> bool:
+    """Settings whose values are secrets whatever they are called: a hook's address and the
+    environment variables handed to an MCP server."""
+
+    return (key.startswith("hooks.") and key.endswith(".url")) or (
+        key.startswith("mcp.") and ".env." in key
+    )
+
+
 def mask_value(key: str, value: Any) -> str:
     if value is None or value == [] or value == "":
         return "(unset)"
     if _SECRET_KEY.search(key.rsplit(".", 1)[-1]):
         return "****"
+    if _hides_value(key):
+        return hide_address(str(value)) if key.endswith(".url") else "****"
     if isinstance(value, list):
         return ", ".join(mask_value(key, item) for item in value)
     if isinstance(value, str) and "://" in value:
@@ -742,6 +826,8 @@ def _build_env_table() -> dict[str, tuple[str, Callable[[str], Any]]]:
         "ENGINEERING_OLLAMA_BASE_URL": ("ollama_base_url", _text),
         "ENGINEERING_ENABLE_AZURE": ("enable_azure", _bool),
         "ENGINEERING_ALLOW_WEB": ("web.enabled", _bool),
+        "ENGINEERING_ALLOW_PROJECT_PLUGINS": ("allow_project_plugins", _bool),
+        "ENGINEERING_CONVENTIONS_FILE": ("conventions_file", _text),
         "ENGINEERING_GIT": ("git.enabled", _bool),
         "ENGINEERING_EXECUTION_BACKEND": ("execution.backend", _text),
         "ENGINEERING_MAX_PARALLEL_COMMANDS": ("execution.max_parallel_commands", _int),
@@ -1007,6 +1093,7 @@ __all__ = [
     "load_settings",
     "mask_url",
     "mask_value",
+    "redacted_dump",
 ]
 
 
@@ -1016,4 +1103,25 @@ def _flatten(value: Any, prefix: str = "") -> list[tuple[str, Any]]:
         for key, item in value.items():
             rows.extend(_flatten(item, f"{prefix}{key}."))
         return rows
+    if isinstance(value, list) and value and all(isinstance(item, dict) for item in value):
+        return [  # a list of tables (hooks): one row per field, numbered
+            row for index, item in enumerate(value) for row in _flatten(item, f"{prefix}{index}.")
+        ]
     return [(prefix.rstrip("."), value)]
+
+
+def redacted_dump(settings: Settings) -> dict[str, Any]:
+    """The settings as JSON for a run's record (``settings.json``): hook addresses and the
+    environment given to MCP servers are hidden, URL credentials masked."""
+
+    data: dict[str, Any] = settings.model_dump(mode="json")
+    for hooks in data.get("hooks", {}).values():
+        for hook in hooks:
+            if hook.get("url"):
+                hook["url"] = hide_address(hook["url"])
+    for server in data.get("mcp", {}).values():
+        if server.get("url"):
+            server["url"] = mask_url(server["url"])
+        server["env"] = {name: "****" for name in server.get("env", {})}
+    data["docs_mcp_urls"] = [mask_url(url) for url in data.get("docs_mcp_urls", [])]
+    return data

@@ -44,7 +44,9 @@ a profile.
 | `request_file` | `ENGINEERING_REQUEST_FILE` | – | Request file used when nothing above it is given (then `./PROJECT_REQUEST.md`) |
 | `verbose` | `ENGINEERING_VERBOSE` | `true` | CrewAI console detail |
 | `tracing` | `ENGINEERING_TRACING` | `false` | Opt-in CrewAI tracing |
-| `docs_mcp_urls` | `ENGINEERING_DOCS_MCP_URLS` | – | Comma-separated documentation MCP servers for specialists (not used in `smoke`) |
+| `docs_mcp_urls` | `ENGINEERING_DOCS_MCP_URLS` | – | Comma-separated MCP servers attached to every teammate with `mcp:docs`; kept as an alias of [`[mcp.<name>]`](#mcp-servers-mcpname) (no MCP is used in `smoke`) |
+| `conventions_file` | `ENGINEERING_CONVENTIONS_FILE` | – | One more conventions file (a style guide) for any project; see [Repository conventions](#repository-conventions-conventions-and-conventions_file) |
+| `allow_project_plugins` | `ENGINEERING_ALLOW_PROJECT_PLUGINS` | `false` | Load `.engineering-team/tools/*.py` as plugin tools. **Code execution**; see [Plugin tools](#plugin-tools-plugins-and-allow_project_plugins) |
 | `command_allowlist` | `ENGINEERING_COMMAND_ALLOWLIST` | – | Extra executables project commands may run (keep narrow) |
 | `subprocess_env_allowlist` | `ENGINEERING_SUBPROCESS_ENV_ALLOWLIST` | – | Environment variable names project commands may inherit |
 | `ollama_base_url` | `ENGINEERING_OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server |
@@ -296,7 +298,7 @@ before a run starts (a mistake is a usage error naming the teammate and the fiel
 | `team_file` | – | A YAML file of teammates (key → fields). Unset: `.engineering-team/team.yaml` in the current directory, if it exists. A named file that does not exist is an error. |
 | `team.<key>.role`, `team.<key>.goal`, `team.<key>.backstory` | built-in | The prompt; all three are required for a new key |
 | `team.<key>.tier` | `worker` | `lead`, `worker`, `cheap`, or `reviewer` (model tier under the `standard` profile) |
-| `team.<key>.tool_groups` | built-in; new: read-only | Tool groups, plus `mcp:docs` |
+| `team.<key>.tool_groups` | built-in; new: read-only | Tool groups, plus `mcp:docs` and `mcp:<name>` for each [`[mcp.<name>]`](#mcp-servers-mcpname) server, plus the groups [plugin tools](#plugin-tools-plugins-and-allow_project_plugins) declare |
 | `team.<key>.allow_delegation` | built-in | `hierarchical` manager only |
 | `team.<key>.max_iter` | profile default | Reasoning steps per task |
 | `team.<key>.enabled` | `true` | `false` takes the teammate out of the roster |
@@ -313,6 +315,171 @@ stages = ["implement"]
 [team.frontend_engineer]
 enabled = false
 ```
+
+### MCP servers (`[mcp.<name>]`)
+
+An MCP server gives agents tools the team does not ship (a docs index, a ticket tracker). Define each one
+by name; a teammate gets it by listing `mcp:<name>` under `tool_groups`, or by being named in the
+server's `roles`. Nothing connects until an agent first needs the server. Checked when the config is
+loaded and when the team is built (no network): one of `url` and `command`, a valid address, known
+teammates in `roles`.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `mcp.<name>.url` | – | A remote server, `http(s)://host/path`. Credentials in the URL are masked in `config show`. Exactly one of `url` and `command` |
+| `mcp.<name>.transport` | `http` | For a `url`: `http` (streamable HTTP) or `sse` |
+| `mcp.<name>.command` | – | A local server: the program to start (CrewAI starts it over stdio) |
+| `mcp.<name>.args` | – | Arguments of the `command` |
+| `mcp.<name>.env` | – | Extra environment variables for the `command` (table of name = value; values are hidden in `config show` and the run record) |
+| `mcp.<name>.roles` | – | Teammate keys that get this server (in addition to those listing `mcp:<name>`) |
+| `mcp.<name>.allow_tools` | all | Only these tool names of the server may be used |
+
+```toml
+[mcp.docs]
+url = "https://docs.example.com/mcp"
+roles = ["backend_engineer", "frontend_engineer"]
+allow_tools = ["search_docs"]
+
+[mcp.local_index]
+command = "python"
+args = ["-m", "my_index_server"]
+
+[team.technical_writer]
+tool_groups = ["fs_read", "fs_write", "search", "mcp:local_index"]
+```
+
+`docs_mcp_urls` (`ENGINEERING_DOCS_MCP_URLS`) still works: its servers go to every teammate with
+`mcp:docs` (every built-in specialist except the codebase analyst), exactly as in 0.1.0.
+The `smoke` profile attaches no MCP server at all. **Trust:** a server's answers are untrusted data, and
+a `command` server is a program started on this machine with your privileges, outside the Docker
+sandbox ([SAFETY.md](SAFETY.md#extensions-mcp-plugins-and-hooks)). Every run logs an
+`extension.warning` for each attached server, and `engineering-team doctor` lists them. MCP servers
+apply to `pipeline`, `single`, and `hierarchical` runs alike.
+
+### Repository conventions (`[conventions]` and `conventions_file`)
+
+When the team works on an existing project (`feature`, `fix`, `maintain`) it reads the repository's
+`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, and `.editorconfig` (those that exist; symlinks are
+skipped) once at the start and puts them into the context of every stage except the codebase analysis,
+framed as guidance on style, layout, and tooling that cannot change an agent's tools, permissions, or
+task. `conventions_file` adds one more file for *any* project, first in line (a style guide kept
+elsewhere; relative paths use the current directory; a missing file is a usage error).
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `conventions.enabled` | `true` | `false` turns all of it off, including `conventions_file` |
+| `conventions.max_chars` | `12000` | Characters of all files together; files that do not fit are left out |
+| `conventions.max_file_chars` | `6000` | Characters of any one file; a longer one is cut and marked |
+| `conventions_file` | – | The extra file (also in the table above) |
+
+The run log records a `conventions.loaded` event with each file's name, size, and whether it was cut.
+New projects have no repository files to load: use `conventions_file` for them.
+
+### Knowledge sources (`knowledge.sources`, opt-in)
+
+`Search Docs` (offline, BM25) is always there. For questions where meaning matters more than exact
+words you can also give agents CrewAI **knowledge sources**: your documents are split, embedded by a
+provider you name, and searched by similarity. **Off unless `knowledge.sources` is set, and then
+`knowledge.embedder` is required**, so the provider is never implicit. Embedding sends the document
+text to that provider (nothing leaves the machine with `ollama`) and costs what that provider
+charges; the OpenAI and Google providers also need their API key (`doctor` and a run check it).
+CrewAI keeps the vectors in its own storage (`CREWAI_STORAGE_DIR`).
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `knowledge.sources` | – | Files or directories of text documents (md, mdx, rst, txt, adoc; ≤ 50 documents, ≤ 1 MB in all; relative paths use the current directory) |
+| `knowledge.embedder.provider` | – | `openai`, `ollama`, `google-generativeai`, or `voyageai` (required with `sources`) |
+| `knowledge.embedder.model` | provider default | The embedding model |
+| `knowledge.embedder.url` | – | `ollama` only: the embeddings endpoint |
+| `knowledge.roles` | – | Only these teammates get the sources; empty means every teammate |
+
+```toml
+[knowledge]
+sources = ["docs/handbook", "STYLE.md"]
+roles = ["backend_engineer"]
+
+[knowledge.embedder]
+provider = "ollama"
+model = "mxbai-embed-large"
+```
+
+### Plugin tools (`[plugins]` and `allow_project_plugins`)
+
+Add an agent tool without changing this package: a Python function wrapped by `@plugin_tool` (the API
+and an example are in `engineering_team.plugins`). It is found in two places:
+
+- **Installed packages** that declare an entry point in the `engineering_team.tools` group. On by
+  default (installing the package was your decision); `plugins.entry_points = false` turns it off.
+- **The project's own `.engineering-team/tools/*.py`** (files starting with `_` are ignored; looked for
+  in the directory you start the team from). **Off unless `allow_project_plugins = true`**: these files
+  are executed, so a repository you cloned must not be able to turn them on for you.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `allow_project_plugins` | `false` | Load `.engineering-team/tools/*.py` (the table above; `ENGINEERING_ALLOW_PROJECT_PLUGINS`) |
+| `plugins.entry_points` | `true` | Load plugin tools from installed packages |
+| `plugins.disable` | – | Entry-point names or project file names (without `.py`) to skip |
+
+Each tool declares its `group`: a built-in group (then it follows that group's rules; a `web` plugin is
+off unless `web.enabled`) or a name of your own. A teammate gets the tool by listing that group under
+`tool_groups`, so a custom tool and a teammate that uses it need only configuration:
+
+```toml
+allow_project_plugins = true
+
+[team.release_manager]
+role = "Release manager for {project_name}"
+goal = "Prepare the release notes."
+backstory = "You keep a careful changelog."
+tool_groups = ["fs_read", "search", "release"]
+```
+
+with `.engineering-team/tools/changelog.py` defining a tool with `group="release"`. Plugin tools follow the
+[tool design rules](TOOLS.md#plugin-tools): they appear in the catalogue after the built-ins, emit
+`tool.call` events, return `ERROR:` for failures, and are checked at load time (name, group,
+description length, type hints); a broken plugin is a usage error naming the file and the fix.
+`engineering-team plugins list` shows what would load, what was found but not loaded, and prints the
+[TOOLS.md](TOOLS.md) rows with `--markdown`. **A plugin is trusted code** that runs in the controller
+process: the write scope, path protection, and the Docker sandbox do not apply to it
+([SAFETY.md](SAFETY.md#extensions-mcp-plugins-and-hooks)). Plugin tools reach teammates of `pipeline` and
+`single` runs; the `hierarchical` crew uses its fixed tool groups.
+
+### Hooks (`[[hooks.before_stage]]`, `[[hooks.after_stage]]`, `[[hooks.on_finish]]`)
+
+Run a command or call a webhook around the run: notifications, CI glue. Each hook sets exactly one of
+`command` (a program and its arguments; no shell) or `url` (an http(s) webhook that gets a JSON `POST`).
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `hooks.<event>.command` | – | Argument list, run in the directory you started the team from, with a minimal environment (`PATH`, `HOME`, ...) plus `ENGINEERING_HOOK_*` variables; `ENGINEERING_HOOK_PAYLOAD` is the whole JSON |
+| `hooks.<event>.url` | – | Webhook address. Often a secret, so only its host is shown by `config show`, written to the run record (`settings.json`), or logged |
+| `hooks.<event>.timeout_seconds` | `10` | Longest a hook may take (1–120); then it is killed |
+| `hooks.<event>.stages` | all | `before_stage` and `after_stage` only: run for these stages |
+| `hooks.<event>.statuses` | all | `after_stage` and `on_finish` only: run for these outcomes (`succeeded`, `failed`, `cancelled`, `interrupted`) |
+
+The events are `before_stage` (each stage of a `pipeline` run, before it starts), `after_stage`
+(with its status, also after a failure or cancel), and `on_finish` (every run strategy, once, after
+the run has ended, including cancelled runs). The payload is
+`{"text": "...", "event", "run_id", "project"}` plus `stage` and `status` where they apply, `error` on a
+failure, and `duration_seconds` and `estimated_cost_usd` at the end; `text` is a one-line summary, which
+is what a Slack incoming webhook displays.
+
+```toml
+[[hooks.on_finish]]
+url = "https://hooks.slack.com/services/T000/B000/XXXX"
+statuses = ["failed", "succeeded"]
+
+[[hooks.after_stage]]
+command = ["./scripts/notify.sh"]
+stages = ["verify"]
+statuses = ["failed"]
+timeout_seconds = 30
+```
+
+A hook never changes the run: a failure, a timeout, or a program that cannot start is a `hook.ran`
+event with `ok: false` (and a warning in the report), nothing more. Commands and payloads are scrubbed
+of secret environment values; a command gets no provider keys, so one that needs a credential reads it from its own file (never put one in `command`, which `config show` prints). Hooks run on this machine whatever the execution backend, with your
+privileges ([SAFETY.md](SAFETY.md#extensions-mcp-plugins-and-hooks)).
 
 ### Web UI (`[ui]`)
 
@@ -378,7 +545,7 @@ later steps winning:
 
 Tiers are `max`, `lead`, `reviewer`, `worker`, `cheap`. Profiles pick them:
 
-| Profile | Lead tier / iterations | Worker tier / iterations | Docs MCP |
+| Profile | Lead tier / iterations | Worker tier / iterations | MCP servers |
 |---|---|---|---|
 | `standard` | `lead` / 35 | `worker` / 30 | yes |
 | `smoke` | `worker` / 18 | `cheap` / 14 | no |

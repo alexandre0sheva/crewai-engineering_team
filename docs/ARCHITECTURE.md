@@ -261,7 +261,7 @@ redacted args, duration, ok); and, bridged from CrewAI, `crew.*`, `task.*`, `age
 `pipeline.started`/`pipeline.finished`, `pipeline.board_warning`, `run.cancel_requested`;
 `board.*` (card created, moved, commented, updated; pause and resume; steering delivered);
 `question`, `question.answered`, `question.unanswered`; `note.written`, `decision.logged`;
-`budget.warning`/`budget.exceeded`; `git.init`/`git.checkpoint`/`git.warning`; `check.started`/`check.finished` and `verify.started`/`verify.repair`/`verify.reused`/`verify.verdict`.
+`budget.warning`/`budget.exceeded`; `git.init`/`git.checkpoint`/`git.warning`; `extension.warning`, `plugins.loaded`, `conventions.loaded`, `hook.ran` (see [Extension points](#extension-points)); `check.started`/`check.finished` and `verify.started`/`verify.repair`/`verify.reused`/`verify.verdict`.
 
 **The CrewAI bridge** (`runtime/bridge.py`). CrewAI has one process-wide event bus. The bridge
 registers its handlers once and routes each event to the run bound in the *emitting* context
@@ -818,6 +818,37 @@ Defaults, tiers, profiles, and every setting are documented once in
 
 The bundled `tiny-notes` example request (`--example tiny-notes`) carries a smoke-profile marker,
 which selects the `smoke` profile unless a profile was chosen explicitly.
+
+## Extension points
+
+`src/engineering_team/extensions/` holds what lets a project change the team without changing the
+code; the user-facing description is in [CONFIGURATION.md](CONFIGURATION.md), the trust model in
+[SAFETY.md](SAFETY.md#extensions-mcp-plugins-and-hooks). `extensions/config.py` has the settings
+models (`McpServer`, `ConventionsSettings`, `PluginSettings`, `EmbedderSettings`, `HooksSettings`) and
+imports nothing from the package, so `settings.py` can use it; the other modules read a finished
+`Settings`.
+
+- **MCP** (`mcp.py`). `mcps_for(settings, teammate)` is the one place that decides which servers an
+  `Agent(mcps=...)` gets: the `docs_mcp_urls` alias for teammates with `mcp:docs`, and each
+  `[mcp.<name>]` for teammates with `mcp:<name>` or named in its `roles`, as CrewAI's `MCPServerHTTP`,
+  `MCPServerSSE` or `MCPServerStdio` with a static `allow_tools` filter. Both agent builders
+  (`crew.py`, `pipeline/stages.py`) call `agent_extensions` (`agents.py`), which adds MCP and, when
+  configured, knowledge.
+- **Conventions** (`conventions.py`). `RunContext.create` reads the repository's convention files once
+  (`ctx.conventions`); `pipeline/stages._context` puts the text into the prompt context after the
+  reference documents and before the codebase map, for every stage but the codebase analysis.
+- **Knowledge** (`knowledge.py`). The controller reads `knowledge.sources` and hands CrewAI
+  `StringKnowledgeSource`s with the `embedder` from the settings; nothing is embedded until an agent
+  runs.
+- **Plugins** (`plugin_loader.py`, API in `engineering_team/plugins.py`). `load_plugins(settings)` imports
+  entry points and, if allowed, the project files, validates each tool, and caches the result per
+  configuration and file state; `RunContext.plugins` carries it. `build_tools` iterates
+  `(*CATALOGUE, *ctx.plugins.specs())`, so a plugin tool is an ordinary `ToolSpec` whose factory wraps
+  the function in `ToolEnv.run`. `build_roster` accepts the plugin groups as valid `tool_groups`.
+- **Hooks** (`hooks.py`). `RunRecorder.stage` calls `before_stage` and `after_stage`, and `_finish`
+  calls `on_finish`, through one `HookRunner` per run. Commands go through `LocalBackend` (never the
+  run's own backend), webhooks through `post_json`; every outcome is a `hook.ran` event and no failure
+  propagates.
 
 ## Web UI backend
 

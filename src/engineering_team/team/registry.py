@@ -11,7 +11,7 @@ start of a run and never a surprise in the middle of one.
 from __future__ import annotations
 
 import threading
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
@@ -20,6 +20,7 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
+from engineering_team.extensions.plugin_loader import load_plugins
 from engineering_team.intake.templates import MODES
 from engineering_team.settings import TEAM_KEY, Settings, TeamOverride
 from engineering_team.tools import GROUPS
@@ -200,7 +201,14 @@ def _validated(key: str, values: Mapping[str, Any], source: str) -> dict[str, An
     return parsed.model_dump(exclude_unset=True, exclude_none=True)
 
 
-def _check(key: str, fields: dict[str, Any], *, custom: bool, origin: str) -> Teammate:
+def _check(
+    key: str,
+    fields: dict[str, Any],
+    *,
+    custom: bool,
+    origin: str,
+    valid_groups: Sequence[str] = VALID_GROUPS,
+) -> Teammate:
     if custom:
         missing = [name for name in REQUIRED_FOR_NEW if not str(fields.get(name, "")).strip()]
         if missing:
@@ -210,11 +218,12 @@ def _check(key: str, fields: dict[str, Any], *, custom: bool, origin: str) -> Te
                 "against `engineering-team team list`."
             )
     groups = fields.get("tool_groups", DEFAULT_TOOL_GROUPS)
-    unknown = [g for g in groups if g not in VALID_GROUPS]
+    unknown = [g for g in groups if g not in valid_groups]
     if unknown:
         raise TeamError(
             f"Teammate '{key}' ({origin}) names unknown tool group(s): {', '.join(unknown)}. "
-            f"Known: {', '.join(VALID_GROUPS)}."
+            f"Known: {', '.join(valid_groups)}. (mcp:<name> needs an [mcp.<name>] server; a "
+            "plugin's group needs the plugin: docs/CONFIGURATION.md.)"
         )
     bad_modes = [m for m in fields.get("modes", []) if m not in MODES]
     if bad_modes:
@@ -244,7 +253,10 @@ def _check(key: str, fields: dict[str, Any], *, custom: bool, origin: str) -> Te
     )
 
 
-def _assemble(layers: list[tuple[str, Mapping[str, Mapping[str, Any]]]]) -> Roster:
+def _assemble(
+    layers: list[tuple[str, Mapping[str, Mapping[str, Any]]]],
+    valid_groups: Sequence[str] = VALID_GROUPS,
+) -> Roster:
     merged: dict[str, dict[str, Any]] = {}
     touched: dict[str, list[str]] = {}
     for source, layer in layers:
@@ -260,7 +272,9 @@ def _assemble(layers: list[tuple[str, Mapping[str, Mapping[str, Any]]]]) -> Rost
         origin = (
             " + ".join(["built-in", *sources]) if builtin else f"custom ({' + '.join(sources)})"
         )
-        members[key] = _check(key, fields, custom=not builtin, origin=origin)
+        members[key] = _check(
+            key, fields, custom=not builtin, origin=origin, valid_groups=valid_groups
+        )
     return Roster(members)
 
 
@@ -270,10 +284,23 @@ def builtin_roster() -> Roster:
     return _assemble([("built-in", _builtin_layer())])
 
 
-def build_roster(settings: Settings, *, cwd: Path | None = None) -> Roster:
+def valid_groups_for(settings: Settings, plugin_groups: Iterable[str] = ()) -> tuple[str, ...]:
+    """Every tool group a teammate may list: the built-in ones, ``mcp:docs`` and one
+    ``mcp:<name>`` per ``[mcp.<name>]`` server, and the groups plugin tools declare."""
+
+    mcp = [f"mcp:{name}" for name in settings.mcp if f"mcp:{name}" != MCP_GROUP]
+    extra = [group for group in sorted(plugin_groups) if group not in GROUPS]
+    return (*VALID_GROUPS, *mcp, *extra)
+
+
+def build_roster(
+    settings: Settings, *, cwd: Path | None = None, plugin_groups: Iterable[str] | None = None
+) -> Roster:
     """The team for ``settings``: built-ins, then the team file, then ``[team.*]``.
 
-    Raises :class:`TeamError` (a ``ValueError``, so a usage error) for anything invalid.
+    ``plugin_groups`` are the groups plugin tools declare (default: discovered from ``settings``
+    and ``cwd``). Raises :class:`TeamError` (a ``ValueError``, so a usage error) for anything
+    invalid.
     """
 
     layers: list[tuple[str, Mapping[str, Mapping[str, Any]]]] = [("built-in", _builtin_layer())]
@@ -294,7 +321,19 @@ def build_roster(settings: Settings, *, cwd: Path | None = None) -> Roster:
                 },
             )
         )
-    return _assemble(layers)
+    try:
+        groups = plugin_groups if plugin_groups is not None else load_plugins(settings, base).groups
+    except ValueError as exc:  # PluginError: say it here, where the team is being defined
+        raise TeamError(str(exc)) from exc
+    roster = _assemble(layers, valid_groups_for(settings, groups))
+    for name, server in settings.mcp.items():
+        missing = [role for role in server.roles if role not in roster.members]
+        if missing:
+            raise TeamError(
+                f"[mcp.{name}] roles names unknown teammate(s): {', '.join(missing)}; the team "
+                f"has: {', '.join(roster.members)}."
+            )
+    return roster
 
 
 def group_notes(member: Teammate) -> list[str]:

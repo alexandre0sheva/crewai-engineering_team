@@ -11,6 +11,7 @@ from rich.table import Table
 from engineering_team.cli.context import Globals, fail, print_json
 from engineering_team.cli.context import get as get_globals
 from engineering_team.cli.info_commands import ConfigOpt, load
+from engineering_team.extensions.mcp import servers_for
 from engineering_team.settings import Settings, SettingsError
 from engineering_team.team import Roster, TeamError, Teammate, build_roster, group_notes
 
@@ -51,6 +52,7 @@ def describe(settings: Settings, member: Teammate) -> dict[str, Any]:
         "tier": member.tier,
         "model": _model_text(settings, member),
         "tool_groups": list(member.tool_groups),
+        "mcp_servers": servers_for(settings, member),
         "allow_delegation": member.allow_delegation,
         "max_iter": member.max_iter,
         "enabled": member.enabled,
@@ -125,6 +127,7 @@ def team_show(
         ("State", "enabled" if member.enabled else "disabled"),
         ("Model", data["model"]),
         ("Tool groups", ", ".join(data["tool_groups"]) or "none"),
+        ("MCP servers", ", ".join(data["mcp_servers"]) or "none"),
         ("Delegation", "yes (hierarchical strategy only)" if member.allow_delegation else "no"),
         ("Modes", ", ".join(data["modes"]) or "all"),
         ("Extra stages", ", ".join(data["stages"]) or "none"),

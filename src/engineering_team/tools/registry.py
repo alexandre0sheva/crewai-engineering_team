@@ -701,22 +701,24 @@ def build_tools(
     run's own state, so read-only teammates keep them). The ``web`` group is left out unless
     ``web.enabled`` is set (and, with ``web.roles``, the teammate is listed). ``agent`` is the
     teammate the tools belong to: the board and notes tools act, comment, and are logged as
-    that teammate. ``lane`` is the parallel lane the tools work in: it tags their events and
-    keeps the teammate's browser session and processes apart from a same-role teammate's.
+    that teammate. Plugin tools (``ctx.plugins``) follow the built-ins, in discovery order, and
+    are picked by their declared group like any other. ``lane`` is the parallel lane the tools
+    work in: it tags their events and keeps the teammate's browser session and processes apart
+    from a same-role teammate's.
     """
 
-    wanted = tuple(GROUPS if groups is None else groups)
+    plugin_groups = sorted(ctx.plugins.groups - set(GROUPS))
+    known = (*GROUPS, *plugin_groups)
+    wanted = tuple(known if groups is None else groups)
     web_allowed = web_tools_allowed(ctx.settings, agent)
     browser_present = browser_tools.available()
-    unknown = sorted(set(wanted) - set(GROUPS))
+    unknown = sorted(set(wanted) - set(known))
     if unknown:
-        raise ValueError(
-            f"Unknown tool group(s): {', '.join(unknown)}. Known: {', '.join(GROUPS)}."
-        )
+        raise ValueError(f"Unknown tool group(s): {', '.join(unknown)}. Known: {', '.join(known)}.")
     env = ToolEnv(ctx, write_scope, agent, lane)
     bundles: dict[ToolFactory, Mapping[str, BaseTool]] = {}
     tools: list[BaseTool] = []
-    for spec in CATALOGUE:
+    for spec in (*CATALOGUE, *ctx.plugins.specs()):
         if spec.group not in wanted or (read_only and not spec.read_only):
             continue
         if spec.group == "web" and not web_allowed:

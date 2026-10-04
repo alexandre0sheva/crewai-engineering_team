@@ -138,6 +138,7 @@ def run_checks(
     checks.append(_browser_check(settings))
     checks.append(_ui_check())
     checks.append(_team_check(settings))
+    checks.extend(_extension_checks(settings))
     checks.append(_workspace_check(settings))
     if online:
         checks.extend(_online_checks(settings, ping))
@@ -171,6 +172,10 @@ def _provider_checks(settings: Settings) -> list[Check]:
         for item in settings.missing_credentials()
     ]
     problems += [Check("Provider SDK", "fail", item) for item in settings.sdk_problems()]
+    problems += [
+        Check("Credentials", "fail", item, "Needed to embed knowledge.sources.")
+        for item in settings.missing_embedder_credentials()
+    ]
     if problems:
         return problems
     return [
@@ -229,6 +234,60 @@ def _team_check(settings: Settings) -> Check:
     if notes:
         return Check("Team", "warn", detail, " ".join(notes))
     return Check("Team", "ok", detail)
+
+
+def _extension_checks(settings: Settings) -> list[Check]:
+    """MCP servers, plugins, hooks, conventions and knowledge: shown only when they are in use,
+    with the trust warnings that come with them."""
+
+    from engineering_team.extensions.checks import check_extensions
+    from engineering_team.extensions.mcp import trust_notes
+    from engineering_team.extensions.plugin_loader import PluginError, load_plugins
+    from engineering_team.team import TeamError, build_roster
+
+    out: list[Check] = []
+    try:
+        notes = trust_notes(settings, build_roster(settings).all())
+    except TeamError:
+        notes = []  # the Team check reports it
+    if notes:
+        out.append(Check("MCP servers", "warn", f"{len(notes)} attached", " ".join(notes)))
+    try:
+        plugins = load_plugins(settings)
+    except PluginError as exc:
+        out.append(Check("Plugins", "fail", str(exc), "See docs/CONFIGURATION.md."))
+    else:
+        if plugins.tools:
+            detail = f"{len(plugins.tools)} plugin tool(s): " + ", ".join(
+                item.tool.name for item in plugins.tools
+            )
+            out.append(
+                Check("Plugins", "warn" if plugins.notes else "ok", detail, " ".join(plugins.notes))
+            )
+        elif plugins.skipped:
+            out.append(Check("Plugins", "info", "; ".join(plugins.skipped)))
+    if settings.hooks.any:
+        count = sum(
+            len(h)
+            for h in (
+                settings.hooks.before_stage,
+                settings.hooks.after_stage,
+                settings.hooks.on_finish,
+            )
+        )
+        out.append(
+            Check(
+                "Hooks",
+                "info",
+                f"{count} configured",
+                "They run commands or webhooks on this machine.",
+            )
+        )
+    try:
+        check_extensions(settings)
+    except ValueError as exc:
+        out.append(Check("Conventions and knowledge", "fail", str(exc)))
+    return out
 
 
 def _workspace_check(settings: Settings) -> Check:

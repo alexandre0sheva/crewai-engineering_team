@@ -16,6 +16,17 @@ as each task lands.
 
 ### Added
 
+- Extension points, all configuration-only and off by default: **MCP servers per teammate** (`[mcp.<name>]` with a
+  `url` or a `command`, `roles`, and an `allow_tools` filter; teammates get one through `mcp:<name>` in `tool_groups`;
+  `ENGINEERING_DOCS_MCP_URLS` stays as an alias) with a trust warning in every run and in `doctor`; **repository
+  conventions** (`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `.editorconfig` of the project the team works on, size-capped,
+  plus `conventions_file` for any project) in every stage's context; opt-in **CrewAI knowledge sources**
+  (`knowledge.sources` with a required `knowledge.embedder`, so the embedding provider and its cost are explicit); **plugin
+  tools** (`@plugin_tool` from `engineering_team.plugins`, found in installed packages' `engineering_team.tools` entry points
+  and in `.engineering-team/tools/*.py` only with `allow_project_plugins = true`, validated at load, listed by
+  `engineering-team plugins list [--markdown]`); and **hooks** (`[[hooks.before_stage]]`, `[[hooks.after_stage]]`,
+  `[[hooks.on_finish]]`: a command or a Slack-style JSON webhook, bounded by a timeout, scrubbed of secrets, never able to
+  fail a run). See `docs/CONFIGURATION.md` and `docs/SAFETY.md#extensions-mcp-plugins-and-hooks`.
 - Benchmark suite and `engineering-team bench`: ten tasks (six greenfield: notes CLI, CSV validator, URL-shortener API, Markdown
   to HTML, todo web app, cron scheduler; four brownfield: a feature, a seeded bug fixed from a stack trace, tests for an
   untested module, a behaviour-preserving refactor), each with hidden behavioural checks the team never sees, a reference

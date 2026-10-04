@@ -177,3 +177,43 @@ def test_the_real_version_probe_reads_a_version_from_a_real_program() -> None:
 
     assert probe_version((sys.executable, "--version")).startswith("3.")
     assert probe_version((sys.executable, "-c", "import sys; sys.exit(3)")) == ""
+
+
+def test_extension_rows_appear_only_when_extensions_are_in_use() -> None:
+    quiet = run()
+    assert not {"MCP servers", "Plugins", "Hooks", "Conventions and knowledge"} & set(quiet)
+
+    plugin_dir = Path.cwd() / ".engineering-team" / "tools"
+    plugin_dir.mkdir(parents=True)
+    (plugin_dir / "word_count.py").write_text("TOOLS = []\n", encoding="utf-8")
+    idle = run()
+    assert idle["Plugins"].status == "info" and "word_count.py" in idle["Plugins"].detail
+
+    settings = load_settings(
+        overrides={
+            "allow_project_plugins": True,
+            "mcp.local": {"command": "my-server", "roles": ["backend_engineer"]},
+            "hooks.on_finish": [{"url": "https://hooks.example.com/secret-path"}],
+            "conventions_file": "missing.md",
+        }
+    )
+    checks = run(settings)
+
+    assert (
+        checks["MCP servers"].status == "warn"
+        and "starts `my-server`" in checks["MCP servers"].hint
+    )
+    assert checks["Hooks"].status == "info" and "1 configured" in checks["Hooks"].detail
+    assert "secret-path" not in " ".join(c.detail + c.hint for c in checks.values())
+    assert checks["Conventions and knowledge"].status == "fail"
+    assert "missing.md" in checks["Conventions and knowledge"].detail
+
+
+def test_a_broken_plugin_fails_the_plugins_check() -> None:
+    plugin_dir = Path.cwd() / ".engineering-team" / "tools"
+    plugin_dir.mkdir(parents=True)
+    (plugin_dir / "bad.py").write_text("raise RuntimeError('boom')\n", encoding="utf-8")
+
+    checks = run(load_settings(overrides={"allow_project_plugins": True}))
+
+    assert checks["Plugins"].status == "fail" and "boom" in checks["Plugins"].detail

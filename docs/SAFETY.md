@@ -297,9 +297,9 @@ the setting is the only switch; the Docker backend gives these commands (and the
 checks) the network and runs everything else with none. Every other tool, including the test and build
 tools, asks for no network, and a test run that needs a dependency it does not have fails visibly
 instead of installing it.
- Optional documentation MCP
-servers are disabled by default; configure only servers you trust, since they add network
-access and their own data-handling boundary.
+ MCP servers are none by default;
+configure only servers you trust, since they add network access and their own data-handling
+boundary ([Extensions](#extensions-mcp-plugins-and-hooks)).
 
 ### Web tools (network model)
 
@@ -372,6 +372,42 @@ runs its JavaScript in a real Chromium, so keep it to the app being built. What 
   and an allowlisted external name is trusted as given (the proxy pins the address it validates,
   but a page on an allowlisted host can still serve hostile content). The Docker backend does not
   contain the browser (it runs on the host); keep the allowlist short for untrusted requirements.
+
+## Extensions: MCP, plugins, and hooks
+
+Four extension points run outside the boundaries above, because each is code or a service **you**
+configured. None of them is on by default, and none can be switched on by a repository you only
+cloned (project plugins need `allow_project_plugins` from your config, user config, or environment).
+
+| Extension | What it can do | What does not cover it |
+|---|---|---|
+| MCP server, `url` | Gives agents the tools of a remote service; its answers reach the model | Network rules of the `web` tools; the sandbox. Its answers are untrusted data |
+| MCP server, `command` | **Starts a program on this machine** with your privileges (CrewAI runs it over stdio) | The Docker sandbox covers only the execution backend, not this process |
+| Plugin tool | Runs Python in the controller process when an agent calls it | Write scope, path protection, the execution backend, the sandbox: the code can do anything you can. `read_only` and `needs_network` are declarations |
+| Hook (`command`, `url`) | Runs a program or POSTs JSON at stage and run boundaries, on this machine | The execution backend: hooks run on the host whichever backend the run uses |
+
+What the controller does to limit the damage, none of which makes untrusted code safe:
+
+- **Loud by default.** A run logs an `extension.warning` event (and the report shows it) for every
+  attached MCP server and for project plugins; `doctor` lists them. Plugin and MCP tool output is data,
+  like any tool's: it never changes permissions, scope, or instructions, and nothing the controller
+  decides depends on it.
+- **Project plugins are opt-in and agent-proof.** `.engineering-team/tools/` is under the controller's
+  protected directory, so agents cannot write a plugin that the next run would load. They are loaded from
+  the directory you start the team in, never from the isolated copy of a repository a run works on.
+  A repository's own configuration cannot enable them for you unless you start the team in it.
+- **Hooks are bounded and isolated.** A timeout (≤ 120 s) kills the whole process group; a failing hook
+  is an event, never a failed run; commands get a minimal environment (no provider keys), no shell, and
+  payloads and output are scrubbed of secret environment values. A webhook address is treated as a
+  secret and never logged; redirects are not followed.
+- **Repository conventions are guidance, not authority.** `AGENTS.md` and friends enter the agents'
+  context framed as style and process guidance that cannot change tools, permissions, scope, or the
+  task; they are size-capped and symlinks are skipped.
+- **Knowledge sources send text to a provider.** With `knowledge.sources` the documents go to the
+  embedding provider you named (not for `ollama`); nothing else does, and it is off unless you set it.
+
+Use a hook command and an MCP `command` only from places you would run a shell script from, and review
+a plugin as you would any dependency.
 
 ## Benchmarks
 
