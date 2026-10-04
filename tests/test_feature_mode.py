@@ -83,8 +83,14 @@ def run_feature(
 
 
 def git(root: Path, *args: str) -> str:
+    # An identity of its own: a CI runner has none, and Git refuses to commit without one.
+    identity = ["-c", "user.name=Test", "-c", "user.email=test@example.com"]
     return subprocess.run(
-        ["git", *args], cwd=root, capture_output=True, text=True, check=True
+        ["git", *identity, "-c", "commit.gpgsign=false", *args],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
 
 

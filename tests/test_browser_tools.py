@@ -56,9 +56,38 @@ def interpreter_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PATH", str(Path(sys.executable).parent) + ":" + os.environ["PATH"])
 
 
+BROWSER_MARKERS = ("playwright_chromiumdev_profile", "headless_shell", "chrome-headless-shell")
+
+
+def browser_processes() -> list[str]:
+    """The browser's processes, as ``ps`` lines: everything below this test process (Playwright's
+    driver, the browser and its helpers) plus anything that still names the browser's profile
+    directory or binary, so an orphan that outlived its parent is counted too."""
+
+    out = subprocess.run(
+        ["ps", "-axww", "-o", "pid=,ppid=,command="], capture_output=True, text=True, check=False
+    ).stdout
+    rows: dict[int, tuple[int, str]] = {}
+    for line in out.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) == 3 and parts[0].isdigit() and parts[1].isdigit():
+            rows[int(parts[0])] = (int(parts[1]), parts[2])
+    below, grew = {os.getpid()}, True
+    while grew:  # the transitive children of this process
+        found = {pid for pid, (parent, _) in rows.items() if parent in below} - below
+        grew = bool(found)
+        below |= found
+    named = {
+        pid for pid, (_, command) in rows.items() if any(m in command for m in BROWSER_MARKERS)
+    }
+    mine = (below - {os.getpid()}) | named
+    return sorted(
+        f"{pid} {rows[pid][1][:160]}" for pid in mine if not rows[pid][1].startswith("ps ")
+    )
+
+
 def chrome_processes() -> int:
-    out = subprocess.run(["ps", "-axo", "command"], capture_output=True, text=True).stdout
-    return sum("playwright_chromiumdev_profile" in line for line in out.splitlines())
+    return len(browser_processes())
 
 
 @pytest.fixture
@@ -311,7 +340,8 @@ def test_contexts_are_per_agent_limited_and_closed_with_their_stage_and_the_run(
     second = other("Browser Open", url=url(box))
     assert "Opened http" in first and second.startswith("ERROR:")
     assert "browser.max_contexts" in second
-    assert chrome_processes() > before and box.ctx.browsers.open_agents() == ["frontend"]
+    assert chrome_processes() > before, "\n".join(browser_processes())
+    assert box.ctx.browsers.open_agents() == ["frontend"]
 
     box.ctx.browsers.stop_stage("verify")
     assert box.ctx.browsers.open_agents() == []
@@ -322,7 +352,7 @@ def test_contexts_are_per_agent_limited_and_closed_with_their_stage_and_the_run(
 
     box.ctx.browsers.close_all("the run ended")
     assert not box.ctx.browsers.worker_alive
-    assert chrome_processes() == before
+    assert chrome_processes() == before, "\n".join(browser_processes())
     assert box("Browser Open", url=url(box)).startswith("ERROR:")
 
 
