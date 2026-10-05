@@ -268,7 +268,10 @@ redacted args, duration, ok); and, bridged from CrewAI, `crew.*`, `task.*`, `age
 registers its handlers once and routes each event to the run bound in the *emitting* context
 (`bind_run`, a `contextvar`; CrewAI copies the emitter's context to its handler threads), so two
 runs in one process never mix. Events from an unbound context are dropped. Worker threads must
-run under `contextvars.copy_context()` to stay attributed.
+run under `contextvars.copy_context()` to stay attributed. CrewAI runs its handlers on a thread pool,
+so bridged events emitted together (an agent's and its task's completion) can be *recorded* in either
+order; each carries `data.emission`, CrewAI's own emission number, and sorting by it gives the order
+they happened in. Nothing in the controller depends on the order of bridged events.
 
 **Usage, cost, and budgets.** `RunContext.events` is a fan-out of the JSONL log, a `UsageTracker`,
 and a `BudgetGuard`. The tracker counts the bridged `llm.call` events (tokens per stage, agent, and

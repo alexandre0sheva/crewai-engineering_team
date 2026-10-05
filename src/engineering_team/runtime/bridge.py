@@ -6,6 +6,10 @@ of the emitter's ``contextvars``, so a run that wraps its work in :func:`bind_ru
 exactly its own events, even with several runs in one process. Events emitted outside any
 bound run (or from a thread that did not inherit the context) are ignored. Parallel workers
 must therefore run under ``contextvars.copy_context()``.
+
+CrewAI runs its handlers on a thread pool, so events emitted a moment apart (an agent's and its
+task's completion) can be *recorded* in either order. Each bridged event therefore carries
+``data["emission"]``, CrewAI's own emission sequence number; sort by it to get emission order.
 """
 
 from __future__ import annotations
@@ -205,7 +209,11 @@ def _handler(our_type: str, read: Callable[[Any], dict[str, Any]]) -> Callable[[
         if binding is None:
             return
         try:
-            binding.sink.emit(our_type, agent=_agent(event), **read(event))
+            data = read(event)
+            emission = getattr(event, "emission_sequence", None)
+            if emission:
+                data["emission"] = emission
+            binding.sink.emit(our_type, agent=_agent(event), **data)
         except Exception:  # a bridging bug must never break CrewAI's bus
             return
 

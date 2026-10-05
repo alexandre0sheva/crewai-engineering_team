@@ -229,6 +229,7 @@ class ProcessRegistry:
             if process.record is not None or process.stopping:
                 return
             process.stopping = True
+            process.stop_reason = reason  # known from here on, not only once the kill returns
         try:
             record = process.handle.stop(STOP_GRACE_SECONDS)
         except Exception:  # a failing stop must not hide the others
@@ -236,7 +237,6 @@ class ProcessRegistry:
             return
         with self._lock:
             process.record = record
-            process.stop_reason = reason
         self._events.emit(
             "process.stopped",
             process_id=process.id,

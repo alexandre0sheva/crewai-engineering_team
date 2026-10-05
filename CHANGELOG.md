@@ -331,6 +331,10 @@ reports, a web UI, a benchmark suite, and extension points. Coming from 0.1.0? R
   timeline of a run that has been launched but has not written its run directory yet are now empty instead of "not found".
 - `Query SQLite` and `Inspect Database Schema` now say "file is not a database" for a text file on every SQLite version;
   older builds ran a table-less `SELECT 1` against it and reported success.
+- A background process that is stopped (lifetime limit, cancel, stage end) now has its stop reason from the moment the
+  stop begins, not only after the kill returns.
+- Events bridged from CrewAI carry `data.emission`, CrewAI's own emission number, because its handler thread pool can
+  record events emitted together (an agent's and its task's completion) in either order.
 - Benchmark acceptance checks no longer depend on the machine's DNS speed: a correct server that Python's `http.server`
   held back with a slow reverse lookup was scored as failing its criteria.
 - The browser tests and the UI smoke test (`scripts/ui_smoke.py`) pass on CI: the tests now keep Playwright's browser

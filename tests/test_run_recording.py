@@ -7,13 +7,14 @@ import json
 import threading
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from crewai import Crew, Process
 
 from engineering_team import main
 from engineering_team.contracts import Event, RunManifest
-from engineering_team.runtime.bridge import bind_run, flush_bridge
+from engineering_team.runtime.bridge import _handler, bind_run, flush_bridge
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import FanoutSink, read_events
 from engineering_team.runtime.run_store import RunStore
@@ -60,18 +61,21 @@ def test_a_scripted_crew_produces_the_expected_event_types(make_context: MakeCon
     flush_bridge()
 
     events = _events(ctx)
-    types = [event.type for event in events]
+    # CrewAI delivers events on a thread pool, so the log order of events emitted together can
+    # differ; ``emission`` is CrewAI's own sequence number and gives the order they happened in.
+    bridged = sorted((e for e in events if "emission" in e.data), key=lambda e: e.data["emission"])
+    types = [event.type for event in bridged]
     assert types[0] == "crew.started" and types[-1] == "crew.completed"
     for expected in (
         "task.started",
         "agent.started",
         "llm.call",
-        "tool.call",  # emitted by our tools
         "tool.finished",  # emitted by CrewAI
         "agent.completed",
         "task.completed",
     ):
         assert expected in types, expected
+    assert "tool.call" in [event.type for event in events]  # emitted by our tools, not bridged
     assert types.index("task.started") < types.index("agent.started") < types.index("llm.call")
     assert (
         types.index("agent.completed")
@@ -80,6 +84,19 @@ def test_a_scripted_crew_produces_the_expected_event_types(make_context: MakeCon
     )
     assert [event.seq for event in events] == list(range(1, len(events) + 1))
     assert {event.run_id for event in events} == {ctx.run_id}
+
+
+def test_a_bridged_event_carries_crewais_emission_number(make_context: MakeContext) -> None:
+    # Handlers run on a thread pool, so the log order of events emitted together is not their
+    # emission order; the number is how a reader gets it back.
+    ctx = make_context()
+    handle = _handler("task.completed", lambda event: {})
+    event = SimpleNamespace(emission_sequence=41)
+
+    with bind_run(ctx.run_id, ctx.events):
+        handle(None, event)
+
+    assert [e.data for e in _events(ctx)] == [{"emission": 41}]
 
 
 def test_llm_events_carry_token_usage_and_agents_are_attributed(make_context: MakeContext) -> None:

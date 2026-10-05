@@ -361,6 +361,28 @@ def test_a_process_is_killed_when_its_lifetime_passes(
     assert "lifetime limit of 1s reached" in (ctx.processes.get("s").stop_reason or "")
 
 
+def test_the_reason_is_recorded_before_the_kill_not_after_it(
+    make_context: Callable[..., RunContext],
+) -> None:
+    # The process is gone the moment the signal lands, so whoever sees it gone must already be
+    # able to read why; the reason cannot wait for the kill to return.
+    ctx = make_context()
+    sleeper(ctx)
+    managed = ctx.processes.get("s")
+    seen: list[str | None] = []
+    kill = managed.handle.stop
+
+    def spy(grace: float) -> object:
+        seen.append(managed.stop_reason)
+        return kill(grace)
+
+    managed.handle.stop = spy  # type: ignore[method-assign]
+
+    ctx.processes.stop("s", "for the test")
+
+    assert seen == ["for the test"]
+
+
 def test_the_exit_hook_stops_everything(make_context: Callable[..., RunContext]) -> None:
     ctx = make_context()
     pid = sleeper(ctx)
