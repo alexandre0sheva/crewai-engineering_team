@@ -61,13 +61,18 @@ def open_readonly(path: Path) -> sqlite3.Connection:
 
     if not path.is_file():
         raise ToolError(f"Database file not found: {path.name}. Use Find Files to locate it.")
+    connection: sqlite3.Connection | None = None
     try:
         connection = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True, timeout=2.0)
         connection.execute("PRAGMA query_only = ON")
+        # Opening is lazy: without a read of the schema, `SELECT 1` "works" on a text file.
+        connection.execute("SELECT count(*) FROM sqlite_master").fetchone()
         connection.set_authorizer(_authorize)
         deadline = time.monotonic() + QUERY_SECONDS
         connection.set_progress_handler(lambda: int(time.monotonic() > deadline), 10_000)
     except sqlite3.Error as exc:
+        if connection is not None:
+            connection.close()
         raise ToolError(f"Cannot open {path.name} read-only: {exc}") from exc
     return connection
 

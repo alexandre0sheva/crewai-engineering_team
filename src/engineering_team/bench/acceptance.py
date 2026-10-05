@@ -57,6 +57,15 @@ def clean_environment(home: Path) -> dict[str, str]:
     }
 
 
+def check_environment(home: Path) -> dict[str, str]:
+    """``clean_environment`` plus a start-up shim that keeps name lookups out of the check."""
+
+    env = clean_environment(home)
+    shim = str(Path(__file__).resolve().parent / "shim")
+    env["PYTHONPATH"] = os.pathsep.join([shim, env["PYTHONPATH"]])
+    return env
+
+
 def _terminate(process: subprocess.Popen[str]) -> None:
     with contextlib.suppress(ProcessLookupError, PermissionError):
         os.killpg(process.pid, signal.SIGTERM)
@@ -83,7 +92,7 @@ def run_criterion(
         process = subprocess.Popen(
             [sys.executable, str(task.checks_file), criterion_id, str(copy)],
             cwd=scratch_dir,
-            env=clean_environment(home),
+            env=check_environment(home),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,

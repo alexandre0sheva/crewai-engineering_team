@@ -329,6 +329,10 @@ reports, a web UI, a benchmark suite, and extension points. Coming from 0.1.0? R
 
 - The web UI no longer reports 404 errors in the browser console while a run is starting: the board, teammates and
   timeline of a run that has been launched but has not written its run directory yet are now empty instead of "not found".
+- `Query SQLite` and `Inspect Database Schema` now say "file is not a database" for a text file on every SQLite version;
+  older builds ran a table-less `SELECT 1` against it and reported success.
+- Benchmark acceptance checks no longer depend on the machine's DNS speed: a correct server that Python's `http.server`
+  held back with a slow reverse lookup was scored as failing its criteria.
 - The browser tests and the UI smoke test (`scripts/ui_smoke.py`) pass on CI: the tests now keep Playwright's browser
   cache findable although they sandbox `HOME`, and the smoke test no longer trips over the two "Runs" links.
 - Every model call to a GPT-6 model failed with `Responses.create() got an unexpected keyword argument 'context_window_size'`:

@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 from conftest import Toolbox
+from http_fixture import SERVER_FILE, SERVER_SCRIPT, server_command
 
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import read_events
@@ -39,12 +40,9 @@ def interpreter_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
 def box(make_toolbox: MakeToolbox) -> Iterator[Toolbox]:
     toolbox = make_toolbox(groups=["runtime"], agent="backend")
     toolbox.write("site/index.html", "<h1>hello from the fixture</h1>\n")
+    toolbox.write(SERVER_FILE, SERVER_SCRIPT)
     yield toolbox
     toolbox.ctx.processes.stop_all("test over")  # a failing test must not leak a server
-
-
-def server_command(port: int) -> str:
-    return f"python -u -m http.server {port} --bind 127.0.0.1 --directory site"
 
 
 def alive(pid: int) -> bool:
@@ -78,6 +76,7 @@ def start_server(box: Toolbox, name: str = "web") -> tuple[int, str]:
         ready_when="port",
         ready_target=str(port),
     )
+    assert "NOT READY" not in result, result  # a slow start is its own, clearly named failure
     return port, result
 
 
@@ -88,7 +87,9 @@ def test_start_wait_request_logs_stop_and_nothing_is_left_running(box: Toolbox) 
     port, started = start_server(box)
 
     assert started.startswith("STARTED proc-1 (web): ready - port ")
-    assert "Serving HTTP on 127.0.0.1" in started
+    assert wait_until(
+        lambda: "Serving HTTP on 127.0.0.1" in box("Read Process Logs", process="web")
+    )
     pid = box.ctx.processes.get("web").handle.pid
 
     response = box("HTTP Request", url=f"http://127.0.0.1:{port}/index.html")
@@ -117,6 +118,8 @@ def test_start_wait_request_logs_stop_and_nothing_is_left_running(box: Toolbox) 
 
 def test_the_agent_can_follow_a_log_from_an_offset(box: Toolbox) -> None:
     port, _ = start_server(box)
+    # The port opens a moment before the banner is printed and copied to the log.
+    assert wait_until(lambda: "Serving HTTP" in box("Read Process Logs", process="web"))
     first = box("Read Process Logs", process="web")
     offset = int(first.rsplit("next offset: ", 1)[1].split(" ")[0])
     box("HTTP Request", url=f"http://127.0.0.1:{port}/new-request")
@@ -893,6 +896,7 @@ def test_an_agent_starts_a_server_checks_an_endpoint_and_leaves_nothing_running(
 ) -> None:
     ctx = make_context()
     ctx.workspace.write_file("site/index.html", "<p>agent was here</p>\n")
+    ctx.workspace.write_file(SERVER_FILE, SERVER_SCRIPT)
     port = free_loopback_port()
     llm = ScriptedLLM(
         [

@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 from conftest import Toolbox, usable_browser_channel
+from http_fixture import SERVER_FILE, SERVER_SCRIPT, server_command
 
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import read_events, stage_scope
@@ -107,12 +108,13 @@ def make_app(
         ws = ctx.workspace
         ws.write_file("site/index.html", INDEX)
         ws.write_file("site/second.html", SECOND)
+        ws.write_file(SERVER_FILE, SERVER_SCRIPT)
         toolbox = Toolbox(ctx, build_tools(ctx, groups=["runtime", "browser"], agent="frontend"))
         port = toolbox("Find Free Port").split()[2]
         started = toolbox(
             "Start Background Process",
             name="site",
-            command=f"python -u -m http.server {port} --bind 127.0.0.1 --directory site",
+            command=server_command(port),
             ready_when="port",
             ready_target=port,
         )

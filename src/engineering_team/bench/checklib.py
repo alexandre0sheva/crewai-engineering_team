@@ -132,7 +132,7 @@ def http_request(
 
 @contextlib.contextmanager
 def serving(
-    workspace: Path, argv: Sequence[str], port: int, *, wait: float = 15.0
+    workspace: Path, argv: Sequence[str], port: int, *, wait: float = 30.0
 ) -> Iterator[str]:
     """Start ``python *argv`` (which must listen on ``port``), yield its base URL, stop it."""
 

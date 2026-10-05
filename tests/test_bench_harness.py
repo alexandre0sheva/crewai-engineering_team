@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import subprocess
 import sys
 import threading
@@ -13,7 +14,7 @@ import pytest
 from bench_helpers import SUITE, record, stub_python
 
 from engineering_team.bench import batch as batch_module
-from engineering_team.bench.acceptance import source_root
+from engineering_team.bench.acceptance import check_environment, source_root
 from engineering_team.bench.batch import BudgetLedger, run_batch, task_digest
 from engineering_team.bench.execution import ProcessRegistry, execute_run
 from engineering_team.bench.metrics import event_metrics, parse_summary
@@ -198,6 +199,24 @@ def test_a_new_project_run_is_one_cli_subprocess_with_an_isolated_workspace(
     assert prepared.env["CREWAI_STORAGE_DIR"] == str(run / "crewai-storage")
     assert (run / "request.md").read_text() == tasks["notes-cli"].request_path.read_text()
     assert prepared.env["PYTHONPATH"].split(os.pathsep)[0] == source_root()  # the harness's code
+
+
+def test_a_check_does_not_wait_for_a_reverse_dns_lookup(tmp_path: Path) -> None:
+    # http.server names itself with socket.getfqdn() before it listens; in a check that must not
+    # depend on how fast the machine's resolver is.
+    probe = "import socket; print(socket.getfqdn.__module__, socket.getfqdn(), flush=True)"
+
+    done = subprocess.run(
+        [sys.executable, "-c", probe],
+        env=check_environment(tmp_path),
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    )
+
+    assert done.stdout.split()[0] == "sitecustomize"
+    assert done.stdout.split()[1] == socket.gethostname()
 
 
 def test_nothing_in_a_run_names_the_hidden_checks(
