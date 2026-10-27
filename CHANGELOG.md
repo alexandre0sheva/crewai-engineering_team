@@ -15,7 +15,7 @@ A rewrite of the engine around a controller that runs the checks and owns the ta
 feature, fix, maintain, review and analyze modes, parallel work packages, a Docker sandbox, run
 reports, a web UI, a benchmark suite, and extension points. Coming from 0.1.0? Read
 *Migration from 0.1.0*, the last subsection of this release, first. The implementation plan and its decision log are in
-[docs/IMPLEMENTATION_PLAN_0.2.0.md](docs/IMPLEMENTATION_PLAN_0.2.0.md).
+[the 0.2.0 implementation plan](https://github.com/alexandre0sheva/crewai-engineering_team/blob/31bd355/docs/IMPLEMENTATION_PLAN_0.2.0.md) (removed from the tree in 0.3.0).
 
 ### Added
 

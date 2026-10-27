@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Helper for docs/IMPLEMENTATION_PLAN_0.2.0.md.
+"""Helper for docs/IMPLEMENTATION_PLAN_0.3.0.md.
 
     uv run python scripts/plan_task.py list          # index with statuses
     uv run python scripts/plan_task.py next          # first todo task whose dependencies are done
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-PLAN = Path(__file__).resolve().parents[1] / "docs" / "IMPLEMENTATION_PLAN_0.2.0.md"
+PLAN = Path(__file__).resolve().parents[1] / "docs" / "IMPLEMENTATION_PLAN_0.3.0.md"
 ROW = re.compile(r"^\|\s*(\d+)\s*\|(.+)\|\s*([^|]+?)\s*\|\s*$")
 
 

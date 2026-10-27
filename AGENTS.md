@@ -1,7 +1,7 @@
 # AGENTS.md — CrewAI Reference for AI Coding Assistants
 
 > **Implementation workflow (read first):** this repository is being developed against
-> `docs/IMPLEMENTATION_PLAN_0.2.0.md`. For "implement task N", follow `CLAUDE.md`
+> `docs/IMPLEMENTATION_PLAN_0.3.0.md`. For "implement task N", follow `CLAUDE.md`
 > (`uv run python scripts/plan_task.py show N`). Do not commit or push unless asked.
 
 > **Auto-generated** by `crewai create`. This file helps AI coding assistants

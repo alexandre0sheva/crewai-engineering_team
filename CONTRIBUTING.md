@@ -80,8 +80,8 @@ Before changing CrewAI-specific code, follow the research steps in [AGENTS.md](A
 
 ## Working through the implementation plan
 
-Work for release 0.2.0 is organised as numbered tasks in
-[docs/IMPLEMENTATION_PLAN_0.2.0.md](docs/IMPLEMENTATION_PLAN_0.2.0.md). A helper prints what you need:
+Work for release 0.3.0 is organised as numbered tasks in
+[docs/IMPLEMENTATION_PLAN_0.3.0.md](docs/IMPLEMENTATION_PLAN_0.3.0.md). A helper prints what you need:
 
 ```bash
 uv run python scripts/plan_task.py list        # all tasks and their status

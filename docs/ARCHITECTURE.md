@@ -965,7 +965,7 @@ code at load time; the tools import the runtime context only for type checking).
 ## Decisions and rejected alternatives
 
 The reasons behind the choices that shape the code, with what was weighed. Decisions made while
-building 0.2.0 are in the [implementation plan's decision log](IMPLEMENTATION_PLAN_0.2.0.md#7-decision-log).
+building 0.2.0 are in the [0.2.0 implementation plan's decision log](https://github.com/alexandre0sheva/crewai-engineering_team/blob/31bd355/docs/IMPLEMENTATION_PLAN_0.2.0.md#7-decision-log) (in Git history); decisions for 0.3.0 are in the [0.3.0 plan](IMPLEMENTATION_PLAN_0.3.0.md#7-decision-log).
 
 | Decision | Instead of | Why |
 |----------|------------|-----|

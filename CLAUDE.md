@@ -1,11 +1,11 @@
 # CLAUDE.md
 
 Project: `engineering-team` — a CrewAI-based AI engineering team (see `README.md`). Released
-state is **0.1.0**; all current work targets **0.2.0**.
+state is **0.2.0** (not tagged yet); all current work targets **0.3.0**.
 
 ## Implementation plan — "implement task N"
 
-The single implementation plan is **`docs/IMPLEMENTATION_PLAN_0.2.0.md`** (36 numbered tasks,
+The single implementation plan is **`docs/IMPLEMENTATION_PLAN_0.3.0.md`** (34 numbered tasks,
 index in §5, rules in §4). When the user says "implement task N" (or "do task N", "next task"):
 
 1. Run `uv run python scripts/plan_task.py show N` (or `next` to find the next runnable task).

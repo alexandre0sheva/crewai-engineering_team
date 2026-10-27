@@ -1,4 +1,4 @@
-"""Guards the structure of docs/IMPLEMENTATION_PLAN_0.2.0.md and its helper script."""
+"""Guards the structure of docs/IMPLEMENTATION_PLAN_0.3.0.md and its helper script."""
 
 from __future__ import annotations
 
