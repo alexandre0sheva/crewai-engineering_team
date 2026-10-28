@@ -71,7 +71,7 @@ class RunRecorder:
         *,
         mode: str = "build",
         request: str = "",
-        strategy: str = "hierarchical",
+        strategy: str = "pipeline",
         recipe: str | None = None,
     ) -> RunRecorder:
         store = RunStore(ctx.workspace.root)

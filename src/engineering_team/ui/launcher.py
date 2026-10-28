@@ -67,7 +67,7 @@ class RunOptions(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    strategy: Literal["hierarchical", "pipeline", "single"] | None = None
+    strategy: Literal["pipeline", "single"] | None = None
     profile: str | None = None
     provider: str | None = None
     sandbox: Literal["local", "docker"] | None = None

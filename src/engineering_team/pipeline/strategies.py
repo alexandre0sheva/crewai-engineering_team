@@ -1,7 +1,5 @@
 """Strategies: how a run is orchestrated. ``Strategy.run(ctx, recipe, bundle) -> RunResult``.
 
-* ``HierarchicalStrategy``: the 0.1.0 crew, a manager delegating to four specialists over six
-  fixed tasks (``config/tasks.yaml``). Not resumable.
 * ``PipelineStrategy``: the recipe's stages as a Flow with typed hand-offs, a task board,
   resume, and cancellation.
 * ``SingleAgentStrategy``: one agent with every tool and one task: the baseline the other
@@ -18,7 +16,6 @@ from collections.abc import Callable
 from typing import Protocol
 
 from engineering_team.contracts import RunVerdict
-from engineering_team.crew import EngineeringTeam
 from engineering_team.pipeline.flow import run_flow
 from engineering_team.pipeline.recipes import Recipe, StageSpec, load_recipe
 from engineering_team.pipeline.stages import CrewStageRunner, StageRunner
@@ -26,7 +23,10 @@ from engineering_team.pipeline.state import PipelineState, RunBundle, RunResult
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.run_store import RunStore
 
-STRATEGY_NAMES = ("hierarchical", "pipeline", "single")
+STRATEGY_NAMES = ("pipeline", "single")
+# Strategies 0.2.0 could record in a manifest that no longer exist: their runs stay viewable, but
+# cannot be resumed.
+RETIRED_STRATEGIES = ("hierarchical",)
 DEFAULT_RECIPE = "new"
 
 # The one-stage recipe of the single-agent baseline.
@@ -52,7 +52,7 @@ class Strategy(Protocol):
     name: str
     resumable: bool
 
-    def recipe_for(self, recipe: Recipe | None) -> Recipe | None: ...
+    def recipe_for(self, recipe: Recipe | None) -> Recipe: ...
 
     def run(self, ctx: RunContext, recipe: Recipe | None, bundle: RunBundle) -> RunResult: ...
 
@@ -77,18 +77,6 @@ def _result(ctx: RunContext, status: str, error: str = "", *, verdict: bool = Fa
         workspace=ctx.workspace.root,
         verdict=reached,
     )
-
-
-class HierarchicalStrategy:
-    name = "hierarchical"
-    resumable = False
-
-    def recipe_for(self, recipe: Recipe | None) -> Recipe | None:
-        return None  # six fixed tasks in config/tasks.yaml, not a recipe
-
-    def run(self, ctx: RunContext, recipe: Recipe | None, bundle: RunBundle) -> RunResult:
-        EngineeringTeam(ctx).crew().kickoff(inputs=bundle.inputs)
-        return _result(ctx, "succeeded")
 
 
 class PipelineStrategy:
@@ -116,8 +104,10 @@ class SingleAgentStrategy(PipelineStrategy):
 def get_strategy(name: str, runner_factory: RunnerFactory | None = None) -> Strategy:
     """The strategy called ``name``; ``runner_factory`` swaps the stage runner (tests)."""
 
-    if name == "hierarchical":
-        return HierarchicalStrategy()
+    if name in RETIRED_STRATEGIES:
+        raise ValueError(
+            f"The '{name}' strategy was removed in 0.3.0. Choose from: {', '.join(STRATEGY_NAMES)}."
+        )
     factory = runner_factory or CrewStageRunner
     if name == "pipeline":
         return PipelineStrategy(factory)

@@ -1,13 +1,16 @@
 [project]
 name = "engineering_team"
 version = "0.2.0"
-description = "A reusable, lead-managed CrewAI engineering team for building MVP applications"
+description = "A team of AI specialists that builds, changes and fixes software, and proves what it did: a CrewAI pipeline in which a controller, not the agents, runs the checks and decides what counts as done."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Oleksandr Shevchenko" }]
-keywords = ["crewai", "ai-agents", "multi-agent", "software-engineering", "code-generation", "llm"]
+keywords = [
+    "crewai", "ai-agents", "multi-agent", "software-engineering", "code-generation", "llm",
+    "bug-fixing", "code-review", "verification",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -22,25 +25,25 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
 ]
 dependencies = [
-    "crewai[tools]>=1.15.23,<1.16",
-    "pyyaml>=6.0,<7",  # recipes and stage prompts (also a CrewAI dependency; declared, not assumed)
-    "pydantic>=2.7,<3",  # settings and contracts (also a CrewAI dependency; declared, not assumed)
-    "typer>=0.15,<1",  # the command-line interface
-    "rich>=13.7,<15",  # its live progress view, tables, and panels
+    "crewai[tools]>=1.15.31,<1.16",
+    "pyyaml>=6.0.3,<7",  # recipes and stage prompts (also a CrewAI dependency; declared, not assumed)
+    "pydantic>=2.12.5,<3",  # settings and contracts (also a CrewAI dependency; declared, not assumed)
+    "typer>=0.27.3,<1",  # the command-line interface
+    "rich>=14.3.4,<15",  # its live progress view, tables, and panels (<15: CrewAI's `instructor` caps it)
 ]
 
 [project.optional-dependencies]
 # Native CrewAI provider SDKs; install only what you use, e.g. `uv sync --extra anthropic`.
-anthropic = ["crewai[anthropic]>=1.15.23,<1.16"]
-google = ["crewai[google-genai]>=1.15.23,<1.16"]
-azure = ["crewai[azure-ai-inference]>=1.15.23,<1.16"]
+anthropic = ["crewai[anthropic]>=1.15.31,<1.16"]
+google = ["crewai[google-genai]>=1.15.31,<1.16"]
+azure = ["crewai[azure-ai-inference]>=1.15.31,<1.16"]
 # Headless-browser tools for UI verification (then `playwright install chromium`).
-browser = ["playwright>=1.63,<2"]
+browser = ["playwright>=1.64.1,<2"]
 # The local web UI's API server (`engineering-team ui`).
 ui = [
-    "fastapi>=0.115",
-    "uvicorn>=0.30",
-    "python-multipart>=0.0.9",  # file uploads when starting a run
+    "fastapi>=0.162",
+    "uvicorn>=0.54",
+    "python-multipart>=0.0.32",  # file uploads when starting a run
 ]
 
 [project.urls]
@@ -52,20 +55,16 @@ Changelog = "https://github.com/alexandre0sheva/crewai-engineering_team/blob/mai
 [project.scripts]
 engineering-team = "engineering_team.main:run"
 engineering_team = "engineering_team.main:run"
-run_crew = "engineering_team.main:run"
-train = "engineering_team.main:train"
-replay = "engineering_team.main:replay"
-test = "engineering_team.main:test"
-run_with_trigger = "engineering_team.main:run_with_trigger"
+run_crew = "engineering_team.main:run_crew"
 
 [dependency-groups]
 dev = [
-    "fastapi>=0.115",  # the web UI's tests (also the [ui] extra)
-    "httpx>=0.27",  # FastAPI's TestClient
-    "python-multipart>=0.0.9",
+    "fastapi>=0.162",  # the web UI's tests (also the [ui] extra)
+    "httpx>=0.28.1",  # FastAPI's TestClient
+    "python-multipart>=0.0.32",
     "mypy>=2.4.0",
-    "pytest>=9.1.0",
-    "ruff>=0.16.10",
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
 ]
 
 # The benchmark suite (tasks, hidden checks, results) lives in the repository only.
@@ -73,7 +72,7 @@ dev = [
 exclude = ["/benchmarks"]
 
 [build-system]
-requires = ["hatchling>=1.27"]
+requires = ["hatchling>=1.32.4"]
 build-backend = "hatchling.build"
 
 [tool.crewai]
@@ -122,9 +121,3 @@ files = ["src"]
 python_version = "3.11"
 warn_unused_ignores = true
 ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-# CrewAI's YAML ``config=`` pattern (required by the CrewBase decorators) passes a
-# partially-specified Task/Agent that the library's static types cannot express.
-module = "engineering_team.crew"
-disable_error_code = ["call-arg", "arg-type"]

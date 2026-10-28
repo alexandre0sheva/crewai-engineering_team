@@ -6,7 +6,9 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from cli_helpers import use_runner
 from crewai import Crew, Process
+from pipeline_fakes import FakeRunner
 
 from engineering_team import main
 from engineering_team.contracts import RunManifest, UsageReport
@@ -534,35 +536,28 @@ def test_a_warning_reaches_the_event_log_and_the_summary(tmp_path: Path) -> None
 # -- through the CLI ------------------------------------------------------------------------
 
 
-class _SpendingTeam:
-    """A stand-in crew that reports model usage the way the bridge would."""
+def _spending_runner(model: str = "openai/gpt-6-luna") -> FakeRunner:
+    """A scripted runner that reports model usage the way the bridge would."""
 
-    tokens: tuple[int, int] = (1200, 300)
-    model = "openai/gpt-6-luna"
+    def spend(request) -> None:
+        events = request.ctx.events
+        events.emit(
+            "llm.call",
+            model=model,
+            usage={"prompt_tokens": 1200, "completion_tokens": 300},
+        )
+        events.emit("tool.call", tool="Project Tree")
 
-    def __init__(self, ctx: RunContext) -> None:
-        self.ctx = ctx
-
-    def crew(self):  # type: ignore[no-untyped-def]
-        ctx, (prompt, completion), model = self.ctx, self.tokens, self.model
-
-        class _Crew:
-            def kickoff(self, inputs: dict[str, str]) -> None:
-                ctx.events.emit(
-                    "llm.call",
-                    model=model,
-                    usage={"prompt_tokens": prompt, "completion_tokens": completion},
-                )
-                ctx.events.emit("tool.call", tool="Project Tree")
-
-        return _Crew()
+    return FakeRunner(on_call=spend)
 
 
-@pytest.mark.usefixtures("crew_strategy")
+RUN = ["new", "--request", REQUEST, "--project-name", "demo", "--strategy", "single"]
+
+
 def test_a_fake_run_prints_exact_token_counts_and_a_cost(capsys, monkeypatch) -> None:
-    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _SpendingTeam)
+    use_runner(monkeypatch, _spending_runner())
 
-    assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 0
+    assert main.run(RUN) == 0
 
     out = capsys.readouterr().out
     assert (
@@ -572,24 +567,19 @@ def test_a_fake_run_prints_exact_token_counts_and_a_cost(capsys, monkeypatch) ->
     assert "Estimated cost: $0.0003" in out  # 1200 x $0.10/M + 300 x $0.50/M
 
 
-@pytest.mark.usefixtures("crew_strategy")
 def test_a_fake_run_with_an_unpriced_model_prints_unknown_never_zero(capsys, monkeypatch) -> None:
-    class Unpriced(_SpendingTeam):
-        model = "someone/new-model"
+    use_runner(monkeypatch, _spending_runner("someone/new-model"))
 
-    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", Unpriced)
-
-    assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 0
+    assert main.run(RUN) == 0
 
     out = capsys.readouterr().out
     assert "Estimated cost: unknown (no price for someone/new-model" in out
     assert "$0" not in out
 
 
-@pytest.mark.usefixtures("crew_strategy")
 def test_the_cli_leaves_usage_and_summary_in_the_run_directory(monkeypatch) -> None:
-    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _SpendingTeam)
-    assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 0
+    use_runner(monkeypatch, _spending_runner())
+    assert main.run(RUN) == 0
 
     store = RunStore(Path.cwd() / "workspace" / "demo")
     manifest: RunManifest = store.list_runs()[0]
@@ -602,12 +592,11 @@ def test_the_cli_leaves_usage_and_summary_in_the_run_directory(monkeypatch) -> N
     )
 
 
-@pytest.mark.usefixtures("crew_strategy")
 def test_a_budget_stop_in_the_cli_is_a_clean_failure(capsys, monkeypatch) -> None:
-    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _SpendingTeam)
+    use_runner(monkeypatch, _spending_runner())
     monkeypatch.setenv("ENGINEERING_BUDGET_MAX_TOKENS", "1000")
 
-    code = main.run(["--request", REQUEST, "--project-name", "demo"])
+    code = main.run(RUN)
 
     captured = capsys.readouterr()
     assert code == 1
@@ -619,6 +608,6 @@ def test_a_budget_stop_in_the_cli_is_a_clean_failure(capsys, monkeypatch) -> Non
 
 
 def test_prepare_only_prints_no_usage_report(capsys) -> None:
-    assert main.run(["--request", REQUEST, "--project-name", "demo", "--prepare-only"]) == 0
+    assert main.run(["new", "--request", REQUEST, "--project-name", "demo", "--prepare-only"]) == 0
 
     assert "Usage:" not in capsys.readouterr().out

@@ -133,7 +133,6 @@ def test_docs_mcp_urls_stay_an_alias_for_every_teammate_with_mcp_docs() -> None:
         "notion",
     ]
     assert mcps_for(settings, member(settings, "codebase_analyst")) is None  # no mcp:docs
-    assert mcps_for(settings, member(settings, "engineering_lead")) is None
 
 
 def test_the_environment_alias_is_still_read(monkeypatch: pytest.MonkeyPatch) -> None:

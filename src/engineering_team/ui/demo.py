@@ -309,7 +309,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         args = args[2:]
     patched: Any = strategies
     patched.CrewStageRunner = DemoRunner
-    patched.HierarchicalStrategy = lambda: strategies.PipelineStrategy(DemoRunner)
     return int(engine.run(args) or 0)
 
 

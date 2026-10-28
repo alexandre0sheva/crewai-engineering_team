@@ -23,9 +23,9 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel
 
 from engineering_team.contracts import Contract, Plan, ReviewReport, Spec, WorkPackage
-from engineering_team.crew import build_llm
 from engineering_team.extensions.agents import agent_extensions
 from engineering_team.intake.context_docs import context_note
+from engineering_team.llm import build_llm
 from engineering_team.modes.codebase_map import (
     ChunkAnalysis,
     CodebaseMap,

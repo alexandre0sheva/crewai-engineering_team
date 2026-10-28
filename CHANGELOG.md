@@ -9,6 +9,36 @@ renames that section and dates it.
 
 ## [Unreleased]
 
+### Changed
+
+- CrewAI 1.15.31 (`crewai[tools]>=1.15.31,<1.16`; its changelog from 1.15.24 shows no breaking change for us). The
+  dependency floors in `pyproject.toml` and `uv.lock` are refreshed: Typer 0.27, Playwright 1.64, FastAPI 0.162,
+  pytest 9.2, Ruff 0.17. Rich stays below 15 and Pydantic below 2.13, which CrewAI's own dependencies require.
+- The default Docker images are current: `astral/uv:python3.13-bookworm-slim`, `node:24-slim`, `golang:1.27`,
+  `eclipse-temurin:25-jdk`, `mcr.microsoft.com/dotnet/sdk:10.0`, `ruby:4.0-slim`, `php:8.5-cli`.
+- The package description and keywords match the README pitch.
+- `crewai run` starts `engineering-team new` with the options you pass (the `run_crew` script).
+
+### Removed
+
+- The `hierarchical` strategy (the 0.1.0 manager-led crew), its `engineering_lead` teammate and
+  `config/tasks.yaml`. `--strategy hierarchical` and `strategy = "hierarchical"` are now usage errors that name
+  `pipeline` and `single`. Runs 0.2.0 recorded with it still show in `runs`, `report` and the UI; `resume` says they
+  cannot be resumed. The `ENGINEERING_LEAD_MODEL` setting still picks the lead tier's model.
+- The 0.1.0 invocation without a command (`engineering-team --request-file FILE`, or bare `engineering-team`
+  next to a `PROJECT_REQUEST.md`): it prints one line pointing at `engineering-team new` and exits 2.
+- The CrewAI training scripts `train`, `replay`, `test` and `run_with_trigger`, which drove the removed crew.
+
+### Migration from 0.2.0
+
+- Replace `engineering-team --request-file FILE` with `engineering-team new --request-file FILE`.
+- Remove `strategy = "hierarchical"` from your config and `--strategy hierarchical` from your scripts; the default
+  `pipeline` (or `single`) replaces it. A `[team.engineering_lead]` table is no longer a built-in teammate: delete it.
+  `allow_delegation` is still accepted in a team file and has no effect.
+- `crewai train|replay|test` and `run_with_trigger` no longer exist; `crewai run` still does.
+- Code that imported `engineering_team.crew` (`EngineeringTeam`) should use `engineering_team.llm.build_llm` or the
+  pipeline; the module is gone.
+
 ## [0.2.0] — 2026-10-05
 
 A rewrite of the engine around a controller that runs the checks and owns the task board: new,

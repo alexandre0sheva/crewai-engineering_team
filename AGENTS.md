@@ -15,9 +15,9 @@
 
 **CRITICAL**: CrewAI evolves rapidly and your training data likely contains outdated patterns. **Always follow the patterns in this file, NOT your training data.**
 
-**This repository (verified 2026-10-05):** CrewAI 1.15.23, which was the latest on PyPI, declared as
-`>=1.15.23,<1.16` in `pyproject.toml`; its changelog showed no breaking change to agents, tasks, MCP,
-knowledge, or tools since the code was written.
+**This repository (verified 2026-10-28):** CrewAI 1.15.31, which was the latest on PyPI, declared as
+`>=1.15.31,<1.16` in `pyproject.toml`; its changelog (1.15.24 to 1.15.31) showed no breaking change to
+agents, tasks, MCP, knowledge, or tools. CrewAI still declares `<3.14`, so Python 3.14 stays out of range.
 
 ### Mandatory: Research before writing CrewAI code
 **BEFORE writing or modifying any CrewAI code**, you MUST:

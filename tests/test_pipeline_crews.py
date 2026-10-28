@@ -78,6 +78,7 @@ def models(monkeypatch: pytest.MonkeyPatch) -> dict[str, ScriptedLLM]:
 def run_cli(*extra: str) -> int:
     return main.run(
         [
+            "new",
             "--request",
             REQUEST,
             "--project-name",

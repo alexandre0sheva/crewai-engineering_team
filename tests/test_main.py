@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
+from pipeline_fakes import FakeRunner
 
 from engineering_team import main
 from engineering_team.main import (
@@ -21,13 +21,28 @@ ENV_INLINE = "ENGINEERING_PROJECT_REQUEST"
 ENV_FILE = "ENGINEERING_REQUEST_FILE"
 
 
-def _patch_team(monkeypatch, team) -> None:
-    """Replace the crew that ``run`` (hierarchical), ``train``, ``replay`` and ``test`` build."""
+def _patch_runner(monkeypatch, runner: FakeRunner | None = None) -> FakeRunner:
+    """Replace the model-driven stage runner of every strategy with a scripted one."""
 
     from engineering_team.pipeline import strategies
 
-    monkeypatch.setattr(main, "EngineeringTeam", team)
-    monkeypatch.setattr(strategies, "EngineeringTeam", team)
+    scripted = runner or FakeRunner()
+    monkeypatch.setattr(strategies, "CrewStageRunner", lambda: scripted)
+    return scripted
+
+
+def _no_model_call(request) -> None:
+    pytest.fail("no stage may run")
+
+
+def _raise(error: BaseException):
+    def on_call(request) -> None:
+        raise error
+
+    return on_call
+
+
+RUN = ["new", "--request", "Build a thing", "--project-name", "demo", "--strategy", "single"]
 
 
 def _write(path: Path, text: str) -> Path:
@@ -195,10 +210,10 @@ def test_filesystem_root_cannot_be_a_workspace_root() -> None:
 # --- exit codes ------------------------------------------------------------------------
 
 
-def test_prepare_only_succeeds_without_calling_the_crew(capsys, monkeypatch) -> None:
-    _patch_team(monkeypatch, lambda: pytest.fail("crew must not be built"))
+def test_prepare_only_succeeds_without_running_a_stage(capsys, monkeypatch) -> None:
+    _patch_runner(monkeypatch, FakeRunner(on_call=_no_model_call))
 
-    code = main.run(["--example", "tiny-notes", "--project-name", "demo", "--prepare-only"])
+    code = main.run(["new", "--example", "tiny-notes", "--project-name", "demo", "--prepare-only"])
 
     assert code == 0
     assert "Prepared project workspace" in capsys.readouterr().out
@@ -220,6 +235,7 @@ def test_workspace_safety_errors_are_usage_errors(capsys, tmp_path: Path) -> Non
 
     code = main.run(
         [
+            "new",
             "--request",
             "Build something concrete",
             "--project-name",
@@ -234,105 +250,104 @@ def test_workspace_safety_errors_are_usage_errors(capsys, tmp_path: Path) -> Non
     assert "was not created by engineering-team" in capsys.readouterr().err
 
 
-@pytest.mark.usefixtures("crew_strategy")
 def test_runtime_failure_exits_with_one_and_reports_the_cause(capsys, monkeypatch) -> None:
-    class ExplodingTeam:
-        def __init__(self, ctx=None) -> None:
-            pass
+    _patch_runner(monkeypatch, FakeRunner(on_call=_raise(RuntimeError("model unavailable"))))
 
-        def crew(self):
-            return SimpleNamespace(kickoff=self._boom)
-
-        @staticmethod
-        def _boom(inputs):
-            raise RuntimeError("model unavailable")
-
-    _patch_team(monkeypatch, ExplodingTeam)
-
-    code = main.run(["--request", "Build a thing", "--project-name", "demo"])
+    code = main.run(RUN)
 
     assert code == 1
     assert "model unavailable" in capsys.readouterr().err
 
 
-def test_validation_errors_inside_the_crew_are_runtime_failures_not_usage_errors(
+def test_validation_errors_inside_a_stage_are_runtime_failures_not_usage_errors(
     monkeypatch,
 ) -> None:
-    class ValidatingTeam:
-        def __init__(self, ctx=None) -> None:
-            pass
+    _patch_runner(
+        monkeypatch, FakeRunner(on_call=_raise(ValueError("raised deep inside the framework")))
+    )
 
-        def crew(self):
-            return SimpleNamespace(kickoff=self._fail)
-
-        @staticmethod
-        def _fail(inputs):
-            raise ValueError("raised deep inside the framework")
-
-    _patch_team(monkeypatch, ValidatingTeam)
-
-    assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 1
+    assert main.run(RUN) == 1
 
 
-@pytest.mark.usefixtures("crew_strategy")
 def test_keyboard_interrupt_exits_with_130(capsys, monkeypatch) -> None:
-    class InterruptedTeam:
-        def __init__(self, ctx=None) -> None:
-            pass
+    _patch_runner(monkeypatch, FakeRunner(on_call=_raise(KeyboardInterrupt())))
 
-        def crew(self):
-            return SimpleNamespace(kickoff=self._interrupt)
-
-        @staticmethod
-        def _interrupt(inputs):
-            raise KeyboardInterrupt
-
-    _patch_team(monkeypatch, InterruptedTeam)
-
-    assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 130
+    assert main.run(RUN) == 130
     assert "Interrupted" in capsys.readouterr().err
 
 
-@pytest.mark.usefixtures("crew_strategy")
 def test_successful_run_returns_zero_so_console_scripts_exit_cleanly(monkeypatch) -> None:
     """Regression: run() used to return the crew output, which ``sys.exit`` turns into 1."""
 
-    calls = []
+    runner = _patch_runner(monkeypatch)
 
-    class FakeTeam:
-        def __init__(self, ctx=None) -> None:
-            pass
-
-        def crew(self):
-            return SimpleNamespace(kickoff=lambda inputs: calls.append(inputs) or object())
-
-    _patch_team(monkeypatch, FakeTeam)
-
-    assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 0
-    assert calls[0]["project_name"] == "demo"
+    assert main.run(RUN) == 0
+    assert runner.requests[0].ctx.settings.project_name == "demo"
 
 
-@pytest.mark.parametrize(
-    ("entry_point", "argv"),
-    [
-        (main.train, ["train"]),
-        (main.replay, ["replay"]),
-        (main.test, ["test"]),
-        (main.run_with_trigger, ["run_with_trigger"]),
-    ],
-)
-def test_crewai_entry_points_report_usage_errors_with_exit_code_two(
-    entry_point, argv, monkeypatch
-) -> None:
-    monkeypatch.setattr("sys.argv", argv)
-
-    assert entry_point() == 2
+# --- the 0.1.0 surface is gone ----------------------------------------------------------
 
 
-def test_trigger_payload_that_is_not_json_is_a_usage_error(monkeypatch) -> None:
-    monkeypatch.setattr("sys.argv", ["run_with_trigger", "{not json"])
+@pytest.mark.parametrize("argv", [["--request-file", "REQUEST.md"], ["--request", "x"]])
+def test_the_bare_invocation_points_at_new_and_exits_two(argv, capsys) -> None:
+    code = main.run(argv)
 
-    assert main.run_with_trigger() == 2
+    captured = capsys.readouterr()
+    assert code == 2
+    assert captured.err.count("\n") == 1
+    assert "engineering-team new --request-file" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_a_project_request_file_alone_does_not_start_a_run(capsys) -> None:
+    (Path.cwd() / "PROJECT_REQUEST.md").write_text("Build something concrete.", encoding="utf-8")
+
+    assert main.run([]) == 2
+    assert "engineering-team new" in capsys.readouterr().err
+
+
+def test_no_arguments_and_no_request_shows_the_help(capsys) -> None:
+    assert main.run([]) == 0
+    assert "Usage:" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("name", ["train", "replay", "test", "run_with_trigger"])
+def test_the_crewai_training_entry_points_are_gone(name) -> None:
+    assert not hasattr(main, name)
+
+
+def test_the_hierarchical_crew_module_is_gone() -> None:
+    import importlib
+
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("engineering_team.crew")
+
+
+def test_the_hierarchical_strategy_is_a_usage_error_naming_the_valid_ones(capsys) -> None:
+    code = main.run([*RUN, "--strategy", "hierarchical"])
+
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "hierarchical" in err and "pipeline" in err and "single" in err
+
+
+def test_run_crew_runs_new_with_the_command_line_options(monkeypatch) -> None:
+    runner = _patch_runner(monkeypatch)
+    monkeypatch.setattr(
+        "sys.argv", ["run_crew", *RUN[1:]]
+    )  # what `crewai run` starts: no command, options only
+
+    assert main.run_crew() == 0
+    assert runner.calls
+
+
+def test_run_crew_reads_the_default_request_file(monkeypatch) -> None:
+    (Path.cwd() / "PROJECT_REQUEST.md").write_text("Build something concrete.", encoding="utf-8")
+    runner = _patch_runner(monkeypatch)
+    monkeypatch.setattr("sys.argv", ["run_crew", "--strategy", "single"])
+
+    assert main.run_crew() == 0
+    assert runner.calls
 
 
 # --- settings integration --------------------------------------------------------------
@@ -351,9 +366,9 @@ def test_settings_error_is_a_one_line_usage_error(capsys, monkeypatch) -> None:
 
 def test_missing_credentials_fail_fast_before_any_model_call(capsys, monkeypatch) -> None:
     monkeypatch.delenv("OPENAI_API_KEY")
-    _patch_team(monkeypatch, lambda *_: pytest.fail("crew must not be built"))
+    _patch_runner(monkeypatch, FakeRunner(on_call=_no_model_call))
 
-    code = main.run(["--request", "Build a thing", "--project-name", "demo"])
+    code = main.run(RUN)
 
     assert code == 2
     assert "OPENAI_API_KEY" in capsys.readouterr().err
@@ -362,26 +377,21 @@ def test_missing_credentials_fail_fast_before_any_model_call(capsys, monkeypatch
 def test_prepare_only_works_without_credentials(monkeypatch) -> None:
     monkeypatch.delenv("OPENAI_API_KEY")
 
-    assert main.run(["--example", "tiny-notes", "--prepare-only"]) == 0
+    assert main.run(["new", "--example", "tiny-notes", "--prepare-only"]) == 0
 
 
-@pytest.mark.usefixtures("crew_strategy")
-def test_cli_profile_and_environment_reach_the_crew_via_settings(monkeypatch) -> None:
-    seen = []
-
-    class FakeTeam:
-        def __init__(self, ctx) -> None:
-            seen.append(ctx.settings)
-
-        def crew(self):
-            return SimpleNamespace(kickoff=lambda inputs: None)
-
-    _patch_team(monkeypatch, FakeTeam)
+def test_cli_profile_and_environment_reach_the_stages_via_settings(monkeypatch) -> None:
+    runner = _patch_runner(monkeypatch)
     monkeypatch.setenv("ENGINEERING_MAX_PARALLEL", "5")
 
-    assert main.run(["--example", "tiny-notes", "--profile", "standard"]) == 0
-    assert seen[0].profile == "standard"  # --profile beats the example's smoke marker
-    assert seen[0].parallel.max_parallel_agents == 5
+    code = main.run(
+        ["new", "--example", "tiny-notes", "--profile", "standard", "--strategy", "single"]
+    )
+
+    settings = runner.requests[0].ctx.settings
+    assert code == 0
+    assert settings.profile == "standard"  # --profile beats the example's smoke marker
+    assert settings.parallel.max_parallel_agents == 5
     assert "ENGINEERING_RUN_PROFILE" not in __import__("os").environ  # no env mutation
 
 
@@ -389,14 +399,14 @@ def test_environment_project_name_and_workspace_root_still_work(monkeypatch, tmp
     monkeypatch.setenv("ENGINEERING_PROJECT_NAME", "From Env")
     monkeypatch.setenv("ENGINEERING_WORKSPACE_ROOT", str(tmp_path / "envroot"))
 
-    assert main.run(["--example", "tiny-notes", "--prepare-only"]) == 0
+    assert main.run(["new", "--example", "tiny-notes", "--prepare-only"]) == 0
     assert (tmp_path / "envroot" / "from-env" / ".engineering-team" / "owner.json").is_file()
 
 
 def test_cli_project_name_beats_the_environment(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("ENGINEERING_PROJECT_NAME", "from-env")
 
-    main.run(["--example", "tiny-notes", "--project-name", "from-cli", "--prepare-only"])
+    main.run(["new", "--example", "tiny-notes", "--project-name", "from-cli", "--prepare-only"])
 
     assert (Path.cwd() / "workspace" / "from-cli").is_dir()
     assert not (Path.cwd() / "workspace" / "from-env").exists()
@@ -438,8 +448,8 @@ def test_config_show_reports_invalid_configuration_as_a_usage_error(capsys, monk
 def test_a_workspace_in_use_by_another_run_is_a_usage_error(capsys, monkeypatch) -> None:
     from engineering_team.runtime.locks import WorkspaceLock
 
-    _patch_team(monkeypatch, lambda *_: pytest.fail("crew must not be built"))
-    argv = ["--request", "Build a thing", "--project-name", "demo"]
+    _patch_runner(monkeypatch, FakeRunner(on_call=_no_model_call))
+    argv = RUN
     assert main.run([*argv, "--prepare-only"]) == 0
     holder = WorkspaceLock(Path.cwd() / "workspace" / "demo").acquire("other-run")
 
@@ -452,23 +462,13 @@ def test_a_workspace_in_use_by_another_run_is_a_usage_error(capsys, monkeypatch)
     assert "Traceback" not in captured.err
 
 
-@pytest.mark.usefixtures("crew_strategy")
 def test_the_run_context_points_at_a_fresh_run_directory(monkeypatch) -> None:
-    contexts = []
+    runner = _patch_runner(monkeypatch)
 
-    class FakeTeam:
-        def __init__(self, ctx) -> None:
-            contexts.append(ctx)
+    assert main.run(RUN) == 0
+    assert main.run(RUN) == 0
 
-        def crew(self):
-            return SimpleNamespace(kickoff=lambda inputs: None)
-
-    _patch_team(monkeypatch, FakeTeam)
-
-    assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 0
-    assert main.run(["--request", "Build a thing", "--project-name", "demo"]) == 0
-
-    first, second = contexts
+    first, second = (request.ctx for request in runner.requests)
     assert first.run_id != second.run_id
     assert first.run_dir.parent == first.workspace.root / ".engineering-team" / "runs"
     assert first.run_dir.is_dir() and second.run_dir.is_dir()
@@ -478,19 +478,8 @@ def test_the_run_context_points_at_a_fresh_run_directory(monkeypatch) -> None:
 def test_the_workspace_lock_is_released_however_the_run_ends(monkeypatch, failure) -> None:
     from engineering_team.runtime.locks import WorkspaceLock
 
-    def kickoff(inputs):
-        if failure is not None:
-            raise failure
+    _patch_runner(monkeypatch, FakeRunner(on_call=_raise(failure) if failure else None))
 
-    class FakeTeam:
-        def __init__(self, ctx=None) -> None:
-            pass
-
-        def crew(self):
-            return SimpleNamespace(kickoff=kickoff)
-
-    _patch_team(monkeypatch, FakeTeam)
-
-    main.run(["--request", "Build a thing", "--project-name", "demo"])
+    main.run(RUN)
 
     WorkspaceLock(Path.cwd() / "workspace" / "demo").acquire("next-run").release()

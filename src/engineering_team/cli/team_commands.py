@@ -128,7 +128,6 @@ def team_show(
         ("Model", data["model"]),
         ("Tool groups", ", ".join(data["tool_groups"]) or "none"),
         ("MCP servers", ", ".join(data["mcp_servers"]) or "none"),
-        ("Delegation", "yes (hierarchical strategy only)" if member.allow_delegation else "no"),
         ("Modes", ", ".join(data["modes"]) or "all"),
         ("Extra stages", ", ".join(data["stages"]) or "none"),
         ("Source", member.origin),

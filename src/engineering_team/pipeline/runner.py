@@ -20,7 +20,7 @@ from engineering_team.pipeline.state import (
     RunResult,
     request_hash,
 )
-from engineering_team.pipeline.strategies import Strategy, get_strategy
+from engineering_team.pipeline.strategies import RETIRED_STRATEGIES, Strategy, get_strategy
 from engineering_team.runtime.cancel import cancellation, request_cancel
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.inbox import inbox_watch
@@ -114,7 +114,7 @@ def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = No
 
     ``workspace_dir`` is the run's workspace when it is not ``workspace_root/<project>`` (a
     repository mode's). Raises ``ValueError`` (a usage error) when the run cannot be resumed: it
-    already succeeded, used the hierarchical strategy, or its recipe changed.
+    already succeeded, used a retired strategy (0.2.0's ``hierarchical``), or its recipe changed.
     """
 
     store, manifest, request = read_request(settings, run_id, workspace_dir)
@@ -125,12 +125,12 @@ def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = No
         )
     if manifest.status == "succeeded":
         raise ResumeError(f"Run {run_id} already succeeded; there is nothing to resume.")
-    strategy = get_strategy(manifest.strategy)
-    if not strategy.resumable:
+    if manifest.strategy in RETIRED_STRATEGIES:
         raise ResumeError(
-            f"Run {run_id} used the '{manifest.strategy}' strategy, which cannot be resumed. "
-            "Start a new run (or use --strategy pipeline, which can be resumed)."
+            f"Run {run_id} used the '{manifest.strategy}' strategy, which was removed in 0.3.0, "
+            "so it cannot be resumed. Start a new run (the pipeline strategy can be resumed)."
         )
+    strategy = get_strategy(manifest.strategy)
     # The single-agent strategy supplies its own one-stage recipe; the pipeline loads its own.
     recipe = (
         pinned_recipe(store.run_dir(run_id)) or load_recipe(manifest.recipe, workspace_dir)
@@ -138,8 +138,6 @@ def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = No
         else None
     )
     effective = strategy.recipe_for(recipe)
-    if effective is None:  # only a strategy without a recipe, and it is not resumable
-        raise ResumeError(f"Run {run_id} has no recipe to resume.")
     saved = PipelineState.load(store.run_dir(run_id))
     if saved is not None and saved.recipe_digest != effective.digest:
         raise ResumeError(

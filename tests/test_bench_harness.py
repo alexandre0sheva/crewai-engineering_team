@@ -61,14 +61,12 @@ def test_runs_are_ordered_by_task_strategy_and_repeat(tasks: dict[str, BenchTask
 def test_repository_tasks_are_not_planned_for_strategies_they_cannot_use(
     tasks: dict[str, BenchTask],
 ) -> None:
-    specs, skipped = plan_runs(
-        [tasks["seeded-bug"], tasks["notes-cli"]], ["hierarchical", "pipeline"], 1
-    )
+    specs, skipped = plan_runs([tasks["seeded-bug"], tasks["notes-cli"]], ["single", "pipeline"], 1)
 
     assert [s.key for s in specs] == [
-        "notes-cli/hierarchical-1", "notes-cli/pipeline-1", "seeded-bug/pipeline-1",
+        "notes-cli/single-1", "notes-cli/pipeline-1", "seeded-bug/pipeline-1",
     ]  # fmt: skip
-    assert skipped == [("seeded-bug", "hierarchical")]
+    assert skipped == [("seeded-bug", "single")]
 
 
 # -- the budget ledger ----------------------------------------------------------------------------

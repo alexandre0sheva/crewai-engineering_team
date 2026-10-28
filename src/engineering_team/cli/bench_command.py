@@ -138,7 +138,7 @@ def run(
     ] = "all",
     strategy: Annotated[
         list[str] | None,
-        typer.Option(help="pipeline, hierarchical, or single; repeat or comma-separate."),
+        typer.Option(help="pipeline or single; repeat or comma-separate."),
     ] = None,
     repeat: Annotated[int, typer.Option(min=1, help="Runs per task and strategy.")] = 1,
     parallel: Annotated[int, typer.Option(min=1, help="Runs at the same time.")] = 1,

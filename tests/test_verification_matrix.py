@@ -44,7 +44,7 @@ def interpreter_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def launch(checks: str | None = CHECKS, *extra: str) -> int:
     argv = [
-        "--request", REQUEST, "--project-name", "demo",
+        "new", "--request", REQUEST, "--project-name", "demo",
         "--workspace-root", str(Path.cwd() / ROOT), "--strategy", "pipeline",
     ]  # fmt: skip
     if checks is not None:
@@ -472,7 +472,8 @@ def test_a_checks_file_inside_the_project_is_a_usage_error(
     inside.write_text(CHECKS, encoding="utf-8")
 
     code = main.run(
-        ["--request", REQUEST, "--project-name", "demo", "--workspace-root", str(Path.cwd() / ROOT),
+        ["new", "--request", REQUEST, "--project-name", "demo",
+         "--workspace-root", str(Path.cwd() / ROOT),
          "--strategy", "pipeline", "--checks", str(inside)]
     )  # fmt: skip
 
@@ -481,7 +482,8 @@ def test_a_checks_file_inside_the_project_is_a_usage_error(
 
 def test_a_checks_file_needs_the_pipeline_strategy(capsys: pytest.CaptureFixture[str]) -> None:
     code = main.run(
-        ["--request", REQUEST, "--project-name", "demo", "--workspace-root", str(Path.cwd() / ROOT),
+        ["new", "--request", REQUEST, "--project-name", "demo",
+         "--workspace-root", str(Path.cwd() / ROOT),
          "--strategy", "single", "--checks", str(write_checks())]
     )  # fmt: skip
 

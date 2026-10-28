@@ -1,4 +1,4 @@
-"""The ``engineering-team`` command: a Typer app, plus the bridge from the 0.1.0 invocation.
+"""The ``engineering-team`` command: a Typer app.
 
 Global options (``--json``, ``--quiet``/``-q``, ``--verbose``/``-v``, ``--no-color``,
 ``--workspace-root DIR``) may be written anywhere on the command line; :func:`hoist_globals`
@@ -43,13 +43,9 @@ COMMANDS = (
 HELP_FLAGS = ("-h", "--help")
 FLAGS = ("--json", "--quiet", "-q", "--verbose", "-v", "--no-color", "--answers-via-inbox")
 VALUE_OPTIONS = ("--workspace-root", "--run-id")
-BARE_DEPRECATION = (
-    "Deprecated: bare `engineering-team` reading ./PROJECT_REQUEST.md is the 0.1.0 form. "
-    "Use `engineering-team new`; the old form is removed in 0.3.0."
-)
-DEPRECATION = (
-    "Deprecated: `engineering-team {old}` is the 0.1.0 form. Use `engineering-team new {old}`; "
-    "the old form is removed in 0.3.0."
+NO_COMMAND = (
+    "Error: `engineering-team` needs a command; the 0.1.0 form without one was removed in 0.3.0. "
+    "Use `engineering-team new --request-file FILE` (see `engineering-team --help`)."
 )
 
 app = typer.Typer(
@@ -204,7 +200,7 @@ def hoist_globals(argv: Sequence[str]) -> list[str]:
 
 
 def command_in(argv: Sequence[str]) -> str | None:
-    """The subcommand named on the command line, or ``None`` for the 0.1.0 form (options only)."""
+    """The subcommand named on the command line, or ``None`` when it names none."""
 
     index = 0
     while index < len(argv):
@@ -238,35 +234,15 @@ def main(argv: Sequence[str]) -> int:
     arguments = hoist_globals(argv)
     wants_help = any(item in HELP_FLAGS or item == "--version" for item in arguments)
     if command_in(arguments) is None and not wants_help:
-        if not _only_globals(arguments):
-            # 0.1.0: `engineering-team --request-file FILE` means `new` with those options.
-            old = " ".join(item for item in arguments if item not in FLAGS)
-            sys.stderr.write(DEPRECATION.format(old=old) + "\n")
-            arguments = _insert_command(arguments, "new")
-        elif _has_default_request():
-            sys.stderr.write(BARE_DEPRECATION + "\n")
-            arguments = _insert_command(arguments, "new")
-        else:
-            arguments = [*arguments, "--help"]
+        if not _only_globals(arguments) or _has_default_request():
+            sys.stderr.write(NO_COMMAND + "\n")
+            return 2
+        arguments = [*arguments, "--help"]
     try:
         app(args=arguments, prog_name="engineering-team", standalone_mode=True)
     except SystemExit as exc:
         return exc.code if isinstance(exc.code, int) else (0 if exc.code is None else 1)
     return 0
-
-
-def _insert_command(arguments: list[str], command: str) -> list[str]:
-    """Put ``command`` after any leading global options."""
-
-    index = 0
-    while index < len(arguments):
-        if arguments[index] in FLAGS:
-            index += 1
-        elif arguments[index] in VALUE_OPTIONS:
-            index += 2
-        else:
-            break
-    return [*arguments[:index], command, *arguments[index:]]
 
 
 def _has_default_request() -> bool:

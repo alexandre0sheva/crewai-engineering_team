@@ -95,7 +95,7 @@ def _found(name: str, path: str | None, version: str, problem: str, missing: Che
 def ping_model(resolved: ResolvedModel, settings: Settings) -> str:
     """A tiny prompt to one model; returns its (clipped) answer or raises."""
 
-    from engineering_team.crew import build_llm
+    from engineering_team.llm import build_llm
 
     answer = build_llm(resolved, settings).call("Reply with the single word OK.")
     return " ".join(str(answer).split())[:40]

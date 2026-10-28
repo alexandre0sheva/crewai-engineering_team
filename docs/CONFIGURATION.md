@@ -36,7 +36,7 @@ a profile.
 |---|---|---|---|
 | `provider` | `ENGINEERING_PROVIDER` | `openai` | Model preset: `openai`, `anthropic`, `google`, `ollama` (`azure` needs `enable_azure`) |
 | `profile` | `ENGINEERING_RUN_PROFILE` | `standard` | `standard`, `smoke` (cheap end-to-end check), `max-quality` |
-| `strategy` | `ENGINEERING_STRATEGY` | `pipeline` | How the team is orchestrated: `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)), `hierarchical` (the 0.1.0 manager-led crew), or `single` (one agent with every tool, the benchmark baseline). `--strategy` overrides it. Chosen with the [benchmarks](BENCHMARKS.md#results-2026-10-04); only `new` follows it, the repository modes always use `pipeline`. |
+| `strategy` | `ENGINEERING_STRATEGY` | `pipeline` | How the team is orchestrated: `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)) or `single` (one agent with every tool, the benchmark baseline). `--strategy` overrides it. Chosen with the [benchmarks](BENCHMARKS.md#results-2026-10-04); only `new` follows it, the repository modes always use `pipeline`. |
 | `team_profile` | `ENGINEERING_TEAM_PROFILE` | `full` | `full` runs every stage of the `new` recipe; `minimal` leaves out the optional ones (review, DevOps, docs), as `--profile smoke` does. To drop only one, disable its teammates instead (`[team.code_reviewer] enabled = false`; a stage is skipped when none of its teammates is enabled). See [Review](#review-review-and-team_profile) |
 | `project_name` | `ENGINEERING_PROJECT_NAME` | `mvp-app` | Workspace directory name |
 | `workspace_root` | `ENGINEERING_WORKSPACE_ROOT` | `workspace` | Parent of generated projects (relative → current directory) |
@@ -55,7 +55,7 @@ a profile.
 | `execution.backend` | `ENGINEERING_EXECUTION_BACKEND` | `local` | `local` runs commands on this machine; `docker` runs each in a hardened container (also `--sandbox docker`; never falls back to `local`). See [Docker sandbox](#docker-sandbox-executiondocker-and---sandbox) |
 | `execution.max_parallel_commands` | `ENGINEERING_MAX_PARALLEL_COMMANDS` | `2` | Concurrent project commands |
 | `parallel.max_parallel_agents` | `ENGINEERING_MAX_PARALLEL` | `3` | Work packages (and read-only reviewer jobs) that run at the same time, each in its own lane; also the board's in-progress limit. `1` runs packages one after the other, in dependency order, with no write scope (as a sequential run always did). See [Parallel execution](ARCHITECTURE.md#parallel-execution) |
-| `parallel.max_rpm` | `ENGINEERING_MAX_RPM` | – | Model calls per minute, shared by every agent of a `pipeline` or `single` run (a sliding 60-second window; calls wait their turn and stop waiting on cancel). Unset: no cap. The `hierarchical` crew does not use it |
+| `parallel.max_rpm` | `ENGINEERING_MAX_RPM` | – | Model calls per minute, shared by every agent of a `pipeline` or `single` run (a sliding 60-second window; calls wait their turn and stop waiting on cancel). Unset: no cap |
 | `budget.max_cost_usd` | `ENGINEERING_BUDGET_MAX_COST_USD` | – | Stop the run after this many USD of estimated model cost (see [Budgets](#budgets-usage-and-cost)) |
 | `budget.max_tokens` | `ENGINEERING_BUDGET_MAX_TOKENS` | – | Stop after this many prompt + completion tokens |
 | `budget.max_wall_seconds` | `ENGINEERING_BUDGET_MAX_WALL_SECONDS` | – | Stop after this much wall-clock time |
@@ -80,9 +80,9 @@ the `execution.docker` table (config file only) and apply only to that backend.
 | `execution.docker.tmpfs_size` | `512m` | Size of the container's `/tmp` |
 
 Default images (tags checked when they were chosen; override any with `image`): Python
-`astral/uv:python3.12-bookworm-slim` (Python and `uv`), Node `node:22-slim`, Go `golang:1.25`,
-Rust `rust:1-slim`, Java `eclipse-temurin:21-jdk`, .NET `mcr.microsoft.com/dotnet/sdk:9.0`,
-Ruby `ruby:3.3-slim`, PHP `php:8.3-cli`. A missing image is pulled the first time it is needed. A
+`astral/uv:python3.13-bookworm-slim` (Python and `uv`), Node `node:24-slim`, Go `golang:1.27`,
+Rust `rust:1-slim`, Java `eclipse-temurin:25-jdk`, .NET `mcr.microsoft.com/dotnet/sdk:10.0`,
+Ruby `ruby:4.0-slim`, PHP `php:8.5-cli`. A missing image is pulled the first time it is needed. A
 tool the image does not have (`mvn` on the Temurin image, say) fails with "not found"; set `image` to
 one that has it.
 
@@ -298,7 +298,7 @@ before a run starts (a mistake is a usage error naming the teammate and the fiel
 | `team.<key>.role`, `team.<key>.goal`, `team.<key>.backstory` | built-in | The prompt; all three are required for a new key |
 | `team.<key>.tier` | `worker` | `lead`, `worker`, `cheap`, or `reviewer` (model tier under the `standard` profile) |
 | `team.<key>.tool_groups` | built-in; new: read-only | Tool groups, plus `mcp:docs` and `mcp:<name>` for each [`[mcp.<name>]`](#mcp-servers-mcpname) server, plus the groups [plugin tools](#plugin-tools-plugins-and-allow_project_plugins) declare |
-| `team.<key>.allow_delegation` | built-in | `hierarchical` manager only |
+| `team.<key>.allow_delegation` | built-in | Accepted and ignored (a stage runs one agent) |
 | `team.<key>.max_iter` | profile default | Reasoning steps per task |
 | `team.<key>.enabled` | `true` | `false` takes the teammate out of the roster |
 | `team.<key>.modes` | all | `new`, `feature`, `fix`, `maintain` |
@@ -353,7 +353,7 @@ The `smoke` profile attaches no MCP server at all. **Trust:** a server's answers
 a `command` server is a program started on this machine with your privileges, outside the Docker
 sandbox ([SAFETY.md](SAFETY.md#extensions-mcp-plugins-and-hooks)). Every run logs an
 `extension.warning` for each attached server, and `engineering-team doctor` lists them. MCP servers
-apply to `pipeline`, `single`, and `hierarchical` runs alike.
+apply to `pipeline` and `single` runs alike.
 
 ### Repository conventions (`[conventions]` and `conventions_file`)
 
@@ -439,7 +439,7 @@ description length, type hints); a broken plugin is a usage error naming the fil
 [TOOLS.md](TOOLS.md) rows with `--markdown`. **A plugin is trusted code** that runs in the controller
 process: the write scope, path protection, and the Docker sandbox do not apply to it
 ([SAFETY.md](SAFETY.md#extensions-mcp-plugins-and-hooks)). Plugin tools reach teammates of `pipeline` and
-`single` runs; the `hierarchical` crew uses its fixed tool groups.
+`single` runs.
 
 ### Hooks (`[[hooks.before_stage]]`, `[[hooks.after_stage]]`, `[[hooks.on_finish]]`)
 
@@ -599,7 +599,7 @@ untested starting points. `config show` prints the price of every resolved model
 ```toml
 provider = "anthropic"
 profile = "standard"
-strategy = "hierarchical"
+strategy = "pipeline"
 
 [parallel]
 max_parallel_agents = 4

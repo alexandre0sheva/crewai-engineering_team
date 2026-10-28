@@ -191,7 +191,7 @@ def test_team_lists_the_teammates() -> None:
     members = json.loads(invoke("--json", "team", root=False).stdout)
     text = invoke("team", root=False)
 
-    assert {m["key"] for m in members} >= {"engineering_lead", "solution_architect"}
+    assert {m["key"] for m in members} >= {"product_analyst", "solution_architect"}
     assert "product_analyst" in text.stdout and "built-in" in text.stdout
 
 
@@ -236,7 +236,7 @@ def test_init_prompts_when_run_in_a_terminal(monkeypatch: pytest.MonkeyPatch) ->
 
     monkeypatch.setattr(Globals, "interactive", property(lambda self: True))
 
-    result = runner.invoke(app, ["init"], input="google\nsmoke\nhierarchical\nlocal\nDemo\n")
+    result = runner.invoke(app, ["init"], input="google\nsmoke\nsingle\nlocal\nDemo\n")
 
     assert result.exit_code == 0
     text = Path(CONFIG_NAME).read_text()

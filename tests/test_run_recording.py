@@ -10,7 +10,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from cli_helpers import use_runner
 from crewai import Crew, Process
+from pipeline_fakes import FakeRunner
 
 from engineering_team import main
 from engineering_team.contracts import Event, RunManifest
@@ -208,7 +210,7 @@ def test_beginning_a_run_writes_its_manifest_request_and_settings(
     assert manifest.request_hash == hashlib.sha256(REQUEST.encode()).hexdigest()
     assert len(manifest.settings_hash) == 64
     assert set(manifest.versions) == {"engineering_team", "crewai", "python"}
-    assert manifest.strategy == "hierarchical" and manifest.recipe is None
+    assert manifest.strategy == "pipeline" and manifest.recipe is None
     assert (ctx.run_dir / "request.md").read_text(encoding="utf-8") == REQUEST + "\n"
     assert json.loads((ctx.run_dir / "settings.json").read_text("utf-8"))["project_name"]
     assert recorder.manifest == manifest
@@ -328,18 +330,15 @@ def test_a_finished_fake_run_is_fully_described_by_its_manifest_and_event_log(
 # -- through the CLI ------------------------------------------------------------------------
 
 
-class _FakeTeam:
-    def __init__(self, ctx: RunContext) -> None:
-        self.ctx = ctx
+def _probing_runner() -> FakeRunner:
+    """A scripted stage runner whose stages each leave a ``probe`` event."""
 
-    def crew(self):  # type: ignore[no-untyped-def]
-        ctx = self.ctx
+    return FakeRunner(
+        on_call=lambda request: request.ctx.events.emit("probe", stage=request.stage.name)
+    )
 
-        class _Crew:
-            def kickoff(self, inputs: dict[str, str]) -> None:
-                ctx.events.emit("probe", requirements=inputs["requirements"])
 
-        return _Crew()
+RUN = ["new", "--request", REQUEST, "--project-name", "demo", "--strategy", "single"]
 
 
 def _only_run(root: Path) -> tuple[RunManifest, Path]:
@@ -348,52 +347,45 @@ def _only_run(root: Path) -> tuple[RunManifest, Path]:
     return runs[0], root / "workspace" / "demo" / ".engineering-team" / "runs" / runs[0].run_id
 
 
-@pytest.mark.usefixtures("crew_strategy")
 def test_a_cli_run_leaves_a_manifest_and_event_log(monkeypatch) -> None:
-    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _FakeTeam)
+    use_runner(monkeypatch, _probing_runner())
 
-    assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 0
+    assert main.run(RUN) == 0
 
     manifest, run_dir = _only_run(Path.cwd())
     assert manifest.status == "succeeded" and manifest.mode == "build"
     assert (run_dir / "request.md").read_text(encoding="utf-8").strip() == REQUEST
     types = [e.type for e in read_events(run_dir / "events.jsonl")]
-    assert types == ["run.started", "probe", "run.finished"]
+    assert types[0] == "run.started" and types[-1] == "run.finished" and "probe" in types
     legacy = Path.cwd() / "workspace" / "demo" / ".engineering-team"
     assert not (legacy / "request.md").exists() and not (legacy / "run.json").exists()
 
 
-@pytest.mark.usefixtures("crew_strategy")
 def test_a_failing_cli_run_is_recorded_as_failed(monkeypatch) -> None:
-    class Exploding:
-        def __init__(self, ctx: RunContext) -> None:
-            pass
+    def explode(request) -> None:
+        raise RuntimeError("boom")
 
-        def crew(self):  # type: ignore[no-untyped-def]
-            raise RuntimeError("boom")
+    use_runner(monkeypatch, FakeRunner(on_call=explode))
 
-    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", Exploding)
-
-    assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 1
+    assert main.run(RUN) == 1
 
     manifest, run_dir = _only_run(Path.cwd())
     assert manifest.status == "failed"
-    assert list(read_events(run_dir / "events.jsonl"))[-1].data["error"] == "RuntimeError: boom"
+    assert any("boom" in str(e.data) for e in read_events(run_dir / "events.jsonl"))
 
 
 def test_prepare_only_is_recorded_as_a_prepare_run(monkeypatch) -> None:
-    assert main.run(["--request", REQUEST, "--project-name", "demo", "--prepare-only"]) == 0
+    assert main.run(["new", "--request", REQUEST, "--project-name", "demo", "--prepare-only"]) == 0
 
     manifest, _ = _only_run(Path.cwd())
     assert manifest.mode == "prepare" and manifest.status == "succeeded"
 
 
-@pytest.mark.usefixtures("crew_strategy")
 def test_every_run_of_a_workspace_is_listed_in_order(monkeypatch) -> None:
-    monkeypatch.setattr("engineering_team.pipeline.strategies.EngineeringTeam", _FakeTeam)
+    use_runner(monkeypatch, _probing_runner())
 
     for _ in range(3):
-        assert main.run(["--request", REQUEST, "--project-name", "demo"]) == 0
+        assert main.run(RUN) == 0
 
     runs = RunStore(Path.cwd() / "workspace" / "demo").list_runs()
     assert len(runs) == 3 and [r.run_id for r in runs] == sorted(r.run_id for r in runs)

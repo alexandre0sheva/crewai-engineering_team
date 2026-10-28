@@ -119,7 +119,6 @@ def test_only_new_projects_can_use_any_strategy(tasks: list[BenchTask]) -> None:
     for task in tasks:
         assert task.applies_to("pipeline")
         assert task.applies_to("single") == (task.mode == "new")
-        assert task.applies_to("hierarchical") == (task.mode == "new")
 
 
 # -- selection and loader errors ----------------------------------------------------------------

@@ -68,10 +68,9 @@ stdin), or `--example`; with none of them it falls back to `ENGINEERING_PROJECT_
 `--allow-web`, `--no-git`, `--reset`, `--adopt` ([below](#adopting-an-existing-project)), and `--prepare-only` (validate and set up the workspace without a
 model call).
 
-**The 0.1.0 form still works.** `engineering-team --request-file FILE` runs `new` and prints a deprecation
-notice; it is removed in 0.3.0. The `crewai run|train|replay|test` entry points are unchanged, except that
-`replay` names its project explicitly: `replay TASK_ID --run RUN_ID` (or `--project-name NAME`) instead of
-guessing it from the environment.
+**The 0.1.0 form is gone.** `engineering-team --request-file FILE` (no command) prints one line pointing at
+`engineering-team new --request-file FILE` and exits 2. `crewai run` still works: it runs `new` with the
+options you pass. `crewai train|replay|test` and `run_with_trigger` drove the removed 0.1.0 crew and no longer exist.
 
 ### What a new project looks like
 
@@ -97,15 +96,11 @@ workspace/
 ```
 
 The source tree is chosen for the product and the stack; the files under `docs/` are the stages' deliverables
-(the hierarchical strategy writes `docs/implementation-plan.md` instead of `spec.md` and `review.md`). A `pipeline`
+(a `single` run writes only `README.md` and `docs/release-report.md`). A `pipeline`
 or `single` run makes a new project its own Git repository (an initial commit, then one commit per finished
 stage; `--no-git` skips it). Generated workspaces are git-ignored by this repository. A run changes only files
 inside the project; for an existing project use `feature`, `fix` or `maintain`, which never touch your checkout
 directly.
-
-The CrewAI maintenance entry points keep their 0.1.0 meaning and take the same request options as `new`:
-`uv run train <iterations> <training-file>`, `uv run replay <task-id> --run <run-id>` and
-`uv run test <iterations> <evaluation-model>`. They spend model tokens like any run.
 
 ### What you see
 
@@ -117,7 +112,7 @@ columns. At the end, a summary: status, duration, usage and cost (or `unknown` w
 price), files changed, the controller's checks, the workspace, the report, and what to run next.
 
 The board has a card per work package in a `pipeline` run (the default) and one card in a `single` run;
-the `hierarchical` strategy shows its stages and activity but an empty board.
+a run of the removed 0.1.0 `hierarchical` strategy, which 0.2.0 may have recorded, shows an empty board.
 
 ### Run reports
 
@@ -168,9 +163,8 @@ or `team_profile = "minimal"`, which keep only the essential stages ([TEAM.md](T
 
 `--strategy pipeline` (or `ENGINEERING_STRATEGY=pipeline`) runs the team as a staged, resumable
 pipeline (spec, plan, foundation, implement, integrate, verify, review, devops, docs, release); `--strategy single` runs one agent with every
-tool (no stages, no controller-run checks: fast and cheap, the benchmark baseline); `--strategy
-hierarchical` is the 0.1.0 manager-led crew. `pipeline` is the default: in the benchmarks
-([BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) it passed 10/10 where the 0.1.0 crew finished 0/3, and
+tool (no stages, no controller-run checks: fast and cheap, the benchmark baseline). `pipeline` is the default: in the benchmarks
+([BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) it passed 10/10 where the removed 0.1.0 manager-led crew finished 0/3, and
 `single` did as well on pass rate for far less money but skips the staged review and verification report. In a pipeline run the controller, not an agent, runs the tests and checks (`--checks
 FILE` adds your own) and writes `docs/verification.md` from what it saw. A pipeline run that was
 cancelled, interrupted, or failed continues where it stopped with `resume RUN`; a changed request starts

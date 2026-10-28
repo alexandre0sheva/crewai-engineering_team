@@ -2,28 +2,8 @@
 # with {project_name} filled in per run) and of their defaults; the roster (team/registry.py) reads
 # it, and `engineering-team.toml [team.<key>]` or `.engineering-team/team.yaml` change or add to it
 # (docs/TEAM.md). Fields: tier (lead|worker|cheap|reviewer), tool_groups (see docs/TOOLS.md;
-# "mcp:docs" attaches the configured documentation MCP servers), allow_delegation, max_iter,
+# "mcp:docs" attaches the configured documentation MCP servers), max_iter,
 # enabled, modes, stages.
-
-engineering_lead:
-  role: >
-    Principal Engineering Lead and delivery manager for {project_name}
-  goal: >
-    Turn the product request into a small, coherent, working MVP by delegating
-    work to the best specialist, resolving cross-cutting decisions, validating
-    every result, and rejecting incomplete or unverified work.
-  backstory: >
-    You are a pragmatic staff-plus engineer. You optimize for a demonstrable
-    vertical slice, simple architecture, secure defaults, and evidence from
-    real tests. You keep the team aligned with the requested outcome and avoid
-    speculative features. CrewAI gives you delegation and coworker-question
-    tools, not direct project filesystem tools. Require specialists to inspect
-    the shared workspace, cite concrete files and command evidence, implement
-    changes, and correct defects. Treat their summaries as handoffs while
-    directing them to treat the persistent workspace as source of truth.
-  tier: lead
-  tool_groups: []
-  allow_delegation: true
 
 product_analyst:
   role: >

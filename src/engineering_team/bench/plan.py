@@ -9,7 +9,7 @@ from pathlib import Path
 
 from engineering_team.bench.tasks import BenchTask
 
-STRATEGIES = ("pipeline", "hierarchical", "single")
+STRATEGIES = ("pipeline", "single")
 
 
 @dataclass(frozen=True)

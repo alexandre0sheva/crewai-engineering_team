@@ -89,27 +89,27 @@ def test_the_live_view_shows_progress_the_board_and_the_summary_panel(
     assert "Independent checks" in drawn and "Next:" in drawn  # the summary panel
 
 
-def test_the_legacy_form_runs_new_and_says_it_is_deprecated(
+def test_the_form_without_a_command_is_gone_and_points_at_new(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    use_runner(monkeypatch)
+    runner = use_runner(monkeypatch)
     legacy = new_args()[1:]  # the 0.1.0 form: no command word
 
     code = main.run(legacy)
 
     err = capsys.readouterr().err
-    assert code == 0
-    assert "Deprecated: `engineering-team " in err and "--request" in err and "0.3.0" in err
-    assert RunStore(project()).latest() is not None
+    assert code == 2
+    assert err.count("\n") == 1 and "engineering-team new --request-file" in err
+    assert not runner.calls and RunStore(project()).latest() is None
 
 
-def test_a_help_request_is_not_mistaken_for_the_legacy_form(
+def test_a_help_request_is_not_mistaken_for_a_missing_command(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     assert main.run(["--help"]) == 0
 
     out = capsys.readouterr()
-    assert "Commands" in out.out and "Deprecated" not in out.err
+    assert "Commands" in out.out and out.err == ""
 
 
 def test_global_options_work_before_or_after_the_command(
@@ -194,46 +194,3 @@ def test_crewai_verbose_output_is_off_unless_asked_for(monkeypatch: pytest.Monke
     main.run(new_args("--prepare-only", "-v", name="loud"))
 
     assert seen == [False, True]
-
-
-def test_replay_names_its_project_by_run_id_instead_of_guessing_from_the_environment(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from types import SimpleNamespace
-
-    code, _ = run_new(monkeypatch, name="other-project")
-    assert code == 0
-    run_id = latest_run("other-project")
-    replayed: list[tuple[str, str]] = []
-
-    class FakeTeam:
-        def __init__(self, ctx: object) -> None:
-            self.ctx = ctx
-
-        def crew(self) -> object:
-            name = self.ctx.settings.project_name  # type: ignore[attr-defined]
-            return SimpleNamespace(replay=lambda task_id: replayed.append((name, task_id)))
-
-    monkeypatch.setattr(main, "EngineeringTeam", FakeTeam)
-    monkeypatch.setattr(
-        "sys.argv",
-        ["replay", "task-42", "--run", run_id[:14], "--workspace-root", str(workspace_root())],
-    )
-
-    assert main.replay() == 0
-
-    assert replayed == [("other-project", "task-42")]
-
-
-def test_replay_without_a_task_id_or_with_an_unknown_run_is_a_usage_error(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.setattr("sys.argv", ["replay"])
-    assert main.replay() == 2
-    assert "Usage: replay <task-id>" in capsys.readouterr().err
-
-    monkeypatch.setattr(
-        "sys.argv", ["replay", "t1", "--run", "nope", "--workspace-root", str(workspace_root())]
-    )
-    assert main.replay() == 2
-    assert "No runs found" in capsys.readouterr().err

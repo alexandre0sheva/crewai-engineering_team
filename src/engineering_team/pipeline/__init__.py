@@ -4,7 +4,6 @@ from engineering_team.pipeline.recipes import Recipe, RecipeError, StageSpec, lo
 from engineering_team.pipeline.state import PipelineState, RunBundle, RunResult
 from engineering_team.pipeline.strategies import (
     STRATEGY_NAMES,
-    HierarchicalStrategy,
     PipelineStrategy,
     SingleAgentStrategy,
     Strategy,
@@ -13,7 +12,6 @@ from engineering_team.pipeline.strategies import (
 
 __all__ = [
     "STRATEGY_NAMES",
-    "HierarchicalStrategy",
     "PipelineState",
     "PipelineStrategy",
     "Recipe",

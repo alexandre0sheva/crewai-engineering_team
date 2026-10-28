@@ -2,43 +2,16 @@
 
 ## Strategies
 
-`settings.strategy` (`--strategy`) picks how a run is orchestrated. All three implement
+`settings.strategy` (`--strategy`) picks how a run is orchestrated. Both implement
 `Strategy.run(ctx, recipe, bundle) -> RunResult` (`pipeline/strategies.py`) and run inside the run
 recorder, so every one leaves a manifest, an event log, and usage:
 
 | Strategy | What it is | Resumable |
 |----------|-----------|-----------|
-| `hierarchical` | The 0.1.0 crew: a manager delegating to four specialists over six fixed tasks (`config/tasks.yaml`); described next | no |
 | `pipeline` (default) | A recipe's stages as a CrewAI Flow with typed hand-offs, a task board, resume, and cancellation ([below](#pipeline-recipes-and-resume)) | yes |
 | `single` | One agent (`generalist_engineer`) with every tool and one task: the baseline for the benchmarks. It runs through the pipeline machinery as a one-stage recipe, so it has a board card, a stage record, resume, and cancellation too | yes |
 
-The default is `pipeline`; the evidence and its limits are in [BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04). `hierarchical` was the 0.1.0 default and hit the time limit on all three measured runs.
-
-## Why hierarchical
-
-The crew uses CrewAI's hierarchical process with a custom
-`engineering_lead`. The lead runs on the quality-first model tier, delegates
-each task to a specialist based on role and current project state, and validates
-the result before the next task starts. Specialists use the lower-cost worker
-tier.
-
-CrewAI 1.15 requires a custom hierarchical manager to be constructed without
-ordinary tools. At task execution time CrewAI supplies the lead with scoped
-delegation and coworker-question tools. Filesystem, command, and optional MCP
-tools belong only to specialists, so workspace inspection and corrections are
-explicit delegated work whose evidence is returned to the lead.
-
-The process is deliberately staged:
-
-1. Architecture and acceptance criteria
-2. Project foundation and first vertical slice
-3. Backend, domain, integration, or CLI implementation
-4. Frontend or primary user interaction
-5. Independent quality and security verification
-6. Release-readiness review
-
-Tasks share both explicit CrewAI context and a persistent filesystem. Task
-summaries are useful handoffs, while the workspace remains the source of truth.
+The default is `pipeline`; the evidence and its limits are in [BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04). The 0.1.0 manager-led crew (`hierarchical`) was removed in 0.3.0 after it hit the time limit on all three measured runs; a run it recorded stays viewable but cannot be resumed.
 
 ## Filesystem model
 
@@ -63,8 +36,8 @@ Nothing reads process-wide state. Each run builds one frozen `RunContext`
 `Settings`, the `ProjectWorkspace`, `run_dir` (`<workspace>/.engineering-team/runs/<run_id>/`,
 controller-owned and hidden from agents), a `command_gate` semaphore
 (`execution.max_parallel_commands`, default 2) that caps concurrent project commands, and a
-`cancel_event` every worker checks at its next safe point. `EngineeringTeam(ctx)` and the CLI entry
-points are constructed from it.
+`cancel_event` every worker checks at its next safe point. The CLI entry points and every stage
+runner are constructed from it.
 
 Tools are built per run, not defined at import time. `tools/registry.build_tools(ctx, groups=, write_scope=,
 read_only=)` returns fresh tool instances closed over `ctx`, so two runs in one process (or two
@@ -182,8 +155,7 @@ commits `stage(<name>): <the agent's one-line summary>`, so a clean run leaves `
 stage (a skipped or reused stage has none, a resumed run commits only what it runs again), and after the
 final verification it commits anything that gate changed (`final: ...`). A repository that exists is continued; a
 project with files and no repository is left alone. A Git problem becomes a `git.warning` event and never fails
-the run (events: `git.init`, `git.checkpoint`, `git.warning`). Only `pipeline` and `single` runs commit; the
-`hierarchical` crew has no stages to mark. The workspace revision of resume (`runtime/snapshot.workspace_revision`) stays a
+the run (events: `git.init`, `git.checkpoint`, `git.warning`). Only runs of a strategy with stages (`pipeline` and `single`) commit. The workspace revision of resume (`runtime/snapshot.workspace_revision`) stays a
 content hash of non-ignored files, because it must work without Git; `GitPort.tree_hash` is the Git object hash of the same project
 for tools that want to compare with commits.
 
@@ -436,7 +408,7 @@ that runs again after a previous attempt gets the instruction *"a previous attem
 partial changes; inspect the workspace first, do not redo finished work"*. Resuming a run whose
 manifest still says `running` (its process was killed) is allowed once the workspace lock is free.
 Repeated resumes are safe: finished stages are never repeated. Resuming also clears a pause left by the stopped session. A run cannot be resumed when it
-succeeded, used `hierarchical`, was started for another mode, its `request.md` no longer matches the
+succeeded, used the removed `hierarchical` strategy, was started for another mode, its `request.md` no longer matches the
 recorded hash, or its recipe changed since it started. **A changed request never reuses old
 evidence**: `resume <run_id> --request …` with different text starts a new run instead.
 
@@ -487,9 +459,7 @@ merging needs an LLM to resolve conflicts, which is the nondeterminism ownership
 for a new teammate) and returns a `Roster`, held on the `RunContext` as `ctx.team`; `check_ready` and `doctor` build it too, so
 a bad definition is a usage error before any state is created. The pipeline builds its agents programmatically from it
 (`CrewStageRunner._agent`: role, goal, backstory, the teammate's tool groups, its model from `Settings.resolve_model(key,
-tier=, max_iter=)`), because a roster that changes per project cannot be a fixed set of `@CrewBase` methods; `@CrewBase` stays
-only for the `hierarchical` strategy, whose four specialists and six tasks are fixed (it takes prompts, tiers, and
-`max_iter` from the roster, not `enabled` or tool groups). `Roster.assign` picks who works a stage when the one the recipe
+tier=, max_iter=)`), because a roster that changes per project cannot be a fixed set of `@CrewBase` methods. `Roster.assign` picks who works a stage when the one the recipe
 names is disabled or missing (next listed, then the `generalist_engineer`, then the enabled teammate with the most similar
 tools; a `team.fallback` event records it), and a work package's `role` is matched against `package_pool` (the stage's
 teammates plus enabled teammates that list the stage under `stages`), which the plan prompt also shows the architect.
@@ -634,8 +604,8 @@ It also re-renders the report from the stored results, so an agent cannot leave 
 [CONFIGURATION.md](CONFIGURATION.md#verification-verify-and---checks)). Checks run through the same
 execution backend as every other command; under the Docker sandbox the run directory is hidden from commands,
 while on the local backend an agent with a command tool can still reach it ([SAFETY.md](SAFETY.md)). Only the
-`pipeline` strategy verifies: `hierarchical` and `single` keep the interim artifact guardrails and never
-report `verified`.
+`pipeline` strategy verifies: `single` keeps the interim artifact guardrails and never
+reports `verified`.
 
 ## Adopting an existing project
 
@@ -835,8 +805,8 @@ imports nothing from the package, so `settings.py` can use it; the other modules
 - **MCP** (`mcp.py`). `mcps_for(settings, teammate)` is the one place that decides which servers an
   `Agent(mcps=...)` gets: the `docs_mcp_urls` alias for teammates with `mcp:docs`, and each
   `[mcp.<name>]` for teammates with `mcp:<name>` or named in its `roles`, as CrewAI's `MCPServerHTTP`,
-  `MCPServerSSE` or `MCPServerStdio` with a static `allow_tools` filter. Both agent builders
-  (`crew.py`, `pipeline/stages.py`) call `agent_extensions` (`agents.py`), which adds MCP and, when
+  `MCPServerSSE` or `MCPServerStdio` with a static `allow_tools` filter. The agent builder
+  (`pipeline/stages.py`) calls `agent_extensions` (`agents.py`), which adds MCP and, when
   configured, knowledge.
 - **Conventions** (`conventions.py`). `RunContext.create` reads the repository's convention files once
   (`ctx.conventions`); `pipeline/stages._context` puts the text into the prompt context after the
@@ -952,9 +922,9 @@ code at load time; the tools import the runtime context only for type checking).
 
 | Layer | Modules | Responsibility |
 |-------|---------|----------------|
-| Entry | `main.py`, `__main__.py`, `cli/` | The Typer commands, the live Rich views, `doctor`, and the CrewAI entry points (`train`, `replay`, `test`) |
+| Entry | `main.py`, `__main__.py`, `cli/` | The Typer commands, the live Rich views, `doctor`, and the `run_crew` entry point `crewai run` uses |
 | Web UI | `ui/` | FastAPI app over the run directories, SSE events, the static single-page app, `ui --demo` |
-| Orchestration | `pipeline/`, `modes/`, `team/`, `crew.py` | Recipes, the Flow pipeline, parallel work packages, resume, strategies; the mode recipes and their actions; the roster; the 0.1.0 crew |
+| Orchestration | `pipeline/`, `modes/`, `team/`, `llm.py` | Recipes, the Flow pipeline, parallel work packages, resume, strategies; the mode recipes and their actions; the roster; model construction |
 | Control | `verification/`, `board/`, `git/`, `report/`, `intake/` | Controller-run checks and bounded repair, the task board and notes, `GitPort` and checkpoints, the run report, requirements intake |
 | Run state | `runtime/`, `contracts.py`, `artifacts.py`, `atomic_io.py`, `workspaces.py` | `RunContext`, events, budget, usage, processes, the run store, locks, cancellation; the typed contracts; crash-safe file writes; project directories |
 | Agent tools | `tools/`, `devtools/`, `codeintel/`, `webtools/`, `browsertools/` | Every tool an agent can call ([TOOLS.md](TOOLS.md)) and the engines behind them |
@@ -970,7 +940,7 @@ building 0.2.0 are in the [0.2.0 implementation plan's decision log](https://git
 | Decision | Instead of | Why |
 |----------|------------|-----|
 | The controller runs the checks and owns every card's final state; agents only report | Trusting an agent's "done" | Agent-authored text is never evidence ([SAFETY.md](SAFETY.md#untrusted-content)); the 0.1.0 guardrails only checked that files existed |
-| `pipeline` (a Flow of single-agent stage crews) is the default strategy | The 0.1.0 manager-led `hierarchical` crew, or one `single` agent | Measured: the 0.1.0 crew did not finish in the time limit; `single` is cheaper and not distinguishable on pass rate at this sample size ([BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) |
+| `pipeline` (a Flow of single-agent stage crews) is the default strategy | The 0.1.0 manager-led crew (removed in 0.3.0), or one `single` agent | Measured: the 0.1.0 crew did not finish in the time limit; `single` is cheaper and not distinguishable on pass rate at this sample size ([BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) |
 | Parallel work packages **own paths** (a `WriteScope`) | Git worktrees per package, merged afterwards | A merge conflict needs a model to resolve it, which is the nondeterminism ownership avoids |
 | Per-stage state is readable JSON beside the manifest, written atomically | CrewAI's native checkpointing; a database | A stage is one agent and one task, so a task-boundary checkpoint holds nothing; the files the tools changed are in the workspace, which the tree hash covers |
 | Every process goes through `ExecutionBackend` | Each tool calling `subprocess` | One place to sandbox (the Docker backend), time out, log and cancel; a test fails any tool that imports `subprocess` |

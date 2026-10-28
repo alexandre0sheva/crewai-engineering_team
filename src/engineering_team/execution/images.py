@@ -3,7 +3,7 @@
 Chosen from the program being run first (``npm`` needs the Node image whatever the project
 is), then from the detected stack of the project, and finally the Python image. An explicit
 ``execution.docker.image`` overrides all of it. Tags were checked against their registries
-when this table was written; they are defaults, not promises, and every one is configurable.
+on 2026-10-28; they are defaults, not promises, and every one is configurable.
 """
 
 from __future__ import annotations
@@ -12,17 +12,17 @@ from pathlib import Path
 
 from engineering_team.devtools.detect import find_stacks
 
-# One tag per language family. The Python image is the official uv image (Python 3.12 and ``uv``
+# One tag per language family. The Python image is the official uv image (Python 3.13 and ``uv``
 # on Debian slim) because the project's own dev tools run Python projects through ``uv``.
 DEFAULT_IMAGES: dict[str, str] = {
-    "python": "astral/uv:python3.12-bookworm-slim",
-    "node": "node:22-slim",
-    "go": "golang:1.25",
+    "python": "astral/uv:python3.13-bookworm-slim",
+    "node": "node:24-slim",
+    "go": "golang:1.27",
     "rust": "rust:1-slim",
-    "java": "eclipse-temurin:21-jdk",
-    "dotnet": "mcr.microsoft.com/dotnet/sdk:9.0",
-    "ruby": "ruby:3.3-slim",
-    "php": "php:8.3-cli",
+    "java": "eclipse-temurin:25-jdk",
+    "dotnet": "mcr.microsoft.com/dotnet/sdk:10.0",
+    "ruby": "ruby:4.0-slim",
+    "php": "php:8.5-cli",
 }
 DEFAULT_FAMILY = "python"
 

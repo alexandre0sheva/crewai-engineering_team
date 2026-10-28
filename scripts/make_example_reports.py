@@ -221,7 +221,6 @@ def generate(name: str) -> Path:
             demo.DemoRunner.spent = 0.0
             patched: object = strategies
             patched.CrewStageRunner = ExampleRunner  # type: ignore[attr-defined]
-            patched.HierarchicalStrategy = lambda: strategies.PipelineStrategy(ExampleRunner)  # type: ignore[attr-defined]
             code = int(engine.run(arguments(name, scratch)) or 0)
         finally:
             os.chdir(previous)

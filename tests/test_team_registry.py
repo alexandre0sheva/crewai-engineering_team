@@ -17,11 +17,9 @@ from engineering_team import main
 from engineering_team.board.store import BoardStore
 from engineering_team.cli.app import app
 from engineering_team.contracts import WorkPackage
-from engineering_team.crew import EngineeringTeam
 from engineering_team.pipeline import strategies
 from engineering_team.pipeline.recipes import load_recipe
 from engineering_team.pipeline.stages import CrewStageRunner, package_pool, teammate_for
-from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import read_events
 from engineering_team.settings import Settings, SettingsError, load_settings
 from engineering_team.team import TeamError, build_roster, builtin_roster
@@ -29,7 +27,6 @@ from engineering_team.team.registry import DEFAULT_TOOL_GROUPS, VALID_GROUPS
 from engineering_team.testing import ScriptedLLM
 
 BUILTINS = {
-    "engineering_lead",
     "product_analyst",
     "solution_architect",
     "backend_engineer",
@@ -75,8 +72,7 @@ def test_the_built_in_teammates_are_valid_and_come_from_agents_yaml() -> None:
     for member in roster.all():
         assert member.builtin and member.enabled and member.role and member.goal
         assert set(member.tool_groups) <= set(VALID_GROUPS), member.key
-    assert roster.get("engineering_lead").groups == ()
-    assert roster.get("engineering_lead").allow_delegation is True
+    assert "engineering_lead" not in roster.members  # the 0.1.0 crew's manager is gone
 
 
 def test_the_architect_plans_on_the_reviewer_tier() -> None:
@@ -421,22 +417,6 @@ def test_a_disabled_analyst_is_replaced_by_the_generalist_and_the_run_says_so(
     assert spec_card.assignee == "generalist_engineer"
 
 
-def test_the_hierarchical_crew_still_builds_and_takes_prompt_and_tier_changes(
-    make_context: Callable[..., RunContext],
-) -> None:
-    settings = settings_with(
-        solution_architect={"goal": "Ship the smallest thing.", "tier": "cheap"}
-    )
-    ctx = make_context("hier", settings=settings)
-
-    crew = EngineeringTeam(ctx).crew()
-
-    assert len(crew.agents) == 4 and crew.manager_agent is not None
-    architect = next(a for a in crew.agents if "architect" in a.role.lower())
-    assert architect.goal == "Ship the smallest thing."
-    assert architect.tools  # still the project tools
-
-
 # -- the commands ------------------------------------------------------------------------------
 
 
@@ -486,7 +466,7 @@ def test_doctor_checks_the_team_and_names_missing_tools() -> None:
     team_file("backend_engineer:\n  tool_groups: [telepathy]\n")
     broken = next(c for c in run_checks(load_settings()) if c.name == "Team")
 
-    assert healthy.status in {"ok", "warn"} and "13 of 13 teammates enabled" in healthy.detail
+    assert healthy.status in {"ok", "warn"} and "12 of 12 teammates enabled" in healthy.detail
     assert broken.status == "fail" and "telepathy" in broken.detail
 
 

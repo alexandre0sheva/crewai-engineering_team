@@ -13,7 +13,6 @@ engineering-team team show product_analyst
 
 | Teammate | Does | Tier | Tool groups |
 |---|---|---|---|
-| `engineering_lead` | Manages the `hierarchical` strategy's crew: delegates and validates. Never used by `pipeline` or `single`. | `lead` | none (CrewAI gives it delegation tools) |
 | `product_analyst` | Turns the request into the specification (`spec` stage). Read-only: the controller writes `docs/spec.md`. | `worker` | `fs_read`, `search`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
 | `solution_architect` | Designs the solution and splits the work (`plan` stage); writes `docs/architecture.md`. | `reviewer` (measured: the cheap `worker` model broke the plan rules in 3 of 11 pipeline runs, see [BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) | read tools as above, plus `fs_write` |
 | `backend_engineer` | Foundation, backend work packages, integration. | `worker` | `fs_read`, `fs_write`, `search`, `command`, `dev`, `runtime`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
@@ -62,9 +61,7 @@ configuration ([CONFIGURATION.md](CONFIGURATION.md#mcp-servers-mcpname)); `mcp:d
 is rejected with the list of known groups.
 
 A server can also name its teammates itself (`[mcp.<name>] roles = [...]`), which is how you give one
-teammate an MCP server without rewriting its `tool_groups`. A teammate in the `hierarchical`
-strategy gets its MCP servers the same way; plugin tools, which come from the tool groups, only reach
-the `pipeline` and `single` strategies.
+teammate an MCP server without rewriting its `tool_groups`.
 
 ## Changing a teammate, or adding one
 
@@ -84,7 +81,7 @@ A key that is not built in adds a new teammate. `team show KEY` says which layer
 | `role`, `goal`, `backstory` | The prompt. `{project_name}` is filled in per run. A new teammate needs all three. |
 | `tier` | `lead`, `worker` (default), `cheap`, or `reviewer`: which model tier it uses under the `standard` profile. `smoke` and `max-quality` fix the models of their two slots, so a cheap run stays cheap. To pin an exact model use `[models.roles.<key>]` (see [CONFIGURATION.md](CONFIGURATION.md#models)). |
 | `tool_groups` | The groups above, plus `mcp:<name>` and plugin groups. Default for a new teammate: read-only (`fs_read`, `search`, `code_intel`, `git_read`, `knowledge`, `board`, `notes`, `human`). |
-| `allow_delegation` | Used by the `hierarchical` strategy's manager. Ignored by the pipeline (a stage runs one agent). |
+| `allow_delegation` | Accepted so existing team files keep loading, and ignored: a stage runs one agent, so nobody can be delegated to. |
 | `max_iter` | Most reasoning steps per task (default: from the profile). |
 | `enabled` | `false` takes a teammate out; see "Who steps in" below. |
 | `modes` | Modes it works in (`new`, `feature`, `fix`, `maintain`); empty means all. |
@@ -135,9 +132,7 @@ the run stops before starting with a message saying which teammate to enable.
 A teammate can only use the groups it is given, and the write scope, protected paths, and command
 allowlist apply to everyone ([SAFETY.md](SAFETY.md)). Agents cannot read or change the team files
 (`.engineering-team/` in the project workspace is closed to them; the team file lives in your working
-directory). The `hierarchical` strategy has a fixed shape: four specialists and a manager, with the
-project tools only. It uses the roster for their prompts, tiers, and `max_iter`; `enabled`,
-`tool_groups`, and new teammates apply to `pipeline` and `single`.
+directory).
 
 ## Teammates in `feature` mode
 

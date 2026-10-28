@@ -158,3 +158,20 @@ def test_report_open_says_so_when_nothing_could_open_it(
 def test_report_rejects_an_unknown_format_and_an_unknown_run(finished: str) -> None:
     assert invoke("report", "--format", "pdf").exit_code == 2
     assert invoke("report", "no-such-run").exit_code == 2
+
+
+def test_a_run_recorded_by_0_2_0_with_the_removed_hierarchical_strategy_still_shows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    code, _ = run_new(monkeypatch)
+    assert code == 0
+    run_id = latest_run()
+    RunStore(project()).update(run_id, lambda m: setattr(m, "strategy", "hierarchical"))
+
+    listed = invoke("--json", "runs")
+    status = invoke("status", run_id)
+    report = invoke("report", run_id)
+
+    assert listed.exit_code == 0 and json.loads(listed.stdout)[0]["strategy"] == "hierarchical"
+    assert status.exit_code == 0 and "hierarchical" in status.stdout
+    assert report.exit_code == 0 and (run_dir_of() / "report.html").is_file()

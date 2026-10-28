@@ -36,6 +36,7 @@ def project(name: str = "demo") -> Path:
 def start(*extra: str, name: str = "demo", request: str = REQUEST) -> int:
     return main.run(
         [
+            "new",
             "--request",
             request,
             "--project-name",
@@ -542,23 +543,20 @@ def test_a_succeeded_run_has_nothing_to_resume(
     assert only_run().resumes == 0
 
 
-def test_a_hierarchical_run_cannot_be_resumed(
+def test_a_run_of_the_removed_hierarchical_strategy_cannot_be_resumed(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    class Team:
-        def __init__(self, ctx: object) -> None:
-            pass
+    """0.2.0 recorded ``strategy: hierarchical``; such a run stays readable but cannot continue."""
 
-        def crew(self) -> object:
-            raise RuntimeError("boom")
-
-    monkeypatch.setattr(strategies, "EngineeringTeam", Team)
-    assert start("--strategy", "hierarchical") == 1
+    use_runner(monkeypatch, FakeRunner(fail={"foundation": 9}))
+    assert start() == 1
     run_id = only_run().run_id
+    RunStore(project()).update(run_id, lambda m: setattr(m, "strategy", "hierarchical"))
 
     assert resume(run_id) == 2
 
-    assert "cannot be resumed" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "hierarchical" in err and "removed in 0.3.0" in err and "cannot be resumed" in err
 
 
 def test_a_busy_workspace_refuses_a_resume(
@@ -583,16 +581,8 @@ def test_a_busy_workspace_refuses_a_resume(
 def test_the_strategy_comes_from_the_flag_the_environment_or_defaults_to_pipeline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    class Team:
-        def __init__(self, ctx: object) -> None:
-            self.ctx = ctx
-
-        def crew(self) -> object:
-            return type("Crew", (), {"kickoff": staticmethod(lambda inputs: None)})()
-
-    monkeypatch.setattr(strategies, "EngineeringTeam", Team)
     use_runner(monkeypatch, FakeRunner())
-    base = ["--request", REQUEST, "--workspace-root", str(Path.cwd() / ROOT)]
+    base = ["new", "--request", REQUEST, "--workspace-root", str(Path.cwd() / ROOT)]
     checks = ["--checks", str(write_checks())]
 
     # The default was chosen by the benchmarks (docs/BENCHMARKS.md): the staged pipeline.
@@ -603,8 +593,8 @@ def test_the_strategy_comes_from_the_flag_the_environment_or_defaults_to_pipelin
     assert main.run([*base, "--project-name", "from-env"]) == 0
     assert RunStore(project("from-env")).latest().strategy == "single"  # type: ignore[union-attr]
 
-    assert main.run([*base, "--project-name", "flag", "--strategy", "hierarchical"]) == 0
-    assert RunStore(project("flag")).latest().strategy == "hierarchical"  # type: ignore[union-attr]
+    assert main.run([*base, "--project-name", "flag", "--strategy", "pipeline", *checks]) == 0
+    assert RunStore(project("flag")).latest().strategy == "pipeline"  # type: ignore[union-attr]
 
 
 def test_an_unknown_strategy_is_rejected(capsys: pytest.CaptureFixture[str]) -> None:

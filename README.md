@@ -81,7 +81,7 @@ or YAML ([docs/TEAM.md](docs/TEAM.md)):
 
 | Role | Teammates |
 |------|-----------|
-| Plan | `product_analyst` (specification), `solution_architect` (design and work split), `engineering_lead` (manages the 0.1.0 `hierarchical` crew) |
+| Plan | `product_analyst` (specification), `solution_architect` (design and work split) |
 | Build | `backend_engineer`, `frontend_engineer`, `quality_engineer` (tests, release report), `devops_engineer`, `technical_writer`, `generalist_engineer` |
 | Check | `code_reviewer`, `security_engineer` (read-only reviewers), `debugger` (reproduces failures and repairs) |
 | Understand | `codebase_analyst` (explains an existing project) |

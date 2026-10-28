@@ -11,7 +11,6 @@ interrupted.
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 import traceback
 import warnings
@@ -22,7 +21,6 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, TextIO, TypeVar
 
-from engineering_team.crew import EngineeringTeam
 from engineering_team.intake import TEMPLATE_MARKER, ContextScan, RequestBundle, install_context
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
 from engineering_team.pipeline.recipes import Recipe, pin_recipe
@@ -41,7 +39,6 @@ from engineering_team.pipeline.strategies import (
 from engineering_team.runtime.budget import BudgetExceeded
 from engineering_team.runtime.context import RunContext, new_run_id
 from engineering_team.runtime.locks import WorkspaceLock
-from engineering_team.runtime.run_index import locate_run
 from engineering_team.runtime.session import RunRecorder, format_summary
 from engineering_team.settings import (
     SMOKE_PROFILE_MARKER,
@@ -65,10 +62,7 @@ __all__ = [
     "load_requirements",
     "run",
     "resume",
-    "train",
-    "replay",
-    "test",
-    "run_with_trigger",
+    "run_crew",
 ]
 
 DEFAULT_REQUEST_FILENAME = "PROJECT_REQUEST.md"
@@ -256,8 +250,8 @@ def _run_parser() -> argparse.ArgumentParser:
         "--strategy",
         choices=list(STRATEGY_NAMES),
         help="How the team is orchestrated: pipeline (staged, resumable; the default, see "
-        "docs/BENCHMARKS.md), hierarchical (the 0.1.0 manager-led crew), or single (one agent, "
-        "the benchmark baseline).",
+        "docs/BENCHMARKS.md) or single (one agent, the benchmark "
+        "baseline).",
     )
     parser.add_argument(
         "--allow-web",
@@ -382,8 +376,7 @@ def _open_run(
         workspace = _prepare_workspace(settings, reset=reset, force_reset=force_reset, adopt=adopt)
     run_id = run_id or new_run_id()
     lock = WorkspaceLock(workspace.root).acquire(run_id)
-    # Only builds follow the strategy setting; train, test, and replay are crew commands.
-    strategy_name = settings.strategy if mode == "build" else "hierarchical"
+    strategy_name = settings.strategy
     if recipe is not None:
         strategy_name = "pipeline"
     try:
@@ -510,8 +503,8 @@ def _execute(
 def run(argv: Sequence[str] | None = None) -> int:
     """The ``engineering-team`` command: ``new``, ``resume``, ``status``, ``runs``, ``board``, ...
 
-    The 0.1.0 form (``engineering-team --request-file FILE``) still works: it runs ``new`` and
-    prints a deprecation notice. See :mod:`engineering_team.cli.app`.
+    The 0.1.0 form without a command (``engineering-team --request-file FILE``) is gone: it
+    prints a pointer to ``new`` and exits 2. See :mod:`engineering_team.cli.app`.
     """
 
     from engineering_team.cli.app import main
@@ -609,7 +602,7 @@ def resume(
 
     Stages that finished (and whose workspace state still matches) are not run again. Passing a
     ``request`` that differs from the run's own starts a new run for it instead. Raises
-    ``ValueError`` when the run cannot be resumed (unknown, already succeeded, hierarchical,
+    ``ValueError`` when the run cannot be resumed (unknown, already succeeded, a retired strategy,
     recipe changed) and ``WorkspaceBusy`` when another run holds the workspace.
     """
 
@@ -622,118 +615,13 @@ def resume(
         prepared.lock.release()
 
 
-def train() -> int:
-    """Train the crew using the current request and workspace."""
+def run_crew() -> int:
+    """The ``run_crew`` script that ``crewai run`` calls: ``engineering-team new`` with the
+    command-line options (the request comes from ``PROJECT_REQUEST.md`` when none is given)."""
 
-    def prepare() -> tuple[int, str, PreparedRun]:
-        if len(sys.argv) < 3:
-            raise ValueError("Usage: train <iterations> <training-file>")
-        iterations = int(sys.argv[1])
-        args = _run_parser().parse_args(sys.argv[3:])
-        return iterations, sys.argv[2], _prepare_from_args(args, "train")
+    from engineering_team.cli.app import main
 
-    def work(prepared: tuple[int, str, PreparedRun]) -> None:
-        iterations, filename, run_state = prepared
-        with run_state.recorder.running():
-            EngineeringTeam(run_state.ctx).crew().train(
-                n_iterations=iterations, filename=filename, inputs=run_state.inputs
-            )
-
-    return _execute(prepare, work, lambda prepared: prepared[2].release())
-
-
-def _replay_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="replay",
-        description="Replay a crew run from a task id. The project is named explicitly (a run "
-        "id or a project name), not guessed from the environment.",
-    )
-    parser.add_argument("task_id", help="The CrewAI task id to replay from.")
-    parser.add_argument("--run", help="A run id (or unambiguous prefix); its project is used.")
-    parser.add_argument("--project-name", help="The project to replay in.")
-    parser.add_argument("--workspace-root", help="Parent directory of generated projects.")
-    parser.add_argument("--config", help="Path to a config file.")
-    return parser
-
-
-def replay() -> int:
-    """Replay a crew run: ``replay <task-id> [--run RUN_ID | --project-name NAME]``."""
-
-    def prepare() -> tuple[str, PreparedRun]:
-        if len(sys.argv) < 2:
-            raise ValueError("Usage: replay <task-id> [--run RUN_ID | --project-name NAME]")
-        args = _replay_parser().parse_args(sys.argv[1:])
-        settings = load_settings(overrides=_cli_overrides(args), config_file=args.config)
-        if args.run:
-            ref = locate_run(settings.workspace_root, args.run, args.project_name)
-            settings = settings.with_overrides(
-                {"project_name": ref.project}, source=f"run {ref.run_id}"
-            )
-        settings.check_ready(require_credentials=True)
-        return args.task_id, _open_run(settings, mode="replay")
-
-    def work(prepared: tuple[str, PreparedRun]) -> None:
-        task_id, run_state = prepared
-        with run_state.recorder.running():
-            EngineeringTeam(run_state.ctx).crew().replay(task_id=task_id)
-
-    return _execute(prepare, work, lambda prepared: prepared[1].release())
-
-
-def test() -> int:
-    """Run CrewAI's iterative crew evaluation command."""
-
-    def prepare() -> tuple[int, str, PreparedRun]:
-        if len(sys.argv) < 3:
-            raise ValueError("Usage: test <iterations> <evaluation-model>")
-        iterations = int(sys.argv[1])
-        args = _run_parser().parse_args(sys.argv[3:])
-        return iterations, sys.argv[2], _prepare_from_args(args, "test")
-
-    def work(prepared: tuple[int, str, PreparedRun]) -> None:
-        iterations, eval_llm, run_state = prepared
-        with run_state.recorder.running():
-            EngineeringTeam(run_state.ctx).crew().test(
-                n_iterations=iterations, eval_llm=eval_llm, inputs=run_state.inputs
-            )
-
-    return _execute(prepare, work, lambda prepared: prepared[2].release())
-
-
-def run_with_trigger() -> int:
-    """Run from a CrewAI trigger payload containing requirements and project_name."""
-
-    def prepare() -> PreparedRun:
-        if len(sys.argv) < 2:
-            raise ValueError("No trigger JSON payload provided.")
-        try:
-            payload = json.loads(sys.argv[1])
-        except json.JSONDecodeError as exc:
-            raise ValueError("Trigger payload must be valid JSON.") from exc
-        if not isinstance(payload, dict):
-            raise ValueError("Trigger payload must be a JSON object.")
-
-        requirements = payload.get("requirements") or payload.get("project_request")
-        if not isinstance(requirements, str) or not requirements.strip():
-            requirements = json.dumps(payload, indent=2)
-        payload_profile = payload.get("run_profile")
-        if payload_profile is not None and not isinstance(payload_profile, str):
-            raise ValueError("Trigger run_profile must be a string.")
-
-        overrides = {"project_name": str(payload.get("project_name", "triggered-mvp"))}
-        if payload_profile is not None:
-            overrides["profile"] = payload_profile.strip().lower()
-        settings = load_settings().with_overrides(overrides, source="trigger payload")
-        settings = settings.for_request(requirements)
-        settings.check_ready(require_credentials=True)
-        prepared = _open_run(settings, requirements=requirements)
-        prepared.inputs["crewai_trigger_payload"] = json.dumps(payload)
-        return prepared
-
-    def work(prepared: PreparedRun) -> int:
-        return _run_prepared(prepared)
-
-    return _execute(prepare, work, PreparedRun.release)
+    return main(["new", *sys.argv[1:]])
 
 
 if __name__ == "__main__":

@@ -222,7 +222,7 @@ def test_a_command_runs_in_a_container_and_reports_like_a_local_one(
     [argv] = run_calls(fake)
     assert argv[argv.index("--name") + 1] == f"et-{RUN_ID}-cmd-1"
     assert argv[-2:] == ["pytest", "-q"]
-    assert "astral/uv:python3.12-bookworm-slim" in argv  # pytest -> the Python image
+    assert "astral/uv:python3.13-bookworm-slim" in argv  # pytest -> the Python image
 
 
 def test_the_exit_code_is_the_commands(
@@ -304,7 +304,7 @@ def test_images_follow_the_command_and_the_settings(
     make_backend: Callable[..., DockerBackend], project: Path
 ) -> None:
     default = make_backend()
-    assert default.image_for(command(project, "npm", "test")) == "node:22-slim"
+    assert default.image_for(command(project, "npm", "test")) == "node:24-slim"
     assert default.image_for(command(project, "git", "status", label="git")) == "alpine/git:2.54.0"
 
     custom = make_backend(

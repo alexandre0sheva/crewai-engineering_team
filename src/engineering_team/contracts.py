@@ -303,7 +303,7 @@ class RunManifest(Contract):
     request_hash: str = ""
     settings_hash: str = ""
     versions: dict[str, str] = Field(default_factory=dict)
-    strategy: str = "hierarchical"
+    strategy: str = "pipeline"
     recipe: str | None = None
     status: RunStatus = "pending"
     verdict: RunVerdict | None = None  # set by runs that verify; all but ``verified`` end the run

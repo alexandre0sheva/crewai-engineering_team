@@ -73,7 +73,7 @@ criteria).
 ## How a run works
 
 1. **Plan.** `--tasks` (ids, or `all`), `--subset dev|heldout|all`, `--strategy` (`pipeline`,
-   `hierarchical`, `single`; repeat or comma-separate) and `--repeat N` give the list of runs, in the
+   `single`; repeat or comma-separate) and `--repeat N` give the list of runs, in the
    order task, strategy, repeat. The repository modes (`feature`, `fix`, `maintain`) use the
    pipeline only, so a brownfield task is not planned for the other strategies; the report lists the
    pairs left out.

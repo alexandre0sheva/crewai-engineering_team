@@ -64,7 +64,7 @@ def test_a_demo_feature_run_produces_a_diff_criteria_and_a_report(demo) -> None:
 
 
 @pytest.mark.git
-@pytest.mark.parametrize("strategy", [None, "hierarchical"])
+@pytest.mark.parametrize("strategy", [None, "single"])
 def test_a_demo_new_project_run_succeeds_whatever_strategy_was_asked(
     demo,  # noqa: ANN001
     strategy: str | None,
@@ -86,5 +86,6 @@ def test_a_demo_new_project_run_succeeds_whatever_strategy_was_asked(
     results = client.get(f"{API}/runs/{run_id}/results").json()
 
     assert results["status"] == "succeeded", results["banner"]
-    assert results["verdict"] == "verified"
+    # A ``single`` run has no stages to verify, whatever it is shown as.
+    assert results["verdict"] == ("verified" if strategy is None else None)
     assert results["merge"] is None
