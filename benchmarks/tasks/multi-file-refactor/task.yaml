@@ -1,0 +1,22 @@
+id: multi-file-refactor
+title: Extract duplicated money rules from three modules into one
+kind: brownfield
+mode: maintain
+maintain_task: refactor
+split: dev
+intent: refactor
+size: medium
+difficulty: medium
+languages: [python]
+scale: 0.8
+criteria:
+  - {id: behaviour-preserved, text: "quotes, invoices, receipts and errors match the original on 600 generated inputs"}
+  - {id: one-home, text: "billing/pricing.py holds the rounding and tax rates; the three modules use it and copy none"}
+  - {id: public-api, text: "the build functions, result classes and PAYMENT_DAYS keep their names and signatures"}
+  - {id: tests-intact, text: "the project's tests are unchanged and pass"}
+sabotage:
+  fails: [behaviour-preserved]
+  edits:
+    - path: billing/pricing.py
+      old: "return to_cents(amount * Decimal(percent) / 100)"
+      new: "return (amount * Decimal(percent) / 100).quantize(CENT)"

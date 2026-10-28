@@ -1,0 +1,23 @@
+id: docs-cli-reference
+title: Write an accurate command-line reference for a small tool
+kind: brownfield
+mode: maintain
+maintain_task: docs
+split: dev
+intent: docs
+size: small
+difficulty: easy
+languages: [python]
+scale: 0.4
+criteria:
+  - {id: every-command, text: "docs/cli.md has a section for each of add, list, done and export"}
+  - {id: every-option, text: "every option of every command, and --file, is documented in its command's section"}
+  - {id: defaults-stated, text: "each option's default is given in its section"}
+  - {id: examples-run, text: "every example command in docs/cli.md runs, in order, with exit status 0"}
+  - {id: code-unchanged, text: "no code or test was changed"}
+sabotage:
+  fails: [defaults-stated]
+  edits:
+    - path: docs/cli.md
+      old: "- `--delimiter CHAR`: the field separator. Default: `,`.\n"
+      new: ""

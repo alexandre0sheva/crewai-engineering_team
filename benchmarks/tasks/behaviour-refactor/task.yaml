@@ -3,7 +3,11 @@ title: Behaviour-preserving refactor of a long function
 kind: brownfield
 mode: maintain
 maintain_task: refactor
-subset: heldout
+split: heldout
+intent: refactor
+size: small
+difficulty: medium
+languages: [python]
 scale: 0.7
 criteria:
   - {id: behaviour-preserved, text: "summarize() returns the same result as before for 400 generated and edge-case inputs"}

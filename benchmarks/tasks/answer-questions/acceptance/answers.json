@@ -1,0 +1,13 @@
+{
+  "Q1": {"facts": [["60"], ["PARCELS_FREE_FROM"]],
+         "cites": [{"file": "parcels/settings.py", "lines": [14, 15]},
+                   {"file": "parcels/quote.py", "lines": [31, 32]}]},
+  "Q2": {"facts": [["split"], ["31.5"], ["equal", "same weight", "evenly", "even "]],
+         "cites": [{"file": "parcels/packing.py", "lines": [11, 22]},
+                   {"file": "parcels/settings.py", "lines": [17, 17]}]},
+  "Q3": {"facts": [["postnl"], ["PARCELS_CARRIER"]],
+         "cites": [{"file": "parcels/settings.py", "lines": [8, 12]}]},
+  "Q4": {"facts": [["15:00", "15 o'clock", "cutoff", "cut-off", "CUTOFF_HOUR"],
+                   ["weekend", "saturday", "sunday"], ["holiday"]],
+         "cites": [{"file": "parcels/delivery.py", "lines": [11, 30]}]}
+}

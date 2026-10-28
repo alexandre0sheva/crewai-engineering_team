@@ -1,0 +1,24 @@
+id: review-seeded-defects
+title: Review a change with four seeded defects (security and paging)
+kind: brownfield
+mode: review
+split: dev
+intent: review
+size: small
+difficulty: medium
+languages: [python]
+scale: 0.5
+criteria:
+  - {id: findings-written, text: "the review wrote findings.json with a findings list"}
+  - {id: recall, text: "at least 3 of the 4 seeded defects are found (file and line, or file and wording)"}
+  - {id: serious-rated, text: "the three security defects that are found are rated high or critical"}
+  - {id: precision, text: "at least half of the medium-or-worse findings point at a seeded defect"}
+sabotage:
+  fails: [recall]
+  edits:
+    - path: review-out/findings.json
+      old: '"file": "notes/service.py", "line": 38,'
+      new: '"file": "notes/web.py", "line": 12,'
+    - path: review-out/findings.json
+      old: '"file": "notes/storage.py", "line": 51,'
+      new: '"file": "notes/storage.py", "line": 20,'

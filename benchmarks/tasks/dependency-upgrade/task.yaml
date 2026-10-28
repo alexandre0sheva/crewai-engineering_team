@@ -1,0 +1,23 @@
+id: dependency-upgrade
+title: Upgrade a vendored dependency across a breaking API change
+kind: brownfield
+mode: maintain
+maintain_task: custom
+split: heldout
+intent: upgrade_deps
+size: medium
+difficulty: medium
+languages: [python]
+scale: 0.6
+criteria:
+  - {id: upgraded, text: "vendor/moneyfmt is the released 2.0.0 and requirements.txt pins it"}
+  - {id: invoices-unchanged, text: "the invoices printed for many inputs are as before"}
+  - {id: errors-unchanged, text: "bad lines and amounts give the same messages and exit status 2"}
+  - {id: no-removed-api, text: "the code uses nothing 2.0.0 removed (MoneyError, positional currency)"}
+  - {id: tests-pass, text: "the existing tests are unchanged and pass, and a test was added"}
+sabotage:
+  fails: [invoices-unchanged]
+  edits:
+    - path: invoicer/totals.py
+      old: 'f"{line.description:<24}{format_money(line.amount, currency=CURRENCY):>14}"'
+      new: 'f"{line.description:<24}{format_money(Decimal(float(line.amount)), currency=CURRENCY):>14}"'

@@ -103,6 +103,7 @@ target-version = "py311"
 extend-exclude = [
     "benchmarks/results",
     "benchmarks/tasks/*/fixture",
+    "benchmarks/tasks/*/change",
     "benchmarks/tasks/*/reference",
     "examples/*/repo",
 ]

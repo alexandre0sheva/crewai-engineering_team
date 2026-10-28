@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "kind": "review",
+  "run_id": "reference",
+  "base": null,
+  "base_branch": "main",
+  "head": null,
+  "fail_on": "high",
+  "passed": false,
+  "counts": {"critical": 1, "high": 1, "medium": 2, "low": 0, "info": 1},
+  "findings": [
+    {"id": "F-1", "severity": "critical", "file": "accounts/sessions.py", "line": 45,
+     "summary": "Session tokens come from random.choice (Mersenne Twister): predictable, so sessions can be guessed.",
+     "suggested_fix": "Use secrets.token_urlsafe(32).", "source_role": "security_reviewer"},
+    {"id": "F-2", "severity": "high", "file": "accounts/sessions.py", "line": 42,
+     "summary": "A failed login logs the password in plain text (often the user's real password with a typo).",
+     "suggested_fix": "Log the email only.", "source_role": "security_reviewer"},
+    {"id": "F-3", "severity": "medium", "file": "accounts/sessions.py", "line": 56,
+     "summary": "The expiry test is inverted: fresh sessions are dropped and expired ones stay valid forever.",
+     "suggested_fix": "Expire when clock() - created >= SESSION_SECONDS.", "source_role": "code_reviewer"},
+    {"id": "F-4", "severity": "medium", "file": "accounts/sessions.py", "line": 37,
+     "summary": "Five wrong passwords lock an account for good: anyone can lock out any member.",
+     "suggested_fix": "Lock for a limited time and reset the counter after it.", "source_role": "security_reviewer"},
+    {"id": "F-5", "severity": "info", "file": "accounts/sessions.py", "line": 29,
+     "summary": "The clock parameter has no type annotation.", "suggested_fix": null,
+     "source_role": "code_reviewer"}
+  ],
+  "dependency_audit": []
+}

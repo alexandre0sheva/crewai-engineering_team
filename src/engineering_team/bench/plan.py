@@ -32,10 +32,12 @@ class RunOptions:
     sandbox: str | None = None
     config: str | None = None  # a settings file for the team (the only way to vary more than flags)
     fake: bool = False
-    fake_solution: str = "reference"  # fake only: "reference" or "broken" (the sabotaged one)
+    fake_solution: str = "reference"  # fake only: "reference", "broken" (sabotaged) or "fixture"
     run_budget_usd: float | None = None  # the most one live run may spend
     python: str = sys.executable
     acceptance_timeout: float = 120.0
+    acceptance_sandbox: str = "docker"  # where Node/Go checks run: docker or local
+    node_modules: str | None = None  # local Node checks: the task packages' node_modules
     resume: bool = False
 
 

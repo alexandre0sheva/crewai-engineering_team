@@ -1,0 +1,16 @@
+# The live spend cap for release 0.3.0 (docs/IMPLEMENTATION_PLAN_0.3.0.md, section 4): every live
+# model run of the release, together, stays under total_usd (API-billed). Each live `bench` command
+# is charged to one allocation (`--allocation T25`) and refuses to start when its estimate or its
+# cap would go over it. Spend is recorded in spend.jsonl (append-only). Moving unspent money from
+# one allocation to a later one is an edit here; going over needs the user's explicit OK.
+release = "0.3.0"
+total_usd = 15.00
+
+[allocations]
+T3 = 0.10       # doctor --probe-tools
+T5 = 0.50       # performance baseline (T6's before/after rerun is charged here too)
+T10 = 0.40      # bench triage --live
+T25 = 2.80      # model screen
+T32 = 1.00      # live example reports and the demo recording
+T33 = 9.70      # final evaluation, T21's live tuning, learning on/off
+reserve = 0.50  # reruns after a harness bug: only with the user's OK in chat

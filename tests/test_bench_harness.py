@@ -539,3 +539,101 @@ def test_a_task_digest_changes_when_the_task_does(
     (copy / "request.md").write_text("a different request\n")
     assert task_digest(clone) != before
     assert json.dumps(before)  # a short, printable hash
+
+
+# -- criterion statuses and review tasks ----------------------------------------------------------
+
+CHECKS = """
+from engineering_team.bench.checklib import CheckError, expect, main
+
+def check_good(ws):
+    pass
+
+def check_bad(ws):
+    expect(False, "not done")
+
+def check_unjudged(ws):
+    raise CheckError("no toolchain here")
+
+def check_crashes(ws):
+    raise KeyError("the team's output had no such key")
+
+if __name__ == "__main__":
+    main()
+"""
+
+
+def checks_task(tmp_path: Path, tasks: dict[str, BenchTask], *criteria: str) -> BenchTask:
+    root = tmp_path / "task"
+    (root / "acceptance").mkdir(parents=True)
+    (root / "acceptance" / "checks.py").write_text(CHECKS)
+    (root / "request.md").write_text("Build it.\n")
+    base = tasks["notes-cli"]
+    return base.model_copy(
+        update={
+            "root": root,
+            "criteria": [base.criteria[0].model_copy(update={"id": c}) for c in criteria],
+        }
+    )
+
+
+def test_exit_status_decides_pass_fail_or_error(
+    tasks: dict[str, BenchTask], tmp_path: Path
+) -> None:
+    from engineering_team.bench.acceptance import run_acceptance, verdict
+
+    task = checks_task(tmp_path, tasks, "good", "bad", "unjudged", "crashes", "missing")
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+
+    outcomes = {o.id: o for o in run_acceptance(task, workspace, timeout=60)}
+
+    assert {k: o.status for k, o in outcomes.items()} == {
+        "good": "passed", "bad": "failed", "unjudged": "error",
+        "crashes": "failed",  # a crash may come from the team's output: never an excuse
+        "missing": "error",
+    }  # fmt: skip
+    assert "ERROR: the check could not judge: no toolchain here" in outcomes["unjudged"].detail
+    assert verdict(list(outcomes.values())) == "failed"
+    assert verdict([outcomes["good"], outcomes["unjudged"]]) == "error"
+    assert verdict([outcomes["good"]]) == "passed"
+    assert verdict([]) == "failed"
+
+
+def test_a_run_whose_checks_cannot_judge_is_an_error_and_resume_reruns_it(
+    tasks: dict[str, BenchTask], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    task = checks_task(tmp_path, tasks, "good", "unjudged")
+    monkeypatch.setenv("STUB_MODE", "pass")
+    monkeypatch.setenv("STUB_REFERENCE", str(tasks["notes-cli"].reference_dir))
+    opts = options(tmp_path, python=stub_python(tmp_path), resume=True)
+
+    first = run_batch([RunSpec(task, "pipeline", 1)], opts)
+    again = run_batch([RunSpec(task, "pipeline", 1)], opts)
+
+    assert first[0].outcome == "error" and first[0].reason == "checks could not judge: unjudged"
+    assert first[0].errored_criteria == ["unjudged"] and first[0].failed_criteria == []
+    assert again[0].started != "" and again[0].run_id != first[0].run_id  # not kept: rerun
+
+
+def test_a_review_task_reviews_a_branch_and_writes_findings_into_the_workspace(
+    tasks: dict[str, BenchTask], tmp_path: Path
+) -> None:
+    task = tasks["review-seeded-defects"]
+    opts = options(tmp_path, provider="openai", sandbox="docker")
+    run_dir = tmp_path / "run"
+
+    prepared = prepare(RunSpec(task, "pipeline", 1), opts, run_dir)
+
+    git = ["git", "-C", str(prepared.workspace)]
+    branch = subprocess.run([*git, "branch", "--show-current"], capture_output=True, text=True)
+    changed = subprocess.run(
+        [*git, "diff", "--name-only", "main"], capture_output=True, text=True
+    ).stdout.split()
+    assert branch.stdout.strip() == "change"
+    assert "notes/export.py" in changed and "notes/storage.py" in changed
+    argv = prepared.argv[prepared.argv.index("review") :]
+    assert argv[:5] == ["review", "--repo", str(prepared.workspace), "--base", "main"]
+    assert argv[argv.index("--out-dir") + 1] == str(prepared.workspace / "review-out")
+    assert "--sandbox" not in argv and "--non-interactive" not in argv
+    assert "--focus" in argv and "security" in argv[argv.index("--focus") + 1]

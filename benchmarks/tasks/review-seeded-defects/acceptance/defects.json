@@ -1,0 +1,19 @@
+[
+  {"id": "sql-injection", "serious": true,
+   "locations": [{"file": "notes/storage.py", "lines": [58, 62]},
+                 {"file": "notes/service.py", "lines": [32, 35]},
+                 {"file": "notes/web.py", "lines": [40, 42]}],
+   "keywords": ["sql injection", "injection", "f-string", "parameteris", "parameteriz", "like"]},
+  {"id": "delete-any-note", "serious": true,
+   "locations": [{"file": "notes/service.py", "lines": [37, 40]},
+                 {"file": "notes/web.py", "lines": [57, 59]}],
+   "keywords": ["owner", "authoriz", "authoris", "other user", "any note", "access control"]},
+  {"id": "export-path-traversal", "serious": true,
+   "locations": [{"file": "notes/export.py", "lines": [15, 21]},
+                 {"file": "notes/web.py", "lines": [43, 46]}],
+   "keywords": ["traversal", "../", "path", "filename", "arbitrary file"]},
+  {"id": "page-overlap", "serious": false,
+   "locations": [{"file": "notes/storage.py", "lines": [45, 53]},
+                 {"file": "notes/service.py", "lines": [26, 30]}],
+   "keywords": ["size + 1", "extra row", "one more", "overlap", "off-by-one", "off by one", "page"]}
+]

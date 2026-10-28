@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "kind": "review",
+  "run_id": "reference",
+  "base": null,
+  "base_branch": "main",
+  "head": null,
+  "fail_on": "high",
+  "passed": false,
+  "counts": {"critical": 1, "high": 2, "medium": 1, "low": 1, "info": 0},
+  "findings": [
+    {"id": "F-1", "severity": "critical", "file": "notes/storage.py", "line": 60,
+     "summary": "SQL injection: the search term is formatted into the LIKE clause with an f-string.",
+     "suggested_fix": "Pass the pattern as a parameter: LIKE ? with f'%{term}%' in the parameters.",
+     "source_role": "security_reviewer"},
+    {"id": "F-2", "severity": "high", "file": "notes/service.py", "line": 38,
+     "summary": "delete() never checks the note's owner, so any user can delete any note by id.",
+     "suggested_fix": "Load the note with read(user, note_id) (which raises NotFound for others).",
+     "source_role": "security_reviewer"},
+    {"id": "F-3", "severity": "high", "file": "notes/export.py", "line": 18,
+     "summary": "The export filename comes from the query string; ../ escapes EXPORT_DIR (path traversal).",
+     "suggested_fix": "Reject names with separators, or resolve and check the path is inside EXPORT_DIR.",
+     "source_role": "security_reviewer"},
+    {"id": "F-4", "severity": "medium", "file": "notes/storage.py", "line": 51,
+     "summary": "Pages return size + 1 rows, so the last note of a page repeats as the first of the next.",
+     "suggested_fix": "Return rows[:size] (and use the extra row only to report a next page).",
+     "source_role": "code_reviewer"},
+    {"id": "F-5", "severity": "low", "file": "tests/test_new_endpoints.py", "line": null,
+     "summary": "No tests for pagination, export, or deleting another user's note.",
+     "suggested_fix": null, "source_role": "code_reviewer"}
+  ],
+  "dependency_audit": []
+}

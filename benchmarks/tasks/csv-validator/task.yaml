@@ -2,7 +2,11 @@ id: csv-validator
 title: CSV validator driven by a JSON schema
 kind: greenfield
 mode: new
-subset: dev
+split: dev
+intent: new_project
+size: small
+difficulty: medium
+languages: [python]
 scale: 0.7
 criteria:
   - {id: valid-file, text: "a valid file exits 0 and prints 'OK: N rows'"}

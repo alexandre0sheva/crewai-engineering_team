@@ -1,0 +1,23 @@
+id: express-api-feature
+title: Add loans to an Express API written in TypeScript
+kind: brownfield
+mode: feature
+split: dev
+intent: feature
+size: small
+difficulty: medium
+languages: [typescript]
+toolchains: [node]
+scale: 0.7
+criteria:
+  - {id: lend-and-return, text: "a book is lent and returned; onLoanTo follows"}
+  - {id: loan-errors, text: "404 for unknown books, 400 for a bad member, 409 for double loans and returns"}
+  - {id: availability-filter, text: "available=true/false filters by loan state; other values are 400"}
+  - {id: existing-endpoints, text: "the existing endpoints answer as before (plus onLoanTo: null)"}
+  - {id: tests-added, text: "the project's suite passes and has tests for loans"}
+sabotage:
+  fails: [loan-errors]
+  edits:
+    - path: src/app.ts
+      old: 'res.status(409).json({ error: `book ${id} is already on loan` });'
+      new: 'res.status(400).json({ error: `book ${id} is already on loan` });'

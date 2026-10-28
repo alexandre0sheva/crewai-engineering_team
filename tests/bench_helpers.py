@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import json
+import os
 import stat
+import subprocess
 import sys
 from pathlib import Path
 
 from engineering_team.bench.results import CriterionRecord, RunRecord
+from engineering_team.bench.tasks import BenchTask
 
 SUITE = Path(__file__).resolve().parents[1] / "benchmarks"
 
@@ -16,7 +20,7 @@ def record(task: str = "notes-cli", strategy: str = "pipeline", repeat: int = 1,
 
     values: dict[str, object] = {
         "batch": "b", "task": task, "strategy": strategy, "repeat": repeat, "kind": "greenfield",
-        "mode": "new", "subset": "dev", "outcome": "passed", "cost_usd": 0.5,
+        "mode": "new", "split": "dev", "outcome": "passed", "cost_usd": 0.5,
         "duration_seconds": 60.0,
     }  # fmt: skip
     values.update(fields)
@@ -84,3 +88,25 @@ def stub_python(directory: Path) -> str:
     wrapper.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{script}" "$@"\n')
     wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR)
     return str(wrapper)
+
+
+def _runs(*argv: str) -> bool:
+    try:
+        return subprocess.run(list(argv), capture_output=True, timeout=30).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def runnable_locally(task: BenchTask) -> bool:
+    """Whether this machine can run the task's checks with ``--acceptance-sandbox local``: its
+    toolchains run here, and a Node task with npm packages has them (``BENCH_NODE_MODULES``)."""
+
+    if "node" in task.toolchains:
+        if not _runs("node", "--version"):
+            return False
+        manifest = task.fixture_dir / "package.json"
+        if manifest.is_file() and json.loads(manifest.read_text()).get("dependencies"):
+            modules = os.environ.get("BENCH_NODE_MODULES")
+            if not modules or not Path(modules).is_dir():
+                return False
+    return "go" not in task.toolchains or _runs("go", "version")

@@ -1,0 +1,24 @@
+id: ledger-misleading-trace
+title: Fix a crash whose traceback points at the wrong package (2,000-line project)
+kind: brownfield
+mode: fix
+split: heldout
+intent: bugfix
+size: large
+difficulty: hard
+languages: [python]
+scale: 1.5
+timeout_seconds: 2700
+trace_file: trace.txt
+criteria:
+  - {id: march-report, text: "importing a Rabobank statement with +amounts and reporting the month gives the right totals"}
+  - {id: signed-amounts, text: "parse_amount reads +1.250,00 and every other signed decimal-comma amount"}
+  - {id: unreadable-stops-import, text: "an unreadable amount stops the import with FILE:LINE and adds nothing"}
+  - {id: others-unchanged, text: "generic and ING imports, reports and the existing tests behave as before"}
+  - {id: regression-test, text: "the suite passes, has more tests, and fails on the unfixed code"}
+sabotage:
+  fails: [unreadable-stops-import]
+  edits:
+    - path: ledgerly/io/bank_formats.py
+      old: 'raise ImportError_(f"cannot read the amount {cell!r}", source=source, line=line)'
+      new: "continue"

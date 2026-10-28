@@ -1,0 +1,23 @@
+id: react-component-bug
+title: Fix a React component that mutates its props (Vitest)
+kind: brownfield
+mode: fix
+split: heldout
+intent: bugfix
+size: small
+difficulty: medium
+languages: [typescript]
+toolchains: [node]
+scale: 0.6
+trace_file: trace.txt
+criteria:
+  - {id: frozen-lines, text: "OrderSummary and CartPage render frozen lines (sorted by name in the summary)"}
+  - {id: props-untouched, text: "rendering never reorders or changes the caller's lines; CartPage keeps the added order"}
+  - {id: summary-unchanged, text: "rows, totals, shipping, the empty message and unsorted order are as before"}
+  - {id: regression-test, text: "the Vitest suite passes, has more tests, and fails on the unfixed code"}
+sabotage:
+  fails: [frozen-lines, props-untouched]
+  edits:
+    - path: src/OrderSummary.tsx
+      old: "[...lines].sort("
+      new: "lines.sort("

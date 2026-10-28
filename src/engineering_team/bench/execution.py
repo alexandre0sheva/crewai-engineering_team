@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from engineering_team.bench.acceptance import all_required_passed, run_acceptance
+from engineering_team.bench.acceptance import CheckSettings, run_acceptance, verdict
 from engineering_team.bench.metrics import event_metrics, parse_summary
 from engineering_team.bench.plan import RunOptions, RunSpec
 from engineering_team.bench.prepare import Prepared, prepare
@@ -113,7 +113,8 @@ def base_record(spec: RunSpec, options: RunOptions, **fields: Any) -> RunRecord:
         repeat=spec.repeat,
         kind=task.kind,
         mode=task.mode,
-        subset=task.subset,
+        split=task.split,
+        intent=task.intent,
         provider=options.provider,
         profile=options.profile,
         fake=options.fake,
@@ -175,24 +176,33 @@ def execute_run(
     )
     reported = summary.get("usage")
     usage: dict[str, Any] = reported if isinstance(reported, dict) else metrics.usage
-    outcomes = run_acceptance(spec.task, workspace, timeout=options.acceptance_timeout)
+    outcomes = run_acceptance(
+        spec.task,
+        workspace,
+        timeout=options.acceptance_timeout,
+        settings=CheckSettings(options.acceptance_sandbox, options.node_modules),
+    )
     criteria = [
-        CriterionRecord(id=o.id, passed=o.passed, required=o.required, detail=o.detail,
-                        duration=o.duration)
+        CriterionRecord(id=o.id, passed=o.passed, error=o.status == "error", required=o.required,
+                        detail=o.detail, duration=o.duration)
         for o in outcomes
     ]  # fmt: skip
 
     reason, outcome = "", "passed"
+    judged = verdict(outcomes)
     if interrupted:
         outcome, reason = "error", "the batch was interrupted"
     elif timed_out:
         outcome, reason = "timeout", f"exceeded the {spec.task.timeout_seconds}s time limit"
-    elif not all_required_passed(outcomes):
-        failing = ", ".join(c.id for c in criteria if c.required and not c.passed)
+    elif judged == "failed":
+        failing = ", ".join(c.id for c in criteria if c.required and not c.passed and not c.error)
         outcome, reason = "failed", f"criteria not met: {failing}"
         if exit_code not in (0, None):
             team = summary.get("error") or f"exit code {exit_code}"
             reason += f" (the team ended: {str(team)[:200]})"
+    elif judged == "error":
+        broken = ", ".join(c.id for c in criteria if c.required and c.error)
+        outcome, reason = "error", f"checks could not judge: {broken}"
     record = base_record(
         spec, options, outcome=outcome, reason=reason, run_id=prepared.run_id,
         exit_code=exit_code, team_status=summary.get("status"), team_verdict=summary.get("verdict"),

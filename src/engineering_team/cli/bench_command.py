@@ -3,15 +3,16 @@
 The suite (``benchmarks/``) ships in the source checkout, not the wheel. ``bench run`` makes one
 subprocess per run in an isolated workspace, judges each with hidden checks, and writes a report;
 ``--fake`` replays the reference solutions offline (no model, no cost) to validate the harness
-itself; ``--dry-run`` prices the batch without starting anything. See ``docs/BENCHMARKS.md``.
+itself; ``--dry-run`` prices the batch without starting anything. A live batch is charged to the
+release's spend ledger (``bench spend``) and refused when it cannot afford it. See
+``docs/BENCHMARKS.md``.
 """
 
 from __future__ import annotations
 
-import sys
 import tempfile
 import threading
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -21,10 +22,17 @@ from rich.table import Table
 from engineering_team.bench import estimate as estimating
 from engineering_team.bench import report as reporting
 from engineering_team.bench.batch import BudgetLedger, run_batch, write_batch_manifest
+from engineering_team.bench.fake_team import SOLUTIONS
 from engineering_team.bench.plan import STRATEGIES, RunOptions, plan_runs
-from engineering_team.bench.results import RunRecord, batch_directories, collect_results, read_batch
-from engineering_team.bench.tasks import BenchError, load_suite, select_tasks
-from engineering_team.cli.context import Globals, fail, one_of, print_json
+from engineering_team.bench.results import RunRecord, collect_results, read_batch
+from engineering_team.bench.selection import TaskFilter, select_tasks, split_values
+from engineering_team.bench.spend import SpendLedger
+from engineering_team.bench.tasks import BenchError, load_suite
+from engineering_team.cli.bench_options import OutOption, SuiteOption, suite_path
+from engineering_team.cli.bench_report_command import dry_run as show_dry_run
+from engineering_team.cli.bench_report_command import print_groups, report
+from engineering_team.cli.bench_spend_command import check_spend, record_spend, runs_since, spend
+from engineering_team.cli.context import fail, one_of, print_json
 from engineering_team.cli.context import get as get_globals
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
 
@@ -32,30 +40,8 @@ EXIT_FAILED = 3
 EXIT_INTERRUPTED = 130
 
 bench_app = typer.Typer(help="Run and report the benchmark suite.", no_args_is_help=True)
-
-SuiteOption = Annotated[
-    str | None,
-    typer.Option(
-        help="The benchmark suite directory (default: ./benchmarks in a source checkout)."
-    ),
-]
-OutOption = Annotated[
-    str | None, typer.Option(help="Where batches are kept (default: <suite>/.runs).")
-]
-
-
-def default_suite() -> Path:
-    """``./benchmarks``, else the ``benchmarks`` next to this source tree (an editable install)."""
-
-    here = Path.cwd() / "benchmarks"
-    if (here / "tasks").is_dir():
-        return here
-    checkout = Path(__file__).resolve().parents[3] / "benchmarks"
-    return checkout if (checkout / "tasks").is_dir() else here
-
-
-def _suite(suite: str | None) -> Path:
-    return Path(suite).expanduser().resolve() if suite else default_suite().resolve()
+bench_app.command("report")(report)
+bench_app.command("spend")(spend)
 
 
 def _strategies(values: list[str] | None) -> list[str]:
@@ -107,23 +93,26 @@ def list_tasks(ctx: typer.Context, suite: SuiteOption = None) -> None:
 
     g = get_globals(ctx)
     try:
-        tasks = load_suite(_suite(suite))
+        tasks = load_suite(suite_path(suite))
     except BenchError as exc:
         fail(str(exc))
     if g.json:
         print_json(
             [
                 {
-                    "id": t.id, "kind": t.kind, "mode": t.mode, "subset": t.subset,
+                    "id": t.id, "kind": t.kind, "mode": t.mode, "intent": t.intent,
+                    "split": t.split, "size": t.size, "difficulty": t.difficulty,
+                    "languages": t.languages, "toolchains": t.toolchains,
                     "criteria": [c.id for c in t.criteria], "title": t.title,
                 }
                 for t in tasks
             ]
         )  # fmt: skip
         return
-    table = Table("Task", "Kind", "Mode", "Subset", "Criteria", "Title", box=None)
+    table = Table("Task", "Intent", "Split", "Languages", "Size", "Difficulty", "Title", box=None)
     for t in tasks:
-        table.add_row(t.id, t.kind, t.mode, t.subset, str(len(t.criteria)), t.title)
+        languages = ", ".join(t.languages) + (" (Docker)" if t.toolchains else "")
+        table.add_row(t.id, t.intent, t.split, languages, t.size, t.difficulty, t.title)
     g.console().print(table)
 
 
@@ -133,9 +122,27 @@ def run(
     tasks: Annotated[
         list[str] | None, typer.Option(help="Task ids, comma-separated or repeated (default: all).")
     ] = None,
-    subset: Annotated[
-        str, typer.Option(callback=one_of(["all", "dev", "heldout"]), help="dev, heldout, or all.")
+    split: Annotated[
+        str,
+        typer.Option(
+            "--split",
+            "--subset",
+            callback=one_of(["all", "dev", "heldout"]),
+            help="dev, heldout, or all (--subset is the 0.2.0 name).",
+        ),
     ] = "all",
+    intent: Annotated[
+        list[str] | None, typer.Option(help="Only these intents (bugfix, review, ...).")
+    ] = None,
+    language: Annotated[
+        list[str] | None, typer.Option(help="Only tasks in these languages (python, go, ...).")
+    ] = None,
+    size: Annotated[
+        list[str] | None, typer.Option(help="Only these sizes (trivial, small, medium, large).")
+    ] = None,
+    difficulty: Annotated[
+        list[str] | None, typer.Option(help="Only these difficulties (easy, medium, hard).")
+    ] = None,
     strategy: Annotated[
         list[str] | None,
         typer.Option(help="pipeline or single; repeat or comma-separate."),
@@ -175,10 +182,33 @@ def run(
     fake_solution: Annotated[
         str,
         typer.Option(
-            callback=one_of(["reference", "broken"]),
-            help="With --fake: the reference, or the reference with its sabotage applied.",
+            callback=one_of(list(SOLUTIONS)),
+            help="With --fake: the reference, the reference with its sabotage applied (broken), "
+            "or nothing written (fixture).",
         ),
     ] = "reference",
+    acceptance_sandbox: Annotated[
+        str,
+        typer.Option(
+            callback=one_of(["docker", "local"]),
+            help="Where the checks of Node/Go tasks run: their Docker image, or this machine.",
+        ),
+    ] = "docker",
+    node_modules: Annotated[
+        str | None,
+        typer.Option(
+            envvar="BENCH_NODE_MODULES",
+            help="With --acceptance-sandbox local: a node_modules directory holding the Node "
+            "tasks' packages (benchmarks/images/node/package.json).",
+        ),
+    ] = None,
+    allocation: Annotated[
+        str | None,
+        typer.Option(
+            help="The release budget allocation a live batch is charged to (a plan task such as "
+            "T25; see `bench spend`). Required for a live run."
+        ),
+    ] = None,
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Estimate the cost from the price table; run nothing.")
     ] = False,
@@ -197,10 +227,17 @@ def run(
     """Run benchmark tasks through the team, judge each with hidden checks, and write a report."""
 
     g = get_globals(ctx)
-    suite_dir = _suite(suite)
+    suite_dir = suite_path(suite)
     strategies = _strategies(strategy)
+    task_filter = TaskFilter(
+        split=split,
+        intents=tuple(split_values(intent)),
+        languages=tuple(split_values(language)),
+        sizes=tuple(split_values(size)),
+        difficulties=tuple(split_values(difficulty)),
+    )
     try:
-        chosen = select_tasks(load_suite(suite_dir), tasks, subset)
+        chosen = select_tasks(load_suite(suite_dir), tasks, task_filter)
     except BenchError as exc:
         fail(str(exc))
     specs, not_applicable = plan_runs(chosen, strategies, repeat)
@@ -209,10 +246,14 @@ def run(
     console = g.console(stderr=True)
 
     config_file = _config_path(config)
+    ledger = SpendLedger(suite_dir)
     if dry_run:
-        _dry_run(g, specs, not_applicable, _settings(provider, profile, config_file), budget_usd)
+        show_dry_run(
+            g, specs, not_applicable, _settings(provider, profile, config_file), budget_usd
+        )
         return
 
+    charged: float | None = None
     if not fake:
         if budget_usd is None:
             fail("A live run needs --budget-usd (a spend cap for the batch); try --dry-run first.")
@@ -228,6 +269,14 @@ def run(
                 'price. Add a [pricing."MODEL"] override to a --config file '
                 "(docs/CONFIGURATION.md), or pass --allow-unpriced."
             )
+        estimate = estimating.estimate_batch(specs, settings).total_usd
+        charged = check_spend(ledger, allocation, estimate, budget_usd)
+        g.console(stderr=True).print(
+            f"Estimated {reporting.money(estimate)} for {len(specs)} run(s) (cap "
+            f"${budget_usd:.2f}); {allocation} has spent ${ledger.spent(allocation):.4f}.",
+            markup=False,
+            soft_wrap=True,
+        )
     if resume and not batch:
         fail("--resume needs --batch NAME.")
     out_dir = Path(out).expanduser().resolve() if out else suite_dir / ".runs"
@@ -240,6 +289,7 @@ def run(
         batch=name, batch_dir=batch_dir, provider=provider, profile=profile, sandbox=sandbox,
         config=config_file, fake=fake, fake_solution=fake_solution,
         run_budget_usd=None if fake else run_cap, resume=resume,
+        acceptance_sandbox=acceptance_sandbox, node_modules=node_modules,
     )  # fmt: skip
     batch_dir.mkdir(parents=True, exist_ok=True)
     write_batch_manifest(
@@ -247,6 +297,7 @@ def run(
         budget_usd=budget_usd, parallel=parallel,
     )  # fmt: skip
 
+    began = datetime.now(UTC).isoformat(timespec="seconds")
     cancel = threading.Event()
     counter = [0]
 
@@ -264,7 +315,7 @@ def run(
             soft_wrap=True,
         )
 
-    ledger = BudgetLedger(None if fake else budget_usd)
+    budget = BudgetLedger(None if fake else budget_usd)
     if not g.quiet:
         console.print(
             f"Batch {name}: {len(specs)} run(s), {parallel} at a time"
@@ -274,7 +325,7 @@ def run(
             soft_wrap=True,
         )
     try:
-        run_batch(specs, options, parallel=parallel, ledger=ledger, on_result=show, cancel=cancel)
+        run_batch(specs, options, parallel=parallel, ledger=budget, on_result=show, cancel=cancel)
     except KeyboardInterrupt:
         console.print(
             f"Interrupted. Finished runs are kept: continue with `bench run ... --batch {name} "
@@ -283,6 +334,16 @@ def run(
             soft_wrap=True,
         )
         raise typer.Exit(EXIT_INTERRUPTED) from None
+    finally:
+        if charged is not None and allocation:  # live: what it spent goes in the ledger, always
+            ran = runs_since(collect_results(batch_dir), began)
+            entry = record_spend(ledger, allocation, charged, ran, name)
+            console.print(
+                f"Spend recorded in {ledger.ledger_path.name}: {allocation} "
+                f"{reporting.money(entry.actual_usd)} (estimate ${entry.estimated_usd:.4f}).",
+                markup=False,
+                soft_wrap=True,
+            )
 
     records = collect_results(batch_dir)
     meta = read_batch(batch_dir)
@@ -295,7 +356,7 @@ def run(
             {
                 "batch": name, "directory": str(batch_dir), "planned": len(specs),
                 "passed": passed, "report": str(batch_dir / "report.md"),
-                "csv": str(batch_dir / "results.csv"), "spent_usd": ledger.spent,
+                "csv": str(batch_dir / "results.csv"), "spent_usd": budget.spent,
                 "runs": [
                     {"task": r.task, "strategy": r.strategy, "repeat": r.repeat,
                      "outcome": r.outcome, "cost_usd": r.cost_usd, "reason": r.reason}
@@ -304,127 +365,6 @@ def run(
             }
         )  # fmt: skip
     else:
-        _print_groups(g, records)
+        print_groups(g, records)
         console.print(f"Report: {batch_dir / 'report.md'}", markup=False, soft_wrap=True)
     raise typer.Exit(0 if clean or allow_failures else EXIT_FAILED)
-
-
-def _print_groups(g: Globals, records: list[RunRecord]) -> None:
-    table = Table(*["Strategy", *reporting.GROUP_HEADERS[1:]], box=None)
-    for row in reporting.group_rows(reporting.group_by(records, lambda r: r.strategy)):
-        table.add_row(*row)
-    g.console(stderr=True).print(table)
-
-
-def _dry_run(
-    g: Globals,
-    specs: list[Any],
-    not_applicable: list[tuple[str, str]],
-    settings: Any,
-    budget_usd: float | None,
-) -> None:
-    found = estimating.estimate_batch(specs, settings)
-    total, span = found.total_usd, found.range_usd
-    if g.json:
-        print_json(
-            {
-                "runs": found.runs, "estimated_usd": total,
-                "range_usd": list(span) if span else None,
-                "unpriced_models": found.unpriced_models,
-                "rows": [
-                    {"task": r.task, "strategy": r.strategy, "runs": r.runs,
-                     "per_run_usd": r.per_run_usd}
-                    for r in found.rows
-                ],
-            }
-        )  # fmt: skip
-        return
-    console = g.console()
-    table = Table("Task", "Strategy", "Runs", "Per run", "Subtotal", box=None)
-    for r in found.rows:
-        subtotal = None if r.per_run_usd is None else r.per_run_usd * r.runs
-        table.add_row(
-            r.task,
-            r.strategy,
-            str(r.runs),
-            reporting.money(r.per_run_usd),
-            reporting.money(subtotal),
-        )
-    console.print(table)
-    summary = f"{found.runs} run(s): estimated {reporting.money(total)}"
-    if span:
-        summary += f" (plausibly {reporting.money(span[0])} to {reporting.money(span[1])})"
-    console.print(summary, markup=False, soft_wrap=True)
-    if found.unpriced_models:
-        console.print(
-            f"No price for {', '.join(found.unpriced_models)}: the cost is unknown. Add a "
-            "[prices] override (docs/CONFIGURATION.md) or rely on --budget-usd.",
-            markup=False,
-            soft_wrap=True,
-        )
-    for task, strategy in not_applicable:
-        console.print(
-            f"  not applicable: {task} × {strategy} (repository modes use the pipeline)",
-            markup=False,
-        )
-    console.print(
-        "The token counts behind this are priors, not measurements. Set --budget-usd as the cap; "
-        "nothing was run.",
-        markup=False,
-        soft_wrap=True,
-    )
-    if budget_usd is not None and total is not None and total > budget_usd:
-        console.print(
-            f"Warning: the estimate is above --budget-usd {budget_usd:g}; some runs may not start.",
-            markup=False,
-            soft_wrap=True,
-        )
-
-
-@bench_app.command("report")
-def report(
-    ctx: typer.Context,
-    batch: Annotated[
-        str | None,
-        typer.Argument(help="A batch directory, or a name under --out (default: latest)."),
-    ] = None,
-    write: Annotated[
-        bool, typer.Option(help="Write report.md and results.csv into the batch.")
-    ] = True,
-    suite: SuiteOption = None,
-    out: OutOption = None,
-) -> None:
-    """Summarise a batch: pass rates with Wilson 95 % intervals, cost per success, every failure."""
-
-    g = get_globals(ctx)
-    out_dir = Path(out).expanduser().resolve() if out else _suite(suite) / ".runs"
-    if batch and Path(batch).expanduser().is_dir():
-        batch_dir = Path(batch).expanduser().resolve()
-    elif batch:
-        batch_dir = out_dir / batch
-    else:
-        found = list(batch_directories(out_dir))
-        if not found:
-            fail(f"No batches under {out_dir}. Run `bench run` first.")
-        batch_dir = found[-1]
-    records = collect_results(batch_dir)
-    if not records:
-        fail(f"No results in {batch_dir}.", code=1)
-    text = reporting.render_markdown(read_batch(batch_dir), records)
-    if write:
-        (batch_dir / "report.md").write_text(text, encoding="utf-8")
-        (batch_dir / "results.csv").write_text(reporting.render_csv(records), encoding="utf-8")
-    if g.json:
-        print_json(
-            {
-                "batch": batch_dir.name,
-                "groups": [
-                    {"strategy": grp.label, "passed": grp.passed, "counted": grp.counted,
-                     "rate": grp.rate, "wilson_low": grp.low, "wilson_high": grp.high,
-                     "cost_per_success_usd": grp.cost_per_success}
-                    for grp in reporting.group_by(records, lambda r: r.strategy)
-                ],
-            }
-        )  # fmt: skip
-    else:
-        sys.stdout.write(text)

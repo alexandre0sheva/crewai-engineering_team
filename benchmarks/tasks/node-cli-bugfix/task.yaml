@@ -1,0 +1,23 @@
+id: node-cli-bugfix
+title: Fix a rounding carry bug in a TypeScript command-line tool
+kind: brownfield
+mode: fix
+split: dev
+intent: bugfix
+size: small
+difficulty: easy
+languages: [typescript]
+toolchains: [node]
+scale: 0.5
+repro: node src/cli.ts total 1.5m 58m 29.5s
+criteria:
+  - {id: carry-rounding, text: "a value that rounds up carries into the next unit (3599.5 s is 1h, 59.5 s is 1m)"}
+  - {id: cli-output, text: "the total and stats commands print the carried values"}
+  - {id: unchanged, text: "other outputs, parsing, error messages and exit codes are as before"}
+  - {id: regression-test, text: "the suite passes, has more tests, and its tests fail on the unfixed code"}
+sabotage:
+  fails: [carry-rounding, cli-output]
+  edits:
+    - path: src/format.ts
+      old: "let rest = Math.round(seconds);"
+      new: "let rest = seconds;"

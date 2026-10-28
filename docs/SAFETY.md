@@ -414,7 +414,7 @@ a plugin as you would any dependency.
 `engineering-team bench` runs the team (and then programs the team wrote, as acceptance checks)
 on your machine. Use `--sandbox docker` for the team and a container or VM for the whole batch when
 you publish results; [BENCHMARKS.md](BENCHMARKS.md#threat-model) has the threat model (hidden
-checks, the held-out subset, what runs where, and what the checks' environment scrubs).
+checks, the held-out split, what runs where, and what the checks' environment scrubs).
 
 ## Untrusted content
 

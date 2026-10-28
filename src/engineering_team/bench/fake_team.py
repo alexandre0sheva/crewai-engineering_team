@@ -4,8 +4,10 @@
 CLI. It builds a real CrewAI ``Agent`` on a :class:`ScriptedLLM` whose script is one
 ``Write Project File`` call per reference file, with the real tools bound to a real ``RunContext``,
 so the tool layer (path rules, protected paths, events, usage) is exercised without a model.
-``--solution broken`` applies the task's ``sabotage`` to the reference first. The output is a JSON
-summary shaped like ``new --json``, so the harness treats both teams the same way.
+``--solution broken`` applies the task's ``sabotage`` to the reference first; ``--solution fixture``
+writes nothing, so the workspace is the starting point (the fixture, or nothing) and the checks must
+fail it. The output is a JSON summary shaped like ``new --json``, so the harness treats both teams
+the same way.
 """
 
 from __future__ import annotations
@@ -22,14 +24,18 @@ from engineering_team.bench.tasks import BenchError, BenchTask, load_task
 FAKE_MODEL = "ollama/qwen3.8:27b"  # a priced (free) model name, so the cost reads $0.00
 WRITE_TOOL = "Write Project File"
 SKIP_SUFFIXES = (".pyc",)
+SOLUTIONS = ("reference", "broken", "fixture")
 
 
 def reference_files(task: BenchTask, solution: str = "reference") -> dict[str, str]:
-    """The files the fake team writes: the reference, or the reference after the task's sabotage."""
+    """The files the fake team writes: the reference, the reference after the task's sabotage, or
+    nothing (``fixture``: the work not done)."""
 
-    if solution not in ("reference", "broken"):
-        raise BenchError(f"solution must be 'reference' or 'broken', not {solution!r}.")
+    if solution not in SOLUTIONS:
+        raise BenchError(f"solution must be 'reference', 'broken' or 'fixture', not {solution!r}.")
     files: dict[str, str] = {}
+    if solution == "fixture":
+        return files
     root = task.reference_dir
     for path in sorted(root.rglob("*")):
         relative = path.relative_to(root)
@@ -77,7 +83,7 @@ def replay(files: dict[str, str], workspace: Path, run_id: str) -> dict[str, Any
         Turn(ToolCall(WRITE_TOOL, {"path": path, "content": content}), 400, 120)
         for path, content in files.items()
     ]
-    script.append(Turn("Wrote the reference solution.", 300, 20))
+    script.append(Turn("Wrote the reference solution." if files else "Changed nothing.", 300, 20))
     llm = ScriptedLLM(script, model=FAKE_MODEL)
     error = ""
     try:
@@ -131,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--task-dir", type=Path, required=True)
     parser.add_argument("--workspace", type=Path, required=True)
     parser.add_argument("--run-id", required=True)
-    parser.add_argument("--solution", choices=("reference", "broken"), default="reference")
+    parser.add_argument("--solution", choices=SOLUTIONS, default="reference")
     args = parser.parse_args(argv)
     try:
         files = reference_files(load_task(args.task_dir), args.solution)

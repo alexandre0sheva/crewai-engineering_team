@@ -144,8 +144,16 @@ def test_only_settings_and_subprocess_code_read_the_process_environment() -> Non
     # docker.py reads only DOCKER_* and the few variables the docker client itself needs. The
     # benchmark harness builds the environment of the processes it starts: acceptance.py a
     # scrubbed one for the hidden checks, prepare.py the team's (the live environment plus a few
-    # variables).
-    allowed = {"loading.py", "commands.py", "docker.py", "acceptance.py", "prepare.py"}
+    # variables); checklib.py runs inside a check, reading that scrubbed environment (where its
+    # toolchain commands run) and passing it on to them.
+    allowed = {
+        "loading.py",
+        "commands.py",
+        "docker.py",
+        "acceptance.py",
+        "prepare.py",
+        "checklib.py",
+    }
     offenders = []
     for path in (ROOT / "src" / "engineering_team").rglob("*.py"):
         text = path.read_text(encoding="utf-8")

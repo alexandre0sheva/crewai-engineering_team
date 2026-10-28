@@ -1,0 +1,21 @@
+id: ambiguous-export
+title: An ambiguous request (sort by which name?) that needs a recorded assumption
+kind: greenfield
+mode: new
+split: heldout
+intent: new_project
+size: small
+difficulty: medium
+languages: [python]
+scale: 0.5
+criteria:
+  - {id: sort-command, text: "python -m contacts sort IN OUT writes every row and column, sorted, exit 0"}
+  - {id: errors, text: "a missing input or a missing name column exits 2 with a message on stderr"}
+  - {id: assumption-recorded, text: "a document states which name (first or last) the sort uses"}
+  - {id: behaviour-matches-assumption, text: "the order the tool writes is the one the document states"}
+sabotage:
+  fails: [behaviour-matches-assumption]
+  edits:
+    - path: contacts/sorting.py
+      old: "return (last.casefold(), name.casefold())"
+      new: "return (name.casefold(), last.casefold())"

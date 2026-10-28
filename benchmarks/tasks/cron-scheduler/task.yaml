@@ -2,7 +2,11 @@ id: cron-scheduler
 title: Cron-like schedule calculator
 kind: greenfield
 mode: new
-subset: heldout
+split: heldout
+intent: new_project
+size: small
+difficulty: hard
+languages: [python]
 scale: 0.9
 criteria:
   - {id: simple-schedules, text: "wildcards, fixed values and */n give the right next times"}

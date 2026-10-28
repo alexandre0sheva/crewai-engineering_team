@@ -1,0 +1,27 @@
+id: answer-questions
+title: Answer questions about a codebase with checked citations
+kind: brownfield
+mode: maintain
+maintain_task: docs
+split: heldout
+intent: question
+size: small
+difficulty: medium
+languages: [python]
+scale: 0.4
+criteria:
+  - {id: q1-free-shipping, text: "Q1 names the 60.00 threshold and PARCELS_FREE_FROM, citing where they are"}
+  - {id: q2-heavy-orders, text: "Q2 says the order is split evenly into parcels of at most 31.5 kg, citing the code"}
+  - {id: q3-carrier, text: "Q3 names postnl and PARCELS_CARRIER, citing the settings"}
+  - {id: q4-delivery, text: "Q4 covers the 15:00 cutoff, weekends and holidays, citing delivery.py"}
+  - {id: citations-real, text: "every citation names an existing file and lines inside it"}
+  - {id: code-unchanged, text: "no code or test was changed"}
+sabotage:
+  fails: [q4-delivery, citations-real]
+  edits:
+    - path: ANSWERS.md
+      old: "(parcels/delivery.py:14-22,\nparcels/delivery.py:29-30)"
+      new: "(parcels/schedule.py:14-22)"
+    - path: ANSWERS.md
+      old: "(parcels/delivery.py:11 and parcels/delivery.py:27-28)"
+      new: "(parcels/delivery.py:111)"

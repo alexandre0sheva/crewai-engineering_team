@@ -2,7 +2,11 @@ id: legacy-feature
 title: Add a low-stock report to a legacy WSGI inventory service
 kind: brownfield
 mode: feature
-subset: dev
+split: dev
+intent: feature
+size: small
+difficulty: medium
+languages: [python]
 scale: 0.8
 criteria:
   - {id: low-stock-report, text: "GET /items/low-stock lists items below the threshold, sorted as specified"}

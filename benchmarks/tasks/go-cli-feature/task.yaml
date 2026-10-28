@@ -1,0 +1,23 @@
+id: go-cli-feature
+title: Add two flags to a Go command-line tool, with table tests
+kind: brownfield
+mode: feature
+split: heldout
+intent: feature
+size: small
+difficulty: medium
+languages: [go]
+toolchains: [go]
+scale: 0.6
+criteria:
+  - {id: json-format, text: "-format json prints the ranked words as a JSON array ([] for none)"}
+  - {id: min-length, text: "-min-length skips shorter words (counted in characters) before -top"}
+  - {id: flag-errors, text: "bad -format and -min-length values exit 2 with the stated messages"}
+  - {id: defaults-unchanged, text: "without the new flags the output and errors are as before"}
+  - {id: table-tests, text: "go test passes and the new flags have tests"}
+sabotage:
+  fails: [min-length]
+  edits:
+    - path: internal/count/count.go
+      old: "if utf8.RuneCountInString(word) >= c.minLength {"
+      new: "if len(word) >= c.minLength && utf8.ValidString(word) {"

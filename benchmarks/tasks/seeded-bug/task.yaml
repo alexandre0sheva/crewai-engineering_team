@@ -2,7 +2,11 @@ id: seeded-bug
 title: Fix a ZeroDivisionError from a stack trace
 kind: brownfield
 mode: fix
-subset: dev
+split: dev
+intent: bugfix
+size: small
+difficulty: easy
+languages: [python]
 scale: 0.6
 trace_file: trace.txt
 criteria:

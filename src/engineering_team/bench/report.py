@@ -20,7 +20,7 @@ from engineering_team.bench.stats import cost_per_success, mean, median, total_c
 
 SMALL_SAMPLE = 20  # below this many counted runs the interval is wide enough to need a warning
 CSV_COLUMNS = (
-    "batch", "task", "strategy", "repeat", "kind", "mode", "subset", "provider", "profile",
+    "batch", "task", "strategy", "repeat", "kind", "mode", "intent", "split", "provider", "profile",
     "fake", "outcome", "reason", "failed_criteria", "exit_code", "team_status", "team_verdict",
     "duration_seconds", "tokens", "prompt_tokens", "cached_prompt_tokens", "completion_tokens",
     "model_calls", "sessions", "tool_calls", "cost_usd", "repair_rounds", "tool_failures",
@@ -142,7 +142,7 @@ GROUP_HEADERS = [
 
 
 def render_markdown(batch: dict[str, Any], records: list[RunRecord]) -> str:
-    """The report: header, results by strategy, kind and subset, by task, and every failure."""
+    """The report: header, results by strategy, kind and split, by task, and every failure."""
 
     name = batch.get("batch") or (records[0].batch if records else "batch")
     versions = batch.get("versions") or {}
@@ -197,10 +197,10 @@ def render_markdown(batch: dict[str, Any], records: list[RunRecord]) -> str:
             for g in group_by(records, lambda r: r.strategy)
         ],
     )  # fmt: skip
-    lines += ["", "## By task kind and subset", ""]
+    lines += ["", "## By task kind and split", ""]
     lines += _table(
-        ["Strategy / kind / subset", *GROUP_HEADERS[1:]],
-        group_rows(group_by(records, lambda r: f"{r.strategy} · {r.kind} · {r.subset}")),
+        ["Strategy / kind / split", *GROUP_HEADERS[1:]],
+        group_rows(group_by(records, lambda r: f"{r.strategy} · {r.kind} · {r.split}")),
     )
     lines += ["", "## By task", ""]
     lines += _table(
@@ -216,7 +216,8 @@ def render_markdown(batch: dict[str, Any], records: list[RunRecord]) -> str:
             [
                 [
                     r.task, r.strategy, str(r.repeat), r.outcome,
-                    ", ".join(r.failed_criteria) or "–", r.reason.replace("|", "\\|") or "–",
+                    ", ".join(r.failed_criteria or r.errored_criteria) or "–",
+                    r.reason.replace("|", "\\|") or "–",
                 ]
                 for r in failures
             ],
@@ -226,7 +227,8 @@ def render_markdown(batch: dict[str, Any], records: list[RunRecord]) -> str:
     if other:
         lines += [
             "",
-            f"{len(other)} run(s) did not count towards pass rates (harness error or not started).",
+            f"{len(other)} run(s) did not count towards pass rates (harness or check error, or "
+            "not started).",
         ]
     skipped = batch.get("not_applicable") or []
     if skipped:

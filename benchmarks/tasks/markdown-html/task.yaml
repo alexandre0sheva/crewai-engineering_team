@@ -2,7 +2,11 @@ id: markdown-html
 title: Markdown to HTML converter
 kind: greenfield
 mode: new
-subset: dev
+split: dev
+intent: new_project
+size: small
+difficulty: medium
+languages: [python]
 scale: 0.8
 criteria:
   - {id: headings-and-paragraphs, text: "ATX headings and paragraphs"}

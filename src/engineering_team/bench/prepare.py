@@ -20,6 +20,8 @@ from engineering_team.bench.plan import RunOptions, RunSpec
 from engineering_team.bench.tasks import BenchTask, copy_tree
 
 PROJECT = "app"  # the directory name of a new project and the project name of a repository run
+REVIEW_BRANCH = "change"  # review tasks: the branch with the change, on top of ``main``
+REVIEW_OUT = "review-out"  # review tasks: where findings.json lands, inside the workspace
 GIT_IDENTITY = {
     "GIT_AUTHOR_NAME": "bench",
     "GIT_AUTHOR_EMAIL": "bench@example.invalid",
@@ -53,12 +55,18 @@ def _git(repo: Path, *args: str) -> None:
 
 
 def _make_repository(task: BenchTask, repo: Path) -> None:
-    """The fixture as a clean Git repository on ``main`` with one commit."""
+    """The fixture as a clean Git repository on ``main`` with one commit; a review task's
+    ``change/`` is one more commit, on the branch ``change``."""
 
     copy_tree(task.fixture_dir, repo)
     _git(repo, "init", "-q", "-b", "main")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "fixture")
+    if task.mode == "review":
+        _git(repo, "checkout", "-q", "-b", REVIEW_BRANCH)
+        copy_tree(task.change_dir, repo)
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "the change to review")
 
 
 def neutral_settings_environment(run_dir: Path) -> dict[str, str]:
@@ -141,6 +149,10 @@ def prepare(spec: RunSpec, options: RunOptions, run_dir: Path) -> Prepared:
     if task.mode == "new":
         argv += ["new", "--request-file", str(request), "--project-name", PROJECT]
         argv += ["--strategy", spec.strategy]
+    elif task.mode == "review":  # read-only: no request file, project name, sandbox or prompts
+        argv += ["review", "--repo", str(workspace), "--base", "main"]
+        argv += ["--focus", task.request_path.read_text(encoding="utf-8").strip()]
+        argv += ["--out-dir", str(workspace / REVIEW_OUT)]
     else:
         argv += [task.mode, "--repo", str(workspace), "--project-name", PROJECT]
         if task.mode == "maintain":
@@ -155,10 +167,11 @@ def prepare(spec: RunSpec, options: RunOptions, run_dir: Path) -> Prepared:
     for flag, value in (
         ("--provider", options.provider),
         ("--profile", options.profile),
-        ("--sandbox", options.sandbox),
+        ("--sandbox", None if task.mode == "review" else options.sandbox),
         ("--config", options.config),
     ):
         if value:
             argv += [flag, value]
-    argv.append("--non-interactive")
+    if task.mode != "review":
+        argv.append("--non-interactive")
     return Prepared(run_dir, workspace, argv, _live_environment(options, run_dir, task), run_id)

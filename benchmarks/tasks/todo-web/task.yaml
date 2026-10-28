@@ -2,7 +2,11 @@ id: todo-web
 title: Minimal todo web app
 kind: greenfield
 mode: new
-subset: dev
+split: dev
+intent: new_project
+size: small
+difficulty: medium
+languages: [python]
 scale: 1.0
 criteria:
   - {id: page-renders, text: "GET / serves an HTML page with the add form"}

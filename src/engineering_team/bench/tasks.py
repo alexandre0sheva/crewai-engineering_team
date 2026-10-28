@@ -6,6 +6,7 @@ A task lives in ``<suite>/tasks/<id>/``::
     request.md       what the team is asked (the only text it sees)
     acceptance/      hidden checks (``checks.py``): run by the harness, outside the workspace
     fixture/         brownfield only: the project the team starts from
+    change/          review only: files committed over the fixture on a branch to review
     reference/       a known-good solution: written over the fixture (or an empty workspace)
 
 ``task.yaml`` also names a ``sabotage``: edits that break the reference on purpose, and the
@@ -17,10 +18,17 @@ from __future__ import annotations
 import re
 import shutil
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 SLUG = re.compile(r"[a-z0-9][a-z0-9-]*")
 MAINTAIN_PRESETS = ("add-tests", "refactor", "upgrade-deps", "docs", "security-audit", "custom")
@@ -31,8 +39,23 @@ SKIP_NAMES = frozenset(
 CONTROLLER_NAMES = frozenset({".engineering-team"})
 
 Kind = Literal["greenfield", "brownfield"]
-Mode = Literal["new", "feature", "fix", "maintain"]
-Subset = Literal["dev", "heldout"]
+Mode = Literal["new", "feature", "fix", "maintain", "review"]
+Split = Literal["dev", "heldout"]
+Size = Literal["trivial", "small", "medium", "large"]
+Difficulty = Literal["easy", "medium", "hard"]
+Toolchain = Literal["node", "go"]
+# What kind of work a task is (the triage intents of docs/IMPLEMENTATION_PLAN_0.3.0.md, task 10).
+Intent = Literal[
+    "question", "research", "review", "bugfix", "feature", "new_project", "refactor", "tests",
+    "docs", "upgrade_deps", "security_audit", "performance", "devops", "plan_only",
+]  # fmt: skip
+INTENTS: tuple[str, ...] = get_args(Intent)
+# The intent of a 0.2.0 task.yaml that names none: from its mode (and maintain recipe).
+MODE_INTENTS = {"new": "new_project", "feature": "feature", "fix": "bugfix", "review": "review"}
+RECIPE_INTENTS = {
+    "add-tests": "tests", "refactor": "refactor", "upgrade-deps": "upgrade_deps", "docs": "docs",
+    "security-audit": "security_audit", "custom": "feature",
+}  # fmt: skip
 
 
 class BenchError(ValueError):
@@ -75,9 +98,13 @@ class BenchTask(_Strict):
     id: str
     title: str
     kind: Kind
-    mode: Mode
-    subset: Subset = "dev"  # "heldout" tasks are never used to tune defaults (docs/BENCHMARKS.md)
-    language: str = "python"
+    mode: Mode  # the command a live run uses
+    intent: Intent  # what kind of work it is (derived from ``mode`` when a task omits it)
+    split: Split = "dev"  # "heldout" tasks are never used to tune defaults (docs/BENCHMARKS.md)
+    size: Size = "small"
+    difficulty: Difficulty = "medium"
+    languages: list[str] = Field(default_factory=lambda: ["python"], min_length=1)
+    toolchains: list[Toolchain] = []  # what the checks need besides Python (run in Docker)
     timeout_seconds: int = Field(default=1800, ge=60)
     scale: float = Field(default=1.0, gt=0)  # relative size, for the ``--dry-run`` estimate
     request: str = "request.md"
@@ -87,6 +114,29 @@ class BenchTask(_Strict):
     criteria: list[Criterion] = Field(min_length=1)
     sabotage: Sabotage
     root: Path = Field(default=Path("."), exclude=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _upgrade(cls, data: Any) -> Any:
+        """Read a 0.2.0 ``task.yaml``: ``subset`` is ``split``, ``language`` is ``languages``,
+        and a missing ``intent`` follows from the mode."""
+
+        if not isinstance(data, dict):
+            return data
+        data = dict(data)
+        if "subset" in data and "split" not in data:
+            data["split"] = data.pop("subset")
+        if isinstance(data.get("language"), str) and "languages" not in data:
+            data["languages"] = [data.pop("language")]
+        if "intent" not in data:
+            mode = data.get("mode")
+            recipe = data.get("maintain_task")
+            data["intent"] = (
+                RECIPE_INTENTS.get(str(recipe), "feature")
+                if mode == "maintain"
+                else MODE_INTENTS.get(str(mode), "feature")
+            )
+        return data
 
     @field_validator("id")
     @classmethod
@@ -98,6 +148,12 @@ class BenchTask(_Strict):
     @property
     def fixture_dir(self) -> Path:
         return self.root / "fixture"
+
+    @property
+    def change_dir(self) -> Path:
+        """Review tasks: what is committed over the fixture on the branch the team reviews."""
+
+        return self.root / "change"
 
     @property
     def reference_dir(self) -> Path:
@@ -132,6 +188,8 @@ class BenchTask(_Strict):
             problems.append("a fix task needs trace_file or repro")
         if self.mode == "maintain" and self.maintain_task not in MAINTAIN_PRESETS:
             problems.append(f"maintain_task must be one of {', '.join(MAINTAIN_PRESETS)}")
+        if self.mode == "review" and not self.change_dir.is_dir():
+            problems.append("a review task needs a change/ directory (the branch to review)")
         for name in (self.request, self.trace_file):
             if name and not (self.root / name).is_file():
                 problems.append(f"missing file {name}")
@@ -182,27 +240,6 @@ def load_suite(suite: Path) -> list[BenchTask]:
     if not found:
         raise BenchError(f"{tasks_dir} contains no tasks.")
     return found
-
-
-def select_tasks(
-    tasks: list[BenchTask], names: list[str] | None, subset: str = "all"
-) -> list[BenchTask]:
-    """The tasks a run asks for: ``names`` (ids or ``all``) within ``subset`` (dev/heldout/all)."""
-
-    wanted = [item.strip() for raw in names or [] for item in raw.split(",") if item.strip()]
-    by_id = {task.id: task for task in tasks}
-    unknown = [name for name in wanted if name != "all" and name not in by_id]
-    if unknown:
-        raise BenchError(f"Unknown task(s): {', '.join(unknown)}. Known: {', '.join(by_id)}.")
-    chosen = (
-        tasks if not wanted or "all" in wanted else [by_id[name] for name in dict.fromkeys(wanted)]
-    )
-    if subset not in ("all", "dev", "heldout"):
-        raise BenchError(f"--subset must be dev, heldout, or all, not {subset!r}.")
-    chosen = [task for task in chosen if subset == "all" or task.subset == subset]
-    if not chosen:
-        raise BenchError("No task matches that selection.")
-    return sorted(chosen, key=lambda task: task.id)
 
 
 def copy_tree(source: Path, destination: Path) -> list[str]:

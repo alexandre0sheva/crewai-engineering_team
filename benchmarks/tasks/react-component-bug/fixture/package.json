@@ -1,0 +1,17 @@
+{
+  "name": "shop-ui",
+  "version": "2.1.0",
+  "private": true,
+  "type": "module",
+  "description": "React components for the shop's checkout pages.",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "vitest": "5.0.5"
+  }
+}

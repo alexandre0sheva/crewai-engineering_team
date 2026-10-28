@@ -7,6 +7,7 @@ a fixture. Method, task format, and threat model: [docs/BENCHMARKS.md](../docs/B
 ```bash
 uv run engineering-team bench list
 uv run engineering-team bench run --fake      # offline: validates the harness
+uv run engineering-team bench spend           # the release's live spend (budget.toml, spend.jsonl)
 ```
 
 Results go to `benchmarks/.runs/` (git-ignored).

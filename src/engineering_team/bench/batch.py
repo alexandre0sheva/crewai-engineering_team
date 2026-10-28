@@ -113,7 +113,11 @@ def write_batch_manifest(
             "run_budget_usd": options.run_budget_usd,
             "planned_runs": planned,
             "not_applicable": [{"task": t, "strategy": s} for t, s in not_applicable],
-            "tasks": {t.id: {"subset": t.subset, "digest": task_digest(t)} for t in tasks},
+            "acceptance_sandbox": options.acceptance_sandbox,
+            "tasks": {
+                t.id: {"split": t.split, "intent": t.intent, "digest": task_digest(t)}
+                for t in tasks
+            },
             "versions": {
                 "engineering_team": _version("engineering_team"),
                 "crewai": _version("crewai"),

@@ -72,7 +72,7 @@ def test_the_markdown_report_has_the_tables_and_lists_every_failure() -> None:
     assert text.startswith("# Benchmark report: demo")
     for heading in (
         "## Results by strategy",
-        "## By task kind and subset",
+        "## By task kind and split",
         "## By task",
         "## Failures (5)",
     ):
@@ -169,3 +169,18 @@ def test_an_unpriced_model_makes_the_estimate_unknown(specs: list[RunSpec]) -> N
 
     assert found.total_usd is None and found.range_usd is None
     assert "openai/not-priced-yet" in found.unpriced_models
+
+
+def test_old_results_with_subset_still_read_and_errored_criteria_are_shown() -> None:
+    from engineering_team.bench.results import CriterionRecord, RunRecord
+
+    old = RunRecord.model_validate(
+        {"batch": "b", "task": "t", "strategy": "pipeline", "repeat": 1, "kind": "greenfield",
+         "mode": "new", "subset": "heldout", "outcome": "error", "reason": "checks could not judge",
+         "criteria": [CriterionRecord(id="c", passed=False, error=True)]}
+    )  # fmt: skip
+
+    assert old.split == "heldout" and old.intent == ""
+    assert old.failed_criteria == [] and old.errored_criteria == ["c"]
+    text = render_markdown({"batch": "b"}, [old])
+    assert "| t | pipeline | 1 | error | c |" in text

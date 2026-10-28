@@ -1,0 +1,24 @@
+id: review-auth-change
+title: Review a login-session change with four seeded defects
+kind: brownfield
+mode: review
+split: heldout
+intent: review
+size: small
+difficulty: medium
+languages: [python]
+scale: 0.5
+criteria:
+  - {id: findings-written, text: "the review wrote findings.json with a findings list"}
+  - {id: recall, text: "at least 3 of the 4 seeded defects are found (file and line, or file and wording)"}
+  - {id: serious-rated, text: "the security defects that are found are rated high or critical"}
+  - {id: precision, text: "at least half of the medium-or-worse findings point at a seeded defect"}
+sabotage:
+  fails: [recall]
+  edits:
+    - path: review-out/findings.json
+      old: '"file": "accounts/sessions.py", "line": 56,'
+      new: '"file": "accounts/users.py", "line": 56,'
+    - path: review-out/findings.json
+      old: '"file": "accounts/sessions.py", "line": 37,'
+      new: '"file": "accounts/passwords.py", "line": 37,'

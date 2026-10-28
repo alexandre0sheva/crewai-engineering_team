@@ -2,7 +2,11 @@ id: notes-cli
 title: Notes command-line tool
 kind: greenfield
 mode: new
-subset: dev
+split: dev
+intent: new_project
+size: small
+difficulty: easy
+languages: [python]
 scale: 0.6
 criteria:
   - {id: add-and-list, text: "`add` prints the new id and `list` shows notes oldest first with their tags"}

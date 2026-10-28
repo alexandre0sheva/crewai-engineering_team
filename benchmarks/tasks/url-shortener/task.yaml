@@ -2,7 +2,11 @@ id: url-shortener
 title: URL shortener HTTP API
 kind: greenfield
 mode: new
-subset: dev
+split: dev
+intent: new_project
+size: small
+difficulty: medium
+languages: [python]
 scale: 0.9
 criteria:
   - {id: shorten-and-redirect, text: "POST /shorten returns a code; GET /<code> redirects to the URL"}

@@ -3,7 +3,11 @@ title: Add tests to an untested module
 kind: brownfield
 mode: maintain
 maintain_task: add-tests
-subset: dev
+split: dev
+intent: tests
+size: small
+difficulty: easy
+languages: [python]
 scale: 0.6
 criteria:
   - {id: tests-pass, text: "the new suite runs and passes against the unchanged module (at least 8 tests)"}

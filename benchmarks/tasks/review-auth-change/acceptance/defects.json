@@ -1,0 +1,15 @@
+[
+  {"id": "password-in-log", "serious": true,
+   "locations": [{"file": "accounts/sessions.py", "lines": [41, 43]}],
+   "keywords": ["password", "log", "plaintext", "plain text", "sensitive"]},
+  {"id": "predictable-token", "serious": true,
+   "locations": [{"file": "accounts/sessions.py", "lines": [45, 45]},
+                 {"file": "accounts/sessions.py", "lines": [6, 6]}],
+   "keywords": ["random", "predictable", "secrets", "cryptographic", "csprng", "guess"]},
+  {"id": "expiry-inverted", "serious": false,
+   "locations": [{"file": "accounts/sessions.py", "lines": [56, 59]}],
+   "keywords": ["expir", "inverted", "never", "valid", "comparison"]},
+  {"id": "permanent-lockout", "serious": false,
+   "locations": [{"file": "accounts/sessions.py", "lines": [37, 41]}],
+   "keywords": ["lock", "denial", "dos", "reset", "anyone"]}
+]

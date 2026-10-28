@@ -11,6 +11,21 @@ renames that section and dates it.
 
 ### Added
 
+- Benchmark v2: 22 tasks in Python, TypeScript and Go over nine intents, including an Express API feature, a
+  React/Vitest bug, a Go CLI feature, a 2,000-line project with a misleading stack trace, a multi-file refactor,
+  two reviews scored by recall and precision against seeded defects, questions answered with checked citations,
+  an ambiguous request, and a dependency upgrade across a breaking API. Fixed dev/held-out splits (9 of 22 held
+  out).
+- `task.yaml` gains `intent`, `split`, `size`, `difficulty`, `languages` and `toolchains`; `bench run` filters on
+  them (`--split`, `--intent`, `--language`, `--size`, `--difficulty`) and `bench list` shows them. 0.2.0 task
+  files (`subset`, `language`) still load.
+- Node and Go checks run in Docker images with no network (`benchmarks/images/`), or on this machine with
+  `--acceptance-sandbox local` and `--node-modules DIR`.
+- `bench run --fake --fake-solution fixture`: the untouched fixture must fail every task, beside the reference
+  passing and the sabotaged solution failing.
+- The release spend ledger: `benchmarks/budget.toml` and the append-only `benchmarks/spend.jsonl`. A live
+  `bench run` needs `--allocation TASK`, prints its estimate, refuses to start over an allocation or the release
+  cap (with the numbers), and records what it cost; `bench spend` shows allocated, spent and left.
 - `doctor --probe-tools`: sends each distinct model one tiny tool-calling request (cents) and reports whether it
   can call tools or only answers in text.
 - `trace [RUN] [--stage S] [--format text|json]` and `trajectory.jsonl`: every tool call is recorded with its
@@ -32,6 +47,10 @@ renames that section and dates it.
 
 ### Changed
 
+- A benchmark check that cannot judge (a missing toolchain, Docker not running, a missing check function) is
+  recorded as `error`, left out of pass rates and repeated by `--resume`, instead of failing the run. `result.json`
+  is schema 2 (`split` instead of `subset`, plus `intent` and a per-criterion `error`); version 1 files still read.
+  Reports say "split" for the dev/held-out table.
 - The pipeline is lean by default: each run is sized (small, medium, large) before any model is called. A small
   new project takes three agent sessions instead of eleven: one `design` session writes the spec and the plan
   (the controller records `docs/spec.md` and `docs/plan.md`), one engineer builds the whole plan (a plan of one

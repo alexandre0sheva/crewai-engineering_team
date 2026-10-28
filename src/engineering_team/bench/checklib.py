@@ -6,7 +6,12 @@ ends with ``if __name__ == "__main__": main()``. The harness runs one criterion 
 
     python checks.py <criterion-id> <workspace-copy>
 
-It judges only behaviour: it runs the team's program and looks at what it does.
+It judges only behaviour: it runs the team's program and looks at what it does. Exit status 0 is a
+pass and 1 a fail; anything else (``CheckError``: a missing toolchain, Docker not running) means
+the check could not judge, and the harness records an ``error``, never a fail.
+
+Tasks that need Node or Go run those tools through :func:`toolchain`: in a Docker image by default
+(``benchmarks/images/<name>/``, no network), or on this machine with ``--acceptance-sandbox local``.
 """
 
 from __future__ import annotations
@@ -14,6 +19,9 @@ from __future__ import annotations
 import contextlib
 import http.client
 import json
+import os
+import secrets
+import shutil
 import socket
 import subprocess
 import sys
@@ -26,6 +34,18 @@ from typing import Any
 from urllib.parse import urlsplit
 
 DEFAULT_TIMEOUT = 20.0
+ERROR_EXIT = 3
+SANDBOX_ENV = "BENCH_ACCEPTANCE_SANDBOX"  # docker (default) or local
+NODE_MODULES_ENV = "BENCH_NODE_MODULES"  # local only: a node_modules directory with the task deps
+IMAGES = {"node": "engineering-team-bench-node:1", "go": "engineering-team-bench-go:1"}
+IMAGE_APP_DIR = "/opt/bench/app"  # the images keep their packages in /opt/bench/node_modules
+GO_ENV = {"GOFLAGS": "-mod=mod", "GOPROXY": "off", "GOTOOLCHAIN": "local", "CGO_ENABLED": "0"}
+
+
+class CheckError(Exception):
+    """The check cannot judge (its toolchain is missing, Docker is down): an ``error``, not a fail.
+
+    Never raise it for anything the team's work could cause."""
 
 
 def expect(condition: object, message: str) -> None:
@@ -70,6 +90,85 @@ def run(
         )
     except subprocess.TimeoutExpired:
         raise AssertionError(f"`{' '.join(argv)}` did not finish within {timeout:g}s") from None
+
+
+def toolchain(
+    workspace: Path,
+    name: str,
+    *argv: str,
+    node_modules: bool = False,
+    timeout: float = 180.0,
+) -> subprocess.CompletedProcess[str]:
+    """Run ``argv`` (``node ...``, ``npx vitest ...``, ``go test ...``) on the workspace with the
+    ``name`` toolchain: in its Docker image, or locally with ``--acceptance-sandbox local``.
+
+    ``node_modules``: the command needs the task's npm packages (the image has them; locally they
+    come from ``--node-modules DIR``). The workspace is a scratch copy, so files may be added.
+    """
+
+    if name not in IMAGES:
+        raise CheckError(f"unknown toolchain {name!r}")
+    if os.environ.get(SANDBOX_ENV, "docker") == "local":
+        return _local(workspace, name, list(argv), node_modules, timeout)
+    return _docker(workspace, name, list(argv), timeout)
+
+
+def _local(
+    workspace: Path, name: str, argv: list[str], node_modules: bool, timeout: float
+) -> subprocess.CompletedProcess[str]:
+    program = argv[0]
+    if "/" in program:  # a program in the workspace (a binary the check built)
+        argv = [str((workspace / program).resolve()), *argv[1:]]
+    elif shutil.which(program) is None:
+        raise CheckError(
+            f"{argv[0]} is not on PATH: install the {name} toolchain or use the Docker sandbox"
+        )
+    env = dict(os.environ)
+    if name == "go":
+        home = Path(env.get("HOME") or workspace.parent)
+        env.update(GO_ENV, GOCACHE=str(home / "go-cache"), GOPATH=str(home / "go"))
+    if node_modules and not (workspace / "node_modules").exists():
+        modules = os.environ.get(NODE_MODULES_ENV)
+        if not modules or not Path(modules).is_dir():
+            raise CheckError(
+                "this check needs the task's npm packages: pass --node-modules DIR (see "
+                "benchmarks/images/node/package.json) or use the Docker sandbox"
+            )
+        (workspace / "node_modules").symlink_to(Path(modules).resolve(), target_is_directory=True)
+    try:
+        return run(argv, workspace, timeout=timeout, env=env)
+    except OSError as exc:  # a binary that cannot run here (another CPU type, ...)
+        raise CheckError(f"cannot run {argv[0]}: {exc}") from None
+
+
+def _docker(
+    workspace: Path, name: str, argv: list[str], timeout: float
+) -> subprocess.CompletedProcess[str]:
+    image = IMAGES[name]
+    if shutil.which("docker") is None:
+        raise CheckError("docker is not on PATH: install Docker or pass --acceptance-sandbox local")
+    probe = run(["docker", "image", "inspect", image], workspace, timeout=60)
+    if probe.returncode != 0:
+        if "daemon" in probe.stderr.lower() or "connect" in probe.stderr.lower():
+            raise CheckError("Docker is not running: start it or pass --acceptance-sandbox local")
+        raise CheckError(
+            f"no image {image}: build it with `docker build -t {image} benchmarks/images/{name}`"
+        )
+    container = f"bench-check-{secrets.token_hex(4)}"
+    settings = [f"{k}={v}" for k, v in GO_ENV.items()] if name == "go" else []
+    command = [
+        "docker", "run", "--rm", "--name", container, "--network", "none",
+        "--memory", "2g", "--pids-limit", "512", "-e", "HOME=/tmp",
+        *(arg for pair in settings for arg in ("-e", pair)),
+        "-v", f"{workspace.resolve()}:{IMAGE_APP_DIR}", "-w", IMAGE_APP_DIR, image, *argv,
+    ]  # fmt: skip
+    if hasattr(os, "getuid"):
+        command[3:3] = ["--user", f"{os.getuid()}:{os.getgid()}"]
+    try:
+        return run(command, workspace, timeout=timeout)
+    finally:
+        with contextlib.suppress(Exception):
+            subprocess.run(["docker", "rm", "-f", container], capture_output=True, timeout=30)
 
 
 def free_port() -> int:
@@ -176,10 +275,13 @@ def main() -> None:
     criterion, workspace = sys.argv[1], Path(sys.argv[2]).resolve()
     function = vars(sys.modules["__main__"]).get(f"check_{criterion.replace('-', '_')}")
     if function is None:
-        print(f"no check_{criterion.replace('-', '_')} in the checks file")
-        sys.exit(2)
+        print(f"ERROR: no check_{criterion.replace('-', '_')} in the checks file")
+        sys.exit(ERROR_EXIT)
     try:
         function(workspace)
+    except CheckError as exc:
+        print(f"ERROR: the check could not judge: {exc}")
+        sys.exit(ERROR_EXIT)
     except AssertionError as exc:
         print(f"FAILED: {exc}")
         sys.exit(1)

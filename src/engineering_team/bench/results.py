@@ -12,24 +12,26 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ValidationError
+from pydantic import AliasChoices, BaseModel, Field, ValidationError
 
 from engineering_team.atomic_io import atomic_write_json
 
 # passed: every required criterion holds. failed: the team finished (or stopped) and one does not.
-# timeout: it ran out of wall-clock time. error: the harness could not run it (not the team's
-# fault; left out of pass rates). skipped: not started, because the batch budget was spent.
+# timeout: it ran out of wall-clock time. error: the harness could not run it, or a check could
+# not judge it (not the team's fault; left out of pass rates and never kept by ``--resume``).
+# skipped: not started, because the batch budget was spent.
 Outcome = Literal["passed", "failed", "timeout", "error", "skipped"]
 COUNTED: frozenset[str] = frozenset({"passed", "failed", "timeout"})
 
 RESULT_FILE = "result.json"
 BATCH_FILE = "batch.json"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # 2: ``split`` (was ``subset``), ``intent``, criterion ``error``
 
 
 class CriterionRecord(BaseModel):
     id: str
     passed: bool
+    error: bool = False  # the check could not judge (a missing toolchain): neither pass nor fail
     required: bool = True
     detail: str = ""
     duration: float = 0.0
@@ -45,7 +47,8 @@ class RunRecord(BaseModel):
     repeat: int
     kind: str
     mode: str
-    subset: str
+    split: str = Field(validation_alias=AliasChoices("split", "subset"))
+    intent: str = ""
     provider: str | None = None
     profile: str | None = None
     fake: bool = False
@@ -80,7 +83,11 @@ class RunRecord(BaseModel):
 
     @property
     def failed_criteria(self) -> list[str]:
-        return [c.id for c in self.criteria if c.required and not c.passed]
+        return [c.id for c in self.criteria if c.required and not c.passed and not c.error]
+
+    @property
+    def errored_criteria(self) -> list[str]:
+        return [c.id for c in self.criteria if c.required and c.error]
 
 
 def write_result(run_dir: Path, record: RunRecord) -> None:

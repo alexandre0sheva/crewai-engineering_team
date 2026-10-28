@@ -1,0 +1,12 @@
+{
+  "name": "durations",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Add up and summarise time durations such as 1h30m.",
+  "bin": { "durations": "src/cli.ts" },
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": { "node": ">=24" }
+}

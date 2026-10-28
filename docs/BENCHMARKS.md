@@ -8,8 +8,9 @@ the offline mode says nothing about quality.
 ```bash
 uv run engineering-team bench list                      # the tasks
 uv run engineering-team bench run --fake                # offline: validates the harness, no model
-uv run engineering-team bench run --dry-run --strategy pipeline,single --repeat 2 --provider openai
-uv run engineering-team bench run --budget-usd 20 --strategy pipeline,single --repeat 2 --parallel 3
+uv run engineering-team bench run --dry-run --split dev --strategy pipeline,single --provider openai
+uv run engineering-team bench spend                     # the release's live spend, per allocation
+uv run engineering-team bench run --split dev --intent bugfix --budget-usd 1 --allocation T33
 uv run engineering-team bench report                    # the latest batch (Markdown + CSV)
 ```
 
@@ -18,36 +19,80 @@ pass `--suite DIR` when running from elsewhere.
 
 ## The suite
 
-Ten small tasks, each a request a person could write, with a fixture of at most ~300 lines for the
-brownfield ones. Everything is Python and the standard library, so a check never needs a package
-install or network access.
+Twenty-two tasks in three languages and nine intents, each a request a person could write. The
+first ten (0.2.0) are small Python programs; 0.3.0 added work that small greenfield programs do not
+measure: TypeScript and Go, a 2,000-line project with a misleading stack trace, a multi-file
+refactor, reviews scored against seeded defects, questions answered with checked citations, an
+ambiguous request, and a dependency upgrade across a breaking API.
 
-| Task | Kind | Mode | Subset | What the team is asked |
-|------|------|------|--------|------------------------|
-| `notes-cli` | greenfield | `new` | dev | A notes command-line tool with tags, search, and stable ids |
-| `csv-validator` | greenfield | `new` | dev | Validate a CSV against a JSON schema (types, unique, bounds, patterns) |
-| `url-shortener` | greenfield | `new` | dev | A URL-shortener HTTP API with redirects, stats, and a SQLite file |
-| `markdown-html` | greenfield | `new` | dev | A Markdown to HTML converter as a library and a command |
-| `todo-web` | greenfield | `new` | dev | A minimal todo web app (forms, JSON API, escaping) |
-| `cron-scheduler` | greenfield | `new` | **held out** | Compute a cron expression's next run times |
-| `legacy-feature` | brownfield | `feature` | dev | Add a low-stock report to a legacy WSGI inventory service |
-| `seeded-bug` | brownfield | `fix` | dev | Fix a `ZeroDivisionError` from a stack trace; add a regression test |
-| `add-tests` | brownfield | `maintain add-tests` | dev | Write tests for an untested module |
-| `behaviour-refactor` | brownfield | `maintain refactor` | **held out** | Split a 70-line function without changing its behaviour |
+| Task | Intent | Mode | Split | Languages | Size | What the team is asked |
+|------|--------|------|-------|-----------|------|------------------------|
+| `notes-cli` | new_project | `new` | dev | Python | small | A notes command-line tool with tags, search, and stable ids |
+| `csv-validator` | new_project | `new` | dev | Python | small | Validate a CSV against a JSON schema (types, unique, bounds, patterns) |
+| `url-shortener` | new_project | `new` | dev | Python | small | A URL-shortener HTTP API with redirects, stats, and a SQLite file |
+| `markdown-html` | new_project | `new` | dev | Python | small | A Markdown to HTML converter as a library and a command |
+| `todo-web` | new_project | `new` | dev | Python | small | A minimal todo web app (forms, JSON API, escaping) |
+| `legacy-feature` | feature | `feature` | dev | Python | small | Add a low-stock report to a legacy WSGI inventory service |
+| `seeded-bug` | bugfix | `fix` | dev | Python | small | Fix a `ZeroDivisionError` from a stack trace; add a regression test |
+| `add-tests` | tests | `maintain add-tests` | dev | Python | small | Write tests for an untested module |
+| `express-api-feature` | feature | `feature` | dev | TypeScript | small | Add loans to an Express 5 API (endpoints, 409s, a filter, tests) |
+| `node-cli-bugfix` | bugfix | `fix` | dev | TypeScript | small | A duration formatter prints `59m60s`: fix the rounding carry, add a test |
+| `multi-file-refactor` | refactor | `maintain refactor` | dev | Python | medium | Move money rules copied into three modules into one, behaviour unchanged |
+| `review-seeded-defects` | review | `review` | dev | Python | small | Review a branch with four seeded defects (SQL injection, missing owner check, path traversal, paging) |
+| `docs-cli-reference` | docs | `maintain docs` | dev | Python | small | Document every command, option and default of a CLI; the examples must run |
+| `cron-scheduler` | new_project | `new` | **held out** | Python | small | Compute a cron expression's next run times |
+| `ambiguous-export` | new_project | `new` | **held out** | Python | small | "Sorted by name": scored on recording which name, and building that |
+| `behaviour-refactor` | refactor | `maintain refactor` | **held out** | Python | small | Split a 70-line function without changing its behaviour |
+| `react-component-bug` | bugfix | `fix` | **held out** | TypeScript | small | A React component sorts its props in place (a crash on frozen state); Vitest |
+| `go-cli-feature` | feature | `feature` | **held out** | Go | small | Add `-min-length` and `-format json` to a Go CLI, with table tests |
+| `ledger-misleading-trace` | bugfix | `fix` | **held out** | Python | **large** | A crash traced to currency conversion whose cause is an importer that silently returns `None` (2,013 lines, six packages) |
+| `review-auth-change` | review | `review` | **held out** | Python | small | Review a login-session change with four seeded defects |
+| `answer-questions` | question | `maintain docs` | **held out** | Python | small | Answer four questions about a repository in `ANSWERS.md`, with citations |
+| `dependency-upgrade` | upgrade_deps | `maintain custom` | **held out** | Python | medium | Upgrade a vendored library to 2.0.0 across its breaking changes |
 
-`bench list --json` prints the same with each task's criteria.
+`bench list` shows the same (`--json` adds criteria, size, difficulty and toolchains).
+
+**Splits are fixed.** 9 of the 22 tasks (41 %) are held out. The 0.2.0 tasks keep the split they
+had, since the dev ones were already used to choose 0.2.0's defaults. The new held-out tasks cover
+every new kind of work except docs (a review, a bugfix in a large Python project and in a React
+component, a Go feature, the question, the ambiguous request and the upgrade), so a harness tuned on
+the dev split meets each of them for the first time. `--split dev|heldout|all` (also `--subset`,
+the 0.2.0 name), `--intent`, `--language`, `--size` and `--difficulty` (each repeatable or
+comma-separated) select tasks; `--tasks` names them.
+
+**Answers, reviews and ambiguity are scored by checks too.** A review task commits its fixture on
+`main` and its `change/` on a branch, runs `review --base main --out-dir <workspace>/review-out`, and
+scores `findings.json` against the hidden `acceptance/defects.json` (each defect's file and line
+range, other places a reviewer may fairly point at, and words for findings without a line): recall
+(at least 3 of 4 found), the severity given to the security defects found, and precision (at least
+half of the medium-or-worse findings point at a seeded defect; repeats and low or info findings do
+not count against it). The question task asks for `ANSWERS.md` and checks each answer for its key
+facts and for a `path:line` citation inside the code that answers it (`acceptance/answers.json`),
+and that every citation exists. The ambiguous task checks that a document (the README,
+`docs/spec.md`, a docstring) states one reading of "sorted by name" more often than the other, and
+that the tool sorts that way. Until the `do` command (task 14) and the answer path (task 15) exist,
+the question task runs as `maintain docs` and the upgrade as `maintain custom` (the `upgrade-deps`
+recipe may only change manifests).
 
 ### A task on disk
 
 ```text
 benchmarks/tasks/<id>/
-  task.yaml        id, title, kind, mode, subset, timeout_seconds, scale, criteria, sabotage
+  task.yaml        id, title, kind, mode, intent, split, size, difficulty, languages, toolchains,
+                   timeout_seconds, scale, criteria, sabotage
   request.md       the only text the team sees (it is the specification: names, exit codes, formats)
-  acceptance/      checks.py: the hidden checks (never copied into a workspace)
+  acceptance/      checks.py and its data: the hidden checks (never copied into a workspace)
   fixture/         brownfield only: the project the team starts from
+  change/          review only: committed over the fixture on the branch `change`
   reference/       a known-good solution, written over the fixture (or an empty workspace)
   trace.txt        fix mode: the stack trace handed to `fix --trace-file`
 ```
+
+`intent` is one of the triage intents (`question`, `review`, `bugfix`, `feature`, `new_project`,
+`refactor`, `tests`, `docs`, `upgrade_deps`, ...); `size` is `trivial|small|medium|large`,
+`difficulty` `easy|medium|hard`, `languages` a list, `toolchains` what the checks need besides
+Python (`node`, `go`). A 0.2.0 `task.yaml` still loads: `subset` is read as `split`, `language` as
+`languages`, and a missing `intent` follows from the mode.
 
 Rules a task follows (the tests in `tests/test_bench_tasks.py` enforce most of them):
 
@@ -66,13 +111,16 @@ Rules a task follows (the tests in `tests/test_bench_tasks.py` enforce most of t
   reference on purpose and the criteria that must then fail. `bench run --fake --fake-solution
   broken` applies them.
 
-To add a task, copy a similar one, keep to the rules above, and run both halves of
-`bench run --fake --tasks <id>` (reference passes, `--fake-solution broken` fails the named
-criteria).
+- **Fixtures are small** (at most ~330 lines of source) unless the task's `size` is `large`, which
+  means at least 2,000 lines in four or more packages.
+
+To add a task, copy a similar one, keep to the rules above, and run the three offline halves of
+`bench run --fake --tasks <id>`: the reference passes, `--fake-solution broken` fails the named
+criteria, and `--fake-solution fixture` (nothing done) fails.
 
 ## How a run works
 
-1. **Plan.** `--tasks` (ids, or `all`), `--subset dev|heldout|all`, `--strategy` (`pipeline`,
+1. **Plan.** `--tasks` (ids, or `all`), the filters above, `--strategy` (`pipeline`,
    `single`; repeat or comma-separate) and `--repeat N` give the list of runs, in the
    order task, strategy, repeat. The repository modes (`feature`, `fix`, `maintain`) use the
    pipeline only, so a brownfield task is not planned for the other strategies; the report lists the
@@ -93,8 +141,21 @@ criteria).
    not read. To benchmark anything beyond provider and profile (tier models, `max_repair_rounds`,
    parallelism), put it in a `--config` file; `batch.json` records the file's hash.
 4. **Judge.** Each criterion runs in its own process on a *copy* of the workspace, from a scratch
-   directory, with a scrubbed environment (no API keys, a throwaway `HOME`) and a timeout. A check
-   that crashes is a failed criterion, never a pass.
+   directory, with a scrubbed environment (no API keys, a throwaway `HOME`) and a timeout. Exit
+   status 0 is a pass and 1 a fail; a check that crashes is a failed criterion, never a pass (a crash
+   can come from the team's output). A check that **cannot judge** (its toolchain is missing, Docker
+   is not running, the check function does not exist) raises `CheckError` and the criterion is an
+   **`error`**: a run with a failed required criterion is `failed` whatever else happened, otherwise
+   a run with an errored one is `error`, which is left out of pass rates and never kept by
+   `--resume`.
+
+   **Node and Go tasks** (`toolchains` in `task.yaml`) run their tools through
+   `checklib.toolchain`: by default in a Docker image with **no network** (build them once:
+   `docker build -t engineering-team-bench-node:1 benchmarks/images/node` and
+   `docker build -t engineering-team-bench-go:1 benchmarks/images/go`; the Node image holds the
+   pinned npm packages of `benchmarks/images/node/package.json`). `--acceptance-sandbox local` uses
+   this machine's `node` and `go` instead, with the npm packages from `--node-modules DIR` (or
+   `BENCH_NODE_MODULES`), for example a directory where that `package.json` was installed.
 5. **Record.** `result.json` per run (see below), the team's `stdout.log` and `stderr.log`, and the
    workspace stay on disk. `batch.json` records the options, the versions (`engineering_team`,
    `crewai`, Python, platform), the command line, and a content digest per task, so a result says
@@ -117,6 +178,21 @@ model the team could use has no price** (add a `[pricing."MODEL"]` override to t
 see [CONFIGURATION.md](CONFIGURATION.md#budgets-usage-and-cost), or pass `--allow-unpriced` and accept that only the
 wall-clock limit bounds a run).
 
+### Live spend cap
+
+All live model spending of a release goes through `benchmarks/budget.toml` (the release total and
+one allocation per plan task, such as `T25 = 2.80`, plus a `reserve`) and the append-only ledger
+`benchmarks/spend.jsonl` (one line per live command: date, allocation, command, estimate, actual
+cost, `billing`). A live `bench run` needs `--allocation TASK`. Before it starts it prints the
+estimate and **refuses, with the numbers**, when the estimate would take the allocation or the
+release total over, or when `--budget-usd` is more than what is left in the allocation (so a batch
+that over-runs its estimate still cannot overspend). When the batch ends (also on Ctrl-C) it appends
+what the runs cost; a cost that is unknown (an unpriced model) is recorded as `null` and counted as
+the estimate. Runs billed by a subscription are recorded with `billing: subscription` and never
+counted. `bench spend` (or `--json`) prints allocated, spent and left per allocation. Fake runs and
+`--dry-run` never touch the ledger. Moving unspent money to a later allocation is an edit to
+`budget.toml`; going over one needs the user's explicit OK, never a flag.
+
 `--dry-run` prices the batch from the price table without running anything. The token counts behind
 it are **priors** (typical tokens per strategy and task `scale`), not measurements: read the figure
 as an order of magnitude and set `--budget-usd` as the real limit. `--resume --batch NAME` continues
@@ -125,12 +201,13 @@ rest; a Ctrl-C stops every team process and tells you the command.
 
 ## What a run records
 
-`result.json` (schema version 1):
+`result.json` (schema version 2; version 1 files, with `subset`, still read):
 
 | Field | Meaning |
 |-------|---------|
-| `outcome` | `passed`, `failed`, `timeout`, `error` (the harness could not run it: not counted), or `skipped` (budget: not counted) |
-| `reason`, `criteria` | why it did not pass; every criterion with its pass flag and the check's output |
+| `task`, `intent`, `split` | the task, what kind of work it is, and whether it is held out |
+| `outcome` | `passed`, `failed`, `timeout`, `error` (the harness could not run it, or a check could not judge it: not counted), or `skipped` (budget: not counted) |
+| `reason`, `criteria` | why it did not pass; every criterion with its pass and `error` flags and the check's output |
 | `team_status`, `team_verdict`, `exit_code` | what the team said about itself (never the evidence) |
 | `duration_seconds` | wall clock of the team process |
 | `tokens`, `model_calls`, `tool_calls`, `cost_usd`, `models` | from the team's summary, else rebuilt from its event log (so a crashed run still shows what it spent). `cost_usd` is `null` when a model has no price: unknown, never $0 |
@@ -232,7 +309,7 @@ and writes `report.md` and `results.csv` (one row per run) into the batch.
   20 counted runs carry a small-sample warning.
 - **Cost per successful task** is *all* spend, failed runs included, divided by the number of
   successes. A strategy that is cheap per run but rarely succeeds is not cheap.
-- Tables by strategy, by strategy, kind and subset (dev against held out), and by task and strategy,
+- Tables by strategy, by strategy, kind and split (dev against held out), and by task and strategy,
   with median time, repairs per run, tool failures and setup failures.
 - **Every failure is listed** with the criteria it missed and why. Nothing is averaged away.
 
@@ -365,11 +442,14 @@ that writes the task's reference solution with the real `Write Project File` too
 preparation, the same hidden checks, the same records and the same report. It costs nothing, needs
 no key, and is how CI proves the harness works:
 
-- the **reference** solutions pass every check (`bench run --fake`), and
-- the **sabotaged** ones fail the criteria they break (`--fake-solution broken`, exit status 3),
+- the **reference** solutions pass every check (`bench run --fake`),
+- the **sabotaged** ones fail the criteria they break (`--fake-solution broken`, exit status 3), and
+- the **untouched fixture** fails (`--fake-solution fixture`: the fake team writes nothing),
 
-so a check that cannot tell a good solution from a bad one fails CI. `tests/test_bench_fake.py`
-runs both halves end to end (about a minute each). A fake report says so at the top: it validates the
+so a check that cannot tell a good solution from a bad one, or from no work at all, fails CI.
+`tests/test_bench_fake.py` runs the three halves end to end on every task whose toolchain runs on
+the machine (`--acceptance-sandbox local`; the Express and React tasks also need
+`BENCH_NODE_MODULES`), and a `docker`-marked test runs the Node and Go tasks in their images. A fake report says so at the top: it validates the
 harness and says nothing about the team's quality.
 
 ## Threat model
@@ -391,15 +471,16 @@ Benchmarks are only worth reading if the team cannot game them and the harness c
   (function sizes in `behaviour-refactor`, unchanged source in `add-tests`) are stated in their
   requests.
 
-**Held-out subset.** Tasks with `subset: heldout` are never used to tune defaults (strategy, tier
-models, `max_repair_rounds`, parallelism). Tune on `--subset dev`; report held-out results
-separately; the report's kind and subset table shows the difference. A large gap between the two is
-over-fitting to the dev tasks. Ten tasks is a small suite: intervals are wide and a held-out result
-from two tasks is an anecdote, which is why the report prints them rather than averaging.
+**Held-out split.** Tasks with `split: heldout` are never used to tune defaults or the harness
+(strategy, tier models, `max_repair_rounds`, parallelism, harness components). Tune on
+`--split dev`; report held-out results separately; the report's kind and split table shows the
+difference. A large gap between the two is over-fitting to the dev tasks. Nine held-out tasks are
+still few: intervals are wide, which is why the report lists every run rather than averaging.
 
 **Running generated code.** The team writes programs and the hidden checks *run them* on your
-machine (acceptance checks always run locally, with a scrubbed environment and timeouts, but with
-your user's file permissions). Treat a live batch like running any untrusted code: use a container or
+machine (acceptance checks run locally, with a scrubbed environment and timeouts, but with your
+user's file permissions; the Node and Go tools they start run in a container with no network unless
+you pass `--acceptance-sandbox local`). Treat a live batch like running any untrusted code: use a container or
 VM, a disposable checkout, and a provider key with a spending limit. Fake runs execute only the
 repository's own reference solutions.
 
@@ -409,8 +490,10 @@ runs and every acceptance check get a scrubbed environment with no keys.
 
 ## Limits
 
-- Tasks are small and Python-only (so checks are hermetic); they do not cover large codebases,
-  other ecosystems, UI polish, or long-running work.
+- Most tasks are small; one fixture has 2,000 lines and none is a real-world repository (task 9
+  imports those). TypeScript and Go have a few tasks each; UI polish and long-running work are not
+  covered. Scoring a review, an answer or a recorded assumption by checks is keyword- and
+  location-based: generous enough for other wording, but a check, not a judge.
 - A passing run means the stated behaviours hold, not that the code is good: review quality, tests
   the team wrote, and documentation are only checked where a task says so.
 - Models are non-deterministic: use `--repeat` and read the interval, not the point estimate.
@@ -421,6 +504,6 @@ runs and every acceptance check get a scrubbed environment with no keys.
 
 | Path | Role |
 |------|------|
-| `src/engineering_team/bench/` | the harness (in the wheel): `tasks` (schema, loading), `plan` and `prepare` (what runs and how), `execution` (one run), `batch` (parallel, budget, resume), `acceptance` and `checklib` (the hidden checks' runner and helpers), `metrics` and `results` (what a run records), `report` and `stats`, `estimate` (`--dry-run`), `fake_team` (offline mode) |
-| `src/engineering_team/cli/bench_command.py` | `bench list`, `bench run`, `bench report` |
-| `benchmarks/` | the suite (repository only), `benchmarks/configs/` (settings files for the measured variants), `benchmarks/results/` (committed results), and `benchmarks/.runs/` (working results, git-ignored) |
+| `src/engineering_team/bench/` | the harness (in the wheel): `tasks` (schema, loading), `selection` (filters), `plan` and `prepare` (what runs and how), `execution` (one run), `batch` (parallel, budget, resume), `acceptance`, `checklib` and `reviewlib` (the hidden checks' runner and helpers), `metrics` and `results` (what a run records), `report` and `stats`, `estimate` (`--dry-run`), `spend` (the release ledger), `fake_team` (offline mode) |
+| `src/engineering_team/cli/bench_*.py` | `bench list` and `bench run` (`bench_command`), `bench report` and `--dry-run` (`bench_report_command`), `bench spend` (`bench_spend_command`) |
+| `benchmarks/` | the suite (repository only): `tasks/`, `images/` (Docker images for the Node and Go checks), `budget.toml` and `spend.jsonl` (the release's live spend), `configs/` (settings files for the measured variants), `results/` (committed results), and `.runs/` (working results, git-ignored) |

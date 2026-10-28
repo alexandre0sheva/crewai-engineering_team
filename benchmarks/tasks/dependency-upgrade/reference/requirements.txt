@@ -1,0 +1,2 @@
+# Vendored in vendor/ (the build machines have no network access); keep the pin in step.
+moneyfmt==2.0.0
