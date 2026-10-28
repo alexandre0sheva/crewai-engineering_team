@@ -34,6 +34,7 @@ class ToolRecord:
     ok: bool
     duration: float
     args: str
+    trajectory_seq: int | None = None  # the call's entry in trajectory.jsonl
 
 
 @dataclass
@@ -209,6 +210,11 @@ class EventLog:
             after = batch[-1][0]
 
 
+def _trajectory_seq(data: dict[str, object]) -> int | None:
+    seq = data.get("trajectory_seq")
+    return seq if isinstance(seq, int) and not isinstance(seq, bool) else None
+
+
 def fold(event: Event, digest: Digest, usage: UsageTracker) -> None:
     """Add one event to a digest and a usage tracker (also how a replay is rebuilt)."""
 
@@ -226,6 +232,7 @@ def fold(event: Event, digest: Digest, usage: UsageTracker) -> None:
             bool(data.get("ok", True)),
             float(data.get("duration") or 0),
             _short(data.get("args", "")),
+            _trajectory_seq(data),
         )
         stats = digest.agents.setdefault(agent, AgentStats())
         stats.calls += 1

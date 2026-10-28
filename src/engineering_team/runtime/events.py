@@ -104,6 +104,19 @@ def _jsonable(data: Mapping[str, Any]) -> dict[str, Any]:
     return json.loads(json.dumps(data, default=str))
 
 
+def append_bytes(path: Path, payload: bytes) -> None:
+    """Append ``payload`` to ``path`` in one ``O_APPEND`` write loop (creating the file)."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+    try:
+        view = memoryview(payload)
+        while view:
+            view = view[os.write(descriptor, view) :]
+    finally:
+        os.close(descriptor)
+
+
 class JsonlSink:
     """Appends one JSON object per line to ``path``; safe to share between threads.
 
@@ -159,14 +172,7 @@ class JsonlSink:
             log.warning("Could not record event %r in %s", type, self.path, exc_info=True)
 
     def _append(self, payload: bytes) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        descriptor = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
-        try:
-            view = memoryview(payload)
-            while view:
-                view = view[os.write(descriptor, view) :]
-        finally:
-            os.close(descriptor)
+        append_bytes(self.path, payload)
 
 
 class FanoutSink:

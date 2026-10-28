@@ -186,6 +186,7 @@ from reading `commands/` logs. This is the single description of its layout:
 |------|-----------|----------|
 | `manifest.json` | `RunStore` | `RunManifest`: run id, mode, project, request and settings hashes, versions (engineering-team, CrewAI, Python), strategy, recipe, status, stage records, created/finished, and a `summary` (usage, estimated cost or `null`, budget status) once the run ends |
 | `events.jsonl` | `JsonlSink` | One `Event` per line: `seq`, `ts`, `run_id`, `type`, optional `stage`/`agent`/`lane`, `data` |
+| `trajectory.jsonl` | `TrajectoryRecorder` (`runtime/trajectory.py`) | What the agents saw: one line per tool call (`seq`, `ts`, `stage`, `teammate`, `lane`, `tool`, redacted `args`, redacted and capped `output`, `ok`, `ms`) or model message (`role` = `assistant` reply or `final` answer), plus `notice` lines when the size budget bites. `seq` is the line number; each `tool.call` event carries it as `trajectory_seq`. Secret values are scrubbed before the cut; output is capped per call (`trajectory.max_output_chars`) and per file (`trajectory.max_mb`, past which outputs are cut harder). Read it with `engineering-team trace`, the UI card drawer, or the report's Trace section. Runs from before 0.3.0 have no such file |
 | `request.md` | `RunRecorder` | The request exactly as given |
 | `usage.json` | `RunRecorder` | `UsageReport`: token totals and a breakdown by stage, agent, and model, with per-model cost (`null` when the price is unknown) |
 | `settings.json` | `RunRecorder` | The effective `Settings` for the record (no secrets: credentials are read from the environment, never stored; hook addresses and MCP server environments are replaced) |
@@ -857,6 +858,7 @@ over what the CLI already writes; nothing runs a team inside the server.
 | `GET /runs/{id}/questions`, `POST .../answer` | Questions the team asked (needs `interactive`, the default) and a reply (empty text declines) |
 | `GET /runs/{id}/board[?at=SEQ]` | The board now, or replayed |
 | `GET /runs/{id}/cards/{card}` | A card with its history, comments, board events, and the tool-call trail of its assignee while it was in progress |
+| `GET /runs/{id}/trajectory/{seq}` | One entry of `trajectory.jsonl` (a tool call with its output, or a model message); the trail's `trajectory_seq` names it; 404 when not recorded |
 | `POST /runs/{id}/cards/{card}/comments`, `/notes`, `/pause`, `/unpause` | Steering through the inbox |
 | `GET /runs/{id}/agents[?at=SEQ]` | Teammates now or as they stood after an event: `working`, `waiting` (for a human), `blocked` or `idle`, current card, last tool call, counters, tokens, cost, model |
 | `GET /runs/{id}/timeline` | Stage and lane bars (seconds from the start), review findings and criteria coverage so far |

@@ -5,7 +5,7 @@ titles, agent notes, file names, and diff lines are untrusted. The modules are `
 (escaping, tables), ``html_overview``, ``html_board``, ``html_results`` and ``html_artifacts``.
 """
 
-from engineering_team.report.html_artifacts import diff, environment, screenshots
+from engineering_team.report.html_artifacts import diff, environment, screenshots, trace
 from engineering_team.report.html_board import agents, board
 from engineering_team.report.html_common import (
     COLUMN_TITLES,
@@ -44,6 +44,7 @@ __all__ = [
     "summary",
     "table",
     "timeline",
+    "trace",
     "usage",
     "warnings",
 ]

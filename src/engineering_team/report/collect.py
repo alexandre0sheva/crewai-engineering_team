@@ -34,9 +34,16 @@ from engineering_team.report.model import (
     RunReport,
     Screenshot,
     StageRow,
+    TraceInfo,
 )
 from engineering_team.runtime.events import read_events
-from engineering_team.runtime.run_store import EVENTS_FILENAME, MANIFEST_FILENAME, RunNotFound
+from engineering_team.runtime.run_store import (
+    EVENTS_FILENAME,
+    MANIFEST_FILENAME,
+    TRAJECTORY_FILENAME,
+    RunNotFound,
+)
+from engineering_team.runtime.trajectory import summarize
 from engineering_team.runtime.usage import UsageTracker
 
 BOARD_FILENAME = "board.json"
@@ -97,6 +104,7 @@ def build_report(run_dir: Path) -> RunReport:
     report.agents = _agents(board, digest)
     report.screenshots = _screenshots(run_dir, digest)
     report.diff, report.diff_note = _diff(run_dir)
+    report.trace = _trace(run_dir)
     report.warnings = analysis.make_notices(
         manifest, state, checks, coverage, findings, digest, budget, usage.unpriced_models
     )
@@ -162,6 +170,11 @@ def _findings(state: PipelineState | None) -> list[Finding]:
         every,
         key=lambda f: (analysis.SEVERITY_ORDER.get(f.severity, 9), f.id, f.file or "", f.line or 0),
     )
+
+
+def _trace(run_dir: Path) -> TraceInfo | None:
+    found = summarize(run_dir / TRAJECTORY_FILENAME)
+    return None if found is None else TraceInfo(found.entries, found.size, found.notices)
 
 
 def _environment(run_dir: Path, manifest: RunManifest) -> list[tuple[str, str]]:

@@ -14,7 +14,8 @@ from engineering_team.board.progress import compute_progress
 from engineering_team.contracts import utc_now
 from engineering_team.report.collect import build_report
 from engineering_team.runtime.inbox import post_command
-from engineering_team.runtime.run_store import RunNotFound
+from engineering_team.runtime.run_store import TRAJECTORY_FILENAME, RunNotFound
+from engineering_team.runtime.trajectory import TrajectoryEntry, read_entry
 from engineering_team.ui.routes_runs import Text
 from engineering_team.ui.state import state_of
 from engineering_team.ui.views import (
@@ -81,6 +82,18 @@ def card(request: Request, run_id: str, card_id: str) -> CardDetail:
     if detail is None:
         raise HTTPException(404, f"No card {card_id!r} in run {run_id}.")
     return detail
+
+
+@router.get("/runs/{run_id}/trajectory/{seq}")
+def trajectory_entry(request: Request, run_id: str, seq: int) -> TrajectoryEntry:
+    """One tool call or model message of the run, with its (redacted, capped) output."""
+
+    state = state_of(request)
+    ref = state.need(run_id)
+    entry = read_entry(ref.run_dir / TRAJECTORY_FILENAME, seq)
+    if entry is None:
+        raise HTTPException(404, f"Run {run_id} has no trajectory entry {seq} (not recorded).")
+    return entry
 
 
 @router.post("/runs/{run_id}/cards/{card_id}/comments", status_code=202)

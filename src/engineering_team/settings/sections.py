@@ -133,6 +133,13 @@ class ToolsSettings(_Frozen):
     dev: DevToolsSettings = DevToolsSettings()
 
 
+class TrajectorySettings(_Frozen):
+    """What the run's ``trajectory.jsonl`` keeps of every tool call (``docs/CONFIGURATION.md``)."""
+
+    max_output_chars: int = Field(default=50_000, ge=10_000)
+    max_mb: int = Field(default=50, ge=1)
+
+
 class RuntimeSettings(_Frozen):
     """Background processes and the HTTP tool. Times are in seconds."""
 

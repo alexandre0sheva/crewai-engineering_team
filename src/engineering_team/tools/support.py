@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
+from engineering_team.contracts import utc_now
 from engineering_team.tools.scope import WriteScope
 from engineering_team.tools.workspace import ProjectWorkspace, WorkspaceError
 
@@ -128,21 +129,38 @@ class ToolEnv:
 
         Order: cancellation, the tool-call gate, write-scope checks for ``changes`` (paths
         written) and ``deletes`` (paths removed), the operation itself. Every outcome emits a
-        ``tool.call`` event with redacted arguments, the duration, and whether it succeeded.
+        ``tool.call`` event with redacted arguments, the duration, and whether it succeeded, and
+        appends the call and its output to the trajectory (the event carries the entry's
+        ``trajectory_seq``).
         A paused run holds the call (before anything else) until it is resumed or cancelled.
         """
 
         self.ctx.board.wait_while_paused(self.ctx.cancel_event)
+        started_at = utc_now()
         started = time.monotonic()
         result = self._guarded(tool, operation, changes, deletes)
+        duration = time.monotonic() - started
+        ok = not result.startswith("ERROR:")
+        recorded = self.ctx.trajectory.tool_call(
+            tool=tool,
+            args=arguments or {},
+            output=result,
+            ok=ok,
+            ms=round(duration * 1000),
+            teammate=self.agent,
+            lane=self.lane,
+            ts=started_at,
+        )
+        link = {} if recorded is None else {"trajectory_seq": recorded}
         self.ctx.events.emit(
             "tool.call",
             tool=tool,
             args=_loggable(arguments or {}),
-            duration=round(time.monotonic() - started, 4),
-            ok=not result.startswith("ERROR:"),
+            duration=round(duration, 4),
+            ok=ok,
             agent=self.agent,
             lane=self.lane,
+            **link,
         )
         return result
 

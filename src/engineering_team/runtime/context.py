@@ -33,8 +33,9 @@ from engineering_team.runtime.interaction import HumanChannel
 from engineering_team.runtime.processes import ProcessRegistry
 from engineering_team.runtime.reports import Reports
 from engineering_team.runtime.requests import RateLimiter, RequestLimiter
-from engineering_team.runtime.run_store import EVENTS_FILENAME
+from engineering_team.runtime.run_store import EVENTS_FILENAME, TRAJECTORY_FILENAME
 from engineering_team.runtime.snapshot import Snapshot
+from engineering_team.runtime.trajectory import TrajectoryRecorder
 from engineering_team.runtime.usage import UsageTracker
 from engineering_team.settings import Settings, secret_values
 from engineering_team.tools.workspace import CONTROLLER_DIRECTORY, ProjectWorkspace
@@ -125,7 +126,8 @@ class RunContext:
     cap on outbound web requests, ``git`` the controller's Git (checkpoints, patches, history;
     see ``docs/ARCHITECTURE.md``), and ``llm_rate`` (set when ``parallel.max_rpm`` is) the cap on
     model calls per minute that parallel agents share, and ``team`` the roster of teammates
-    (the built-ins plus the project's changes and additions; see ``docs/TEAM.md``), and ``reports``
+    (the built-ins plus the project's changes and additions; see ``docs/TEAM.md``), ``trajectory``
+    the run's log of what its tools returned (``trajectory.jsonl``), and ``reports``
     where the controller's own write-ups go (the project's ``docs/``, or the run directory for a
     project the team did not create), ``plugins`` the plugin tools this run offers and
     ``conventions`` the repository conventions the agents' context carries (both:
@@ -152,6 +154,7 @@ class RunContext:
     git: GitPort
     team: Roster
     reports: Reports
+    trajectory: TrajectoryRecorder
     tool_gate: ToolGate | None = None
     web_requests: RequestLimiter = field(default_factory=lambda: RequestLimiter(40))
     llm_rate: RateLimiter | None = None
@@ -261,6 +264,12 @@ class RunContext:
             git=GitPort(workspace, run_backend, settings.git, sink),
             team=team,
             reports=(Reports.in_run_dir(workspace, run_dir) if adopted else Reports(workspace)),
+            trajectory=TrajectoryRecorder(
+                run_dir / TRAJECTORY_FILENAME,
+                scrubber=Scrubber(secret_values()),
+                max_output_chars=settings.trajectory.max_output_chars,
+                max_mb=settings.trajectory.max_mb,
+            ),
             tool_gate=guard.tool_gate,
             web_requests=RequestLimiter(settings.web.max_requests_per_run),
             llm_rate=(

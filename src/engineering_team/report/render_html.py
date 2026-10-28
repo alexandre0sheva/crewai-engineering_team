@@ -12,7 +12,8 @@ NAV = (
     ("summary", "Summary"), ("warnings", "Warnings"), ("timeline", "Timeline"),
     ("board", "Board"), ("agents", "Teammates"), ("screenshots", "Screenshots"),
     ("usage", "Cost"), ("checks", "Checks"), ("criteria", "Criteria"),
-    ("findings", "Findings"), ("diff", "Changes"), ("environment", "Environment"),
+    ("findings", "Findings"), ("diff", "Changes"), ("trace", "Trace"),
+    ("environment", "Environment"),
 )  # fmt: skip
 
 
@@ -32,6 +33,7 @@ def render_html(report: RunReport, run_dir: Path | None = None) -> str:
         "criteria": s.criteria(report),
         "findings": s.findings(report),
         "diff": s.diff(report),
+        "trace": s.trace(report),
         "environment": s.environment(report),
     }
     links = " ".join(f'<a href="#{key}">{label}</a>' for key, label in NAV if parts[key])

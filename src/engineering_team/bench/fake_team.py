@@ -81,7 +81,7 @@ def replay(files: dict[str, str], workspace: Path, run_id: str) -> dict[str, Any
     llm = ScriptedLLM(script, model=FAKE_MODEL)
     error = ""
     try:
-        with bind_run(run_id, ctx.events):
+        with bind_run(run_id, ctx.events, ctx.trajectory):
             run_agent_task(
                 ctx,
                 llm,

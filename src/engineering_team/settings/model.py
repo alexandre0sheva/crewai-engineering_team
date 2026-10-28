@@ -68,6 +68,7 @@ from engineering_team.settings.sections import (
     RuntimeSettings,
     TeamOverride,
     ToolsSettings,
+    TrajectorySettings,
     UiSettings,
     VerifySettings,
     WebSettings,
@@ -99,6 +100,7 @@ class Settings(_Frozen):
     parallel: ParallelSettings = ParallelSettings()
     tools: ToolsSettings = ToolsSettings()
     runtime: RuntimeSettings = RuntimeSettings()
+    trajectory: TrajectorySettings = TrajectorySettings()
     network: NetworkSettings = NetworkSettings()
     web: WebSettings = WebSettings()
     knowledge: KnowledgeSettings = KnowledgeSettings()

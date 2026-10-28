@@ -13,6 +13,9 @@ renames that section and dates it.
 
 - `doctor --probe-tools`: sends each distinct model one tiny tool-calling request (cents) and reports whether it
   can call tools or only answers in text.
+- `trace [RUN] [--stage S] [--format text|json]` and `trajectory.jsonl`: every tool call is recorded with its
+  (secret-scrubbed, capped) output, and the models' replies with it. The run report links the trace and the web UI
+  card drawer shows a call's output. `[trajectory]` sets the per-call cap and the file's size budget.
 
 ### Changed
 

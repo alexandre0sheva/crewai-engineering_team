@@ -19,6 +19,7 @@ import threading
 from collections.abc import Callable, Iterator
 from contextvars import ContextVar
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from crewai.events.event_bus import crewai_event_bus
@@ -38,6 +39,7 @@ from crewai.events.types.tool_usage_events import ToolUsageErrorEvent, ToolUsage
 from crewai.types.usage_metrics import UsageMetrics
 
 from engineering_team.runtime.events import EventSink
+from engineering_team.runtime.trajectory import TrajectoryRecorder
 
 MAX_TEXT = 500
 FLUSH_TIMEOUT = 30.0
@@ -47,6 +49,7 @@ FLUSH_TIMEOUT = 30.0
 class _Binding:
     run_id: str
     sink: EventSink
+    trajectory: TrajectoryRecorder | None = None
 
 
 _current: ContextVar[_Binding | None] = ContextVar("engineering_team_run", default=None)
@@ -55,11 +58,16 @@ _installed = False
 
 
 @contextlib.contextmanager
-def bind_run(run_id: str, sink: EventSink) -> Iterator[None]:
-    """Route CrewAI events emitted by this context (and contexts copied from it) to ``sink``."""
+def bind_run(
+    run_id: str, sink: EventSink, trajectory: TrajectoryRecorder | None = None
+) -> Iterator[None]:
+    """Route CrewAI events emitted by this context (and contexts copied from it) to ``sink``.
+
+    With ``trajectory``, the model's replies and the agents' answers are also recorded there.
+    """
 
     install_bridge()
-    token = _current.set(_Binding(run_id, sink))
+    token = _current.set(_Binding(run_id, sink, trajectory))
     try:
         yield
     finally:
@@ -214,6 +222,32 @@ _TRANSLATIONS: list[tuple[type, str, Callable[[Any], dict[str, Any]]]] = [
 ]
 
 
+def _event_time(event: Any) -> datetime | None:
+    """When CrewAI says the event happened, as an aware UTC time (it may be naive local time)."""
+
+    stamp = getattr(event, "timestamp", None)
+    if not isinstance(stamp, datetime):
+        return None
+    return stamp.astimezone(UTC)
+
+
+def _record_message(binding: _Binding, our_type: str, event: Any) -> None:
+    """Keep what the model said in the trajectory: each reply, and each agent's final answer."""
+
+    if binding.trajectory is None:
+        return
+    if our_type == "llm.call":
+        role, text = "assistant", getattr(event, "response", None)
+    elif our_type == "agent.completed":
+        role, text = "final", getattr(event, "output", None)
+    else:
+        return
+    if isinstance(text, str):  # a native tool-call reply is a structure, not text
+        binding.trajectory.message(
+            role=role, text=text, teammate=_agent(event), ts=_event_time(event)
+        )
+
+
 def _handler(our_type: str, read: Callable[[Any], dict[str, Any]]) -> Callable[[Any, Any], None]:
     def handle(source: Any, event: Any) -> None:
         binding = _current.get()
@@ -226,6 +260,7 @@ def _handler(our_type: str, read: Callable[[Any], dict[str, Any]]) -> Callable[[
             if emission:
                 data["emission"] = emission
             binding.sink.emit(our_type, agent=_agent(event), **data)
+            _record_message(binding, our_type, event)
         except Exception:  # a bridging bug must never break CrewAI's bus
             return
 

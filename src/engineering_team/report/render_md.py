@@ -54,6 +54,7 @@ def render_markdown(report: RunReport) -> str:
     lines += _criteria(report)
     lines += _findings(report)
     lines += _diff(report)
+    lines += _trace(report)
     lines += ["", "## Environment", ""]
     lines += [f"- {cell(key)}: {cell(value)}" for key, value in report.environment]
     lines += [
@@ -284,3 +285,18 @@ def _diff(report: RunReport) -> list[str]:
         ["File", "Status", "Added", "Removed"],
         [(f.path, f.status, f"+{f.added}", f"−{f.removed}") for f in view.files],
     )
+
+
+def _trace(report: RunReport) -> list[str]:
+    trace = report.trace
+    if trace is None:
+        return []
+    lines = [
+        "",
+        "## Trace",
+        "",
+        f"What the agents did and saw: {trace.entries} entries ({size(trace.size)}) in "
+        f"`trajectory.jsonl`. Read it with `engineering-team trace {cell(report.run_id)}`.",
+    ]
+    lines += [f"- ⚠️ {cell(note)}" for note in trace.notices]
+    return lines

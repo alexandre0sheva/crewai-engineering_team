@@ -116,6 +116,19 @@ def diff(report: RunReport) -> str:
     return section("diff", "Changes", f"{lead}{stats}<h3>Diff</h3>{note}{shown}")
 
 
+def trace(report: RunReport) -> str:
+    info = report.trace
+    if info is None:
+        return ""
+    notes = "".join(f'<p class="muted">{esc(note)}</p>' for note in info.notices)
+    body = (
+        f"<p>What the agents did and saw: {info.entries} entries ({esc(size(info.size))}) in "
+        f'<a href="trajectory.jsonl">trajectory.jsonl</a> in the run directory. Read it with '
+        f"{code('engineering-team trace ' + report.run_id)}.</p>{notes}"
+    )
+    return section("trace", "Trace", body)
+
+
 def environment(report: RunReport) -> str:
     rows = "".join(f"<div><dt>{esc(k)}</dt><dd>{esc(v)}</dd></div>" for k, v in report.environment)
     return section("environment", "Environment", f'<dl class="facts">{rows}</dl>')

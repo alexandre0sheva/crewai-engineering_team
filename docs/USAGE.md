@@ -22,6 +22,7 @@ uv run engineering-team <command> --help # its options
 | `analyze [--repo PATH] [--deep]` | Look at an existing project without changing it: languages, detected commands, tests, CI, Git state; `--deep` also writes a codebase map ([Adopting an existing project](#adopting-an-existing-project)). |
 | `resume RUN` | Continue a cancelled, interrupted, or failed run without redoing finished stages. |
 | `report [RUN] [--format html|md] [--open]` | Write the run report: summary, timeline, board, checks, cost, changes ([Run reports](#run-reports)). |
+| `trace [RUN] [--stage S] [--format text|json]` | What a run's agents did and saw: each tool call with its output and what the models said ([Reading what the agents did](#reading-what-the-agents-did-trace)). |
 | `ui [--host H] [--port P] [--demo]` | Serve the web UI and its API on localhost ([Web UI](#web-ui)). Needs `uv sync --extra ui`. |
 | `bench list` / `bench run` / `bench report` | Run the benchmark suite against the team and report pass rates with confidence intervals and cost per success (`--fake` validates the harness offline; source checkout only). See [BENCHMARKS.md](BENCHMARKS.md). |
 | `status [RUN]` | Where a run stands: stages, progress, cost, blocked cards. |
@@ -137,6 +138,33 @@ stats (for `feature`, `fix`, and `maintain` runs), and the versions and settings
 The report is written by the controller from files in the run directory; text written by agents or taken
 from your repository is shown escaped and is never used to decide a status. `report` works on a run that is
 still going or that died, and rewrites the file each time.
+
+### Reading what the agents did (`trace`)
+
+`events.jsonl` says which tool was called; `trajectory.jsonl` also keeps what it returned and what the models
+said, with secrets scrubbed and long outputs cut (`[trajectory]` in [CONFIGURATION.md](CONFIGURATION.md#trajectory-trajectory-config-file-only)).
+`trace` prints it stage by stage:
+
+```bash
+uv run engineering-team trace                      # the latest run, every stage
+uv run engineering-team trace 20261003 --stage implement
+uv run engineering-team trace --format json        # entries as data (also: --json trace)
+```
+
+```text
+== stage: implement ==
+[MESSAGE] Backend Engineer: I will read the module.
+[ACTION] Read Project File(path="app.py")  [#2 Backend Engineer, 12 ms]
+[OBSERVATION] def main():
+      return 1
+[ACTION] Edit Project File(path="app.py", old_text="return 2")  [#3 Backend Engineer, 3 ms]
+[ERROR] old_text was not found in app.py. Read it first.
+```
+
+`[ACTION]` is a call, `[OBSERVATION]` its result, `[ERROR]` a call that failed, `[MESSAGE]` something a model said
+(`(final)` marks an agent's answer); the continuation lines of a multi-line text are indented. A run made before
+0.3.0 prints that its trajectory was not recorded. The run report links the trace, and the card drawer of the web
+UI shows a call's output with its **Output** button.
 
 ### Steering a run
 

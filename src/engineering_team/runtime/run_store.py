@@ -1,7 +1,8 @@
 """The run directory: manifests with validated status transitions, written atomically.
 
 Layout of ``<workspace>/.engineering-team/runs/<run_id>/`` (see docs/ARCHITECTURE.md):
-``manifest.json`` (this module), ``events.jsonl`` (``runtime.events``), ``request.md``,
+``manifest.json`` (this module), ``events.jsonl`` (``runtime.events``), ``trajectory.jsonl``
+(``runtime.trajectory``), ``request.md``,
 ``settings.json``, ``crew-log.json``, and ``commands/`` (command logs).
 """
 
@@ -19,6 +20,7 @@ from engineering_team.tools.workspace import CONTROLLER_DIRECTORY
 
 MANIFEST_FILENAME = "manifest.json"
 EVENTS_FILENAME = "events.jsonl"
+TRAJECTORY_FILENAME = "trajectory.jsonl"
 
 TERMINAL_STATUSES: frozenset[RunStatus] = frozenset(
     {"succeeded", "failed", "cancelled", "interrupted"}

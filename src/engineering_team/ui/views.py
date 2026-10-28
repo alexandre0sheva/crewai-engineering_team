@@ -122,6 +122,7 @@ class TrailEntry(BaseModel):
     duration: float
     lane: str | None = None
     args: str = ""
+    trajectory_seq: int | None = None  # fetch the output at /runs/{id}/trajectory/{seq}
 
 
 class CardDetail(BaseModel):
@@ -417,6 +418,7 @@ def card_detail(ref: RunRef, log: EventLog, card_id: str) -> CardDetail | None:
                 duration=r.duration,
                 lane=r.lane,
                 args=r.args,
+                trajectory_seq=r.trajectory_seq,
             )
             for r in trail[-TRAIL_LIMIT:]
         ],

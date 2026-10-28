@@ -153,7 +153,7 @@ class RunRecorder:
         outcome: RunStatus = "succeeded"
         error: str | None = None
         try:
-            with bind_run(ctx.run_id, ctx.events):
+            with bind_run(ctx.run_id, ctx.events, ctx.trajectory):
                 yield self
             flush_bridge()  # deliver CrewAI's in-flight events, then the last safe point:
             ctx.budget.check()  # raises BudgetExceeded if the run overspent

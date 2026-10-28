@@ -26,6 +26,7 @@ from engineering_team.cli import (
     report_command,
     review_command,
     run_commands,
+    trace_command,
     ui_command,
 )
 from engineering_team.cli import doctor as doctor_module
@@ -38,7 +39,7 @@ from engineering_team.runtime.context import reserve_run_id
 COMMANDS = (
     "new", "resume", "status", "runs", "board", "cancel", "note", "pause", "unpause",
     "config", "doctor", "init", "examples", "team", "analyze", "feature", "fix", "maintain",
-    "review", "recipes", "diff", "export-patch", "report", "ui", "bench", "plugins",
+    "review", "recipes", "diff", "export-patch", "report", "trace", "ui", "bench", "plugins",
 )  # fmt: skip
 HELP_FLAGS = ("-h", "--help")
 FLAGS = ("--json", "--quiet", "-q", "--verbose", "-v", "--no-color", "--answers-via-inbox")
@@ -127,6 +128,7 @@ app.command()(review_command.review)
 app.command()(feature_command.diff)
 app.command("export-patch")(feature_command.export_patch)
 app.command()(report_command.report)
+app.command()(trace_command.trace)
 app.command()(ui_command.ui)
 app.command()(info.status)
 app.command()(info.runs)

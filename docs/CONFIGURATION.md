@@ -149,6 +149,24 @@ Provider credentials are read by the model SDKs from their usual variables and a
 `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` (or `GEMINI_API_KEY`); Azure uses its own
 variables. A missing key is reported before a run starts (preparation with `--prepare-only` needs none).
 
+### Trajectory (`[trajectory]`, config file only)
+
+Every tool call of a run is written, with what it returned, to `trajectory.jsonl` in the run directory
+([ARCHITECTURE.md](ARCHITECTURE.md#run-directory-contracts-and-events)); read it with `engineering-team trace`
+([USAGE.md](USAGE.md#reading-what-the-agents-did-trace)). Outputs, arguments and model messages have secret values
+scrubbed before they are cut.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `trajectory.max_output_chars` | `50000` | Characters of one tool call's output kept (at least `10000`); a longer output is cut and says how much is missing |
+| `trajectory.max_mb` | `50` | Size budget of the file. Past it, outputs are cut to 1,000 characters and the report says so; a little further on, recording stops |
+
+```toml
+[trajectory]
+max_output_chars = 20000
+max_mb = 20
+```
+
 ### Web tools (`[web]` and `[knowledge]`)
 
 Applies to `Web Search`, `Fetch URL`, `Package Info`, and `Search Docs` ([TOOLS.md](TOOLS.md#web-and-knowledge-tools)).

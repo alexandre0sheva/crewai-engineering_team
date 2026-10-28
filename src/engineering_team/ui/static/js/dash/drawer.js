@@ -128,7 +128,20 @@ export function createDrawer(store) {
 
   function trail(found) {
     if (!found.trail.length) return h("p", { class: "help" }, "No tool calls recorded for this card.");
-    return h("div", { class: "table-wrap trail" }, h("table", {}, h("thead", {}, h("tr", {}, ["Time", "Tool", "Arguments", "Took", "Result"].map((t) => h("th", { scope: "col" }, t)))), h("tbody", {}, found.trail.map((t) => h("tr", {}, h("td", { class: "mono-cell" }, clock(t.ts)), h("td", {}, t.tool), h("td", { class: "mono-cell args" }, t.args), h("td", { class: "num" }, `${t.duration.toFixed(2)}s`), h("td", {}, t.ok ? chip("ok", "good", "check") : chip("failed", "bad", "x")))))));
+    const view = h("pre", { class: "viewer panel", hidden: true });
+    const show = async (t) => {
+      view.hidden = false;
+      view.textContent = "Loading…";
+      try {
+        const entry = await get(`/runs/${store.runId}/trajectory/${t.trajectory_seq}`);
+        view.textContent = `${t.tool}(${JSON.stringify(entry.args)})\n\n${entry.output}`;
+      } catch (error) {
+        view.textContent = error.message;
+      }
+    };
+    const output = (t) => (t.trajectory_seq ? button("Output", { kind: "ghost", small: true, onclick: () => show(t) }) : h("span", { class: "help" }, "–"));
+    const table = h("div", { class: "table-wrap trail" }, h("table", {}, h("thead", {}, h("tr", {}, ["Time", "Tool", "Arguments", "Took", "Result", "Output"].map((t) => h("th", { scope: "col" }, t)))), h("tbody", {}, found.trail.map((t) => h("tr", {}, h("td", { class: "mono-cell" }, clock(t.ts)), h("td", {}, t.tool), h("td", { class: "mono-cell args" }, t.args), h("td", { class: "num" }, `${t.duration.toFixed(2)}s`), h("td", {}, t.ok ? chip("ok", "good", "check") : chip("failed", "bad", "x")), h("td", {}, output(t)))))));
+    return h("div", { class: "stack" }, table, view);
   }
 
   function evidence(card) {

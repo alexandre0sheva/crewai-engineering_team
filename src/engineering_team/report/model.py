@@ -102,6 +102,16 @@ class DiffView:
     truncated: bool = False
 
 
+@dataclass(frozen=True)
+class TraceInfo:
+    """The run's trajectory file (``engineering-team trace``): how much it holds, and whether the
+    size budget made it keep less."""
+
+    entries: int
+    size: int
+    notices: list[str] = field(default_factory=list)
+
+
 @dataclass
 class RunReport:
     run_id: str
@@ -134,6 +144,7 @@ class RunReport:
     diff: DiffView | None = None
     diff_note: str = ""
     warnings: list[Notice] = field(default_factory=list)
+    trace: TraceInfo | None = None
     environment: list[tuple[str, str]] = field(default_factory=list)
     questions: list[str] = field(default_factory=list)
     summaries: dict[str, str] = field(default_factory=dict)  # stage -> what its agent said
