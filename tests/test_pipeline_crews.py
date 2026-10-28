@@ -25,6 +25,8 @@ from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.events import read_events
 from engineering_team.testing import ScriptedLLM, ToolCall
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # the 0.2.0 structure: every stage
+
 DOC = "# Doc\n" + BODY
 
 
@@ -57,12 +59,6 @@ def scripts() -> dict[str, ScriptedLLM]:
         ),
         "devops_engineer": ScriptedLLM([write("docs/devops.md"), "Delivery files added."]),
         "technical_writer": ScriptedLLM([write("docs/usage.md"), "Documentation written."]),
-        "quality_engineer": ScriptedLLM(
-            [
-                write("docs/release-report.md"),
-                "Released.",
-            ]
-        ),
     }
 
 
@@ -104,6 +100,7 @@ def test_real_crews_on_scripted_models_build_the_project_stage_by_stage(
     manifest = only_run()
     assert manifest.status == "succeeded"
     assert [(r.name, r.status) for r in manifest.stages] == [
+        ("design", "skipped"),  # a large task: the spec and the plan apart
         ("spec", "succeeded"),
         ("plan", "succeeded"),
         ("foundation", "succeeded"),
@@ -113,7 +110,7 @@ def test_real_crews_on_scripted_models_build_the_project_stage_by_stage(
         ("review", "succeeded"),
         ("devops", "succeeded"),
         ("docs", "succeeded"),
-        ("release", "succeeded"),
+        ("release_notes", "succeeded"),
     ]
     for path in (
         "docs/architecture.md",
@@ -139,11 +136,11 @@ def test_each_stage_agent_sees_its_task_the_contracts_and_its_card(
     plan_prompt = models["solution_architect"].calls[0].prompt
     assert "Notes CLI" in plan_prompt and "AC-1" in plan_prompt  # the spec JSON from stage 1
     assert "tiny notes CLI" in plan_prompt  # the original request rides along as context
-    assert "Your task board card is K-002" in plan_prompt
+    assert "Your task board card is K-003" in plan_prompt  # K-001 is the skipped design
     backend = models["backend_engineer"].calls
     implement_prompt = next(call.prompt for call in backend if "Your work package" in call.prompt)
     assert "WP-1" in implement_prompt and "src/storage/**" in implement_prompt
-    assert '"role": "backend"' in implement_prompt
+    assert '"role":"backend"' in implement_prompt  # contracts go in as compact JSON
     # Role text comes from agents.yaml, not from the stage prompts.
     assert "Backend and platform engineer for demo" in backend[0].messages[0]["content"]
 
@@ -161,11 +158,16 @@ def test_stage_agents_get_the_coordination_and_development_tools(
         "write_project_file",  # fs_write
         "search_project_files",  # search
         "run_project_command",  # command
-        "list_board_cards",  # board
-        "report_progress",
+        "run_tests",  # dev
+        "comment_on_card",  # board
         "ask_human",  # human
-        "write_note",  # notes
+        "find_tool",  # the rest, held back
+        "use_tool",
     } <= names
+    held = next(t for t in first.tools if t["function"]["name"] == "find_tool")
+    for name in ("List Board Cards", "Report Progress", "Write Note", "Git Diff Between Refs"):
+        assert name in held["function"]["description"]
+    assert not {"list_board_cards", "write_note"} & names
     assert not any(name.startswith("web_") or name.startswith("browser_") for name in names)
 
 
@@ -181,7 +183,9 @@ def test_the_analyst_only_reads_and_is_told_about_the_context_documents(
     analyst = models["product_analyst"].calls[0]
     assert analyst.tools is not None
     names = {tool["function"]["name"] for tool in analyst.tools}
-    assert {"search_docs", "read_project_file", "ask_human", "write_note"} <= names
+    assert {"read_project_file", "ask_human", "find_tool", "use_tool"} <= names
+    held = next(t for t in analyst.tools if t["function"]["name"] == "find_tool")
+    assert "Search Docs" in held["function"]["description"]
     assert not {"write_project_file", "run_project_command", "replace_in_project_file"} & names
     assert "1 reference document(s)" in analyst.prompt and "Search Docs" in analyst.prompt
     assert "1 reference document(s)" in models["solution_architect"].calls[0].prompt
@@ -214,13 +218,21 @@ def test_reviewers_only_read_and_the_debugger_fixes_what_they_find(
         assert tools is not None
         return {tool["function"]["name"] for tool in tools}
 
+    def held_of(key: str) -> str:
+        tools = models[key].calls[0].tools or []
+        return next(
+            t["function"]["description"] for t in tools if t["function"]["name"] == "find_tool"
+        )
+
     for reviewer in ("code_reviewer", "security_engineer"):
         names = tools_of(reviewer)
-        assert {"read_project_file", "search_project_files", "find_symbol"} <= names
+        assert {"read_project_file", "search_project_files", "find_tool"} <= names
+        assert "Find Symbol" in held_of(reviewer)
         # The write tools they have are limited to their one report path (see parallel.py).
         assert not {"run_project_command", "run_tests", "install_dependencies"} & names
-    assert "dependency_audit" in tools_of("security_engineer")
-    assert "dependency_audit" not in tools_of("code_reviewer")
+        assert "Install Dependencies" not in held_of(reviewer)
+    assert "Dependency Audit" in held_of("security_engineer")
+    assert "Dependency Audit" not in held_of("code_reviewer")
     repair = models["debugger"].calls[0]
     assert "Review findings to fix" in repair.prompt and "F-1 [high]" in repair.prompt
     assert "src/storage/main.py:1" in repair.prompt
@@ -255,9 +267,8 @@ def test_token_usage_is_attributed_to_the_stage_that_spent_it(
         "review",
         "devops",
         "docs",
-        "release",
-    }  # the controller's verify stage spends no tokens
-    assert usage["totals"]["calls"] == 19  # every scripted turn was one model call
+    }  # the controller's verify and release_notes stages spend no tokens
+    assert usage["totals"]["calls"] == 17  # every scripted turn was one model call
     assert usage["by_agent"]
     events = list(read_events(run_dir(only_run()) / "events.jsonl"))
     assert {e.stage for e in events if e.type == "llm.call"} == set(usage["by_stage"])
@@ -270,7 +281,7 @@ def test_the_board_shows_every_stage_done_and_the_packages_the_architect_planned
 
     board = BoardStore(run_dir(only_run()))
 
-    assert [c.status for c in board.cards(kind="stage")] == ["done"] * 10
+    assert [c.status for c in board.cards(kind="stage")] == ["cancelled"] + ["done"] * 10
     assert [(c.title, c.assignee) for c in board.cards(kind="work_package")] == [
         ("WP-1: Storage", "backend_engineer"),
         ("WP-2: CLI", "backend_engineer"),
@@ -316,7 +327,7 @@ def test_the_stage_runner_rejects_unknown_teammates_and_stages(
             StageRequest(ctx=ctx, stage=unprompted, teammate="backend_engineer", state=state)
         )
 
-    twice = StageSpec(name="spec", teammates=["backend_engineer"], outputs=["spec", "plan"])
+    twice = StageSpec(name="spec", teammates=["backend_engineer"], outputs=["spec", "triage"])
     with pytest.raises(StageError, match="several contracts"):
         runner.run(StageRequest(ctx=ctx, stage=twice, teammate="backend_engineer", state=state))
 

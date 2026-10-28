@@ -63,7 +63,7 @@ def make_box(make_context: Make, tmp_path: Path) -> Callable[..., Toolbox]:
             overrides=overrides,
         )
         ctx = make_context(settings=settings)
-        return Toolbox(ctx, build_tools(ctx, groups=["web", "knowledge"], agent=agent))
+        return Toolbox(ctx, build_tools(ctx, groups=["web", "knowledge"], agent=agent, lazy=False))
 
     return build
 
@@ -84,7 +84,7 @@ def test_disabled_web_registers_no_network_tool_but_search_docs_remains(
 ) -> None:
     ctx = make_context()
 
-    tools = {tool.name for tool in build_tools(ctx, groups=["web", "knowledge"])}
+    tools = {tool.name for tool in build_tools(ctx, groups=["web", "knowledge"], lazy=False)}
 
     assert tools == {"Search Docs"}
 
@@ -369,7 +369,7 @@ def test_search_docs_works_offline_over_repo_docs_and_context_dirs(
     )
     ctx = make_context(settings=settings)
     ctx.workspace.write_file("docs/setup.md", "# Setup\n\nInstall the dependencies with uv sync.\n")
-    box = Toolbox(ctx, build_tools(ctx, groups=["knowledge"]))
+    box = Toolbox(ctx, build_tools(ctx, groups=["knowledge"], lazy=False))
 
     repo = box("Search Docs", query="install dependencies uv")
     notes = box("Search Docs", query="invoices nightly")
@@ -426,7 +426,7 @@ def test_an_agent_searches_fetches_and_checks_a_package_version(
     )
 
     result = run_agent_task(
-        ctx, llm, tools=build_tools(ctx, groups=["web", "knowledge"]), max_iter=10
+        ctx, llm, tools=build_tools(ctx, groups=["web", "knowledge"], lazy=False), max_iter=10
     )
 
     assert result.startswith("Use fastify.get")

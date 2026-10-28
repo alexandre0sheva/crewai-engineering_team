@@ -38,8 +38,19 @@ class PackageExecutor(ExecutorBase):
         limit = self.ctx.settings.parallel.max_parallel_agents
         done = {pid for pid, known in self.state.packages.items() if known.status == "succeeded"}
 
+        # A sole package has the workspace to itself and, with a ``solo_prompt``, also does the
+        # foundation and integration work whose stages its plan skipped.
+        sole = len(plan.work_packages) == 1
+        worker = (
+            stage.model_copy(update={"prompt": stage.solo_prompt})
+            if sole and stage.solo_prompt
+            else stage
+        )
+
         def job(package: WorkPackage, lane: int, retry_note: str) -> str:
-            return self._package(stage, package, lane, retry_note or note, scoped=limit > 1)
+            return self._package(
+                worker, package, lane, retry_note or note, scoped=limit > 1 and not sole
+            )
 
         # ``retry`` of a parallel stage is per package, inside the engine, so a stage-level
         # retry never reruns packages that already finished.

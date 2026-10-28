@@ -18,13 +18,15 @@ from engineering_team.tools.support import ToolError
 from engineering_team.tools.workspace import MAX_WRITE_BYTES, ProjectWorkspace
 
 HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+# A header without line numbers ('@@', or '@@ def name' as some models write it).
+BARE_HEADER = re.compile(r"^@@(?:\s.*)?$")
 DEV_NULL = "/dev/null"
 MAX_EDITS = 200
 
 
 @dataclass
 class Hunk:
-    old_start: int
+    old_start: int | None  # None: a bare '@@' header, placed by its context lines alone
     lines: list[tuple[str, str]] = field(default_factory=list)  # (" ", "-", "+"), text
 
     @property
@@ -88,12 +90,17 @@ def parse_unified_diff(patch: str) -> list[FilePatch]:
             continue
         if line.startswith("@@"):
             match = HUNK_HEADER.match(line)
-            if current is None or match is None:
+            if current is None:
+                raise ToolError(
+                    f"Hunk header {line!r} comes before any file: start each file with "
+                    "'--- a/path' and '+++ b/path' lines."
+                )
+            if match is None and BARE_HEADER.match(line) is None:
                 raise ToolError(
                     f"Malformed hunk header: {line!r}. Use '@@ -start,count +start,count @@' "
-                    "after '--- a/path' and '+++ b/path' lines."
+                    "(or a bare '@@' and enough context lines to place the hunk)."
                 )
-            hunk = Hunk(int(match.group(1)))
+            hunk = Hunk(int(match.group(1)) if match else None)
             current.hunks.append(hunk)
         elif hunk is not None and line[:1] in (" ", "-", "+"):
             hunk.lines.append((line[0], line[1:]))
@@ -126,21 +133,29 @@ def _trim_trailing_blank_context(file: FilePatch) -> None:
             last.lines.pop()
 
 
-def _locate(lines: list[str], block: list[str], expected: int) -> int | None:
-    """Index where ``block`` matches ``lines``: exact first, then ignoring trailing space."""
+def _spots(lines: list[str], block: list[str]) -> list[int]:
+    """Every index where ``block`` matches ``lines``: exact first, then ignoring trailing space."""
 
-    if not block:
-        return min(max(expected, 0), len(lines))
     for normalise in (lambda s: s, lambda s: s.rstrip()):
         wanted = [normalise(item) for item in block]
-        spots = [
+        found = [
             start
             for start in range(len(lines) - len(block) + 1)
             if [normalise(item) for item in lines[start : start + len(block)]] == wanted
         ]
-        if spots:
-            return min(spots, key=lambda start: abs(start - expected))
-    return None
+        if found:
+            return found
+    return []
+
+
+def _locate(lines: list[str], block: list[str], expected: int) -> int | None:
+    """Where ``block`` matches ``lines``, nearest ``expected`` (exact first, then ignoring
+    trailing space)."""
+
+    if not block:
+        return min(max(expected, 0), len(lines))
+    spots = _spots(lines, block)
+    return min(spots, key=lambda start: abs(start - expected)) if spots else None
 
 
 def _apply_hunks(path: str, text: str, hunks: list[Hunk]) -> Change:
@@ -148,9 +163,20 @@ def _apply_hunks(path: str, text: str, hunks: list[Hunk]) -> Change:
     lines = text.split("\n")[:-1] if text.endswith("\n") else text.split("\n") if text else []
     change = Change(path, None, existed=True)
     offset = 0
+    end = 0  # where the previous hunk ended: a bare hunk must come after it
     for number, hunk in enumerate(hunks, start=1):
-        expected = hunk.old_start - 1 + offset
-        start = _locate(lines, hunk.old, expected)
+        if hunk.old_start is None:
+            spots = [spot for spot in _spots(lines, hunk.old) if spot >= end]
+            if not hunk.old or len(spots) > 1:
+                where = "has no context lines" if not hunk.old else f"matches {len(spots)} places"
+                raise ToolError(
+                    f"Hunk {number} for {path} has a bare '@@' header and {where}. Add line "
+                    "numbers ('@@ -start,count +start,count @@') or more context lines; "
+                    "nothing was changed."
+                )
+            start = spots[0] if spots else None
+        else:
+            start = _locate(lines, hunk.old, hunk.old_start - 1 + offset)
         if start is None:
             first = next((item for item in hunk.old if item.strip()), "")
             raise ToolError(
@@ -160,6 +186,7 @@ def _apply_hunks(path: str, text: str, hunks: list[Hunk]) -> Change:
             )
         lines[start : start + len(hunk.old)] = hunk.new
         offset += len(hunk.new) - len(hunk.old)
+        end = start + len(hunk.new)
         change.added += sum(1 for tag, _ in hunk.lines if tag == "+")
         change.removed += sum(1 for tag, _ in hunk.lines if tag == "-")
         if hunk.new:

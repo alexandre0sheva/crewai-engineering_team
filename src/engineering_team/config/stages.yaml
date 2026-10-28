@@ -3,7 +3,12 @@
 # stage: {project_name} {requirements} {workspace_path} {current_date} {spec} {plan} {package}
 # {card} {notes} {resume_note} {failures} {findings} {context} {teammates}. {spec}, {plan} and
 # {package} are JSON; the others are text; {context} is empty unless the user supplied reference
-# documents (--context-dir); {teammates} lists who work packages can go to. The ``repair`` prompt is
+# documents (--context-dir); {teammates} lists who work packages can go to; {handoff} is the
+# controller's hand-off pack (files with hashes, latest checks, earlier stages). What changes from
+# one session to the next ({handoff} {card} {notes} {resume_note}) comes last, so the stable start
+# of a prompt can be served from a provider's prompt cache. ``design`` and ``design_change`` write
+# the spec and the plan in one session (small and medium tasks); ``implement_solo`` is a plan's
+# sole work package, which also lays the foundation and integrates. The ``repair`` prompt is
 # the verify stage's: the controller's failing checks are {failures}; ``repair_review`` is its
 # prompt for review findings ({findings}). ``review`` is run once per reviewer. ``analyze_chunk``
 # is run once per chunk of an existing codebase ({chunk} is its brief) and ``analyze_synthesis``
@@ -44,6 +49,7 @@ spec:
     assumptions, so work can go on if nobody answers. Put minor uncertainties in
     open_questions, not in blocking_questions. Ask at most five blocking questions.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -93,12 +99,56 @@ plan:
     reconcile the packages. Mark a package "required": false only if the product works without
     it. Also list the main risks.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
   expected_output: >
     docs/architecture.md written in the workspace, and a JSON plan (stack, commands,
     work_packages, risks).
+
+design:
+  description: >
+    Specify and plan {project_name}, a new project in {workspace_path}, in one pass. Do not
+    write files: the controller records your answer in docs/spec.md and docs/plan.md.
+
+    Request:
+
+    {requirements}
+
+    {context}
+
+    First the specification: a short title and summary; acceptance criteria that can each be
+    checked by running or inspecting the result, numbered AC-1, AC-2, ... (each id used once)
+    with a kind of functional, quality, constraint, or security; explicit non-goals; the
+    assumptions you make where the request is silent; your confidence (high, medium, or low);
+    and a blocking question only when its answer would materially change the product and you
+    cannot reasonably assume it (write the answer you assume under assumptions; at most five).
+    Keep it to the smallest useful MVP and invent nothing the request does not support.
+
+    Then the plan for that specification: the smallest suitable stack (do not force Python, a
+    web UI, or any framework the request does not need); the exact project commands (setup,
+    test, lint, build, run) as lists of command lines; and work packages, each with an id
+    (WP-1, ...), a title, a role (a teammate's key below, or its short form without
+    "_engineer"), a description, the paths it owns (globs such as "src/api/**"), the ids of the
+    packages it depends on, and the criteria ids it delivers (every criterion delivered by some
+    package). Use as few packages as the work allows: one is right for a small project.
+    Packages that do not depend on each other run at the same time, so give them disjoint
+    paths, and never give one a shared root file (README.md, package.json, pyproject.toml, a
+    lockfile, CI configuration). Also list the main risks.
+
+    Teammates available for work packages:
+
+    {teammates}
+
+    {handoff}
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON object with "spec" (title, summary, criteria, non_goals, assumptions,
+    open_questions, confidence, blocking_questions) and "plan" (stack, commands, work_packages,
+    risks).
 
 foundation:
   description: >
@@ -119,6 +169,7 @@ foundation:
     where working behaviour is feasible. Install only necessary dependencies and run the
     cheapest relevant compile, import, or build check. Preserve compatible existing behaviour.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -151,11 +202,47 @@ implement:
     interface), do not work around it: describe it in your summary or in a card comment so the
     integration stage can make it.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
   expected_output: >
     The work package implemented in the workspace with tests. Report the criteria delivered,
+    files changed, commands run with their exit codes, and any honest limitation.
+
+implement_solo:
+  description: >
+    Build {project_name} in {workspace_path}: the whole plan is yours, in one session, and
+    nobody else changes the project while you work.
+
+    Specification:
+
+    {spec}
+
+    Plan:
+
+    {plan}
+
+    Your work package (the whole plan):
+
+    {package}
+
+    {context}
+
+    Read what exists first and reuse coherent code. Set up a conventional structure for the
+    stack (dependency and tool configuration, a safe .gitignore, .env.example when
+    configuration is needed), implement real end to end behaviour for every acceptance
+    criterion with focused tests next to the code, validate inputs and error paths, keep
+    secrets out of the repository, and write a README.md (setup, run, test). Install only
+    necessary dependencies. Run the tests and the cheapest build or start-up check, fix what
+    fails, and never report a check as passing unless you ran it. You may change any file.
+
+    {handoff}
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The project built in the workspace with tests and README.md. Report the criteria delivered,
     files changed, commands run with their exit codes, and any honest limitation.
 
 integrate:
@@ -183,6 +270,7 @@ integrate:
     rewrite a package's design. Write docs/integration.md listing what you ran with exit
     statuses, every change you made and why, and any package that is missing or incomplete.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -217,6 +305,7 @@ repair:
     Reply with a short summary: the root cause, the files you changed, and anything you could
     not fix. The controller records it in docs/qa-notes.md; do not write that file yourself.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -241,6 +330,7 @@ review:
     If you find nothing, say so with an empty list. If you ran a tool, name it and what it
     reported; if a tool could not run, say that instead of guessing.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -273,6 +363,7 @@ repair_review:
     finish. Reply with a short summary: for each finding id, fixed or not and why, and the files
     you changed. The controller records it in docs/qa-notes.md; do not write that file yourself.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -301,6 +392,7 @@ devops:
     available) and record what you could not run. Write docs/devops.md: each file you added or
     changed and why, the commands you ran with their outcome, and what is unchecked.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -327,6 +419,7 @@ docs:
     working. Change documentation files only, never application code, and do not edit
     docs/verification.md, docs/review.md, or docs/release-report.md.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -352,6 +445,7 @@ release:
     verification evidence, known limitations, security notes, and the next three improvements.
     Do not claim production readiness when only MVP readiness was shown.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -373,6 +467,7 @@ build:
     (delivered scope, how it was verified, known limitations). Inspect the existing workspace
     first and reuse coherent code. Never report a check as passing unless you ran it.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -397,6 +492,7 @@ analyze_chunk:
     point to; and how this part is tested and what is not. Keep every item to one sentence.
     Say "unclear" instead of guessing.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -424,6 +520,7 @@ analyze_synthesis:
     how to test it, using the detected commands. Resolve disagreements between the analyses by
     reading the code. Keep every item to one sentence and leave out what you cannot support.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -456,6 +553,7 @@ spec_change:
     also write the answer you would assume under assumptions. Minor uncertainties go in
     open_questions. Ask at most five blocking questions.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -497,12 +595,60 @@ impact:
 
     {teammates}
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
   expected_output: >
     A JSON plan (stack, commands left empty, work_packages with owned_paths and criteria_ids,
     risks).
+
+design_change:
+  description: >
+    Specify and plan a CHANGE to the existing project {project_name} in {workspace_path}, in
+    one pass. Do not edit any file: you design, the others implement.
+
+    Request:
+
+    {requirements}
+
+    {context}
+
+    Read the code the change touches first (the codebase map, when there is one, is a guide,
+    not evidence; the search, symbol, reference, import, and test-finding tools show who
+    depends on what).
+
+    The specification: a short title and summary; acceptance criteria numbered AC-1, AC-2, ...
+    (each id used once) that can each be checked by running or inspecting the result, with a
+    kind of functional, quality, constraint, or security; a criterion (kind constraint) for
+    each existing behaviour the change could plausibly break and must keep; explicit
+    non-goals; the assumptions you make where the request is silent; your confidence (high,
+    medium, or low); and a blocking question only when its answer would materially change the
+    change and you cannot reasonably assume it (write the answer you assume under assumptions;
+    at most five). Describe the new behaviour only as it differs from what the project does
+    today, and invent nothing the request does not support.
+
+    The impact plan: the project's existing stack (do not change it); leave commands empty (the
+    controller uses the project's own commands); work packages, each with an id, a title, a
+    role (a teammate below), a description that names the files to change or add and how it
+    is tested, the exact owned_paths (as narrow as possible; a root file such as package.json
+    is allowed when the change needs it), depends_on, and the criteria_ids it delivers. Use as
+    few packages as the change allows: one is right for a small change. Also list the risks:
+    what the change could break, what is untested, what needs a human decision. Follow the
+    code's conventions and plan the smallest change that delivers the criteria.
+
+    Teammates available for work packages:
+
+    {teammates}
+
+    {handoff}
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON object with "spec" (title, summary, criteria, non_goals, assumptions,
+    open_questions, confidence, blocking_questions) and "plan" (stack, commands left empty,
+    work_packages with owned_paths and criteria_ids, risks).
 
 implement_change:
   description: >
@@ -532,6 +678,7 @@ implement_change:
     the others at the same time, so everything else is read-only for you. If you need a change
     elsewhere, describe it in your summary or in a card comment instead of working around it.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -564,6 +711,7 @@ tests:
     your summary). Run the project's tests for what you added and fix your own tests until they
     pass. Tests that were failing before the change (the baseline) are not yours to fix.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -592,6 +740,7 @@ review_change:
     preferences. If you find nothing, say so with an empty list. If you ran a tool, name it and
     what it reported; if a tool could not run, say that instead of guessing.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -623,6 +772,7 @@ triage:
     the input, the call, the wrong result, and what the right one is. Name only files you have
     seen, and say "unclear" instead of guessing.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -641,7 +791,8 @@ reproduce:
 
     {bug}
 
-    Triage (the debugger's earlier reading, not evidence):
+    Triage (the debugger's earlier reading, not evidence; "(not available)" when the task was
+    small enough to skip it, so find the cause yourself first):
 
     {triage}
 
@@ -665,6 +816,7 @@ reproduce:
     person in questions (what input, what environment, what output); never invent a bug you
     did not see.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -683,7 +835,8 @@ fix:
 
     {bug}
 
-    Triage (the debugger's earlier reading, not evidence):
+    Triage (the debugger's earlier reading, not evidence; "(not available)" when the task was
+    small enough to skip it, so find the cause yourself first):
 
     {triage}
 
@@ -707,6 +860,7 @@ fix:
     changed and why that fixes it, the risk (what else this change could affect and what is not
     tested), and the files you changed.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -738,6 +892,7 @@ repair_fix:
     minimal and in scope. Run the failing command again before you finish. Reply with a short
     summary: the root cause, the files you changed, and anything you could not fix.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -775,6 +930,7 @@ review_fix:
     If you ran a tool, name it and what it reported; if a tool could not run, say that instead of
     guessing.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -800,6 +956,7 @@ custom:
     the project's own checks for what you changed. Reply with a short summary: what you did, the
     files you changed, and what you could not do.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -832,6 +989,7 @@ add_tests:
     (no network, clock, or random without control) and fast. Run the new tests and make them pass
     against the unchanged code; a test you cannot make pass honestly is dropped, not weakened.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -856,6 +1014,7 @@ repair_tests:
     deterministic. If the policy check lists files that are not tests, revert them. Never touch
     production code and never weaken a test that passed before this work.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -883,6 +1042,7 @@ refactor:
     they pass. If the goal cannot be reached without changing behaviour, do the safe part and say
     what is left and why.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -907,6 +1067,7 @@ repair_refactor:
     skipped). If a policy names files (a test, a manifest, too many lines), revert them or shrink
     the change. Run the failing command again before you finish and reply with a short summary.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -935,6 +1096,7 @@ docs_legacy:
     existing documentation instead of adding a second version. Mark anything you could not verify
     as unchecked and never describe behaviour you have not read in the code.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -956,6 +1118,7 @@ repair_docs:
     Revert every change the policy lists (code, tests, configuration, comments) and keep the
     documentation. Reply with a short summary of what you reverted.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -982,6 +1145,7 @@ review_maintain:
     preferences. If you find nothing, say so with an empty list. If you ran a tool, name it and
     what it reported; if a tool could not run, say that instead of guessing.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -1011,6 +1175,7 @@ review_diff:
     owns. If you find nothing, say so with an empty list. If you ran a tool, name it and what it
     reported; if a tool could not run, say that instead of guessing.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -1042,6 +1207,7 @@ dependency_plan:
     dependency you chose to leave alone, each with the reason (pinned on purpose, no newer
     version, abandoned). Order the upgrades with the safest first.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -1065,6 +1231,7 @@ upgrade_apply:
     whole group if they fail, so do not try to fix application code to make an upgrade fit.
     Reply with a short summary of the edits, and name any upgrade you could not apply and why.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -1086,6 +1253,7 @@ repair_upgrade:
     Revert what the policy lists. If a manifest edit itself is the cause, restore the previous
     version of that dependency. Reply with a short summary.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -1118,6 +1286,7 @@ audit_security:
     that reflects exploitability and impact, and a concrete suggested fix. Leave out theoretical
     issues you cannot point to in the code. If you find nothing, say so with an empty list.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}
@@ -1141,6 +1310,7 @@ fix_findings:
     tests for what you changed. Reply with a short summary: for each finding id, fixed or not
     and why, and the files you changed.
 
+    {handoff}
     {card}
     {notes}
     {resume_note}

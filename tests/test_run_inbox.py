@@ -23,6 +23,8 @@ from engineering_team.runtime.inbox import (
 )
 from engineering_team.runtime.run_index import locate_run
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # every stage of the pipeline
+
 MakeContext = Callable[..., RunContext]
 
 

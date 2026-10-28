@@ -347,7 +347,7 @@ def test_cancelling_a_paused_run_releases_its_tools_with_an_error(backend: Toolb
 
 def _run(ctx: RunContext, script: list[Any], **tool_options: Any) -> tuple[str, ScriptedLLM]:
     llm = ScriptedLLM(script)
-    tools = build_tools(ctx, **tool_options)
+    tools = build_tools(ctx, **tool_options, lazy=False)
     return run_agent_task(ctx, llm, tools=tools, max_iter=25), llm
 
 

@@ -24,7 +24,9 @@ from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.run_index import find_runs
 from engineering_team.runtime.run_store import RunStore
 
-pytestmark = pytest.mark.git  # stage commits are part of what these tests are about
+# Stage commits are part of what these tests are about; they cover every stage of the mode
+# (a large task: the map, spec and impact or triage apart), test_lean_pipeline.py the small path.
+pytestmark = [pytest.mark.git, pytest.mark.usefixtures("full_pipeline")]
 runner = CliRunner()
 WORKSPACE_ROOT = "ws"
 REQUEST = "Add a search function that finds notes by text."
@@ -136,11 +138,11 @@ def test_a_feature_run_ends_on_a_new_branch_verified_against_its_baseline_with_a
     assert iso is not None and iso.mode == "branch" and iso.base_commit == base
     assert git(repo, "branch", "--show-current") == iso.branch
     assert iso.branch and iso.branch.startswith("engineering-team/")
-    assert [s.name for s in ref.manifest.stages] == [
+    assert [s.name for s in ref.manifest.stages if s.status == "succeeded"] == [
         "profile", "baseline", "map", "spec", "impact", "implement", "tests", "verify", "review",
         "summary",
     ]  # fmt: skip
-    assert all(s.status == "succeeded" for s in ref.manifest.stages)
+    assert [s.name for s in ref.manifest.stages if s.status != "succeeded"] == ["design"]
     subjects = git(repo, "log", "--format=%s", f"{base}..HEAD").splitlines()
     assert len(subjects) == 10 and subjects[0].startswith("stage(summary)")
     assert git(repo, "status", "--porcelain") == ""

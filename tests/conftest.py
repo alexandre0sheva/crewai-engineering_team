@@ -195,6 +195,16 @@ def no_external_network(request: pytest.FixtureRequest, monkeypatch: pytest.Monk
 
 
 @pytest.fixture
+def full_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every stage of the pipeline, as for a large task with all ceremony asked for. A module of
+    tests written for that structure uses it (``pytestmark = pytest.mark.usefixtures(...)``); the
+    lean default has tests of its own."""
+
+    monkeypatch.setenv("ENGINEERING_LEAN_SIZE", "large")
+    monkeypatch.setenv("ENGINEERING_LEAN_CEREMONY", "always")
+
+
+@pytest.fixture
 def make_context(tmp_path: Path) -> Callable[..., RunContext]:
     """Build a RunContext over a fresh workspace under ``tmp_path``."""
 
@@ -238,12 +248,14 @@ class Toolbox:
 
 @pytest.fixture
 def make_toolbox(make_context: Callable[..., RunContext]) -> Callable[..., Toolbox]:
-    """Build tools for a fresh workspace; options go to ``build_tools``."""
+    """Build tools for a fresh workspace; options go to ``build_tools``. Every tool is its own
+    (``lazy=False``): these tests call tools by name; Find Tool and Use Tool have their own."""
 
     from engineering_team.tools import build_tools
 
     def build(name: str = "project", **options: object) -> Toolbox:
         ctx = make_context(name)
+        options.setdefault("lazy", False)
         return Toolbox(ctx, build_tools(ctx, **options))  # type: ignore[arg-type]
 
     return build

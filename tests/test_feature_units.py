@@ -237,7 +237,8 @@ def test_the_feature_recipe_is_the_plans_pipeline() -> None:
 
     assert [(s.name, s.kind) for s in recipe.stages] == [
         ("profile", "controller"), ("baseline", "controller"), ("map", "analyze"),
-        ("spec", "agent"), ("impact", "agent"), ("implement", "parallel"), ("tests", "agent"),
+        ("design", "agent"), ("spec", "agent"), ("impact", "agent"), ("implement", "parallel"),
+        ("tests", "agent"),
         ("verify", "verify"), ("review", "review"), ("summary", "controller"),
     ]  # fmt: skip
     assert recipe.stage("implement").allow_shared and recipe.stage("implement").prompt

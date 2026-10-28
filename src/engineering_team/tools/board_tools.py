@@ -172,6 +172,8 @@ def make_board_tools(env: ToolEnv) -> dict[str, BaseTool]:
 
         def operation() -> str:
             before = board.get(card_id).status
+            if before == status.strip():  # the controller usually moved it already
+                return f"{card_id} is already {before}; nothing to change."
             card = board.move(card_id, status, actor=actor, reason=reason)  # type: ignore[arg-type]
             return _moved(card, before, actor)
 

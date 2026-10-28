@@ -14,18 +14,32 @@ stages:
     kind: controller
     action: baseline
 
+  # A small repository needs no map: the agents read its few files directly.
   - name: map
     kind: analyze
     teammates: [codebase_analyst]
+    skip_if: [small_task]
 
-  # The analyst turns the request into criteria, including the existing behaviour the change
-  # must keep; the controller checks the ids and settles blocking questions.
+  # Small and medium tasks: the architect writes the criteria and the impact plan in one session
+  # (the controller checks both, as below, and collapses a small task's plan to one package).
+  - name: design
+    kind: agent
+    teammates: [solution_architect]
+    inputs: [request]
+    outputs: [spec, plan]
+    prompt: design_change
+    skip_if: [large_task]
+    retry: 1
+
+  # Large tasks: the analyst turns the request into criteria, including the existing behaviour
+  # the change must keep; the controller checks the ids and settles blocking questions.
   - name: spec
     kind: agent
     teammates: [product_analyst]
     inputs: [request]
     outputs: [spec]
     prompt: spec_change
+    skip_if: [not_large_task]
     retry: 1
 
   # The architect reads the code (and the map) and plans the smallest change as work packages,
@@ -35,6 +49,7 @@ stages:
     teammates: [solution_architect]
     inputs: [request, spec]
     outputs: [plan]
+    skip_if: [not_large_task]
     retry: 1
 
   # Packages that do not depend on each other run side by side, each able to write only its

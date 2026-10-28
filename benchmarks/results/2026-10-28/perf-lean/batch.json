@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "batch": "perf-lean",
+  "created": "2026-10-28T18:22:35+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openai",
+  "profile": "smoke",
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "pipeline"
+  ],
+  "repeat": 1,
+  "parallel": 1,
+  "budget_usd": 0.3,
+  "run_budget_usd": 0.3,
+  "planned_runs": 1,
+  "not_applicable": [],
+  "tasks": {
+    "notes-cli": {
+      "subset": "dev",
+      "digest": "cc8d9ab205533f03"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "notes-cli",
+    "--strategy",
+    "pipeline",
+    "--repeat",
+    "1",
+    "--provider",
+    "openai",
+    "--profile",
+    "smoke",
+    "--budget-usd",
+    "0.3",
+    "--run-budget-usd",
+    "0.3",
+    "--out",
+    "benchmarks/results/2026-10-28",
+    "--batch",
+    "perf-lean",
+    "--allow-failures"
+  ]
+}

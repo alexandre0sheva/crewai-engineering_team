@@ -9,6 +9,7 @@ often a failure is retried, and how the controller verifies its output. The pipe
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from collections.abc import Callable, Collection
 from importlib import resources
@@ -18,6 +19,7 @@ from typing import TYPE_CHECKING, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
+from engineering_team.pipeline.lean import LEAN_CONDITIONS
 from engineering_team.settings import user_config_directory
 
 if TYPE_CHECKING:
@@ -50,6 +52,8 @@ CONDITIONS: dict[str, Callable[[PipelineState, Settings], bool]] = {
     "minimal_team": lambda _, settings: (
         settings.profile == "smoke" or settings.team_profile == "minimal"
     ),
+    # The lean team's: the task's size, a one-package plan, ceremony nobody asked for.
+    **LEAN_CONDITIONS,
 }
 
 
@@ -104,6 +108,9 @@ class StageSpec(BaseModel):
     # README, CI). A project built from nothing keeps those for foundation and integrate; a
     # change to an existing project has no such stage, so its packages need them.
     allow_shared: bool = False
+    # A ``parallel`` stage only: the prompt a plan's sole work package runs with instead (it
+    # also does what the foundation and integrate stages it skips would have done).
+    solo_prompt: str | None = None
     instructions: str | None = None
     write_scope: WriteScopeName | None = None
     repair: bool = True
@@ -164,8 +171,10 @@ class StageSpec(BaseModel):
             raise ValueError(f"only review stages take repair (stage {self.name!r})")
         if self.kind == "upgrade" and (self.outputs or self.verification_policy != "none"):
             raise ValueError(f"upgrade stage {self.name!r} writes its report itself: no outputs")
-        if self.allow_shared and self.kind != "parallel":
-            raise ValueError(f"only parallel stages take allow_shared (stage {self.name!r})")
+        if (self.allow_shared or self.solo_prompt) and self.kind != "parallel":
+            raise ValueError(
+                f"only parallel stages take allow_shared or solo_prompt (stage {self.name!r})"
+            )
         if self.kind != "controller" and self.action:
             raise ValueError(f"only controller stages take an action (stage {self.name!r})")
         for output in self.outputs:
@@ -251,7 +260,11 @@ class Recipe(BaseModel):
     def digest(self) -> str:
         """Identifies the recipe's content: a run only resumes under the recipe it started with."""
 
-        payload = self.model_dump_json(exclude={"mode"})  # who may work it is not its content
+        data = self.model_dump(mode="json", exclude={"mode"})  # who may work it is not content
+        for stage in data["stages"]:
+            if stage.get("solo_prompt") is None:  # added in 0.3.0: unset keeps older digests
+                stage.pop("solo_prompt", None)
+        payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 

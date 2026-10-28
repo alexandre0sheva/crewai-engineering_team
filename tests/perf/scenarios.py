@@ -13,12 +13,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from pipeline_fakes import BODY, REQUEST, SPEC, write_checks
+from pipeline_fakes import BODY, PLAN, REQUEST, SPEC, write_checks
 from test_pipeline_crews import scripts, write
 from test_pipeline_flow import ROOT, only_run, run_dir
 
 from engineering_team import main
-from engineering_team.contracts import Plan, RunManifest, WorkPackage
+from engineering_team.contracts import Design, Plan, ReviewReport, RunManifest, WorkPackage
 from engineering_team.pipeline import strategies
 from engineering_team.pipeline.stages import CrewStageRunner
 from engineering_team.pricing import build_table
@@ -83,9 +83,42 @@ def measure(manifest: RunManifest | None = None, directory: Path | None = None) 
     )
 
 
-def small_new_project_pipeline(monkeypatch: pytest.MonkeyPatch) -> Measured:
-    """The default pipeline on a two-package notes CLI (what 0.2.0 does for a small task)."""
+def lean_scripts(plan: Plan = PLAN) -> dict[str, ScriptedLLM]:
+    """The lean team on the notes CLI: one design session, one implementer, one reviewer."""
 
+    return {
+        "solution_architect": ScriptedLLM([Design(spec=SPEC, plan=plan).model_dump_json()]),
+        "backend_engineer": ScriptedLLM(
+            [
+                write("README.md"),
+                write("src/storage/main.py", "VALUE = 1\n"),
+                write("src/cli/main.py", "VALUE = 2\n"),
+                "Built the notes CLI: AC-1 and AC-2.",
+            ]
+        ),
+        "debugger": ScriptedLLM([]),  # only called when a check fails
+        "code_reviewer": ScriptedLLM([ReviewReport(summary="Reads well.").model_dump_json()]),
+    }
+
+
+def small_new_project_pipeline(monkeypatch: pytest.MonkeyPatch) -> Measured:
+    """The default pipeline on a two-package notes CLI: the lean team (design, one build
+    session for the collapsed plan, one reviewer, no ceremony)."""
+
+    llms = lean_scripts()
+    install(monkeypatch, llms)
+    assert run_new("--strategy", "pipeline") == 0
+    for llm in llms.values():
+        llm.assert_exhausted()
+    return measure()
+
+
+def full_pipeline(monkeypatch: pytest.MonkeyPatch) -> Measured:
+    """The same request with every stage (``lean.size = large``, ``lean.ceremony = always``):
+    the 0.2.0 structure, still what a large task gets."""
+
+    monkeypatch.setenv("ENGINEERING_LEAN_SIZE", "large")
+    monkeypatch.setenv("ENGINEERING_LEAN_CEREMONY", "always")
     install(monkeypatch, scripts())
     assert run_new("--strategy", "pipeline") == 0
     return measure()
@@ -110,7 +143,8 @@ def small_new_project_single(monkeypatch: pytest.MonkeyPatch) -> Measured:
 
 
 def medium_feature_pipeline(monkeypatch: pytest.MonkeyPatch) -> Measured:
-    """The pipeline on a four-package plan, each package depending on the one before."""
+    """The pipeline on a four-package plan, each package depending on the one before: a medium
+    task (one design session, foundation, the packages, integration, both reviewers)."""
 
     def package(number: int) -> WorkPackage:
         return WorkPackage(
@@ -123,24 +157,23 @@ def medium_feature_pipeline(monkeypatch: pytest.MonkeyPatch) -> Measured:
         )
 
     plan = Plan(stack="python", work_packages=[package(n) for n in range(1, 5)])
-    llms = scripts()
+    llms = lean_scripts(plan)
     work: list[object] = [write("README.md"), "Foundation is in place."]
     for number in range(1, 5):
         work += [write(f"src/part{number}/main.py", f"VALUE = {number}\n"), f"WP-{number} done."]
     work += [write("docs/integration.md"), "Integrated."]
     llms["backend_engineer"] = ScriptedLLM(work)  # type: ignore[arg-type]
-    llms["solution_architect"] = ScriptedLLM(
-        [write("docs/architecture.md"), plan.model_dump_json()]
+    llms["security_engineer"] = ScriptedLLM(
+        [ReviewReport(summary="Nothing found.").model_dump_json()]
     )
-    llms["product_analyst"] = ScriptedLLM([SPEC.model_dump_json()])
     install(monkeypatch, llms)
     assert run_new("--strategy", "pipeline") == 0
     return measure()
 
 
 def small_bugfix_fix_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Measured:
-    """``fix`` on a seeded bug in a small repository (the debugger triages, writes the failing
-    test, fixes it; the map analyst and both reviewers read the code)."""
+    """``fix`` on a seeded bug in a small repository: no map and no triage (a small task), the
+    debugger writes the failing test and fixes it, one reviewer reads the change."""
 
     from cli_helpers import workspace_root  # noqa: F401
     from repo_fixtures import make_repo
@@ -149,9 +182,7 @@ def small_bugfix_fix_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Me
     from typer.testing import CliRunner
 
     from engineering_team.cli.app import app
-    from engineering_team.contracts import ReviewReport
-    from engineering_team.modes.codebase_map import ChunkAnalysis
-    from engineering_team.modes.fix_contracts import FixNote, Hypothesis, Triage
+    from engineering_team.modes.fix_contracts import FixNote
 
     repo = make_repo(tmp_path / "notes", BUGGY)
     note = FixNote(
@@ -160,19 +191,10 @@ def small_bugfix_fix_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Me
         risk="Callers that relied on the old result.",
         files=["app/store.py"],
     )
-    triage = Triage(
-        title="add drops notes",
-        hypotheses=[Hypothesis(summary="add ignores its input", suspects=["app/store.py"])],
-        suspect_files=["app/store.py"],
-    )
     llms = {
-        "codebase_analyst": ScriptedLLM(
-            [ChunkAnalysis(summary="A small notes app.").model_dump_json()] * 4
-        ),
         "debugger": ScriptedLLM(
             [
                 ToolCall("Read Project File", {"path": "app/store.py"}),
-                triage.model_dump_json(),
                 write("tests/test_regression.py", REGRESSION),
                 GOOD.model_dump_json(),
                 write("app/store.py", FIXED),
@@ -180,11 +202,12 @@ def small_bugfix_fix_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Me
             ]
         ),
         "code_reviewer": ScriptedLLM([ReviewReport(summary="Reads well.").model_dump_json()]),
-        "security_engineer": ScriptedLLM([ReviewReport(summary="Nothing.").model_dump_json()]),
     }
     install(monkeypatch, llms)
     command = ["--workspace-root", str(Path.cwd() / ROOT), "fix", "--repo", str(repo)]
     result = CliRunner().invoke(app, [*command, "--request", REPORT])
     assert result.exit_code == 0, result.output
+    for llm in llms.values():
+        llm.assert_exhausted()
     ref = latest()
     return measure(ref.manifest, ref.run_dir)

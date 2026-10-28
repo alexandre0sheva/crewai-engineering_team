@@ -139,7 +139,9 @@ def test_an_agent_can_read_history_to_answer_a_question(
         ]
     )
 
-    result = run_agent_task(ctx, llm, tools=build_tools(ctx, groups=["git_read"]), max_iter=5)
+    result = run_agent_task(
+        ctx, llm, tools=build_tools(ctx, groups=["git_read"], lazy=False), max_iter=5
+    )
 
     assert result.startswith("Bo last changed a.py")
     llm.assert_exhausted()

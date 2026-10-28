@@ -17,8 +17,11 @@ from engineering_team.modes import maintain as maintain  # noqa: F401  (register
 from engineering_team.modes import review_mode as review_mode  # noqa: F401  (registers them too)
 from engineering_team.modes.fix_repro import protected_paths
 from engineering_team.modes.policies import SCOPES
+from engineering_team.pipeline import release_notes as release_notes  # noqa: F401  (registers)
 from engineering_team.pipeline.board_sync import StageBoard
 from engineering_team.pipeline.checkpoints import Checkpoints
+from engineering_team.pipeline.handoff import handoff_pack
+from engineering_team.pipeline.lean import LEAN_MODES, LeanProfile, collapse_plan, refine, tier_for
 from engineering_team.pipeline.packages import PlanError, plan_problems
 from engineering_team.pipeline.plan_repair import repair_plan
 from engineering_team.pipeline.recipes import Recipe, StageSpec
@@ -27,6 +30,7 @@ from engineering_team.pipeline.spec_stage import (
     Clarifier,
     SpecError,
     check_spec,
+    render_plan,
     render_spec,
 )
 from engineering_team.pipeline.stages import (
@@ -40,7 +44,7 @@ from engineering_team.pipeline.stages import (
 from engineering_team.pipeline.state import PipelineState, RunBundle
 from engineering_team.runtime.cancel import check_cancelled
 from engineering_team.runtime.context import RunContext
-from engineering_team.runtime.reports import SPEC
+from engineering_team.runtime.reports import PLAN, SPEC
 from engineering_team.runtime.session import RunRecorder
 from engineering_team.tools import WriteScope
 
@@ -75,7 +79,7 @@ class ExecutorBase:
     def _agent(self, stage: StageSpec, note: str) -> None:
         output = self._call(stage, lead_teammate(self.ctx, stage), note)
         if "spec" in output.contracts:
-            output.contracts["spec"] = self._settle_spec(stage, note, output.contracts["spec"])
+            self._settle_spec(stage, note, output)
         for name, contract in output.contracts.items():
             setattr(self.state, name, contract)
         self.state.summaries[stage.name] = output.summary[:MAX_SUMMARY]
@@ -97,13 +101,40 @@ class ExecutorBase:
                     )
                     + " and delivers existing acceptance criteria."
                 )
+            self._lean_plan(stage)
+            if "spec" in output.contracts:  # one session designed it all: record the plan too
+                self.ctx.reports.write(PLAN, render_plan(self.state.plan))
             if host is not None:
                 self.board.ensure_package_cards(self.state.plan, host)
 
-    def _settle_spec(self, stage: StageSpec, note: str, contract: object) -> Spec:
-        """The analyst's spec, checked (``SpecError`` makes the stage retry once), with its
-        blocking questions settled, and written to ``docs/spec.md`` by the controller."""
+    @property
+    def _lean(self) -> LeanProfile | None:
+        """The run's size, where the recipe is sized (``new``, ``feature``, ``fix``)."""
 
+        return self.state.lean if self.recipe.mode in LEAN_MODES else None
+
+    def _lean_plan(self, stage: StageSpec) -> None:
+        """Size the task by its plan; a small task's plan becomes one work package."""
+
+        lean, plan = self._lean, self.state.plan
+        if lean is None or plan is None:
+            return
+        self.state.lean = refine(lean, plan, self.ctx.settings)
+        if self.state.lean.size == "small" and len(plan.work_packages) > 1:
+            self.state.plan = collapse_plan(plan)
+            self.ctx.events.emit(
+                "plan.collapsed",
+                stage=stage.name,
+                packages=[package.id for package in plan.work_packages],
+                reason="small task: one implementer builds the whole plan",
+            )
+
+    def _settle_spec(self, stage: StageSpec, note: str, output: StageOutput) -> None:
+        """The analyst's spec, checked (``SpecError`` makes the stage retry once), with its
+        blocking questions settled, and written to ``docs/spec.md`` by the controller. A design
+        session revised for the answers hands back its revised plan as well."""
+
+        contract = output.contracts["spec"]
         if not isinstance(contract, Spec):
             raise SpecError("The stage returned no specification.")
 
@@ -112,11 +143,13 @@ class ExecutorBase:
             revised = again.contracts.get("spec")
             if not isinstance(revised, Spec):
                 raise SpecError("The analyst returned no specification.")
+            if "plan" in again.contracts:
+                output.contracts["plan"] = again.contracts["plan"]
             return check_spec(revised)
 
         spec = self.clarifier.settle(check_spec(contract), revise)
         self.ctx.reports.write(SPEC, render_spec(spec))
-        return spec
+        output.contracts["spec"] = spec
 
     def _call(
         self,
@@ -173,6 +206,8 @@ class ExecutorBase:
             profile=profile,
             upgrades=upgrades,
             audit=audit or self._audit_text(),
+            tier=tier_for(self._lean, stage.kind, stage.contract_outputs),
+            handoff=handoff_pack(self.ctx, self.state, stage),
         )
         if stage.prompt == "fix_findings" and not findings:  # a stage that fixes the audit's
             request = replace(

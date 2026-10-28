@@ -131,6 +131,9 @@ class DevToolsSettings(_Frozen):
 
 class ToolsSettings(_Frozen):
     dev: DevToolsSettings = DevToolsSettings()
+    # Rarely used tools are held back behind Find Tool and Use Tool, so every call sends fewer
+    # tool schemas; false gives every agent all of its groups' tools as separate tools (0.2.0).
+    lazy: bool = True
 
 
 class TrajectorySettings(_Frozen):
@@ -249,6 +252,15 @@ class AnalysisSettings(_Frozen):
     max_chunks: int = Field(default=6, ge=1, le=20)
     # The size cap, in characters, of the codebase map that is put into agent context.
     context_chars: int = Field(default=8000, ge=1000, le=100_000)
+
+
+class LeanSettings(_Frozen):
+    """How lean a pipeline run is (``pipeline/lean.py``): its size and its optional stages."""
+
+    # auto: decided from the request, the repository and the plan; otherwise fixed.
+    size: Literal["auto", "small", "medium", "large"] = "auto"
+    # auto: the devops and docs stages run only when the request asks for them.
+    ceremony: Literal["auto", "always", "never"] = "auto"
 
 
 class FixSettings(_Frozen):

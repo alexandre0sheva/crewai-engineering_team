@@ -16,6 +16,7 @@ from engineering_team.atomic_io import atomic_write_text
 from engineering_team.tools.workspace import ProjectWorkspace
 
 SPEC = "spec.md"
+PLAN = "plan.md"  # a lean design session's plan, recorded by the controller
 VERIFICATION = "verification.md"
 REVIEW = "review.md"
 QA_NOTES = "qa-notes.md"

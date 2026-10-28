@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
-from engineering_team.contracts import Spec
+from engineering_team.contracts import Plan, Spec
 from engineering_team.pipeline.stages import StageError
 from engineering_team.runtime.budget import BudgetExceeded
 from engineering_team.runtime.cancel import RunCancelled
@@ -80,6 +80,26 @@ def render_spec(spec: Spec) -> str:
         if items:
             lines += ["", f"## {heading}", "", *(f"- {_one_line(item)}" for item in items)]
     lines += ["", f"Analyst confidence: {spec.confidence}", ""]
+    return "\n".join(lines)
+
+
+def render_plan(plan: Plan) -> str:
+    """``docs/plan.md``: a lean design session's plan, as the later stages read it."""
+
+    lines = ["# Plan", "", f"Stack: {_one_line(plan.stack) or 'not stated'}", ""]
+    commands = plan.commands.model_dump(exclude={"schema_version"})
+    lines += ["## Commands", ""]
+    lines += [f"- {name}: `{'`, `'.join(argv)}`" for name, argv in commands.items() if argv]
+    lines += ["", "## Work packages", ""]
+    for package in plan.work_packages:
+        owned = ", ".join(package.owned_paths) or "no paths"
+        criteria = ", ".join(package.criteria_ids) or "none"
+        lines += [f"### {package.id}: {_one_line(package.title)}", ""]
+        lines += [f"Role: {package.role}. Owns: {owned}. Delivers: {criteria}.", ""]
+        if package.description.strip():
+            lines += [package.description.strip(), ""]
+    if plan.risks:
+        lines += ["## Risks", "", *(f"- {_one_line(risk)}" for risk in plan.risks), ""]
     return "\n".join(lines)
 
 

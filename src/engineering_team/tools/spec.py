@@ -39,6 +39,8 @@ class ToolSpec:
     needs_command_gate: bool
     summary: str
     factory: ToolFactory
+    # Held back behind Find Tool / Use Tool (``tools.lazy``) instead of sent with every call.
+    lazy: bool = False
 
 
 def _spec(

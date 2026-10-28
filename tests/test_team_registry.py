@@ -26,6 +26,8 @@ from engineering_team.team import TeamError, build_roster, builtin_roster
 from engineering_team.team.registry import DEFAULT_TOOL_GROUPS, VALID_GROUPS
 from engineering_team.testing import ScriptedLLM
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # every stage of the pipeline
+
 BUILTINS = {
     "product_analyst",
     "solution_architect",
@@ -379,7 +381,7 @@ def test_a_custom_teammate_from_a_project_yaml_works_a_package_in_a_scripted_run
     first = llms["data_engineer"].calls[0]
     assert first.tools is not None
     names = {tool["function"]["name"] for tool in first.tools}
-    assert {"write_project_file", "run_project_command", "write_note"} <= names
+    assert {"write_project_file", "run_project_command", "find_tool", "use_tool"} <= names
     assert not {"browser_open", "web_search", "find_symbol"} & names  # only what it was given
     assert "Data engineer for demo" in first.prompt and "Build the data layer." in first.prompt
     plan_prompt = llms["solution_architect"].calls[0].prompt
@@ -413,7 +415,7 @@ def test_a_disabled_analyst_is_replaced_by_the_generalist_and_the_run_says_so(
             "why": "teammate 'product_analyst' is disabled",
         }
     ]
-    spec_card = BoardStore(run_dir(only_run())).cards(kind="stage")[0]
+    spec_card = BoardStore(run_dir(only_run())).cards(kind="stage")[1]  # [0] is the design
     assert spec_card.assignee == "generalist_engineer"
 
 

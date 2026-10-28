@@ -57,6 +57,7 @@ from engineering_team.settings.sections import (
     GitSettings,
     IntakeSettings,
     KnowledgeSettings,
+    LeanSettings,
     MaintainSettings,
     ModelOverride,
     ModelsSettings,
@@ -110,6 +111,7 @@ class Settings(_Frozen):
     intake: IntakeSettings = IntakeSettings()
     review: ReviewSettings = ReviewSettings()
     analysis: AnalysisSettings = AnalysisSettings()
+    lean: LeanSettings = LeanSettings()
     fix: FixSettings = FixSettings()
     maintain: MaintainSettings = MaintainSettings()
     ui: UiSettings = UiSettings()

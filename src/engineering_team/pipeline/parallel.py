@@ -35,6 +35,7 @@ from engineering_team.runtime.cancel import RunCancelled, check_cancelled
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import lane_scope
 from engineering_team.tools import WriteScope, build_tools
+from engineering_team.tools.registry import hold_back
 
 MAX_ERROR = 600
 T = TypeVar("T")
@@ -273,19 +274,19 @@ def readonly_tools(ctx: RunContext, job: ReadOnlyJob, lane: int | None = None) -
 
     member = ctx.team.members.get(job.teammate)
     groups = member.groups if member is not None else None  # None: every group
-    reading = build_tools(ctx, groups=groups, read_only=True, agent=job.teammate, lane=lane)
+    agent = job.teammate
+    reading = build_tools(ctx, groups=groups, read_only=True, agent=agent, lane=lane, lazy=False)
     if member is not None and "dev" in member.groups:  # inspection that changes no file
-        wanted = build_tools(ctx, groups=["dev"], agent=job.teammate, lane=lane)
+        wanted = build_tools(ctx, groups=["dev"], agent=agent, lane=lane, lazy=False)
         reading += [t for t in wanted if t.name in INSPECTION_TOOLS]
     have = {tool.name for tool in reading}
+    scope = WriteScope(allow=(job.report_path,))
     writing = build_tools(
-        ctx,
-        groups=["fs_write"],
-        write_scope=WriteScope(allow=(job.report_path,)),
-        agent=job.teammate,
-        lane=lane,
+        ctx, groups=["fs_write"], write_scope=scope, agent=agent, lane=lane, lazy=False
     )
-    return [*reading, *(tool for tool in writing if tool.name not in have)]
+    tools = [*reading, *(tool for tool in writing if tool.name not in have)]
+    # The lazy ones (Dependency Audit among them) behind Find Tool, as for any other agent.
+    return hold_back(ctx, tools, agent=agent, lane=lane) if ctx.settings.tools.lazy else tools
 
 
 def run_parallel_readonly(

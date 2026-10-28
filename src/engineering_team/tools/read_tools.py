@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from datetime import datetime
 from pathlib import Path
@@ -179,6 +180,10 @@ def _read_many(workspace: ProjectWorkspace, files: list[str]) -> str:
 
 def make_read_tools(env: ToolEnv) -> dict[str, BaseTool]:
     workspace = env.workspace
+    # The read cache: one bundle serves one agent session, so a whole file this session already
+    # read, unchanged since, is not sent again. Path -> (content hash, the read that sent it).
+    seen: dict[str, tuple[str, int]] = {}
+    reads = [0]
 
     @tool("List Project Files")
     def list_project_files(path: str = ".", max_depth: int = 4) -> str:
@@ -210,7 +215,21 @@ def make_read_tools(env: ToolEnv) -> dict[str, BaseTool]:
                     f"{MAX_READ_BYTES}-byte whole-file limit. Use Read File Range "
                     "(start_line, max_lines) instead."
                 )
-            return workspace.read_file(path)
+            text = workspace.read_file(path)
+            reads[0] += 1
+            key, digest = (
+                workspace.relative_name(resolved),
+                hashlib.sha256(text.encode()).hexdigest(),
+            )
+            earlier = seen.get(key)
+            if earlier is not None and earlier[0] == digest:
+                return (
+                    f"{key} is unchanged since you read it (read {earlier[1]} of this session), "
+                    "so its content is not sent again: it is above in this conversation. If you "
+                    "no longer have it, read the lines you need with Read File Range."
+                )
+            seen[key] = (digest, reads[0])
+            return text
 
         return env.run("Read Project File", operation, arguments={"path": path})
 

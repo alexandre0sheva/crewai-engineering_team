@@ -82,7 +82,7 @@ or YAML ([docs/TEAM.md](docs/TEAM.md)):
 | Role | Teammates |
 |------|-----------|
 | Plan | `product_analyst` (specification), `solution_architect` (design and work split) |
-| Build | `backend_engineer`, `frontend_engineer`, `quality_engineer` (tests, release report), `devops_engineer`, `technical_writer`, `generalist_engineer` |
+| Build | `backend_engineer`, `frontend_engineer`, `quality_engineer` (tests), `devops_engineer`, `technical_writer`, `generalist_engineer` |
 | Check | `code_reviewer`, `security_engineer` (read-only reviewers), `debugger` (reproduces failures and repairs) |
 | Understand | `codebase_analyst` (explains an existing project) |
 
@@ -93,8 +93,8 @@ Add your own teammate, tool, MCP server or hook without changing the code
 
 ```mermaid
 flowchart LR
-    R[Request] --> I[Intake and spec]
-    I --> P[Plan: work packages with owned paths]
+    R[Request] --> I[Intake, task size]
+    I --> P[Spec and plan: work packages with owned paths]
     P --> W1[Work package A]
     P --> W2[Work package B]
     W1 --> V[Controller runs the checks]
@@ -102,7 +102,7 @@ flowchart LR
     V -- failing --> D[Debugger repairs, bounded rounds]
     D --> V
     V -- passing --> Q[Read-only review]
-    Q --> O[Docs, delivery, release]
+    Q --> O[Docs and delivery, when asked; release notes]
     O --> X[Report, Git history, verdict]
     C[(Task board and event log)] -. controller-owned .- V
 ```

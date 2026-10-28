@@ -8,7 +8,15 @@ import time
 from pathlib import Path
 
 import pytest
-from pipeline_fakes import PLAN, REQUEST, STAGES, TAIL, FakeRunner, write_checks
+from pipeline_fakes import (
+    PLAN,
+    RECORDED,
+    REQUEST,
+    STAGES,
+    TAIL,
+    FakeRunner,
+    write_checks,
+)
 
 from engineering_team import main
 from engineering_team.board.store import BoardStore
@@ -20,6 +28,8 @@ from engineering_team.runtime.events import read_events
 from engineering_team.runtime.run_store import RunStore
 from engineering_team.runtime.snapshot import workspace_revision
 from engineering_team.tools.workspace import ProjectWorkspace
+
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # the 0.2.0 structure: every stage
 
 ROOT = "ws"
 
@@ -119,10 +129,12 @@ def test_a_scripted_six_stage_run_goes_through_every_stage_in_order(
     assert manifest.status == "succeeded" and manifest.strategy == "pipeline"
     assert manifest.verdict == "verified"
     assert manifest.recipe == "new" and manifest.resumes == 0
-    assert [record.name for record in manifest.stages] == list(STAGES)
-    assert {record.status for record in manifest.stages} == {"succeeded"}
+    assert [record.name for record in manifest.stages] == list(RECORDED)
+    assert {r.name: r.status for r in manifest.stages if r.status != "succeeded"} == {
+        "design": "skipped"  # a large task (full_pipeline): the spec and the plan apart
+    }
     # Each stage started from the tree the previous one left: that chain is what resume trusts.
-    records = manifest.stages
+    records = [record for record in manifest.stages if record.status == "succeeded"]
     assert all(a.revision == b.revision_start for a, b in zip(records, records[1:], strict=False))
     assert all(record.revision for record in records)
     for path in ("docs/architecture.md", "README.md", "src/wp-1.py", "docs/release-report.md"):
@@ -164,6 +176,7 @@ def test_stages_get_a_board_card_and_the_plan_adds_work_package_cards(
 
     at_plan = seen["plan/"]
     assert at_plan == {
+        "Design": "cancelled",
         "Spec": "done",
         "Plan": "in_progress",
         "Foundation": "backlog",
@@ -173,7 +186,7 @@ def test_stages_get_a_board_card_and_the_plan_adds_work_package_cards(
         "Review": "backlog",
         "Devops": "backlog",
         "Docs": "backlog",
-        "Release": "backlog",
+        "Release notes": "backlog",
     }
     at_wp2 = seen["implement/WP-2"]
     assert at_wp2["WP-1: Storage"] == "done" and at_wp2["WP-2: CLI"] == "in_progress"
@@ -182,7 +195,7 @@ def test_stages_get_a_board_card_and_the_plan_adds_work_package_cards(
     board = BoardStore(run_dir(only_run()))
     stages = board.cards(kind="stage")
     packages = board.cards(kind="work_package")
-    assert [card.status for card in stages] == ["done"] * 10
+    assert [card.status for card in stages] == ["cancelled"] + ["done"] * 10
     assert [card.status for card in packages] == ["done", "done"]
     implement = next(card for card in stages if card.stage == "implement")
     assert {card.parent_id for card in packages} == {implement.id}
@@ -238,7 +251,6 @@ def test_user_notes_reach_each_teammate_once(monkeypatch: pytest.MonkeyPatch) ->
         *[("review", None)] * 2,  # code_reviewer and security_engineer
         ("devops", None),  # devops_engineer
         ("docs", None),  # technical_writer
-        ("release", None),  # quality_engineer
     ]
     assert all(text in ("", note) for _, text in steering)
 
@@ -263,7 +275,7 @@ def test_a_paused_run_waits_at_the_stage_boundary_until_resumed(
 
 # -- failure and resume --------------------------------------------------------------------------
 
-FAIL_POINTS = ["spec", "plan", "foundation", "implement:WP-2", "integrate", "devops", "release"]
+FAIL_POINTS = ["spec", "plan", "foundation", "implement:WP-2", "integrate", "devops", "docs"]
 
 
 def _expected_rerun(point: str) -> list[tuple[str, str | None]]:
@@ -300,11 +312,11 @@ def test_a_run_that_fails_at_any_stage_resumes_without_redoing_finished_work(
     assert tree() == reference_tree
     final = only_run()
     assert final.run_id == failed.run_id and final.status == "succeeded" and final.resumes == 1
-    assert {record.status for record in final.stages} == {"succeeded"}
+    assert {record.status for record in final.stages} == {"succeeded", "skipped"}
     # The agent that continues is told to inspect the workspace and not redo finished work.
-    assert "do not redo" in resumed_runner.requests[0].note.lower() or point == "release"
+    assert "do not redo" in resumed_runner.requests[0].note.lower()
     board = BoardStore(run_dir(final))
-    assert [card.status for card in board.cards(kind="stage")] == ["done"] * 10
+    assert [card.status for card in board.cards(kind="stage")] == ["cancelled"] + ["done"] * 10
 
 
 @pytest.mark.parametrize("point", FAIL_POINTS)
@@ -376,7 +388,7 @@ def test_resuming_twice_after_two_failures_still_never_repeats_a_finished_stage(
 def test_resuming_a_run_whose_every_stage_finished_runs_nothing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    use_runner(monkeypatch, FakeRunner(fail={"release": 2}))
+    use_runner(monkeypatch, FakeRunner(fail={"docs": 2}))
     start()
     run_id = only_run().run_id
     store = RunStore(project())
@@ -385,7 +397,7 @@ def test_resuming_a_run_whose_every_stage_finished_runs_nothing(
 
     def finish_release(manifest: RunManifest) -> None:
         for record in manifest.stages:
-            if record.name == "release":
+            if record.name == "docs":
                 record.status, record.revision = (
                     "succeeded",
                     workspace_revision(ProjectWorkspace.create(project())),
@@ -652,7 +664,8 @@ def test_the_retry_note_carries_the_previous_error(monkeypatch: pytest.MonkeyPat
     assert "previous attempt failed: scripted failure in spec" in spec_requests[1].note
     types = [e.type for e in read_events(run_dir(only_run()) / "events.jsonl")]
     assert types.count("stage.retry") == 1
-    assert only_run().stages[0].attempts == 1  # one stage entry; the retry happened inside it
+    spec = next(record for record in only_run().stages if record.name == "spec")
+    assert spec.attempts == 1  # one stage entry; the retry happened inside it
 
 
 def test_missing_promised_files_fail_the_stage_even_when_the_agent_says_done(
@@ -671,7 +684,7 @@ def test_missing_promised_files_fail_the_stage_even_when_the_agent_says_done(
 
     manifest = only_run()
     assert stage_statuses(manifest)["foundation"] == "failed"
-    assert "README.md (missing)" in manifest.stages[2].detail
+    assert "README.md (missing)" in manifest.stages[RECORDED.index("foundation")].detail
     state = PipelineState.load(run_dir(manifest))
     assert state is not None and "README.md (missing)" in state.error
 

@@ -9,7 +9,10 @@ from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.snapshot import workspace_revision
 
-RECIPE = load_recipe("new")
+# The planner over the large-task stage order (``design`` is the lean path's; a skipped one is
+# covered below and in test_lean_pipeline.py).
+_NEW = load_recipe("new")
+RECIPE = _NEW.model_copy(update={"stages": [s for s in _NEW.stages if s.name != "design"]})
 NAMES = [stage.name for stage in RECIPE.stages]
 N = len(NAMES)
 
@@ -171,3 +174,15 @@ def test_the_revision_notices_a_rename_and_honours_gitignore(
 
 def test_resume_note_text_tells_the_agent_to_inspect_first() -> None:
     assert "Inspect the workspace first" in RESUME_NOTE and "do not redo" in RESUME_NOTE
+
+
+def test_a_skipped_stage_that_promised_contracts_counts_as_finished() -> None:
+    # ``design`` promises the spec and the plan, but a large task skips it: nothing is missing.
+    records = [
+        StageRecord(name="design", status="skipped", revision_start="h0", revision="h0"),
+        StageRecord(name="spec", status="failed", revision_start="h0"),
+    ]
+
+    plan = plan_resume(_NEW, records, _state(spec=False, plan=False), "partial")
+
+    assert plan["design"].action == "reuse" and plan["spec"].action == "continue"

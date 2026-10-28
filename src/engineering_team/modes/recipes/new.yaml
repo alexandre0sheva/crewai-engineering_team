@@ -1,18 +1,31 @@
 # The recipe for building a new project from a request. A recipe is data: ordered stages, who
 # works on them, which contracts they read and write, when they are skipped, and how the
-# controller checks the result. See docs/ARCHITECTURE.md ("Pipeline, recipes, and resume").
+# controller checks the result. See docs/ARCHITECTURE.md ("Pipeline, recipes, and resume"); how
+# the controller sizes a run and what a small one leaves out is pipeline/lean.py.
 name: new
 mode: new
-description: Build a new project from a request, from spec to release report.
+description: Build a new project from a request, from spec to release notes.
 stages:
-  # The product analyst returns the spec contract; the controller checks the criterion ids,
-  # settles blocking questions (asking with --interactive, otherwise recording assumptions) and
-  # writes docs/spec.md itself. `retry: 1` is the one repair of an invalid spec.
+  # Small and medium tasks: one session returns the spec and the plan together. The controller
+  # checks both as below, writes docs/spec.md and docs/plan.md itself, and collapses a small
+  # task's plan into one work package.
+  - name: design
+    kind: agent
+    teammates: [solution_architect]
+    inputs: [request]
+    outputs: [spec, plan]
+    skip_if: [large_task]
+    retry: 1
+
+  # Large tasks: the product analyst returns the spec contract; the controller checks the
+  # criterion ids, settles blocking questions (asking with --interactive, otherwise recording
+  # assumptions) and writes docs/spec.md itself. `retry: 1` is the one repair of an invalid spec.
   - name: spec
     kind: agent
     teammates: [product_analyst]
     inputs: [request]
     outputs: [spec, "file:docs/spec.md"]
+    skip_if: [not_large_task]
     verification_policy: artifacts
     retry: 1
 
@@ -23,14 +36,17 @@ stages:
     teammates: [solution_architect]
     inputs: [request, spec]
     outputs: [plan, "file:docs/architecture.md"]
+    skip_if: [not_large_task]
     verification_policy: artifacts
     retry: 1
 
+  # Skipped for a one-package plan: its implementer lays the foundation itself (solo_prompt).
   - name: foundation
     kind: agent
     teammates: [backend_engineer]
     inputs: [spec, plan]
     outputs: ["file:README.md"]
+    skip_if: [single_package]
     verification_policy: artifacts
     retry: 1
 
@@ -43,6 +59,7 @@ stages:
     teammates: [backend_engineer, frontend_engineer]
     inputs: [spec, plan]
     skip_if: [no_work_packages]
+    solo_prompt: implement_solo
     retry: 1
 
   # Sequential and unrestricted: builds, runs the tests, and fixes what the parallel packages
@@ -52,7 +69,7 @@ stages:
     teammates: [backend_engineer]
     inputs: [spec, plan]
     outputs: ["file:docs/integration.md"]
-    skip_if: [no_work_packages]
+    skip_if: [no_work_packages, single_package]
     verification_policy: artifacts
     retry: 1
 
@@ -70,7 +87,7 @@ stages:
   # merges their findings into docs/review.md. Findings at or above review.fail_on go to the
   # verify stage's repair agent (one round of budget.max_repair_rounds), then the project is
   # verified again. Skipped with --profile smoke or team_profile = "minimal", and when every
-  # reviewer is disabled.
+  # reviewer is disabled. A small, low-risk task has one reviewer, on the worker tier.
   - name: review
     kind: review
     teammates: [code_reviewer, security_engineer]
@@ -80,14 +97,15 @@ stages:
     optional: true
     verification_policy: artifacts
 
-  # Optional delivery and documentation work; skipped like review, and when disabled. Whatever
-  # they change is verified again by the final re-verify after the last stage.
+  # Ceremony: delivery and documentation work runs only when the request asks for it (CI,
+  # Docker, deployment; documentation) or lean.ceremony = "always"; skipped like review, and when
+  # disabled. Whatever they change is verified again by the final re-verify after the last stage.
   - name: devops
     kind: agent
     teammates: [devops_engineer]
     inputs: [spec, plan]
     outputs: ["file:docs/devops.md"]
-    skip_if: [minimal_team]
+    skip_if: [minimal_team, devops_not_requested]
     optional: true
     verification_policy: artifacts
     retry: 1
@@ -97,15 +115,12 @@ stages:
     teammates: [technical_writer]
     inputs: [spec, plan]
     outputs: ["file:docs/usage.md"]
-    skip_if: [minimal_team]
+    skip_if: [minimal_team, docs_not_requested]
     optional: true
     verification_policy: artifacts
     retry: 1
 
-  - name: release
-    kind: agent
-    teammates: [quality_engineer]
-    inputs: [spec, plan]
-    outputs: ["file:docs/release-report.md"]
-    verification_policy: artifacts
-    retry: 1
+  # The controller writes docs/release-report.md from the run's records (no model).
+  - name: release_notes
+    kind: controller
+    action: release_notes

@@ -37,7 +37,7 @@ a profile.
 | `provider` | `ENGINEERING_PROVIDER` | `openai` | Model preset: `openai`, `anthropic`, `google`, `ollama` (`azure` needs `enable_azure`) |
 | `profile` | `ENGINEERING_RUN_PROFILE` | `standard` | `standard`, `smoke` (cheap end-to-end check), `max-quality` |
 | `strategy` | `ENGINEERING_STRATEGY` | `pipeline` | How the team is orchestrated: `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)) or `single` (one agent with every tool, the benchmark baseline). `--strategy` overrides it. Chosen with the [benchmarks](BENCHMARKS.md#results-2026-10-04); only `new` follows it, the repository modes always use `pipeline`. |
-| `team_profile` | `ENGINEERING_TEAM_PROFILE` | `full` | `full` runs every stage of the `new` recipe; `minimal` leaves out the optional ones (review, DevOps, docs), as `--profile smoke` does. To drop only one, disable its teammates instead (`[team.code_reviewer] enabled = false`; a stage is skipped when none of its teammates is enabled). See [Review](#review-review-and-team_profile) |
+| `team_profile` | `ENGINEERING_TEAM_PROFILE` | `full` | `full` runs every stage of the `new` recipe that the task's size and request call for ([Lean team](#lean-team-lean-and-toolslazy)); `minimal` leaves out the optional ones (review, DevOps, docs), as `--profile smoke` does. To drop only one, disable its teammates instead (`[team.code_reviewer] enabled = false`; a stage is skipped when none of its teammates is enabled). See [Review](#review-review-and-team_profile) |
 | `project_name` | `ENGINEERING_PROJECT_NAME` | `mvp-app` | Workspace directory name |
 | `workspace_root` | `ENGINEERING_WORKSPACE_ROOT` | `workspace` | Parent of generated projects (relative → current directory) |
 | `request` | `ENGINEERING_PROJECT_REQUEST` | – | Inline request used when no `--request`/`--example`/`--request-file` is given |
@@ -60,6 +60,9 @@ a profile.
 | `budget.max_tokens` | `ENGINEERING_BUDGET_MAX_TOKENS` | – | Stop after this many prompt + completion tokens |
 | `budget.max_wall_seconds` | `ENGINEERING_BUDGET_MAX_WALL_SECONDS` | – | Stop after this much wall-clock time |
 | `budget.max_tool_calls` | `ENGINEERING_BUDGET_MAX_TOOL_CALLS` | – | Stop after this many agent tool calls |
+| `lean.size` | `ENGINEERING_LEAN_SIZE` | `auto` | How big the task is, which decides what a `pipeline` run leaves out: `auto` (from the request, the repository and the plan), `small`, `medium`, or `large` (every stage, spec and plan apart). See [Lean team](#lean-team-lean-and-toolslazy) |
+| `lean.ceremony` | `ENGINEERING_LEAN_CEREMONY` | `auto` | The `devops` and `docs` stages: `auto` runs them only when the request asks for them, `always` runs them (0.2.0 behaviour), `never` skips them |
+| `tools.lazy` | `ENGINEERING_LAZY_TOOLS` | `true` | Hold rarely used tools back behind Find Tool and Use Tool, so every model call sends fewer tool schemas ([TOOLS.md](TOOLS.md#held-back-tools-find-tool-and-use-tool)); `false` gives every agent all its tools |
 | `budget.max_repair_rounds` | `ENGINEERING_BUDGET_MAX_REPAIR_ROUNDS` | `3` | Fix-and-verify rounds the whole run may spend repairing checks the controller found failing (see [Verification](#verification-verify-and---checks)); `0` never calls a repair agent |
 
 ### Docker sandbox (`[execution.docker]` and `--sandbox`)
@@ -507,10 +510,38 @@ Limits of `engineering-team ui` ([USAGE.md](USAGE.md#web-ui)). The server's own 
 | `ui.max_upload_bytes` | `2000000` | The most bytes of uploaded request and reference files in one start request (HTTP 413 beyond it). |
 | `ui.max_request_bytes` | `200000` | The most bytes of any other request body (HTTP 413 beyond it). |
 
+### Lean team (`[lean]` and `tools.lazy`)
+
+A `pipeline` run is sized before any model is called, and the size decides what it leaves out
+([The lean team](ARCHITECTURE.md#the-lean-team)): a **small** task (a short request, a project of
+at most 40 files, a plan of one or two packages) gets one design session that writes the spec and
+the plan, one implementer for the whole plan and one reviewer; a **medium** one (more files, or
+three to five packages) keeps the design session but runs the packages, foundation, integration and
+both reviewers; a **large** one (a request over 600 words, over 400 files, or six packages) runs
+every stage with the spec and the plan apart. The thresholds are provisional until the 0.3.0 live
+evaluation measures them. Every skipped stage is recorded with its reason (`skipped: small_task`,
+`skipped: docs_not_requested`, ...).
+
+The keys (`lean.size`, `lean.ceremony`, `tools.lazy`) are in the [reference](#settings-reference).
+With `lean.ceremony = "auto"`, `devops` runs when the request mentions CI, Docker, containers or
+deployment, and `docs` when it asks for documentation or a guide. `lean.size = "large"` with
+`lean.ceremony = "always"` is the 0.2.0 pipeline:
+
+```toml
+[lean]
+size = "large"        # every stage, the spec and the plan apart
+ceremony = "always"   # devops and docs whatever the request says
+
+[tools]
+lazy = false          # every tool as its own schema in every call
+```
+
 ### Review (`[review]` and `team_profile`)
 
 After verification the `new` recipe runs read-only reviewers (the code reviewer and the security
-engineer, side by side), then optional DevOps and documentation stages ([TEAM.md](TEAM.md)). Their
+engineer, side by side; only the code reviewer, on the worker tier, for a small low-risk task), then
+the DevOps and documentation stages when the request asks for them ([TEAM.md](TEAM.md),
+[Lean team](#lean-team-lean-and-toolslazy)). Their
 findings go to `docs/review.md`; see [Review and optional stages](ARCHITECTURE.md#review-and-optional-stages).
 
 | Key (TOML) | Default | Meaning |

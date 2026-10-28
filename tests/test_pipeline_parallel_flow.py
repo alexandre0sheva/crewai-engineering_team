@@ -27,6 +27,8 @@ from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.events import read_events
 from engineering_team.testing import ScriptedLLM
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # the 0.2.0 structure: every stage
+
 
 def package(id_: str, *deps: str, **fields: object) -> WorkPackage:
     return WorkPackage(
@@ -313,6 +315,7 @@ def test_cancelling_stops_every_lane_and_the_run_resumes(monkeypatch: pytest.Mon
 
 
 def scoped_run(monkeypatch: pytest.MonkeyPatch) -> dict[str, ScriptedLLM]:
+    # Two packages: a plan's sole package works unscoped (it also lays the foundation).
     plan = Plan(
         stack="python",
         work_packages=[
@@ -322,7 +325,15 @@ def scoped_run(monkeypatch: pytest.MonkeyPatch) -> dict[str, ScriptedLLM]:
                 role="backend",
                 owned_paths=["src/storage/**"],
                 criteria_ids=["AC-1"],
-            )
+            ),
+            WorkPackage(
+                id="WP-2",
+                title="Web",
+                role="backend",
+                owned_paths=["src/web/**"],
+                depends_on=["WP-1"],
+                criteria_ids=["AC-2"],
+            ),
         ],
     )
     llms = {
@@ -335,6 +346,8 @@ def scoped_run(monkeypatch: pytest.MonkeyPatch) -> dict[str, ScriptedLLM]:
                 write("src/cli/main.py", "# not mine\n"),  # outside the package's scope
                 write("src/storage/main.py", "VALUE = 1\n"),
                 "WP-1 delivered AC-1.",
+                write("src/web/main.py", "VALUE = 2\n"),
+                "WP-2 delivered AC-2.",
                 write("docs/integration.md"),
                 "Integrated.",
             ]
@@ -343,9 +356,6 @@ def scoped_run(monkeypatch: pytest.MonkeyPatch) -> dict[str, ScriptedLLM]:
         "security_engineer": ScriptedLLM([ReviewReport().model_dump_json()]),
         "devops_engineer": ScriptedLLM([write("docs/devops.md"), "ok"]),
         "technical_writer": ScriptedLLM([write("docs/usage.md"), "ok"]),
-        "quality_engineer": ScriptedLLM(
-            [write("docs/verification.md"), "verified", write("docs/release-report.md"), "done"]
-        ),
     }
     monkeypatch.setattr(
         strategies, "CrewStageRunner", lambda: CrewStageRunner(llm_factory=lambda key: llms[key])
@@ -389,7 +399,7 @@ def test_tool_events_of_a_package_carry_its_lane_and_other_stages_do_not(
     llm_calls = [e for e in events if e.type == "llm.call" and e.stage == "implement"]
     assert llm_calls and {e.lane for e in llm_calls} == {1}  # CrewAI's own events too
     started = [e for e in events if e.type == "lane.started" and e.data.get("kind") != "job"]
-    assert [(e.lane, e.data["unit"]) for e in started] == [(1, "WP-1")]
+    assert [(e.lane, e.data["unit"]) for e in started] == [(1, "WP-1"), (1, "WP-2")]
     reviewers = {e.data["unit"] for e in events if e.type == "lane.started" and e.stage == "review"}
     assert reviewers == {"code_reviewer", "security_engineer"}  # the read-only fan-out
 
@@ -415,6 +425,6 @@ def test_the_model_rate_limiter_counts_every_model_call_of_the_run(
     assert limiter is not None and all(item is limiter for item in seen)
     usage = json.loads((run_dir(only_run()) / "usage.json").read_text(encoding="utf-8"))
     # Every model call of every stage agent took a slot (and none had to wait at 600 a minute).
-    assert limiter.calls == usage["totals"]["calls"] == 20  # type: ignore[attr-defined]
+    assert limiter.calls == usage["totals"]["calls"] == 18  # type: ignore[attr-defined]
     assert limiter.waits == 0  # type: ignore[attr-defined]
     assert DOC.startswith("# Doc")

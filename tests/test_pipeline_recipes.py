@@ -16,10 +16,11 @@ from engineering_team.pipeline.state import PipelineState
 from engineering_team.settings import load_settings
 
 
-def test_the_new_recipe_has_the_six_stages_in_order() -> None:
+def test_the_new_recipe_has_its_stages_in_order() -> None:
     recipe = load_recipe("new")
 
     assert [stage.name for stage in recipe.stages] == [
+        "design",  # small and medium tasks; spec and plan for large ones
         "spec",
         "plan",
         "foundation",
@@ -29,17 +30,22 @@ def test_the_new_recipe_has_the_six_stages_in_order() -> None:
         "review",
         "devops",
         "docs",
-        "release",
+        "release_notes",
     ]
     assert [stage.kind for stage in recipe.stages] == (
-        ["agent"] * 3 + ["parallel", "agent", "verify", "review", "agent", "agent", "agent"]
+        ["agent"] * 4 + ["parallel", "agent", "verify", "review", "agent", "agent", "controller"]
     )
     # The controller runs the checks; the debugger is only the one who repairs what they find.
     assert recipe.stage("verify").teammates == ["debugger"]
     # Review, DevOps, and docs are optional: a minimal team or no enabled teammate skips them.
     optional = [stage.name for stage in recipe.stages if stage.optional]
     assert optional == ["review", "devops", "docs"]
-    assert all(recipe.stage(name).skip_if == ["minimal_team"] for name in optional)
+    assert all(recipe.stage(name).skip_if[0] == "minimal_team" for name in optional)
+    # Ceremony runs only when the request asks for it (pipeline/lean.py).
+    assert recipe.stage("devops").skip_if == ["minimal_team", "devops_not_requested"]
+    assert recipe.stage("docs").skip_if == ["minimal_team", "docs_not_requested"]
+    assert recipe.stage("design").contract_outputs == ["spec", "plan"]
+    assert recipe.stage("release_notes").action == "release_notes"
     assert recipe.stage("review").teammates == ["code_reviewer", "security_engineer"]
     assert recipe.stage("verify").file_outputs == []
     assert recipe.stage("plan").contract_outputs == ["plan"]

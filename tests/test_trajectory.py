@@ -34,6 +34,8 @@ from engineering_team.settings import load_settings
 from engineering_team.testing import ScriptedLLM, ToolCall, build_agent, build_task
 from engineering_team.tools.registry import build_tools
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # every stage of the pipeline
+
 MakeContext = Callable[..., RunContext]
 GOLDEN = Path(__file__).parent / "golden" / "trace.txt"
 T0 = datetime(2026, 10, 3, 12, 0, 0, tzinfo=UTC)
@@ -162,7 +164,7 @@ def test_past_the_size_budget_outputs_are_cut_harder_then_recording_stops(tmp_pa
 
 
 def run_crew(ctx: RunContext, llm: ScriptedLLM, role: str = "Backend Engineer") -> None:
-    agent = build_agent(ctx, llm, role=role, tools=build_tools(ctx, agent=role))
+    agent = build_agent(ctx, llm, role=role, tools=build_tools(ctx, agent=role, lazy=False))
     with bind_run(ctx.run_id, ctx.events, ctx.trajectory), stage_scope("implement"):
         Crew(
             agents=[agent],

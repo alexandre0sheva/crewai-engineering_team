@@ -87,9 +87,12 @@ class ProjectWorkspace:
             raise WorkspaceError("Paths must be strings relative to the project workspace.")
 
         normalized = relative_path.strip() or "."
-        supplied = Path(normalized)
+        supplied = self._inside(Path(normalized))
         if supplied.is_absolute() or ".." in supplied.parts:
-            raise WorkspaceError(f"Path must stay inside the project workspace: {relative_path}")
+            raise WorkspaceError(
+                f"Path must stay inside the project workspace: {relative_path}. Give paths "
+                "relative to the project root, for example 'src/app.py' ('.' is the root)."
+            )
         self.reject_protected(supplied.parts, readonly=readonly)
 
         resolved = (self.root / supplied).resolve(strict=False)
@@ -106,6 +109,19 @@ class ProjectWorkspace:
         if must_exist and not resolved.exists():
             raise WorkspaceError(f"Path does not exist: {relative_path}")
         return resolved
+
+    def _inside(self, supplied: Path) -> Path:
+        """An absolute path that names a place inside the workspace, made relative to it (agents
+        often echo the workspace path they were given); any other path as it was."""
+
+        if not supplied.is_absolute():
+            return supplied
+        for root in (self.root, self.root.resolve()):
+            try:
+                return supplied.relative_to(root) if supplied != root else Path(".")
+            except ValueError:
+                continue
+        return supplied
 
     @staticmethod
     def reject_protected(parts: tuple[str, ...], *, readonly: bool = False) -> None:

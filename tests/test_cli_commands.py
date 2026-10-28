@@ -16,6 +16,8 @@ from engineering_team.cli.init_command import CONFIG_NAME, REQUEST_NAME
 from engineering_team.runtime.inbox import pending_commands
 from engineering_team.runtime.run_store import RunStore
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # the 0.2.0 structure: every stage
+
 runner = CliRunner()
 
 
@@ -89,7 +91,7 @@ def test_board_prints_the_kanban_and_json_prints_the_cards(finished: str) -> Non
     data = json.loads(invoke("--json", "board", finished).stdout)
 
     assert text.exit_code == 0 and "Done (" in text.stdout  # 80 columns: the compact list
-    assert all(card["status"] == "done" for card in data["cards"])
+    assert {card["status"] for card in data["cards"]} == {"done", "cancelled"}  # design skipped
     assert len(data["cards"]) >= 7
 
 

@@ -21,11 +21,36 @@ renames that section and dates it.
   files read repeatedly. The run report has a "Where the time and money went" section, `usage.json` and the manifest
   carry the sessions, and `bench report` compares sessions, calls and cached share per strategy.
 - Offline performance tests (`tests/perf/`) pin sessions, model calls and tool-schema size on scripted new-project,
-  feature-size and bugfix runs; the lean-team targets are `xfail` until they are met. `docs/BENCHMARKS.md` has the
-  live performance baseline (`single` against `pipeline` on `notes-cli`).
+  feature-size and bugfix runs, and hold the small-task targets (3 sessions, 25 calls, 6,000 schema tokens per
+  agent, no ceremony). `docs/BENCHMARKS.md` has the live performance baseline (`single` against `pipeline` on
+  `notes-cli`).
+- `Find Tool` and `Use Tool`: rarely used tools are held back behind them, so every model call sends far fewer tool
+  schemas (under 6,000 tokens for every teammate, from about 12,000). `tools.lazy = false` restores one schema per
+  tool.
+- `[lean] size` and `[lean] ceremony` (`ENGINEERING_LEAN_SIZE`, `ENGINEERING_LEAN_CEREMONY`) and `tools.lazy`
+  (`ENGINEERING_LAZY_TOOLS`).
 
 ### Changed
 
+- The pipeline is lean by default: each run is sized (small, medium, large) before any model is called. A small
+  new project takes three agent sessions instead of eleven: one `design` session writes the spec and the plan
+  (the controller records `docs/spec.md` and `docs/plan.md`), one engineer builds the whole plan (a plan of one
+  package skips `foundation` and `integrate`), and one reviewer reads it on the worker tier. Large tasks keep the
+  separate spec and plan stages. Every skipped stage is recorded with its reason. On the live `notes-cli` run
+  (`smoke`) the pipeline went from $0.0300 and 6.4 min to $0.0043 and 80 s (`docs/BENCHMARKS.md`).
+- `devops` and `docs` run only when the request asks for them (CI, Docker, deployment; documentation) or
+  `lean.ceremony = "always"`. `docs/release-report.md` is written by the controller from the run's records
+  (`release_notes` stage) instead of a release session.
+- A small fix or feature skips the codebase map, and a small fix skips triage: the reproduce session finds the cause.
+  A small feature's spec and impact plan are one `design` session.
+- Every agent session starts with a hand-off pack from the controller (files with sizes and hashes, the latest
+  check results, earlier stages' summaries), and `Read Project File` does not send a file again that the session
+  already read and that has not changed.
+- Prompts put what changes between sessions last so provider prefix caching applies; contracts are sent as compact
+  JSON, and the answer schema an agent is given leaves out `schema_version` and per-property titles.
+- Fewer failed tool calls: `Apply Patch` places a hunk with a bare `@@` header by its context; an absolute path
+  inside the workspace is accepted; a refused command lists the allowed programs; moving a card to the state it is
+  already in is not an error.
 - A plan that gives a work package a shared root file (`README.md`, `pyproject.toml`, ...) is repaired instead of
   rejected: the file is taken away, a broad glob is narrowed, a package left with nothing is dropped, and a
   `plan.repaired` event records the change. What cannot be repaired is still rejected with its reason.
@@ -65,6 +90,9 @@ renames that section and dates it.
 - `crewai train|replay|test` and `run_with_trigger` no longer exist; `crewai run` still does.
 - Code that imported `engineering_team.crew` (`EngineeringTeam`) should use `engineering_team.llm.build_llm` or the
   pipeline; the module is gone.
+- To keep the 0.2.0 pipeline for every request (all stages, spec and plan apart, DevOps and docs), set
+  `[lean] size = "large"` and `ceremony = "always"`. A run of `new`, `feature` or `fix` started under 0.2.0 cannot be
+  resumed (its recipe changed); start it again.
 
 ## [0.2.0] — 2026-10-05
 

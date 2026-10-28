@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from crewai.tools import BaseTool
@@ -15,6 +16,7 @@ from engineering_team.tools.catalogue_dev import DEV_SPECS
 from engineering_team.tools.catalogue_external import EXTERNAL_SPECS
 from engineering_team.tools.catalogue_project import PROJECT_SPECS
 from engineering_team.tools.catalogue_team import TEAM_SPECS
+from engineering_team.tools.finder import make_finder_tools
 from engineering_team.tools.scope import WriteScope
 from engineering_team.tools.spec import GROUPS, PROJECT_GROUPS, ToolFactory, ToolSpec
 from engineering_team.tools.support import ToolEnv, never_cache
@@ -26,20 +28,65 @@ if TYPE_CHECKING:
 
 __all__ = [
     "CATALOGUE",
+    "EAGER_TOOLS",
+    "FINDER_TOOLS",
     "GROUPS",
+    "LAZY_TOOLS",
     "PROJECT_GROUPS",
     "ToolFactory",
     "ToolSpec",
     "build_tools",
+    "hold_back",
     "web_tools_allowed",
 ]
 
-CATALOGUE: tuple[ToolSpec, ...] = (
-    *PROJECT_SPECS,
-    *DEV_SPECS,
-    *EXTERNAL_SPECS,
-    *TEAM_SPECS,
+# The tools every agent gets as tools of their own (when its groups include them): the ones the
+# run profiles show in use in almost every session. Every other built-in tool is ``lazy``: held
+# back behind Find Tool and Use Tool, so its schema is not sent with every model call.
+EAGER_TOOLS = frozenset(
+    {
+        "List Project Files",
+        "Read Project File",
+        "Read File Range",
+        "Read Many Files",
+        "Search Project Files",
+        "Find Files",
+        "Write Project File",
+        "Replace In Project File",
+        "Apply Patch",
+        "Run Project Command",
+        "Run Tests",
+        "Comment On Card",
+        "Block Card",
+        "Ask Human",
+    }
 )
+
+CATALOGUE: tuple[ToolSpec, ...] = tuple(
+    replace(spec, lazy=spec.name not in EAGER_TOOLS)
+    for spec in (*PROJECT_SPECS, *DEV_SPECS, *EXTERNAL_SPECS, *TEAM_SPECS)
+)
+LAZY_TOOLS = frozenset(spec.name for spec in CATALOGUE if spec.lazy)
+# Not in a group of their own: ``build_tools`` adds them whenever it held tools back.
+FINDER_TOOLS = ("Find Tool", "Use Tool")
+
+
+def hold_back(
+    ctx: RunContext,
+    tools: Iterable[BaseTool],
+    *,
+    agent: str | None = None,
+    lane: int | str | None = None,
+) -> list[BaseTool]:
+    """``tools`` with the catalogue's lazy ones held back behind Find Tool and Use Tool, which
+    come last (for a tool set assembled from several ``build_tools(..., lazy=False)`` calls)."""
+
+    tools = list(tools)
+    held = [tool for tool in tools if tool.name in LAZY_TOOLS]
+    finders = make_finder_tools(ToolEnv(ctx, None, agent, lane), held)
+    for finder in finders:
+        finder.cache_function = never_cache
+    return [*(tool for tool in tools if tool.name not in LAZY_TOOLS), *finders]
 
 
 def web_tools_allowed(settings: Settings, agent: str | None) -> bool:
@@ -61,6 +108,7 @@ def build_tools(
     read_only: bool = False,
     agent: str | None = None,
     lane: int | str | None = None,
+    lazy: bool | None = None,
 ) -> list[BaseTool]:
     """Build one run's tools, in catalogue order.
 
@@ -73,7 +121,8 @@ def build_tools(
     that teammate. Plugin tools (``ctx.plugins``) follow the built-ins, in discovery order, and
     are picked by their declared group like any other. ``lane`` is the parallel lane the tools
     work in: it tags their events and keeps the teammate's browser session and processes apart
-    from a same-role teammate's.
+    from a same-role teammate's. With ``lazy`` (default: ``tools.lazy``) the catalogue's lazy
+    tools are held back behind Find Tool and Use Tool, which come last.
     """
 
     plugin_groups = sorted(ctx.plugins.groups - set(GROUPS))
@@ -99,4 +148,5 @@ def build_tools(
         built = bundles[spec.factory][spec.name]
         built.cache_function = never_cache
         tools.append(built)
-    return tools
+    hold = ctx.settings.tools.lazy if lazy is None else lazy
+    return hold_back(ctx, tools, agent=agent, lane=lane) if hold else tools

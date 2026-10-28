@@ -17,11 +17,11 @@ from engineering_team.runtime.events import read_events
 
 STAGES = [
     "spec", "plan", "foundation", "implement", "integrate", "verify", "review", "devops", "docs",
-    "release",
+    "release_notes",
 ]  # fmt: skip
 
 
-pytestmark = pytest.mark.git
+pytestmark = [pytest.mark.git, pytest.mark.usefixtures("full_pipeline")]  # every stage
 
 
 @pytest.fixture(autouse=True)
@@ -93,7 +93,7 @@ def test_a_skipped_stage_gets_no_commit(monkeypatch: pytest.MonkeyPatch) -> None
         "stage(review)",
         "stage(devops)",
         "stage(docs)",
-        "stage(release)",
+        "stage(release_notes)",
     ]
 
 
@@ -128,7 +128,7 @@ def test_an_existing_repository_is_continued_not_reinitialised(
 
 def test_an_edit_the_final_check_undoes_is_committed_too(monkeypatch: pytest.MonkeyPatch) -> None:
     def forge(request: StageRequest) -> None:
-        if request.stage.name == "release":
+        if request.stage.name == "docs":  # the last agent stage
             request.ctx.workspace.write_file("docs/verification.md", "# Verification\nPASSED\n")
 
     use_runner(monkeypatch, FakeRunner(on_call=forge))

@@ -138,7 +138,7 @@ def test_every_tool_call_emits_a_redacted_tool_call_event(
 
     sink = RecordingSink()
     ctx = RunContext.create(load_settings(), ProjectWorkspace.create(tmp_path / "p"), events=sink)
-    tools = {tool.name: tool for tool in build_tools(ctx)}
+    tools = {tool.name: tool for tool in build_tools(ctx, lazy=False)}
 
     tools["Write Project File"].run(path="a.txt", content="secret-content" * 100)
     tools["Read Project File"].run(path="missing.txt")
@@ -168,7 +168,7 @@ def test_the_tool_gate_can_refuse_calls_for_budgets(
         return "tool-call budget exhausted" if len(calls) > 1 else None
 
     gated = dataclasses.replace(ctx, tool_gate=gate)
-    tools = {tool.name: tool for tool in build_tools(gated)}
+    tools = {tool.name: tool for tool in build_tools(gated, lazy=False)}
 
     assert tools["Project Tree"].run().startswith(".: 0 file(s)")
     refused = tools["Project Tree"].run()

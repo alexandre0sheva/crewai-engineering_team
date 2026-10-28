@@ -345,7 +345,7 @@ def scripted(tmp_path: Path, **overrides: Any) -> tuple[RunContext, ScriptedBack
     settings = load_settings(overrides=overrides or None)
     backend = ScriptedBackend(tmp_path / "scripted-logs")
     ctx = RunContext.create(settings, workspace, backend=backend)
-    return ctx, backend, Toolbox(ctx, build_tools(ctx, groups=["dev"]))
+    return ctx, backend, Toolbox(ctx, build_tools(ctx, groups=["dev"], lazy=False))
 
 
 def arg_after(spec: CommandSpec, prefix: str) -> str:
@@ -579,7 +579,7 @@ def test_an_agent_fails_reads_the_structured_failure_fixes_and_passes(
             "Fixed add(): it subtracted. The test passes now.",
         ]
     )
-    tools = build_tools(ctx, groups=["fs_read", "fs_write", "dev"])
+    tools = build_tools(ctx, groups=["fs_read", "fs_write", "dev"], lazy=False)
 
     result = run_agent_task(ctx, llm, tools=tools, max_iter=10)
 

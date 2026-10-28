@@ -13,12 +13,12 @@ engineering-team team show product_analyst
 
 | Teammate | Does | Tier | Tool groups |
 |---|---|---|---|
-| `product_analyst` | Turns the request into the specification (`spec` stage). Read-only: the controller writes `docs/spec.md`. | `worker` | `fs_read`, `search`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
-| `solution_architect` | Designs the solution and splits the work (`plan` stage); writes `docs/architecture.md`. | `reviewer` (measured: the cheap `worker` model broke the plan rules in 3 of 11 pipeline runs, see [BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) | read tools as above, plus `fs_write` |
-| `backend_engineer` | Foundation, backend work packages, integration. | `worker` | `fs_read`, `fs_write`, `search`, `command`, `dev`, `runtime`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
+| `product_analyst` | Turns the request into the specification (`spec` stage, large tasks only). Read-only: the controller writes `docs/spec.md`. | `worker` | `fs_read`, `search`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
+| `solution_architect` | Writes the spec and the plan in one session for small and medium tasks (`design` stage; the controller writes `docs/spec.md` and `docs/plan.md`); for a large task designs the solution and splits the work (`plan` stage) and writes `docs/architecture.md`. | `reviewer` for the `plan` stage (measured: the cheap `worker` model broke the plan rules in 3 of 11 pipeline runs, see [BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)); `design` runs on `worker` unless the request is high-risk (provisional, [The lean team](ARCHITECTURE.md#the-lean-team)) | read tools as above, plus `fs_write` |
+| `backend_engineer` | Foundation, backend work packages, integration; the whole plan when it has one package (`implement_solo`). | `worker` | `fs_read`, `fs_write`, `search`, `command`, `dev`, `runtime`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
 | `frontend_engineer` | Frontend work packages. | `worker` | as `backend_engineer`, plus `browser` |
-| `quality_engineer` | Writes tests and the release report (`release` stage). | `worker` | as `frontend_engineer` (it needs `browser` to look at the UI) |
-| `code_reviewer` | Read-only review of the finished project: correctness, maintainability, tests, diff noise (`review` stage). | `reviewer` | `fs_read`, `search`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `mcp:docs` |
+| `quality_engineer` | Writes tests (the `tests` stage of `feature`). The release report is the controller's since 0.3.0. | `worker` | as `frontend_engineer` (it needs `browser` to look at the UI) |
+| `code_reviewer` | Read-only review of the finished project: correctness, maintainability, tests, diff noise (`review` stage); the only reviewer of a small, low-risk task, then on `worker`. | `reviewer` | `fs_read`, `search`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `mcp:docs` |
 | `security_engineer` | Read-only security review: secrets, injection, access control, unsafe defaults, and `Dependency Audit` (pip-audit, npm audit, cargo audit, only where installed and allowed). | `reviewer` | as `code_reviewer`, plus `dev` (the audit is the only `dev` tool a read-only reviewer gets) |
 | `devops_engineer` | Dockerfile, CI workflow, `.env.example`, run scripts; records them in `docs/devops.md` (`devops` stage). | `worker` | `fs_read`, `fs_write`, `search`, `command`, `dev`, `runtime`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
 | `technical_writer` | README, `docs/usage.md`, and a changelog for the generated project (`docs` stage); changes documentation only. | `worker` | `fs_read`, `fs_write`, `search`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `mcp:docs` |
@@ -31,20 +31,22 @@ teammate in `web.roles`, if set), `browser` needs the optional Playwright extra.
 available is left out of the run silently; `engineering-team doctor` says what is missing.
 
 Two choices differ from a strict "least privilege" table, because the pipeline's stages need them:
-the architect keeps `fs_write` (it writes the architecture document) and the quality engineer keeps
-`fs_write` (tests and the release report). Everyone has the coordination groups (`board`, `notes`,
+the architect keeps `fs_write` (it writes the architecture document of a large task) and the quality
+engineer keeps `fs_write` (tests). Everyone has the coordination groups (`board`, `notes`,
 `human`) and `knowledge` (Search Docs, which is also how reference documents from `--context-dir` are
 read).
 
 ## Review and the optional stages
 
 After the project is verified, the `new` recipe runs the **review** stage: the code reviewer and the
-security engineer read the project side by side (each in its own parallel lane, read-only) and each returns a
+security engineer (only the code reviewer for a small, low-risk task) read the project side by side (each in its own parallel lane, read-only) and each returns a
 list of findings. The controller checks them (severity, a real path inside the project), merges duplicates
 (same file, nearby lines, similar words: one finding at the higher severity, naming both reviewers), numbers them
 `F-1`, `F-2`, ..., and writes `docs/review.md`. Findings at or above `review.fail_on` (default `high`) go to the
 `debugger` for one repair round (counted in `budget.max_repair_rounds`) and the project is verified again. The
-`devops` and `docs` stages follow, then the release, and the final re-verify covers whatever they changed.
+`devops` and `docs` stages follow when the request asks for them (CI, Docker, deployment; documentation; or
+`lean.ceremony = "always"`), then the controller's release notes, and the final re-verify covers whatever they
+changed.
 
 The three are optional. They are skipped by `--profile smoke`, by `team_profile = "minimal"`, and when none of
 their teammates is enabled (`[team.devops_engineer] enabled = false`); with only one reviewer enabled, the other

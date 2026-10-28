@@ -1,0 +1,31 @@
+Run 20261028-182235-74a0d9: 2 session(s), 15 model call(s), 77,575 prompt tokens (83% cached), $0.0043
+Elapsed 1m16s; session time 1m14s (parallelism 0.96x).
+
+Sessions by cost
+ID  Stage        Agent                                      Time  Calls  Prompt  Cached  Output  Tools/fail     Cost
+S2  implement#1  Backend and platform engineer for app       46s      9  51,115  42,925   3,485        10/0  $0.0030
+S1  design       Product-minded solution architect for app   28s      6  26,460  21,581   1,268         5/3  $0.0013
+
+Sessions by time
+ID  Stage        Agent                                      Time  Calls  Prompt  Cached  Output  Tools/fail     Cost
+S2  implement#1  Backend and platform engineer for app       46s      9  51,115  42,925   3,485        10/0  $0.0030
+S1  design       Product-minded solution architect for app   28s      6  26,460  21,581   1,268         5/3  $0.0013
+
+Prompt by part (the billed prompt, shared out by estimated size)
+ID  Stage        System   Tools  History  Results  Billed
+S2  implement#1  11,574  22,967   11,147    5,427  51,115
+S1  design       11,910  11,861      452    2,237  26,460
+
+Critical path: S1 > S2 (1m14s of 1m16s)
+
+Tool-schema tokens sent with every call, per agent
+Agent                                      Tokens
+Backend and platform engineer for app       3,243
+Product-minded solution architect for app   2,608
+
+Most re-read files
+none read twice (or no trajectory recorded).
+
+Tool failures
+Count  Kind           Tool      Message
+3      bad-arguments  Use Tool  Get Board Card cannot take these arguments (Tool 'Get Board Card' arguments validation failed: 1 validation error for Getboardcard card_id Field required [type=

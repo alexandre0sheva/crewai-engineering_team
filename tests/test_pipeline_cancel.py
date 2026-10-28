@@ -28,6 +28,8 @@ from engineering_team.runtime.locks import WorkspaceLock
 from engineering_team.runtime.run_store import RunNotFound, RunStore
 from engineering_team.runtime.session import RunRecorder
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # the 0.2.0 structure: every stage
+
 MakeContext = Callable[..., RunContext]
 
 
@@ -146,7 +148,11 @@ def test_cancelling_from_another_process_stops_the_run_and_it_resumes(
 
     manifest = only_run()
     assert manifest.status == "cancelled"
-    assert {r.name: r.status for r in manifest.stages} == {"spec": "succeeded", "plan": "cancelled"}
+    assert {r.name: r.status for r in manifest.stages} == {
+        "design": "skipped",
+        "spec": "succeeded",
+        "plan": "cancelled",
+    }
     out = capsys.readouterr()
     assert "Cancellation requested" in out.out and "engineering-team resume" in out.err
     runner = use_runner(monkeypatch, FakeRunner())
@@ -172,7 +178,10 @@ def test_a_cancel_while_paused_between_stages_starts_no_further_stage(
     assert runner.calls == [("spec", None)]  # the run waited at the boundary, then stopped
     manifest = only_run()
     assert manifest.status == "cancelled"
-    assert [(r.name, r.status) for r in manifest.stages] == [("spec", "succeeded")]
+    assert [(r.name, r.status) for r in manifest.stages] == [
+        ("design", "skipped"),
+        ("spec", "succeeded"),
+    ]
     resumed = use_runner(monkeypatch, FakeRunner())
     assert resume(manifest.run_id) == 0
     assert resumed.calls[0] == ("plan", None) and ("spec", None) not in resumed.calls
@@ -234,4 +243,4 @@ def test_a_cancelled_run_keeps_a_truthful_board(monkeypatch: pytest.MonkeyPatch)
     statuses = {card.stage: card.status for card in board.cards(kind="stage")}
     assert statuses["spec"] == statuses["plan"] == "done"
     assert statuses["foundation"] == "cancelled"
-    assert statuses["implement"] == statuses["verify"] == statuses["release"] == "backlog"
+    assert statuses["implement"] == statuses["verify"] == statuses["release_notes"] == "backlog"

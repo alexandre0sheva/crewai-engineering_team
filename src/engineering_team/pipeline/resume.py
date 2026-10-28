@@ -68,8 +68,10 @@ def plan_resume(
     complete = 0
     for stage in stages:
         record = by_name.get(stage.name)
-        if record is None or record.status not in FINISHED or not outputs_present(stage, state):
+        if record is None or record.status not in FINISHED:
             break
+        if record.status == "succeeded" and not outputs_present(stage, state):
+            break  # a skipped stage promised nothing (``design`` when spec and plan run apart)
         complete += 1
 
     invalidated: str | None = None

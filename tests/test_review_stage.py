@@ -25,6 +25,8 @@ from engineering_team.pipeline.stages import StageRequest
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.events import read_events
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # every stage of the pipeline
+
 
 def finding(summary: str, severity: str = "high", **fields: object) -> Finding:
     return Finding(severity=severity, summary=summary, **fields)  # type: ignore[arg-type]
@@ -347,7 +349,11 @@ def test_a_minimal_team_skips_review_devops_and_docs(
     assert start() == 0
 
     assert not {stage for stage, _ in runner.calls} & set(OPTIONAL)
-    skipped = {r.name: r.detail for r in only_run().stages if r.status == "skipped"}
+    skipped = {
+        r.name: r.detail
+        for r in only_run().stages
+        if r.status == "skipped" and r.name != "design"  # a large task (full_pipeline)
+    }
     assert set(skipped) == set(OPTIONAL) and all(reason in d for d in skipped.values())
     assert not (project() / "docs" / "review.md").exists()
     assert not (project() / "docs" / "devops.md").exists()

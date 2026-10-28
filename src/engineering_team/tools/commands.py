@@ -120,7 +120,9 @@ def prepare_command(
     allowed = DEFAULT_COMMAND_ALLOWLIST | workspace.extra_commands
     if executable not in allowed:
         raise WorkspaceError(
-            f"Command '{executable}' is not allowed. Add it explicitly with "
+            f"Command '{executable}' is not allowed. Allowed: {', '.join(sorted(allowed))}. "
+            "There is no shell, so shell builtins (cd, pwd, ls, cat, echo) are never available: "
+            "use the file tools and working_directory instead. A person can add a program with "
             "command_allowlist (ENGINEERING_COMMAND_ALLOWLIST) if this project requires it."
         )
 

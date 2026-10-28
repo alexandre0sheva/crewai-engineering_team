@@ -8,7 +8,7 @@ breaking change to a model's meaning; adding an optional field is not one.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -37,12 +37,39 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+def _lean_schema(schema: Any) -> Any:
+    """A JSON schema without ``schema_version`` and without per-property titles."""
+
+    if isinstance(schema, list):
+        return [_lean_schema(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+    lean = {key: _lean_schema(value) for key, value in schema.items()}
+    properties = lean.get("properties")
+    if isinstance(properties, dict):
+        properties.pop("schema_version", None)
+        for value in properties.values():
+            if isinstance(value, dict):
+                value.pop("title", None)
+        if isinstance(lean.get("required"), list):
+            lean["required"] = [name for name in lean["required"] if name != "schema_version"]
+    return lean
+
+
 class Contract(BaseModel):
     """Base for every contract: versioned, and tolerant of fields it does not know."""
 
     model_config = ConfigDict(extra="ignore")
 
     schema_version: int = SCHEMA_VERSION
+
+    @classmethod
+    def model_json_schema(cls, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        """The schema an agent is asked to answer in, sent with every call of a session that
+        returns the contract: ``schema_version`` (the controller sets it) and the generated
+        per-property titles are left out."""
+
+        return cast(dict[str, Any], _lean_schema(super().model_json_schema(*args, **kwargs)))
 
 
 # -- product definition ------------------------------------------------------------------
@@ -101,6 +128,15 @@ class Plan(Contract):
     commands: ProjectCommands = Field(default_factory=ProjectCommands)
     work_packages: list[WorkPackage] = Field(default_factory=list)
     risks: list[str] = Field(default_factory=list)
+
+
+class Design(Contract):
+    """A lean design session's answer: the specification and the plan for it, together.
+
+    The pipeline splits it into its ``spec`` and ``plan`` contracts as soon as it arrives."""
+
+    spec: Spec
+    plan: Plan
 
 
 # -- verification ------------------------------------------------------------------------

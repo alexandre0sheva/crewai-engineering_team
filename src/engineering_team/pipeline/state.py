@@ -37,6 +37,7 @@ from engineering_team.modes.maintain_contracts import (
     UpgradePlan,
 )
 from engineering_team.modes.repo_profile import RepoProfile
+from engineering_team.pipeline.lean import LeanProfile
 
 STATE_FILENAME = "pipeline.json"
 
@@ -61,6 +62,7 @@ class PipelineState(Contract):
     request_hash: str = ""
     recipe: str = ""
     recipe_digest: str = ""
+    lean: LeanProfile | None = None  # the run's size and what it may leave out (``lean.py``)
     spec: Spec | None = None
     plan: Plan | None = None
     packages: dict[str, PackageState] = Field(default_factory=dict)

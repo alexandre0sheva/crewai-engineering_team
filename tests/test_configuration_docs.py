@@ -28,12 +28,14 @@ from engineering_team.settings import (
     GitSettings,
     IntakeSettings,
     KnowledgeSettings,
+    LeanSettings,
     MaintainSettings,
     NetworkSettings,
     ParallelSettings,
     ReviewSettings,
     RuntimeSettings,
     Settings,
+    ToolsSettings,
     TrajectorySettings,
     UiSettings,
     VerifySettings,
@@ -72,6 +74,7 @@ def test_every_setting_is_documented() -> None:
         "team",
         "review",
         "analysis",
+        "lean",
         "fix",
         "maintain",
         "ui",
@@ -97,6 +100,7 @@ def test_every_setting_is_documented() -> None:
         ("intake", IntakeSettings),
         ("review", ReviewSettings),
         ("analysis", AnalysisSettings),
+        ("lean", LeanSettings),
         ("fix", FixSettings),
         ("maintain", MaintainSettings),
         ("ui", UiSettings),
@@ -108,6 +112,7 @@ def test_every_setting_is_documented() -> None:
     ):
         keys |= {f"{section}.{name}" for name in model.model_fields}
 
+    keys |= {f"tools.{name}" for name in ToolsSettings.model_fields if name != "dev"}
     missing = [key for key in sorted(keys) if f"`{key}`" not in DOC]
 
     assert not missing, missing

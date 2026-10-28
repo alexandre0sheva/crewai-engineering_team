@@ -1,7 +1,7 @@
 # Agent tool catalogue
 
-Every tool an agent can call, built per run by `build_tools(ctx, groups=, write_scope=,
-read_only=)` from the catalogue in `src/engineering_team/tools/` (`catalogue_*.py`, assembled by `registry.py`). A test fails if a
+Every tool an agent can call, built per session by `build_tools(ctx, groups=, write_scope=,
+read_only=, lazy=)` from the catalogue in `src/engineering_team/tools/` (`catalogue_*.py`, assembled by `registry.py`). A test fails if a
 registered tool has no row below, or a row names an unregistered tool, so this file is the
 complete list. Which teammate gets which groups is in [TEAM.md](TEAM.md) (and configurable there); the execution boundary is in [SAFETY.md](SAFETY.md).
 
@@ -38,7 +38,7 @@ once never share them. The default groups for the 0.1 crew are the four project 
 | Tool | Group | Read-only | Network | Command gate | What it does, and its limits |
 |------|-------|-----------|---------|--------------|------------------------------|
 | `List Project Files` | `fs_read` | yes | no | no | Flat listing below a path. Depth ≤ 8, 500 entries. |
-| `Read Project File` | `fs_read` | yes | no | no | Whole text file, up to 250 KB; larger files point to `Read File Range`. |
+| `Read Project File` | `fs_read` | yes | no | no | Whole text file, up to 250 KB; larger files point to `Read File Range`. A file this session already read and that has not changed since is not sent again: the answer says "unchanged since you read it (read N of this session)" ([read cache](#held-back-tools-find-tool-and-use-tool)). |
 | `Read File Range` | `fs_read` | yes | no | no | Numbered lines from a 1-based start (default 200, max 600 lines). Also reads command logs (`full log:` paths). Files up to 5 MB. |
 | `Read Many Files` | `fs_read` | yes | no | no | Up to 20 files or `path:START-END` ranges in one call, 60,000 characters total; bad paths report inline. |
 | `File Info` | `fs_read` | yes | no | no | Type, size, line count, modified time, binary flag, language. |
@@ -50,12 +50,12 @@ once never share them. The default groups for the 0.1 crew are the four project 
 | `Write Project File` | `fs_write` | no | no | no | Create or overwrite a text file, ≤ 1 MB; parents are created. |
 | `Replace In Project File` | `fs_write` | no | no | no | Exact-text replacement that fails unless the occurrence count matches. |
 | `Delete Project Path` | `fs_write` | no | no | no | Delete a file or directory; the root and `.git` are protected. A directory delete needs every file in it in write scope. |
-| `Apply Patch` | `fs_write` | no | no | no | Unified diff or a list of `{path, old, new, expected_replacements}` edits. Every hunk is validated first; one bad hunk changes nothing; writes roll back on failure. Hunks match by content, so drifted line numbers still apply. Returns per-file counts and new line ranges. |
+| `Apply Patch` | `fs_write` | no | no | no | Unified diff or a list of `{path, old, new, expected_replacements}` edits. Every hunk is validated first; one bad hunk changes nothing; writes roll back on failure. Hunks match by content, so drifted line numbers still apply; a bare `@@` header (no line numbers) is placed by its context lines, which must match exactly one place. Returns per-file counts and new line ranges. |
 | `Move Path` | `fs_write` | no | no | no | Move or rename; refuses to overwrite unless `overwrite=true` (files only) and refuses cycles. Scope is checked on both ends. |
 | `Copy Path` | `fs_write` | no | no | no | Copy a file or directory tree (symlinks kept as links, `.git` skipped). |
 | `Make Directory` | `fs_write` | no | no | no | Create a directory with parents; idempotent. |
 | `Workspace Changes` | `fs_write` | yes | no | no | Added, modified, and deleted files since the run started, with a unified diff (≤ 1,000 lines). Works without Git using a snapshot taken at run start. |
-| `Run Project Command` | `command` | no | no | yes | Allowlisted command without a shell; returns exit code, duration, output head and tail, and `full log: <path>`. Default timeout 120 s, max 300 s; a timeout kills the whole process tree. |
+| `Run Project Command` | `command` | no | no | yes | Allowlisted command without a shell; returns exit code, duration, output head and tail, and `full log: <path>`. Default timeout 120 s, max 300 s; a timeout kills the whole process tree. A refused program gets the list of allowed ones (shell builtins such as `cd` or `pwd` never are). |
 | `List Scripts` | `command` | yes | no | no | Scripts from `package.json`, `Makefile`, `justfile`, and `pyproject.toml` `[project.scripts]`. |
 | `Run Script` | `command` | no | no | yes | Run a listed script by name (`test` or `npm:test`) with optional extra args; same limits and allowlist as `Run Project Command`. |
 | `Run Tests` | `dev` | no | no | yes | Detects pytest, unittest, jest, vitest, go, cargo, Maven, Gradle, dotnet, RSpec, minitest, or PHPUnit and returns counts plus each failing test with file, line, message, and a trace excerpt (≤ 20 failures, 8 trace lines for the first 3). By path (comma-separated), name filter, pytest markers, `fail_fast`. A project with no recognised framework gets its `test` script's raw output. |
@@ -110,7 +110,7 @@ once never share them. The default groups for the 0.1 crew are the four project 
 | `List Board Cards` | `board` | yes | no | no | Table of cards with overall progress and a count per column; filter by status, kind, assignee, or `mine`; ≤ 100 rows (default 40). |
 | `Get Board Card` | `board` | yes | no | no | One card in full: fields, description, the latest 8 comments (including the human's) and 8 history entries. |
 | `Add Subtask` | `board` | yes | no | no | A `ready` subtask under one of the caller's own cards (or standalone); at most 500 cards on the board. |
-| `Move Card` | `board` | yes | no | no | The caller's own cards only: `ready → in_progress`, `in_progress → verifying`, `→ blocked`. Never `done`/`failed`/`cancelled`; refusals list the allowed next states. In-progress work packages are capped at `parallel.max_parallel_agents`. |
+| `Move Card` | `board` | yes | no | no | The caller's own cards only: `ready → in_progress`, `in_progress → verifying`, `→ blocked`. Never `done`/`failed`/`cancelled`; refusals list the allowed next states; a move to the state the card is already in is a no-op, not an error. In-progress work packages are capped at `parallel.max_parallel_agents`. |
 | `Block Card` | `board` | yes | no | no | Mark the caller's own card `blocked`; a reason is required. |
 | `Unblock Card` | `board` | yes | no | no | `blocked → in_progress` for the caller's own card (subject to the in-progress limit). |
 | `Comment On Card` | `board` | yes | no | no | Comment on any card (≤ 4,000 characters, 100 per card); never changes status. |
@@ -285,6 +285,33 @@ For verifying a user interface: load the app, read it, use it, and check what it
   The Verifier can run your own Playwright script as a `browser_script` check
   ([CONFIGURATION.md](CONFIGURATION.md#verification-verify-and---checks)).
 
+## Held-back tools: Find Tool and Use Tool
+
+Every model call sends the schema of every tool the agent has: a teammate with a dozen groups paid
+about 12,000 tokens per call for schemas while a session used a handful of tools. So with
+`tools.lazy` (the default) `build_tools` gives an agent only the tools sessions use almost every
+time (`EAGER_TOOLS` in `tools/registry.py`: `List Project Files`, `Read Project File`,
+`Read File Range`, `Read Many Files`, `Search Project Files`, `Find Files`, `Write Project File`,
+`Replace In Project File`, `Apply Patch`, `Run Project Command`, `Run Tests`, `Comment On Card`,
+`Block Card`, `Ask Human`, as far as its groups include them) and holds the rest of its groups' tools
+back behind two tools that come last. Every built-in teammate now sends under 6,000 schema tokens
+per call (a test checks it).
+
+| Tool | Group | Read-only | Network | Command gate | What it does, and its limits |
+|------|-------|-----------|---------|--------------|------------------------------|
+| `Find Tool` | (added when tools are held back) | yes | no | no | Lists the held-back tools whose name or description matches the query (empty: all), up to 8, each with its description and arguments. Its own description names every held-back tool, so the agent knows what exists. |
+| `Use Tool` | (added when tools are held back) | as the tool called | as the tool called | as the tool called | Calls a held-back tool by its exact name with its arguments as an object (arguments put beside the name, or sent as JSON text, are accepted too). The tool reports its own `tool.call` under its own name and keeps every rule (scope, gate, budget); a wrong name or arguments return an `ERROR:` with the right ones. |
+
+The agent's tool list never changes during a session, so the start of every prompt stays the same
+and a provider's prefix cache keeps working (adding real tools mid-session would invalidate it).
+`tools.lazy = false` gives every agent all of its groups' tools as tools of their own, as in 0.2.0;
+plugin tools are never held back.
+
+**Read cache.** One tool bundle serves one agent session, so `Read Project File` remembers the
+content hash of every whole file it returned; reading the same file again unchanged returns a
+one-line answer instead of the file (the content is already in the conversation). `Read File Range`
+is never cached, so an agent whose conversation was compacted can still get the lines back.
+
 ## Conventions every tool follows
 
 - **Results are compact and structured**: counts first, then details, bounded in size; when
@@ -297,7 +324,8 @@ For verifying a user interface: load the app, read it, use it, and check what it
 - **Cancellation and budgets**: once the run is cancelled every tool returns an `ERROR:`; the
   run's tool gate can refuse calls (the budget guard uses it).
 - **Paths** are relative, checked after symlink resolution, and never reach `.git` or
-  `.engineering-team/` (command logs are the one readable exception).
+  `.engineering-team/` (command logs are the one readable exception). An absolute path that lies
+  inside the workspace is taken as the relative path it names.
 - **Tool output from the repo or the web is untrusted data**; it never changes permissions or
   instructions.
 

@@ -86,11 +86,11 @@ workspace/
     │   └── runs/<run-id>/        # manifest, event log, request, board, checks, report.html, logs
     ├── docs/
     │   ├── spec.md               # the specification (acceptance criteria AC-1, AC-2, ...)
-    │   ├── architecture.md
+    │   ├── plan.md               # the plan (architecture.md instead for a large task)
     │   ├── verification.md       # written by the controller from checks it ran itself
     │   ├── review.md             # the reviewers' findings
-    │   ├── devops.md, usage.md
-    │   └── release-report.md
+    │   ├── devops.md, usage.md   # only when the request asks for CI or documentation
+    │   └── release-report.md     # release notes, written by the controller from the records
     ├── README.md
     ├── src/ or apps/ or packages/
     ├── tests/
@@ -98,7 +98,20 @@ workspace/
 ```
 
 The source tree is chosen for the product and the stack; the files under `docs/` are the stages' deliverables
-(a `single` run writes only `README.md` and `docs/release-report.md`). A `pipeline`
+(a `single` run writes only `README.md` and `docs/release-report.md`).
+
+**How much team a request gets.** The controller sizes every `pipeline` run before any model is called
+and leaves out what the size does not need ([The lean team](ARCHITECTURE.md#the-lean-team)). A small
+request ("Build a CLI that stores and lists notes.") gets one session that writes the spec and the plan,
+one engineer who builds the whole plan (README included), the controller's checks, one reviewer, and
+release notes written by the controller: three agent sessions. A medium task (a plan of three to five
+packages, or an existing project of more than 40 files) runs the packages side by side between a
+foundation and an integration stage and has both reviewers; a large one (a request of more than 600
+words, six packages or more) also gets a separate analyst for the spec. DevOps and documentation stages
+run only when the request asks for them ("with GitHub Actions CI", "a Dockerfile", "a user guide").
+The run's board and report list every skipped stage with its reason. `lean.size` and `lean.ceremony`
+([CONFIGURATION.md](CONFIGURATION.md#lean-team-lean-and-toolslazy)) fix the size or the ceremony when
+you know better; `lean.size = "large"` with `lean.ceremony = "always"` is the full 0.2.0 pipeline. A `pipeline`
 or `single` run makes a new project its own Git repository (an initial commit, then one commit per finished
 stage; `--no-git` skips it). Generated workspaces are git-ignored by this repository. A run changes only files
 inside the project; for an existing project use `feature`, `fix` or `maintain`, which never touch your checkout
@@ -203,13 +216,16 @@ any terminal; a note for a run that is not running waits until it is resumed.
 
 ### Strategies, resume, and starting over
 
-The full `pipeline` recipe also reviews the result (two read-only reviewers; `docs/review.md`), adds delivery
-files (`docs/devops.md`) and documentation (`docs/usage.md`). For a quicker, cheaper run use `--profile smoke`
-or `team_profile = "minimal"`, which keep only the essential stages ([TEAM.md](TEAM.md)).
+The `pipeline` recipe also reviews the result (read-only reviewers; `docs/review.md`) and, when the request asks
+for them, adds delivery files (`docs/devops.md`) and documentation (`docs/usage.md`); how much of it a run uses
+depends on the task's size ([How much team a request gets](#what-a-new-project-looks-like)). For a quicker,
+cheaper run use `--profile smoke` or `team_profile = "minimal"`, which keep only the essential stages
+([TEAM.md](TEAM.md)).
 
 
 `--strategy pipeline` (or `ENGINEERING_STRATEGY=pipeline`) runs the team as a staged, resumable
-pipeline (spec, plan, foundation, implement, integrate, verify, review, devops, docs, release); `--strategy single` runs one agent with every
+pipeline (design or spec and plan, foundation, implement, integrate, verify, review, devops, docs, release
+notes, of which a small task runs design, implement, verify, review and release notes); `--strategy single` runs one agent with every
 tool (no stages, no controller-run checks: fast and cheap, the benchmark baseline). `pipeline` is the default: in the benchmarks
 ([BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) it passed 10/10 where the removed 0.1.0 manager-led crew finished 0/3, and
 `single` did as well on pass rate for far less money but skips the staged review and verification report. In a pipeline run the controller, not an agent, runs the tests and checks (`--checks
@@ -298,9 +314,10 @@ uv run engineering-team export-patch --out search.patch
 `feature` takes the request like `new` does (`--request`, `--request-file`, `--context-dir`, stdin,
 `--interactive`) and the options `--provider`, `--profile`, `--sandbox`, `--checks`, `--allow-web`. The team is isolated
 first ([above](#adopting-an-existing-project)), then the `feature` recipe runs: **profile, baseline, map** (the
-adopt stages), **spec** (criteria for the new behaviour, and for the existing behaviour the change must keep),
-**impact** (the architect reads the code and the map and plans the smallest change as work packages, each owning exact
-paths), **implement** (packages that do not depend on each other run side by side, each able to write only its own
+adopt stages; a small project of at most 40 files skips the map), **design** (the architect writes the criteria for the
+new behaviour and for the existing behaviour the change must keep, and plans the smallest change as work packages,
+each owning exact paths, in one session; a large task has a separate **spec** by the analyst and **impact** by the
+architect instead; a small one's plan becomes one package), **implement** (packages that do not depend on each other run side by side, each able to write only its own
 paths; a package may own `package.json`, `pyproject.toml`, and the other shared root files, since there is no
 foundation stage), **tests** (the quality engineer writes tests in the style the project already uses), **verify**,
 **review**, **summary**. The agents are told to follow the project's conventions, keep the diff minimal, and never
@@ -344,7 +361,8 @@ become the suspects, even when the trace came from another machine), and a **com
 `--allow-dirty`, `--squash`) and for the models, sandbox, and checks are those of
 [`feature`](#feature-mode). The recipe: **profile, baseline, map** (the adopt stages), **triage** (the `debugger`
 reads the report, the parsed trace, and the code, and ranks hypotheses; it changes nothing), **reproduce**, **fix**,
-**verify**, **review**, **summary**.
+**verify**, **review**, **summary**. A small fix (a project of at most 40 files and a short report) skips the map
+and the triage: the reproduce session finds the cause itself, and one reviewer reads the change.
 
 **Red, then green.** Nothing is fixed until the bug has been seen. In `reproduce` the debugger writes a failing test
 (in the project's own style, where similar tests live) or a small script, and names the command that runs it. The

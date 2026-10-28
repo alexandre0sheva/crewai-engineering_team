@@ -294,7 +294,9 @@ events: their profile has sessions, time, tokens and cost but no prompt parts.
 
 The offline performance proxies (`tests/perf/`) run scripted scenarios through the real stage runner and
 assert ceilings on sessions, model calls, tool-schema tokens per agent and always-on prompt size, plus
-`xfail` the targets of the plan until the lean team (T6) and the lead agent (T12) meet them.
+the plan's small-task targets, which the lean team (T6) meets: a small new project and a small fix
+each take 3 sessions and 6 model calls, with 3,234 tool-schema tokens per call (0.2.0: 11 sessions,
+19 calls and 12,102 tokens for the same project; 9 sessions for the fix).
 
 ## Run report
 
@@ -400,8 +402,10 @@ ordered list of stages; each has a `name`, a `kind` (`agent`: one small crew, on
 controller-side action, no model; `verify`: the controller's own verification, [below](#verification-and-repair); `analyze`: read-only analysts study an existing codebase, [below](#adopting-an-existing-project)), its `teammates`, `inputs` and `outputs` (contracts `spec`/`plan`,
 or `file:<path>` for a promised file), `skip_if` conditions (`no_work_packages`), `retry`, and a
 `verification_policy` (`artifacts`: the controller requires every promised file to exist and hold
-real content; it never takes the agent's word). The `new` recipe is `spec` → `plan` → `foundation` →
-`implement` → `integrate` → `verify` → `review` → `devops` → `docs` → `release`; the architect's `Plan` decides which work packages exist, so a
+real content; it never takes the agent's word). The `new` recipe is `design` (or `spec` → `plan`
+for a large task) → `foundation` → `implement` → `integrate` → `verify` → `review` → `devops` →
+`docs` → `release_notes`, of which a small task runs `design` → `implement` → `verify` → `review`
+→ `release_notes` ([The lean team](#the-lean-team)); the architect's `Plan` decides which work packages exist, so a
 CLI- or API-only project simply has no frontend package and a plan with none skips `implement`.
 `verify` is run by the controller, not an agent; `review` is [below](#review-and-optional-stages). A
 recipe is validated when loaded (unknown conditions, inputs no earlier stage produces, missing
@@ -473,6 +477,52 @@ a view. Stage agents currently get one default tool table (`fs_read`, `fs_write`
 `command`, `dev`, `runtime`, `code_intel`, `board`, `notes`, `human`; `web` when enabled, `browser`
 for the frontend and quality roles when its extra is installed); per-teammate groups replace it
 when the team registry lands.
+
+### The lean team
+
+Most of a pipeline run's cost used to be structure rather than work: about ten cold-started
+sessions, each re-reading the workspace and re-sending every tool schema with every call
+(`benchmarks/results/2026-10-28/perf-baseline`). `pipeline/lean.py` sizes each run before any model
+is called and the `new`, `feature` and `fix` recipes skip what that size does not need (a `review` or
+`maintain` run keeps every reviewer and tier it asks for); every skip is a stage record
+`skipped: <condition>` and a cancelled card, so the report says what was left out and why.
+
+- **Size.** `assess` reads deterministic signals only: the request's length (over 600 words:
+  large), the existing project's file count (over 40: medium, over 400: large) and `lean.size`.
+  Once the plan exists, `refine` makes the task larger, never smaller (3+ packages: medium, 6+:
+  large). The result (`LeanProfile`: size, high risk, requested ceremony, reasons) is in
+  `pipeline.json` and the `lean.profile` event; a resume keeps it. The thresholds are provisional
+  until the live evaluation (T33) measures them.
+- **One design session** (`design`, `design_change` for a feature) returns a `Design` (the spec
+  and the plan together) for small and medium tasks, on the worker tier; the controller splits it,
+  checks both as before, and writes `docs/spec.md` and `docs/plan.md` itself. Large tasks keep a
+  separate `spec` (product analyst) and `plan` (architect, on its own tier).
+- **One implementer for a small plan.** A small task's plan is collapsed into one work package
+  with every package's paths and criteria (`plan.collapsed` event; the architect's split stays in
+  its description). A one-package plan skips `foundation` and `integrate` (`single_package`): the
+  sole package runs unscoped with the recipe's `solo_prompt` (`implement_solo`) and does both.
+- **No ceremony by default.** `devops` and `docs` run only when the request asks for them (CI,
+  Docker, deployment; documentation, a user guide) or `lean.ceremony = "always"`. The release
+  report is written by the controller (`release_notes`) from the spec, the plan, its own check runs
+  and the review, so it costs no session and claims nothing the records do not show.
+- **Repository modes.** A small fix or feature skips the codebase `map` (the few files are read
+  directly) and a small fix skips `triage` (the reproduce session finds the cause itself).
+- **Reviewers and tiers.** A small, low-risk task has one reviewer (`code_reviewer`, on the worker
+  tier; `lean.reviewers` event). A request touching authentication, secrets, payments, uploads,
+  SQL and the like is high-risk: the security reviewer and the architect's tier stay.
+- **Hand-off packs** (`pipeline/handoff.py`). Every session's prompt carries the controller's
+  record: up to 60 files (the most recently changed, each with its size and a SHA-256 prefix), the
+  latest check results, and one line per earlier stage (quoted as the agent's words, not
+  evidence), so a session does not list and re-read the tree to find out where things stand.
+- **Fewer re-sent tokens per call.** Lazy tools sit behind `Find Tool`/`Use Tool`
+  ([TOOLS.md](TOOLS.md#held-back-tools-find-tool-and-use-tool)), `Read Project File` does not
+  resend a file unchanged since the session read it, contracts are sent as compact JSON, and the
+  output schema an agent answers in leaves out `schema_version` and per-property titles.
+- **Cache-friendly prompts.** In every task prompt the parts that change between sessions
+  (`{handoff}`, the card, steering notes, the retry note) come last, after the request, the
+  contracts and the project context, and the tool list never changes during a session, so a
+  provider's automatic prefix caching can serve the start of each call; `profile` reports the
+  cached share. (Explicit cache control for Anthropic is T26.)
 
 ## Parallel execution
 
@@ -624,12 +674,13 @@ review finding never makes a verified project unverified. One reviewer failing i
 carries on; all failing fails the stage (no retry, as a retry would pay for the reviewers again).
 
 `review`, `devops`, and `docs` are `optional` stages with `skip_if: [minimal_team]`: the `smoke` profile and
-`team_profile = "minimal"` skip them, and so does a stage whose teammates are all disabled. Conditions take the
+`team_profile = "minimal"` skip them, and so does a stage whose teammates are all disabled; `devops` and `docs` also
+need the request to ask for them ([The lean team](#the-lean-team)). Conditions take the
 pipeline state and the settings (`CONDITIONS[name](state, settings)`). Whatever `devops` and `docs` change is covered by the
 final gate.
 
 **Final gate.** After the last stage, if the recipe has a `verify` stage, the controller compares the
-workspace to the verified revision; if a later stage (release, documentation) changed anything, it runs
+workspace to the verified revision; if a later stage (delivery, documentation) changed anything, it runs
 the checks again (repairing with whatever rounds are left) and fails the run if they no longer pass.
 It also re-renders the report from the stored results, so an agent cannot leave its own words in it.
 
@@ -974,9 +1025,9 @@ larger ones today:
 |-------------------|-------|
 | `settings/` | `sections` (one model per `[table]`), `model` (`Settings`), `env` (the `ENGINEERING_*` variables), `loading` (layering), `masking`, `common` |
 | `main.py` | `run_prep` (options to a prepared run), `request_sources`, `outcome` (exit codes), `api` (`resume`); `main` is the entry and re-exports them |
-| `tools/` catalogue | `spec`, `catalogue_project`, `catalogue_dev`, `catalogue_external`, `catalogue_team`, `registry` (the builder) |
+| `tools/` catalogue | `spec`, `catalogue_project`, `catalogue_dev`, `catalogue_external`, `catalogue_team`, `registry` (the builder), `finder` (Find Tool and Use Tool) |
 | `git/` | `core` (the safe command line), `reads`, `writes`, `port` (`GitPort`) |
-| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `executor` (stages) |
+| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `executor` (stages); `lean` (task size and what it skips), `handoff` (hand-off packs), `release_notes` |
 | `report/` HTML | `html_common`, `html_overview`, `html_board`, `html_results`, `html_artifacts`; `html_sections` re-exports them |
 | `board/` | `store` (`BoardStore`), `files` (saving), `limits` |
 

@@ -109,7 +109,9 @@ def make_app(
         ws.write_file("site/index.html", INDEX)
         ws.write_file("site/second.html", SECOND)
         ws.write_file(SERVER_FILE, SERVER_SCRIPT)
-        toolbox = Toolbox(ctx, build_tools(ctx, groups=["runtime", "browser"], agent="frontend"))
+        toolbox = Toolbox(
+            ctx, build_tools(ctx, groups=["runtime", "browser"], agent="frontend", lazy=False)
+        )
         port = toolbox("Find Free Port").split()[2]
         started = toolbox(
             "Start Background Process",
@@ -334,7 +336,7 @@ def test_contexts_are_per_agent_limited_and_closed_with_their_stage_and_the_run(
     make_app: Callable[..., Toolbox],
 ) -> None:
     box = make_app(max_contexts=1)
-    other = Toolbox(box.ctx, build_tools(box.ctx, groups=["browser"], agent="qa"))
+    other = Toolbox(box.ctx, build_tools(box.ctx, groups=["browser"], agent="qa", lazy=False))
     before = chrome_processes()
 
     with stage_scope("verify"):
@@ -376,7 +378,10 @@ def test_an_agent_loads_a_page_finds_a_button_by_ref_clicks_it_and_sees_the_seed
     )
 
     result = run_agent_task(
-        box.ctx, llm, tools=build_tools(box.ctx, groups=["browser"], agent="frontend"), max_iter=10
+        box.ctx,
+        llm,
+        tools=build_tools(box.ctx, groups=["browser"], agent="frontend", lazy=False),
+        max_iter=10,
     )
 
     assert result.startswith("The Break button")

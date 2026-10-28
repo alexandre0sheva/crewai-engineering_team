@@ -227,7 +227,7 @@ def test_workspace_changes_reports_added_modified_deleted_with_a_diff(
     workspace.write_file("edit.txt", "one\ntwo\nthree\n")
     workspace.write_file("gone.txt", "bye\n")
     ctx = RunContext.create(load_settings(), workspace)  # snapshots the workspace here
-    box = {tool.name: tool for tool in build_tools(ctx)}
+    box = {tool.name: tool for tool in build_tools(ctx, lazy=False)}
     assert box["Workspace Changes"].run() == "No changes since the run started (under .)."
 
     workspace.write_file("edit.txt", "one\n2\nthree\n")

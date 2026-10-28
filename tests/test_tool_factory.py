@@ -25,7 +25,7 @@ def _by_name(tools: list[BaseTool]) -> dict[str, BaseTool]:
 def test_the_default_toolset_covers_every_catalogued_tool_but_the_opt_in_web_group(
     make_context: MakeContext,
 ) -> None:
-    tools = build_tools(make_context())
+    tools = build_tools(make_context(), lazy=False)
 
     assert [tool.name for tool in tools] == [spec.name for spec in CATALOGUE if spec.group != "web"]
     assert {"Read Project File", "Write Project File", "Run Project Command"} <= {
@@ -34,13 +34,13 @@ def test_the_default_toolset_covers_every_catalogued_tool_but_the_opt_in_web_gro
 
 
 def test_tool_results_are_never_cached(make_context: MakeContext) -> None:
-    for tool in build_tools(make_context()):
+    for tool in build_tools(make_context(), lazy=False):
         assert tool.cache_function(None, None) is False
 
 
 def test_tools_are_closed_over_their_own_context(make_context: MakeContext) -> None:
     first, second = make_context("first"), make_context("second")
-    first_tools, second_tools = build_tools(first), build_tools(second)
+    first_tools, second_tools = build_tools(first, lazy=False), build_tools(second, lazy=False)
 
     assert not set(map(id, first_tools)) & set(map(id, second_tools))
     _by_name(first_tools)["Write Project File"].run(path="only-first.txt", content="1")
@@ -55,7 +55,7 @@ def test_two_runs_in_two_threads_never_see_each_others_files(make_context: MakeC
     seen: dict[str, tuple[str, str]] = {}
 
     def work(name: str) -> None:
-        tools = _by_name(build_tools(make_context(name)))
+        tools = _by_name(build_tools(make_context(name), lazy=False))
         tools["Write Project File"].run(path="shared-name.txt", content=f"written by {name}")
         barrier.wait(timeout=10)  # both runs have written before either reads
         seen[name] = (
@@ -75,7 +75,7 @@ def test_two_runs_in_two_threads_never_see_each_others_files(make_context: MakeC
 
 
 def test_errors_are_returned_as_error_strings(make_context: MakeContext) -> None:
-    tools = _by_name(build_tools(make_context()))
+    tools = _by_name(build_tools(make_context(), lazy=False))
 
     assert tools["Read Project File"].run(path="missing.txt").startswith("ERROR:")
     assert tools["Write Project File"].run(path="../escape.txt", content="x").startswith("ERROR:")
@@ -85,7 +85,7 @@ def test_read_only_tools_exclude_everything_that_changes_state(make_context: Mak
     ctx = make_context()
     ctx.workspace.write_file("notes.txt", "hello")
 
-    tools = _by_name(build_tools(ctx, read_only=True))
+    tools = _by_name(build_tools(ctx, read_only=True, lazy=False))
 
     assert set(tools) == {spec.name for spec in CATALOGUE if spec.read_only and spec.group != "web"}
     assert {"Read Project File", "Search Project Files", "Workspace Changes"} <= set(tools)
@@ -96,7 +96,7 @@ def test_read_only_tools_exclude_everything_that_changes_state(make_context: Mak
 def test_write_scope_allows_owned_paths_and_blocks_the_rest(make_context: MakeContext) -> None:
     ctx = make_context()
     ctx.workspace.write_file("src/web/page.tsx", "page")
-    tools = _by_name(build_tools(ctx, write_scope=WriteScope(allow=("src/api/**",))))
+    tools = _by_name(build_tools(ctx, write_scope=WriteScope(allow=("src/api/**",)), lazy=False))
     write, replace = tools["Write Project File"], tools["Replace In Project File"]
 
     assert write.run(path="src/api/handler.py", content="x = 1\n").startswith("Wrote")
@@ -117,7 +117,7 @@ def test_scope_is_checked_after_symlink_resolution(make_context: MakeContext) ->
     (ctx.workspace.root / "src" / "web").mkdir(parents=True)
     (ctx.workspace.root / "src" / "api").mkdir(parents=True)
     (ctx.workspace.root / "src" / "api" / "alias").symlink_to("../web", target_is_directory=True)
-    write = _by_name(build_tools(ctx, write_scope=WriteScope(allow=("src/api/**",))))[
+    write = _by_name(build_tools(ctx, write_scope=WriteScope(allow=("src/api/**",)), lazy=False))[
         "Write Project File"
     ]
 
@@ -132,7 +132,7 @@ def test_deleting_a_directory_requires_every_file_in_it_to_be_in_scope(
     ctx.workspace.write_file("src/api/a.py", "a")
     ctx.workspace.write_file("src/api/generated/b.py", "b")
     scope = WriteScope(allow=("src/api/**",), deny=("src/api/generated/**",))
-    delete = _by_name(build_tools(ctx, write_scope=scope))["Delete Project Path"]
+    delete = _by_name(build_tools(ctx, write_scope=scope, lazy=False))["Delete Project Path"]
 
     assert delete.run(path="src/api").startswith("ERROR:")
     assert (ctx.workspace.root / "src/api/generated/b.py").exists()
@@ -141,7 +141,7 @@ def test_deleting_a_directory_requires_every_file_in_it_to_be_in_scope(
 
 def test_a_cancelled_run_stops_accepting_tool_calls(make_context: MakeContext) -> None:
     ctx = make_context()
-    tools = _by_name(build_tools(ctx))
+    tools = _by_name(build_tools(ctx, lazy=False))
     ctx.cancel_event.set()
 
     result = tools["Write Project File"].run(path="late.txt", content="x")
@@ -154,7 +154,9 @@ def test_commands_run_in_the_context_workspace(make_context: MakeContext) -> Non
     ctx = make_context()
     ctx.workspace.write_file("check.py", "print('hello from the project')\n")
 
-    result = _by_name(build_tools(ctx))["Run Project Command"].run(command="python check.py")
+    result = _by_name(build_tools(ctx, lazy=False))["Run Project Command"].run(
+        command="python check.py"
+    )
 
     assert "Exit code: 0" in result and "hello from the project" in result
 
@@ -162,7 +164,7 @@ def test_commands_run_in_the_context_workspace(make_context: MakeContext) -> Non
 def test_the_command_gate_limits_concurrent_commands(make_context: MakeContext) -> None:
     ctx = make_context(settings=load_settings(overrides={"execution.max_parallel_commands": 1}))
     ctx.workspace.write_file("check.py", "print('done')\n")
-    run = _by_name(build_tools(ctx))["Run Project Command"]
+    run = _by_name(build_tools(ctx, lazy=False))["Run Project Command"]
     results: list[str] = []
     ctx.command_gate.acquire()  # another command already occupies the only slot
 
@@ -181,6 +183,8 @@ def test_the_package_exposes_factories_not_module_level_tool_objects() -> None:
 
     assert sorted(tools_package.__all__) == [
         "CATALOGUE",
+        "EAGER_TOOLS",
+        "FINDER_TOOLS",
         "GROUPS",
         "PROJECT_GROUPS",
         "ProjectWorkspace",

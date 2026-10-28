@@ -66,7 +66,7 @@ CODEBASE_MAP = CodebaseMap(
 # What the agent stages after ``verify`` call, in order: two reviewers (side by side, so their
 # order is not fixed, and both are ("review", None)), DevOps, the writer, then the release.
 TAIL: list[tuple[str, str | None]] = [
-    ("review", None), ("review", None), ("devops", None), ("docs", None), ("release", None),
+    ("review", None), ("review", None), ("devops", None), ("docs", None),
 ]  # fmt: skip
 
 PASSING_CHECKS = "- {id: tests, name: Project tests, kind: test, command: 'true'}\n"
@@ -80,10 +80,13 @@ def write_checks(text: str = PASSING_CHECKS, name: str = "checks.yaml") -> Path:
     return path
 
 
+# The stages a run of the full pipeline works (``full_pipeline``); ``design`` is skipped in it
+# (``RECORDED`` is every stage record, in order).
 STAGES = (
     "spec", "plan", "foundation", "implement", "integrate", "verify", "review", "devops", "docs",
-    "release",
+    "release_notes",
 )  # fmt: skip
+RECORDED = ("design", *STAGES)
 BODY = "A concrete sentence that is long enough to count as real content. " * 2
 
 
@@ -174,6 +177,9 @@ class FakeRunner:
             )
         elif stage == "spec":
             contracts["spec"] = self.specs.pop(0) if len(self.specs) > 1 else self.specs[0]
+        elif stage == "design":  # the lean recipes' spec and plan in one session
+            contracts["spec"] = self.specs.pop(0) if len(self.specs) > 1 else self.specs[0]
+            contracts["plan"] = self.plan
         elif stage == "plan":
             write("docs/architecture.md", "# Architecture\n" + BODY)
             contracts["plan"] = self.plan
@@ -194,6 +200,8 @@ class FakeRunner:
         elif stage == "foundation":
             write("README.md", "# Demo\n" + BODY)
         elif package is not None:
+            if request.stage.prompt == "implement_solo":  # a sole package lays the foundation
+                write("README.md", "# Demo\n" + BODY)
             write(f"src/{package.id.lower()}.py", f"# {package.title}\nVALUE = 1\n")
         elif stage == "integrate":
             write("docs/integration.md", "# Integration\n" + BODY)

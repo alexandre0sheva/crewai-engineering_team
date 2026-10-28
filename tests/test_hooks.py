@@ -20,6 +20,8 @@ from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import read_events
 from engineering_team.settings import Settings, SettingsError, load_settings
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # every stage of the pipeline
+
 MakeContext = Callable[..., RunContext]
 WEBHOOK = "https://hooks.example.com/services/T000/B000/SECRETPART"
 

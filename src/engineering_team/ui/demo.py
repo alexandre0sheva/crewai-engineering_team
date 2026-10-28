@@ -40,7 +40,7 @@ DEMO_MODEL = "openai/gpt-6.1-sol"
 DEMO_BUDGET_USD = 1.0  # the cost limit ``ui --demo`` sets, so the run shows a budget warning
 TARGET_SPEND = 0.82  # what the demo tops its spending up to (82% of the limit)
 ASK_TIMEOUT = 90.0  # seconds the demo waits for a person to answer its question
-FINAL_STAGES = ("review", "release", "build")
+FINAL_STAGES = ("review", "build")
 PAUSE = 0.35  # seconds between a teammate's tool calls (``--demo-pause`` changes it)
 TOOLS: dict[str, Sequence[tuple[str, str]]] = {
     "read": (("List Files", "."), ("Read File", "README.md"), ("Search Text", "def main")),
@@ -160,7 +160,9 @@ class DemoRunner:
                 duration=0.0, ok=True, agent=request.teammate, lane=request.lane,
             )  # fmt: skip
         notes = "plain text"
-        if package is not None and package.id == "WP-2":
+        # A small task's plan is one package for the whole plan: it asks, and writes it all.
+        whole = package is not None and package.title not in MODULES
+        if package is not None and (package.id == "WP-2" or whole):
             notes = self._ask(request) or notes
         write = ctx.workspace.write_file
         contracts: dict[str, Contract] = {}
@@ -178,6 +180,8 @@ class DemoRunner:
             contracts["spec"] = SPEC
         elif name in ("plan", "impact"):
             contracts["plan"] = PLAN
+        elif name == "design":  # the lean recipes' spec and plan in one session
+            contracts.update(spec=SPEC, plan=PLAN)
         elif stage.kind == "review":
             contracts["review"] = REVIEWS.get(request.teammate, ReviewReport(summary="Clean."))
         elif name == "plan_upgrades":
@@ -194,8 +198,12 @@ class DemoRunner:
                 root_cause="Demo root cause.", change="Demo change.", risk="Low."
             )
         elif package is not None:
-            header = f'"""{package.title} (written by the demo runner; notes are {notes})."""\n\n'
-            write(path, header + MODULES[package.title])
+            for title in MODULES if whole else (package.title,):
+                header = f'"""{title} (written by the demo runner; notes are {notes})."""\n\n'
+                write(f"{DEMO_DIR}/{title.lower().replace(' ', '_')}.py", header + MODULES[title])
+            if whole:  # no integrate stage follows: its broken test comes from here
+                write(f"{DEMO_DIR}/__init__.py", "")
+                write(f"{DEMO_DIR}/test_notes.py", TESTS_BROKEN)
         elif name == "tests" or name == "integrate":
             write(f"{DEMO_DIR}/__init__.py", "")
             write(f"{DEMO_DIR}/test_notes.py", TESTS_BROKEN)  # a check fails; verify repairs it

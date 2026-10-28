@@ -31,11 +31,11 @@ def test_an_agent_navigates_with_read_many_info_find_outline_and_repo_map(
     llm = ScriptedLLM(
         [
             ToolCall("Read Many Files", {"files": ["pkg/app.py", "pkg/util.py"]}),
-            ToolCall("File Info", {"path": "pkg/app.py"}),
+            ToolCall("Use Tool", {"name": "File Info", "arguments": {"path": "pkg/app.py"}}),
             ToolCall("Find Files", {"pattern": "*.py"}),
-            ToolCall("Project Outline", {"path": "pkg"}),
-            ToolCall("Repo Map", {}),
-            ToolCall("Project Tree", {}),
+            ToolCall("Use Tool", {"name": "Project Outline", "arguments": {"path": "pkg"}}),
+            ToolCall("Use Tool", {"name": "Repo Map", "arguments": {}}),
+            ToolCall("Use Tool", {"name": "Project Tree", "arguments": {}}),
             "done",
         ]
     )
@@ -56,10 +56,24 @@ def test_an_agent_changes_the_tree_with_mkdir_copy_move_and_delete(
     _project(ctx)
     llm = ScriptedLLM(
         [
-            ToolCall("Make Directory", {"path": "build/out"}),
-            ToolCall("Copy Path", {"source": "pkg/app.py", "destination": "build/out/app.py"}),
-            ToolCall("Move Path", {"source": "pkg/util.py", "destination": "pkg/helpers.py"}),
-            ToolCall("Delete Project Path", {"path": "Makefile"}),
+            ToolCall("Use Tool", {"name": "Make Directory", "arguments": {"path": "build/out"}}),
+            ToolCall(
+                "Use Tool",
+                {
+                    "name": "Copy Path",
+                    "arguments": {"source": "pkg/app.py", "destination": "build/out/app.py"},
+                },
+            ),
+            ToolCall(
+                "Use Tool",
+                {
+                    "name": "Move Path",
+                    "arguments": {"source": "pkg/util.py", "destination": "pkg/helpers.py"},
+                },
+            ),
+            ToolCall(
+                "Use Tool", {"name": "Delete Project Path", "arguments": {"path": "Makefile"}}
+            ),
             "done",
         ]
     )
@@ -79,8 +93,8 @@ def test_an_agent_lists_and_runs_a_project_script(make_context: MakeContext) -> 
     _project(ctx)
     llm = ScriptedLLM(
         [
-            ToolCall("List Scripts", {}),
-            ToolCall("Run Script", {"name": "hello"}),
+            ToolCall("Use Tool", {"name": "List Scripts", "arguments": {}}),
+            ToolCall("Use Tool", {"name": "Run Script", "arguments": {"name": "hello"}}),
             "done",
         ]
     )

@@ -23,6 +23,8 @@ from engineering_team.cli.context import Globals
 from engineering_team.pipeline.state import RunResult
 from engineering_team.runtime.run_store import RunStore
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # every stage of the pipeline
+
 
 def test_a_run_prints_timestamped_log_lines_and_a_plain_summary_when_not_a_terminal(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
@@ -62,7 +64,7 @@ def test_json_is_one_parseable_document_and_nothing_else_reaches_stdout(
         "usage", "files_changed", "stages", "checks", "workspace", "report", "next_steps",
     } <= set(data)  # fmt: skip
     assert data["status"] == "succeeded" and data["exit_code"] == 0
-    assert [s["name"] for s in data["stages"]][:2] == ["spec", "plan"]
+    assert [s["name"] for s in data["stages"]][:3] == ["design", "spec", "plan"]
     assert data["checks"][0]["status"] == "passed"
     assert set(data["usage"]) >= {"tokens", "model_calls", "tool_calls", "estimated_cost_usd"}
     assert data["files_changed"]["added"] > 0
@@ -85,7 +87,7 @@ def test_the_live_view_shows_progress_the_board_and_the_summary_panel(
     assert "Run 2" in drawn and "pipeline" in drawn  # the header
     assert "cards" in drawn and "%" in drawn  # progress bar
     assert "Backlog" in drawn and "Done" in drawn  # the kanban columns
-    assert "Activity" in drawn and "stage release succeeded" in drawn  # the feed
+    assert "Activity" in drawn and "stage release_notes succeeded" in drawn  # the feed
     assert "Independent checks" in drawn and "Next:" in drawn  # the summary panel
 
 

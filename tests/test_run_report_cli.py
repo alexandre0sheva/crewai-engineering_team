@@ -14,6 +14,8 @@ from engineering_team.cli.app import app
 from engineering_team.report import write as write_module
 from engineering_team.runtime.run_store import RunStore
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # the 0.2.0 structure: every stage
+
 runner = CliRunner()
 FAILING = "- {id: tests, name: Project tests, kind: test, command: 'false'}\n"
 

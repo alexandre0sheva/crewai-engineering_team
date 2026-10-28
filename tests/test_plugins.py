@@ -68,7 +68,7 @@ def test_project_plugins_are_off_unless_allowed_and_the_file_is_reported_not_loa
         and "word_count.py" in found.skipped[0]
         and "allow_project_plugins" in found.skipped[0]
     )
-    assert "Word Count" not in {t.name for t in build_tools(make_context())}
+    assert "Word Count" not in {t.name for t in build_tools(make_context(), lazy=False)}
 
 
 def test_allowed_project_plugins_register_after_the_builtins_and_warn_loudly(
@@ -79,15 +79,15 @@ def test_allowed_project_plugins_register_after_the_builtins_and_warn_loudly(
 
     found = load_plugins(settings)
     ctx = make_context(settings=settings)
-    names = [t.name for t in build_tools(ctx)]
+    names = [t.name for t in build_tools(ctx, lazy=False)]
 
     (item,) = found.tools
     assert (item.tool.name, item.tool.group, item.tool.read_only) == ("Word Count", "fs_read", True)
     assert item.source == ".engineering-team/tools/word_count.py"
     assert any("code" in n and "outside the write scope" in n for n in found.notes)
     assert names[-1] == "Word Count"
-    assert names[:-1] == [t.name for t in build_tools(make_context("plain"))]
-    assert [t.name for t in build_tools(ctx, groups=["fs_read"])][-1] == "Word Count"
+    assert names[:-1] == [t.name for t in build_tools(make_context("plain"), lazy=False)]
+    assert [t.name for t in build_tools(ctx, groups=["fs_read"], lazy=False)][-1] == "Word Count"
     events = [e for e in read_events(ctx.run_dir / "events.jsonl")]
     assert any(e.type == "extension.warning" for e in events)
     assert any(e.type == "plugins.loaded" for e in events)
@@ -97,7 +97,7 @@ def test_a_plugin_tool_follows_the_tool_design_rules_at_run_time(make_context: M
     write_plugin("word_count")
     ctx = make_context(settings=allowed())
     ctx.workspace.write_file("notes.txt", "one two three")
-    (tool,) = [t for t in build_tools(ctx) if t.name == "Word Count"]
+    (tool,) = [t for t in build_tools(ctx, lazy=False) if t.name == "Word Count"]
 
     assert tool.run(path="notes.txt") == "3 words"
     assert tool.run(path="missing.txt").startswith("ERROR: Path does not exist")
@@ -140,7 +140,7 @@ def broken(value: int) -> str:
         ),
     )
     ctx = make_context(settings=allowed())
-    (tool,) = [t for t in build_tools(ctx) if t.name == "Broken"]
+    (tool,) = [t for t in build_tools(ctx, lazy=False) if t.name == "Broken"]
 
     assert tool.run(value=1) == "ERROR: value 1 is not allowed; use 2"
     result = tool.run(value=2)
@@ -162,7 +162,7 @@ def big(ctx, repeat: int = 40000) -> str:
         ),
     )
     ctx = make_context(settings=allowed())
-    (tool,) = [t for t in build_tools(ctx) if t.name == "Big"]
+    (tool,) = [t for t in build_tools(ctx, lazy=False) if t.name == "Big"]
 
     assert list(tool.args_schema.model_fields) == ["repeat"]
     assert "output truncated at 30000 characters" in tool.run()
@@ -183,8 +183,8 @@ def stamp(ctx, path: str) -> str:
     )
     ctx = make_context(settings=allowed())
 
-    everything = {t.name for t in build_tools(ctx)}
-    read_only = {t.name for t in build_tools(ctx, read_only=True)}
+    everything = {t.name for t in build_tools(ctx, lazy=False)}
+    read_only = {t.name for t in build_tools(ctx, read_only=True, lazy=False)}
 
     assert {"Word Count", "Stamp File"} <= everything
     assert "Word Count" in read_only and "Stamp File" not in read_only
@@ -203,10 +203,12 @@ def lookup(term: str) -> str:
         ),
     )
 
-    off = {t.name for t in build_tools(make_context(settings=allowed()))}
+    off = {t.name for t in build_tools(make_context(settings=allowed()), lazy=False)}
     on = {
         t.name
-        for t in build_tools(make_context("other", settings=allowed(**{"web.enabled": True})))
+        for t in build_tools(
+            make_context("other", settings=allowed(**{"web.enabled": True})), lazy=False
+        )
     }
 
     assert "Lookup" not in off and "Lookup" in on
@@ -242,8 +244,12 @@ def test_a_custom_group_is_granted_through_a_teammates_tool_groups(
     ctx = make_context(settings=settings)
     from engineering_team.pipeline.stages import stage_groups
 
-    mine = [t.name for t in build_tools(ctx, groups=stage_groups(ctx, "release_manager"))]
-    other = [t.name for t in build_tools(ctx, groups=stage_groups(ctx, "backend_engineer"))]
+    mine = [
+        t.name for t in build_tools(ctx, groups=stage_groups(ctx, "release_manager"), lazy=False)
+    ]
+    other = [
+        t.name for t in build_tools(ctx, groups=stage_groups(ctx, "backend_engineer"), lazy=False)
+    ]
 
     assert "Release Notes" in mine and "Release Notes" not in other
 

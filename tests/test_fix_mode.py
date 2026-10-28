@@ -24,7 +24,9 @@ from engineering_team.pipeline.stages import CrewStageRunner, StageRequest
 from engineering_team.pipeline.state import RunResult
 from engineering_team.runtime.run_store import RunStore
 
-pytestmark = pytest.mark.git
+# Stage commits are part of what these tests are about; they cover every stage of the mode
+# (a large task: the map, spec and impact or triage apart), test_lean_pipeline.py the small path.
+pytestmark = [pytest.mark.git, pytest.mark.usefixtures("full_pipeline")]
 runner = CliRunner()
 WORKSPACE_ROOT = "ws"
 REPORT = "Adding a note drops the notes that were already there."

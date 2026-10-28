@@ -255,7 +255,9 @@ def test_an_agent_answers_who_breaks_if_parse_config_changes(
         ]
     )
 
-    result = run_agent_task(ctx, llm, tools=build_tools(ctx, groups=["code_intel"]), max_iter=8)
+    result = run_agent_task(
+        ctx, llm, tools=build_tools(ctx, groups=["code_intel"], lazy=False), max_iter=8
+    )
 
     assert result.startswith("Changing parse_config affects")
     llm.assert_exhausted()

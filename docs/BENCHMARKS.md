@@ -179,21 +179,47 @@ What the profile shows for the `pipeline` run:
   that need a working directory or do not exist for the project (4), a path outside the workspace, a command
   outside the allowlist, a note written to the decision log. `docs/spec.md` was read by two sessions.
 
+**After the lean team (T6), same day, same task and profile**
+([`benchmarks/results/2026-10-28/perf-lean/`](../benchmarks/results/2026-10-28/perf-lean/), `pipeline` only, one
+run): it passed every required criterion. The run was sized small, so one `design` session wrote the spec and
+the plan and one engineer built the collapsed plan; the `smoke` profile's minimal team skips review either way.
+
+| `pipeline` | before (T5) | after (T6) | after / before | `single` (T5) |
+|---|---:|---:|---:|---:|
+| Time | 382 s | 80 s | 0.21× | 78 s |
+| Cost | $0.0300 | $0.0043 | 0.14× | $0.0047 |
+| Agent sessions | 7 | 2 | | 1 |
+| Model calls | 84 | 15 | 0.18× | 15 |
+| Prompt tokens (cached share) | 1,110,885 (89 %) | 77,575 (83 %) | 0.07× | 142,177 (87 %) |
+| Tool-schema tokens per call (engineer) | 12,102 | 3,243 | 0.27× | 12,102 |
+| Failed tool calls | 11 | 3 | | 0 |
+
+Per session: `design` 28 s, 6 calls, $0.0013 (before: `spec` and `plan`, 52 s, 11 calls, $0.0036);
+`implement` 46 s, 9 calls, $0.0030 (before: `foundation`, two packages, `integrate` and `release`, 5 min 21 s,
+73 calls, $0.0264). On this small task the pipeline now costs and takes what `single` does, while keeping the
+controller's verification. The three failed calls were all `Use Tool` calls whose arguments the model put
+beside the tool's name; `Use Tool` accepts that form since. One run on one small task, with the minimal team,
+is a sanity check of the structure, not evidence about pass rates; T33 measures those.
+
 The 0.2.0 standard-profile figures (9× time, 25–39× cost against `single`) mix in the stronger model the
 `pipeline` uses for lead and reviewer work; on the cheap model alone the structure costs 5–6×. Comparing
 the two profiles requires the `standard` batch, which needs the user's OK to exceed the allowance.
 
-The offline proxies in `tests/perf/` pin the structure on scripted runs (measured 2026-10-28):
+The offline proxies in `tests/perf/` pin the structure on scripted runs (measured 2026-10-28; before
+and after the lean team, T6):
 
 | Scenario | Sessions | Model calls | Tool-schema tokens per call | Ceremony stages |
 |----------|---------:|------------:|----------------------------:|----------------:|
-| `pipeline`, small new project (2 packages) | 11 | 19 | 12,102 | 3 (`devops`, `docs`, `release`) |
-| `pipeline`, medium (4 chained packages) | 13 | 23 | 12,102 | 3 |
-| `fix`, small bugfix (seeded bug, repro, fix, review) | 9 | 12 | 12,102 | 0 |
-| `single`, small new project | 1 | 4 | 12,102 | 0 |
+| `pipeline`, small new project (2 packages) | 11 → **3** | 19 → **6** | 12,102 → **3,234** | 3 → **0** |
+| `pipeline`, medium (4 chained packages) | 13 → **9** | 23 → **15** | 12,102 → **3,234** | 3 → **0** |
+| `pipeline`, every stage (`lean.size = large`, `ceremony = always`) | 11 → **10** | 19 → **17** | 12,102 → **3,234** | 3 → **2** (the release report is the controller's) |
+| `fix`, small bugfix (seeded bug, repro, fix, review) | 9 → **3** | 12 → **6** | 12,102 → **3,234** | 0 |
+| `single`, small new project | 1 | 4 | 12,102 → **3,234** | 0 |
 
-Targets for a small task are 3 sessions, 25 calls, 6,000 schema tokens per agent and no ceremony
-(`docs/IMPLEMENTATION_PLAN_0.3.0.md`); those tests are `xfail` until T6 and T12 meet them.
+The targets for a small task (3 sessions, 25 calls, 6,000 schema tokens per agent, no ceremony;
+`docs/IMPLEMENTATION_PLAN_0.3.0.md`) are tests in the gate now. The medium target ("sessions only for
+teammates the lead called") is T12's. Whether the leaner structure keeps the pass rate is a live
+question: the scripted proxies measure structure, not quality (T33 measures both).
 
 ## Reading a report
 

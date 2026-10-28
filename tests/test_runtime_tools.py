@@ -231,7 +231,7 @@ def test_names_are_unique_and_the_count_is_capped(make_toolbox: MakeToolbox) -> 
     ctx_settings = load_settings(overrides={"runtime.max_background_processes": 2})
     box = make_toolbox(groups=["runtime"])
     ctx = RunContext.create(ctx_settings, box.workspace)
-    tools = Toolbox(ctx, build_tools(ctx, groups=["runtime"]))
+    tools = Toolbox(ctx, build_tools(ctx, groups=["runtime"], lazy=False))
     tools.write("sleeper.py", "import time\ntime.sleep(60)\n")
     try:
         assert tools("Start Background Process", name="a", command="python sleeper.py").startswith(
@@ -274,7 +274,7 @@ def pids_of(ctx: RunContext) -> list[int]:
 
 def sleeper(ctx: RunContext, name: str = "s") -> int:
     ctx.workspace.write_file("sleeper.py", "import time\ntime.sleep(120)\n")
-    tools = {t.name: t for t in build_tools(ctx, groups=["runtime"])}
+    tools = {t.name: t for t in build_tools(ctx, groups=["runtime"], lazy=False)}
     assert (
         tools["Start Background Process"]
         .run(name=name, command="python sleeper.py")
@@ -404,7 +404,7 @@ def test_the_whole_process_group_dies_not_just_the_leader(
         "time.sleep(120)\n",
     )
     ctx.workspace.write_file("child.py", "import time\ntime.sleep(120)\n")
-    tools = {t.name: t for t in build_tools(ctx, groups=["runtime"])}
+    tools = {t.name: t for t in build_tools(ctx, groups=["runtime"], lazy=False)}
     tools["Start Background Process"].run(
         name="tree",
         command="python -u parent.py",
@@ -721,7 +721,7 @@ def test_the_allowlist_setting_reaches_the_tool(make_toolbox: MakeToolbox) -> No
     box = make_toolbox(groups=["runtime"])
     settings = load_settings(overrides={"network.http_allowlist": ["api.example.test"]})
     ctx = RunContext.create(settings, box.workspace)
-    tools = Toolbox(ctx, build_tools(ctx, groups=["runtime"]))
+    tools = Toolbox(ctx, build_tools(ctx, groups=["runtime"], lazy=False))
 
     refused = tools("HTTP Request", url="http://other.example.test/")
     # An allowlisted host passes the policy; there is no network here, so the call itself fails.
@@ -939,7 +939,7 @@ def test_an_agent_starts_a_server_checks_an_endpoint_and_leaves_nothing_running(
             "The endpoint returns 200 with the page; the server is stopped.",
         ]
     )
-    tools = build_tools(ctx, groups=["runtime"])
+    tools = build_tools(ctx, groups=["runtime"], lazy=False)
 
     result = run_agent_task(ctx, llm, tools=tools, max_iter=12)
 

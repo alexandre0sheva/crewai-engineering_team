@@ -26,6 +26,7 @@ from engineering_team.modes.needs_info import NeedsInfo
 from engineering_team.modes.upgrade import run_upgrades
 from engineering_team.pipeline.actions import CONTROLLER_ACTIONS
 from engineering_team.pipeline.executor_base import MAX_NOTE_ERROR, MAX_SUMMARY
+from engineering_team.pipeline.lean import reviewers
 from engineering_team.pipeline.no_retry import NoRetry
 from engineering_team.pipeline.package_exec import PackageExecutor
 from engineering_team.pipeline.recipes import StageSpec
@@ -222,10 +223,19 @@ class StageExecutor(PackageExecutor):
                 loop.close_findings_repair(ran)
             return "Sent to repair and verified again; the findings were not reviewed again."
 
+        kept = reviewers(self._lean, list(stage.teammates))
+        if kept != stage.teammates:
+            self.ctx.events.emit(
+                "lean.reviewers",
+                stage=stage.name,
+                kept=kept,
+                left_out=[key for key in stage.teammates if key not in kept],
+                reason="small, low-risk task: one reviewer",
+            )
         summary = run_review(
             self.ctx,
             self.state,
-            stage,
+            stage.model_copy(update={"teammates": kept}),
             call,
             repair if verify and stage.repair else None,
             self._noise_section(),

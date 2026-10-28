@@ -16,6 +16,8 @@ from engineering_team.intake import RequestBundle, request_hash, template_for
 from engineering_team.runtime.interaction import HumanChannel
 from engineering_team.runtime.run_store import RunStore
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # every stage of the pipeline
+
 TEXT = "Build a tiny notes CLI.\n\n- add stores a note\n- list prints notes\n"
 
 

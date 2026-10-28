@@ -576,4 +576,5 @@ def test_read_only_tools_cannot_write_outside_the_report(make_context: MakeConte
     )
     refusal = tools["Write Project File"].run(path="elsewhere.md", content="no")
     assert refusal.startswith("ERROR:") and "out/report.md" in refusal
-    assert tools["Delete Project Path"].run(path="README.md").startswith("ERROR:")
+    held = tools["Use Tool"].run(name="Delete Project Path", arguments={"path": "README.md"})
+    assert held.startswith("ERROR:")  # held back, and still scoped

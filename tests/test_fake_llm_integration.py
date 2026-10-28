@@ -221,7 +221,7 @@ def test_an_agent_searches_reads_a_range_and_patches(tmp_path: Path) -> None:
                 "Read File Range", {"path": "src/billing.py", "start_line": 5, "max_lines": 2}
             ),
             ToolCall("Apply Patch", {"patch": patch}),
-            ToolCall("Workspace Changes", {}),
+            ToolCall("Use Tool", {"name": "Workspace Changes", "arguments": {}}),
             "tax now rounds to cents",
         ]
     )

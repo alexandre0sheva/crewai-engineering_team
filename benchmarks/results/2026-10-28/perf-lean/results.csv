@@ -1,0 +1,2 @@
+batch,task,strategy,repeat,kind,mode,subset,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+perf-lean,notes-cli,pipeline,1,greenfield,new,dev,openai,smoke,False,passed,,,0,succeeded,verified,80.05,82328,77575,64506,4753,15,2,15,0.004328,0,3,0,20261028-182235-74a0d9,notes-cli/pipeline-1

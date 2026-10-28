@@ -298,11 +298,14 @@ def test_chunk_analysts_can_read_everything_and_write_only_their_scratch_file(
     for request in requests:
         assert request.tools is not None
         tools = {tool.name: tool for tool in request.tools}
-        assert {"Read Project File", "Project Tree", "Hotspots"} <= set(tools)
+        assert {"Read Project File", "Find Tool", "Use Tool"} <= set(tools)
+        assert "Hotspots" in tools["Find Tool"].description  # held back, still theirs
         assert not set(tools) & {"Run Project Command", "Run Tests", "Install Dependencies"}
         refused = tools["Write Project File"].run(path="app/main.py", content="pwned = 1\n")
         assert refused.startswith("ERROR") and "outside your write scope" in refused
-        refused = tools["Delete Project Path"].run(path="app/main.py")
+        refused = tools["Use Tool"].run(
+            name="Delete Project Path", arguments={"path": "app/main.py"}
+        )
         assert refused.startswith("ERROR")
     assert "pwned" not in (root / "app" / "main.py").read_text()
     assert (root / "app" / "main.py").is_file()

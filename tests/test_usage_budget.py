@@ -432,7 +432,7 @@ def test_budgets_come_from_settings() -> None:
 
 def test_the_tool_gate_stops_a_run_through_the_real_tools(tmp_path: Path) -> None:
     ctx = _context(tmp_path, **{"budget.max_tool_calls": 2})
-    tools = {tool.name: tool for tool in build_tools(ctx)}
+    tools = {tool.name: tool for tool in build_tools(ctx, lazy=False)}
 
     first = tools["Project Tree"].run()
     second = tools["Project Tree"].run()

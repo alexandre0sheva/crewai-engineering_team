@@ -23,6 +23,8 @@ from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.events import read_events
 from engineering_team.runtime.interaction import HumanChannel
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # every stage of the pipeline
+
 
 def spec_with(**changes: object) -> Spec:
     return SPEC.model_copy(update=changes)

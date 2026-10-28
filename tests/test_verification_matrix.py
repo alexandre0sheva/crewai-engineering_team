@@ -22,6 +22,8 @@ from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.events import read_events
 from engineering_team.runtime.run_store import RunStore
 
+pytestmark = pytest.mark.usefixtures("full_pipeline")  # the 0.2.0 structure: every stage
+
 REQUEST = "Build a tiny notes CLI with add and list commands."
 CHECK_PY = (
     "import pathlib, sys\n"
@@ -199,7 +201,7 @@ def test_an_edit_after_verification_that_breaks_the_project_is_caught_by_the_fin
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def sabotage_in_release(request: StageRequest) -> None:
-        if request.stage.name == "release":
+        if request.stage.name == "docs":  # the last agent stage
             (request.ctx.workspace.root / "flag.txt").unlink()  # after verify said "verified"
 
     use_runner(monkeypatch, FakeRunner(on_call=seed(also=sabotage_in_release)))
@@ -210,14 +212,14 @@ def test_an_edit_after_verification_that_breaks_the_project_is_caught_by_the_fin
     assert manifest.verdict == "failed" and "Final verification" in state().error
     assert "**Verdict: FAILED**" in report()
     stage_status = {s.name: s.status for s in manifest.stages}
-    assert stage_status["verify"] == "succeeded" and stage_status["release"] == "succeeded"
+    assert stage_status["verify"] == "succeeded" and stage_status["docs"] == "succeeded"
 
 
 def test_a_harmless_edit_after_verification_runs_the_checks_again_and_still_verifies(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def touch_in_release(request: StageRequest) -> None:
-        if request.stage.name == "release":
+        if request.stage.name == "docs":
             request.ctx.workspace.write_file("docs/extra.md", "# extra\n")
 
     use_runner(monkeypatch, FakeRunner(on_call=seed(also=touch_in_release)))

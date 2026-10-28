@@ -22,7 +22,7 @@ from crewai import Agent, Crew, CrewOutput, Process, Task
 from crewai.tools import BaseTool
 from pydantic import BaseModel
 
-from engineering_team.contracts import Contract, Plan, ReviewReport, Spec, WorkPackage
+from engineering_team.contracts import Contract, Design, Plan, ReviewReport, Spec, WorkPackage
 from engineering_team.extensions.agents import agent_extensions
 from engineering_team.intake.context_docs import context_note
 from engineering_team.llm import build_llm
@@ -88,6 +88,8 @@ class StageRequest:
     profile: str = ""  # an analyze stage: the facts the controller found about the repository
     upgrades: str = ""  # an upgrade stage: the group of upgrades to apply, as text
     audit: str = ""  # what the controller's dependency audit found, as text
+    tier: str | None = None  # the model tier to run on instead of the teammate's own (lean.py)
+    handoff: str = ""  # the controller's hand-off pack: files, last checks, earlier stages
 
     @property
     def label(self) -> str:
@@ -222,8 +224,22 @@ def stage_instructions(request: StageRequest) -> str:
     return (request.stage.instructions or "").strip()
 
 
+def _compact(value: Any) -> str:
+    """Compact JSON without the contracts' ``schema_version`` (noise to a model, sent on every
+    call of every session that is handed the contract)."""
+
+    def strip(item: Any) -> Any:
+        if isinstance(item, dict):
+            return {k: strip(v) for k, v in item.items() if k != "schema_version"}
+        if isinstance(item, list):
+            return [strip(v) for v in item]
+        return item
+
+    return json.dumps(strip(value), ensure_ascii=False, separators=(",", ":"))
+
+
 def _json(model: BaseModel | None) -> str:
-    return model.model_dump_json(indent=2) if model is not None else "(not available)"
+    return _compact(model.model_dump(mode="json")) if model is not None else "(not available)"
 
 
 class CrewStageRunner:
@@ -250,6 +266,8 @@ class CrewStageRunner:
             wanted = {"review": ReviewReport}
         if stage.kind == "analyze":  # chunk analyses and the final map; the controller writes it
             wanted = {"analysis": CodebaseMap if request.synthesis else ChunkAnalysis}
+        if set(wanted) == {"spec", "plan"}:  # a lean design session returns both at once
+            wanted = {"design": Design}
         if len(wanted) > 1:
             raise StageError(
                 f"Stage '{stage.name}' asks for several contracts ({', '.join(wanted)}); "
@@ -287,6 +305,8 @@ class CrewStageRunner:
                     f"(got: {output.summary[:300]!r}). Answer with the JSON the task asks for."
                 )
             output.contracts[name] = result.pydantic
+        if isinstance(design := output.contracts.pop("design", None), Design):
+            output.contracts.update(spec=design.spec, plan=design.plan)
         return output
 
     @staticmethod
@@ -301,7 +321,9 @@ class CrewStageRunner:
             return
         if not WRITERS & set(member.groups):
             return
-        resolved = ctx.settings.resolve_model(teammate, tier=member.tier, max_iter=member.max_iter)
+        resolved = ctx.settings.resolve_model(
+            teammate, tier=request.tier or member.tier, max_iter=member.max_iter
+        )
         if facts_for(resolved.model).tool_calling is not False:
             return
         raise ModelCannotCallTools(
@@ -318,7 +340,9 @@ class CrewStageRunner:
             member = ctx.team.get(teammate)
         except TeamError as exc:
             raise StageError(str(exc)) from exc
-        resolved = ctx.settings.resolve_model(teammate, tier=member.tier, max_iter=member.max_iter)
+        resolved = ctx.settings.resolve_model(
+            teammate, tier=request.tier or member.tier, max_iter=member.max_iter
+        )
         llm = (
             self._llm_factory(teammate) if self._llm_factory else build_llm(resolved, ctx.settings)
         )
@@ -374,10 +398,9 @@ class CrewStageRunner:
             "repro": _json(request.state.repro),
             "fix_note": _json(request.state.fix_note),
             "bug": bug_brief(ctx.run_dir, ctx.workspace.root, request.state),
-            "package": json.dumps(package, indent=2) if package else "",
-            "packages": json.dumps(
-                {pid: p.model_dump(mode="json") for pid, p in request.state.packages.items()},
-                indent=2,
+            "package": _compact(package) if package else "",
+            "packages": _compact(
+                {pid: p.model_dump(mode="json") for pid, p in request.state.packages.items()}
             ),
             "teammates": "\n".join(
                 f"- {key}: {ctx.team.members[key].role_for(ctx.settings.project_name)}"
@@ -397,4 +420,5 @@ class CrewStageRunner:
             "upgrades": request.upgrades,
             "audit": request.audit,
             "coverage": coverage_brief(request.state),
+            "handoff": request.handoff,
         }
