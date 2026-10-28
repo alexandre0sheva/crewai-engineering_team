@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "batch": "perf-baseline",
+  "task": "notes-cli",
+  "strategy": "single",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "subset": "dev",
+  "provider": "openai",
+  "profile": "smoke",
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261028-161853-6744cf",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": null,
+  "duration_seconds": 78.24,
+  "tokens": 145291,
+  "prompt_tokens": 142177,
+  "completion_tokens": 3114,
+  "model_calls": 15,
+  "sessions": 1,
+  "cached_prompt_tokens": 123204,
+  "tool_calls": 14,
+  "cost_usd": 0.00468634,
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.23
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.31
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.33
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    },
+    {
+      "id": "storage-file",
+      "passed": true,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    }
+  ],
+  "started": "2026-10-28T16:18:53+00:00",
+  "finished": "2026-10-28T16:20:13+00:00",
+  "run_dir": "notes-cli/single-1",
+  "workspace": "notes-cli/single-1/ws/app"
+}

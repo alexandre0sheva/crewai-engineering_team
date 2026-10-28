@@ -1,0 +1,31 @@
+Run 20261003-120000-abc123: 2 session(s), 3 model call(s), 3,500 prompt tokens (43% cached), $0.0024
+Elapsed 14s; session time 13s (parallelism 0.93x).
+
+Sessions by cost
+ID  Stage      Agent             Time  Calls  Prompt  Cached  Output  Tools/fail     Cost
+S1  implement  Backend Engineer  8.0s      2   3,000   1,500     120         2/1  $0.0019
+S2  review     Code Reviewer     5.0s      1     500       0      30         0/0  $0.0006
+
+Sessions by time
+ID  Stage      Agent             Time  Calls  Prompt  Cached  Output  Tools/fail     Cost
+S1  implement  Backend Engineer  8.0s      2   3,000   1,500     120         2/1  $0.0019
+S2  review     Code Reviewer     5.0s      1     500       0      30         0/0  $0.0006
+
+Prompt by part (the billed prompt, shared out by estimated size)
+ID  Stage      System  Tools  History  Results  Billed
+S1  implement     222  2,222      222      333   3,000
+S2  review        143    357        0        0     500
+
+Critical path: S1 > S2 (13s of 14s)
+
+Tool-schema tokens sent with every call, per agent
+Agent             Tokens
+Backend Engineer   1,000
+Code Reviewer        500
+
+Most re-read files
+none read twice (or no trajectory recorded).
+
+Tool failures
+Count  Kind           Tool               Message
+1      edit-no-match  Edit Project File  old_text was not found in app.py.

@@ -16,6 +16,13 @@ renames that section and dates it.
 - `trace [RUN] [--stage S] [--format text|json]` and `trajectory.jsonl`: every tool call is recorded with its
   (secret-scrubbed, capped) output, and the models' replies with it. The run report links the trace and the web UI
   card drawer shows a call's output. `[trajectory]` sets the per-call cap and the file's size budget.
+- `profile [RUN]`: where a run's time and money went, per agent session (calls, prompt split into system text,
+  tool schemas, history and tool results, cached tokens, tool failures by kind, cost), the critical path and the
+  files read repeatedly. The run report has a "Where the time and money went" section, `usage.json` and the manifest
+  carry the sessions, and `bench report` compares sessions, calls and cached share per strategy.
+- Offline performance tests (`tests/perf/`) pin sessions, model calls and tool-schema size on scripted new-project,
+  feature-size and bugfix runs; the lean-team targets are `xfail` until they are met. `docs/BENCHMARKS.md` has the
+  live performance baseline (`single` against `pipeline` on `notes-cli`).
 
 ### Changed
 

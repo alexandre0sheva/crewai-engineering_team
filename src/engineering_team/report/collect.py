@@ -37,6 +37,7 @@ from engineering_team.report.model import (
     TraceInfo,
 )
 from engineering_team.runtime.events import read_events
+from engineering_team.runtime.profile import Profile, build_profile
 from engineering_team.runtime.run_store import (
     EVENTS_FILENAME,
     MANIFEST_FILENAME,
@@ -105,6 +106,7 @@ def build_report(run_dir: Path) -> RunReport:
     report.screenshots = _screenshots(run_dir, digest)
     report.diff, report.diff_note = _diff(run_dir)
     report.trace = _trace(run_dir)
+    report.profile = _profile(run_dir)
     report.warnings = analysis.make_notices(
         manifest, state, checks, coverage, findings, digest, budget, usage.unpriced_models
     )
@@ -170,6 +172,14 @@ def _findings(state: PipelineState | None) -> list[Finding]:
         every,
         key=lambda f: (analysis.SEVERITY_ORDER.get(f.severity, 9), f.id, f.file or "", f.line or 0),
     )
+
+
+def _profile(run_dir: Path) -> Profile | None:
+    try:
+        found = build_profile(run_dir, PriceTable(default_prices()))
+    except (OSError, ValueError):
+        return None
+    return found if found.sessions else None
 
 
 def _trace(run_dir: Path) -> TraceInfo | None:

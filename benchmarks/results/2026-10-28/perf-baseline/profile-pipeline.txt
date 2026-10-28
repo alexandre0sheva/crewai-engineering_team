@@ -1,0 +1,59 @@
+Run 20261028-162013-eda2a9: 7 session(s), 84 model call(s), 1,110,885 prompt tokens (89% cached), $0.0300
+Elapsed 6m19s; session time 6m13s (parallelism 0.98x).
+
+Sessions by cost
+ID  Stage        Agent                                               Time  Calls   Prompt   Cached  Output  Tools/fail     Cost
+S7  release      Quality, security, and release engineer for app    1m13s     15  247,695  209,482   2,894        20/1  $0.0074
+S6  integrate    Backend and platform engineer for app              1m21s     15  238,190  214,986   3,737        26/2  $0.0063
+S3  foundation   Backend and platform engineer for app              1m06s     15  168,528  147,327   3,200        14/1  $0.0052
+S4  implement#1  Backend and platform engineer for app                50s     15  191,947  174,214     782        15/4  $0.0039
+S5  implement#1  Backend and platform engineer for app                51s     13  182,178  172,403   1,862        13/2  $0.0036
+S2  plan         Product-minded solution architect for app            37s      8   65,962   56,549   1,914         7/1  $0.0025
+S1  spec         Product analyst and requirements engineer for app    15s      3   16,385   10,841     967         2/0  $0.0011
+
+Sessions by time
+ID  Stage        Agent                                               Time  Calls   Prompt   Cached  Output  Tools/fail     Cost
+S6  integrate    Backend and platform engineer for app              1m21s     15  238,190  214,986   3,737        26/2  $0.0063
+S7  release      Quality, security, and release engineer for app    1m13s     15  247,695  209,482   2,894        20/1  $0.0074
+S3  foundation   Backend and platform engineer for app              1m06s     15  168,528  147,327   3,200        14/1  $0.0052
+S5  implement#1  Backend and platform engineer for app                51s     13  182,178  172,403   1,862        13/2  $0.0036
+S4  implement#1  Backend and platform engineer for app                50s     15  191,947  174,214     782        15/4  $0.0039
+S2  plan         Product-minded solution architect for app            37s      8   65,962   56,549   1,914         7/1  $0.0025
+S1  spec         Product analyst and requirements engineer for app    15s      3   16,385   10,841     967         2/0  $0.0011
+
+Prompt by part (the billed prompt, shared out by estimated size)
+ID  Stage        System    Tools  History  Results   Billed
+S7  release      15,987  133,070   16,523   82,115  247,695
+S6  integrate    31,767  131,387   16,342   58,694  238,190
+S3  foundation   22,274  117,980   12,489   15,786  168,528
+S4  implement#1  26,370  124,173    4,382   37,022  191,947
+S5  implement#1  22,389  115,325   10,366   34,099  182,178
+S2  plan         17,117   42,940    3,369    2,537   65,962
+S1  spec          3,395   12,820       95       76   16,385
+
+Critical path: S1 > S2 > S3 > S4 > S5 > S6 > S7 (6m13s of 6m19s)
+  stage implement ran 2 sessions one after another (1m41s): a candidate for parallel lanes
+
+Tool-schema tokens sent with every call, per agent
+Agent                                              Tokens
+Backend and platform engineer for app              12,102
+Quality, security, and release engineer for app    12,102
+Product-minded solution architect for app           7,549
+Product analyst and requirements engineer for app   6,326
+
+Most re-read files
+Path          Reads  Sessions
+docs/spec.md      2         2
+
+Tool failures
+Count  Kind                    Tool                 Message
+2      bad-arguments           Apply Patch          Malformed hunk header: '@@'. Use '@@ -start,count +start,count @@' after '--- a/path' and '+++ b/path' lines.
+1      nothing-to-run          Build Project        No build command detected in '.'. Use List Scripts and Run Script, or Run Project Command with the build command.
+1      invalid-state           Move Card            K-010 cannot move from in_progress to in_progress. Allowed next states: verifying, blocked.
+1      invalid-state           Move Card            K-012 cannot move from in_progress to in_progress. Allowed next states: verifying, blocked.
+1      path-outside-workspace  Project Tree         Path must stay inside the project workspace: /Users/alexander/apps/app-coder/crewai-engineering_team/benchmarks/results/2026-10-28/perf-baseline/notes-cli/pipel
+1      command-not-allowed     Run Project Command  Command 'pwd' is not allowed. Add it explicitly with command_allowlist (ENGINEERING_COMMAND_ALLOWLIST) if this project requires it.
+1      nothing-to-run          Run Script           No script named 'test' in notes. Available: none. Call List Scripts to see them.
+1      nothing-to-run          Run Tests            No project files in '.'. Projects found: notes (python (pip)). Pass working_directory=<one of them>.
+1      path-not-found          Run Tests            Path does not exist: .פת
+1      other                   Write Note           'decisions' is the decision log: add to it with Log Decision.

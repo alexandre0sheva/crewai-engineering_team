@@ -1,0 +1,26 @@
+Run 20261028-161853-6744cf: 1 session(s), 15 model call(s), 142,177 prompt tokens (87% cached), $0.0047
+Elapsed 1m14s; session time 1m12s (parallelism 0.97x).
+
+Sessions by cost
+ID  Stage  Agent                                            Time  Calls   Prompt   Cached  Output  Tools/fail     Cost
+S1  build  Full-stack engineer and delivery owner for app  1m12s     15  142,177  123,204   3,114        14/0  $0.0047
+
+Sessions by time
+ID  Stage  Agent                                            Time  Calls   Prompt   Cached  Output  Tools/fail     Cost
+S1  build  Full-stack engineer and delivery owner for app  1m12s     15  142,177  123,204   3,114        14/0  $0.0047
+
+Prompt by part (the billed prompt, shared out by estimated size)
+ID  Stage  System    Tools  History  Results   Billed
+S1  build   7,688  112,316   18,355    3,817  142,177
+
+Critical path: S1 (1m12s of 1m14s)
+
+Tool-schema tokens sent with every call, per agent
+Agent                                           Tokens
+Full-stack engineer and delivery owner for app  12,102
+
+Most re-read files
+none read twice (or no trajectory recorded).
+
+Tool failures
+none recorded.

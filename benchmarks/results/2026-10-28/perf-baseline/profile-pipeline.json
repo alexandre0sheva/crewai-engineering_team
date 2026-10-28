@@ -1,0 +1,304 @@
+{
+  "run_id": "20261028-162013-eda2a9",
+  "elapsed_seconds": 378.983,
+  "session_seconds": 373.132,
+  "parallelism": 0.98,
+  "model_calls": 84,
+  "prompt_tokens": 1110885,
+  "cached_share": 0.8874,
+  "cost_usd": 0.030044320000000003,
+  "sessions": [
+    {
+      "id": "S1",
+      "stage": "spec",
+      "agent": "Product analyst and requirements engineer for app",
+      "lane": null,
+      "task": "Turn the request for app into a testable specification. Do not write files and do not design the solution: say what must...",
+      "model": "openai/gpt-6-luna",
+      "started": "2026-10-28T16:20:17.856848Z",
+      "ended": "2026-10-28T16:20:32.513958Z",
+      "seconds": 14.657,
+      "ended_with": "completed",
+      "calls": 3,
+      "prompt_tokens": 16385,
+      "cached_prompt_tokens": 10841,
+      "completion_tokens": 967,
+      "prompt_parts": {
+        "system": 5026,
+        "tools": 18978,
+        "history": 140,
+        "results": 112,
+        "tool_schema_per_call": 6326
+      },
+      "tool_calls": 2,
+      "tool_failures": {},
+      "cost_usd": 0.00114631
+    },
+    {
+      "id": "S2",
+      "stage": "plan",
+      "agent": "Product-minded solution architect for app",
+      "lane": null,
+      "task": "Design the solution for app and split the work. Inspect the current project tree at /Users/alexander/apps/app-coder/crew...",
+      "model": "openai/gpt-6-luna",
+      "started": "2026-10-28T16:20:32.725012Z",
+      "ended": "2026-10-28T16:21:09.766443Z",
+      "seconds": 37.041,
+      "ended_with": "completed",
+      "calls": 8,
+      "prompt_tokens": 65962,
+      "cached_prompt_tokens": 56549,
+      "completion_tokens": 1914,
+      "prompt_parts": {
+        "system": 24074,
+        "tools": 60394,
+        "history": 4738,
+        "results": 3568,
+        "tool_schema_per_call": 7549
+      },
+      "tool_calls": 7,
+      "tool_failures": {
+        "path-outside-workspace": 1
+      },
+      "cost_usd": 0.00246379
+    },
+    {
+      "id": "S3",
+      "stage": "foundation",
+      "agent": "Backend and platform engineer for app",
+      "lane": null,
+      "task": "Create the shared project foundation for app in /Users/alexander/apps/app-coder/crewai-engineering_team/benchmarks/resul...",
+      "model": "openai/gpt-6-luna",
+      "started": "2026-10-28T16:21:09.984733Z",
+      "ended": "2026-10-28T16:22:16.333032Z",
+      "seconds": 66.348,
+      "ended_with": "completed",
+      "calls": 15,
+      "prompt_tokens": 168528,
+      "cached_prompt_tokens": 147327,
+      "completion_tokens": 3200,
+      "prompt_parts": {
+        "system": 31987,
+        "tools": 169431,
+        "history": 17935,
+        "results": 22670,
+        "tool_schema_per_call": 12102
+      },
+      "tool_calls": 14,
+      "tool_failures": {
+        "other": 1
+      },
+      "cost_usd": 0.00519337
+    },
+    {
+      "id": "S4",
+      "stage": "implement",
+      "agent": "Backend and platform engineer for app",
+      "lane": 1,
+      "task": "Implement one work package of app in /Users/alexander/apps/app-coder/crewai-engineering_team/benchmarks/results/2026-10-...",
+      "model": "openai/gpt-6-luna",
+      "started": "2026-10-28T16:22:17.219120Z",
+      "ended": "2026-10-28T16:23:06.985852Z",
+      "seconds": 49.767,
+      "ended_with": "completed",
+      "calls": 15,
+      "prompt_tokens": 191947,
+      "cached_prompt_tokens": 174214,
+      "completion_tokens": 782,
+      "prompt_parts": {
+        "system": 35981,
+        "tools": 169431,
+        "history": 5979,
+        "results": 50516,
+        "tool_schema_per_call": 12102
+      },
+      "tool_calls": 15,
+      "tool_failures": {
+        "bad-arguments": 1,
+        "command-not-allowed": 1,
+        "nothing-to-run": 2
+      },
+      "cost_usd": 0.003906440000000001
+    },
+    {
+      "id": "S5",
+      "stage": "implement",
+      "agent": "Backend and platform engineer for app",
+      "lane": 1,
+      "task": "Implement one work package of app in /Users/alexander/apps/app-coder/crewai-engineering_team/benchmarks/results/2026-10-...",
+      "model": "openai/gpt-6-luna",
+      "started": "2026-10-28T16:23:07.109211Z",
+      "ended": "2026-10-28T16:23:58.289618Z",
+      "seconds": 51.18,
+      "ended_with": "completed",
+      "calls": 13,
+      "prompt_tokens": 182178,
+      "cached_prompt_tokens": 172403,
+      "completion_tokens": 1862,
+      "prompt_parts": {
+        "system": 30543,
+        "tools": 157329,
+        "history": 14141,
+        "results": 46518,
+        "tool_schema_per_call": 12102
+      },
+      "tool_calls": 13,
+      "tool_failures": {
+        "invalid-state": 1,
+        "path-not-found": 1
+      },
+      "cost_usd": 0.0036325299999999997
+    },
+    {
+      "id": "S6",
+      "stage": "integrate",
+      "agent": "Backend and platform engineer for app",
+      "lane": null,
+      "task": "Integrate the work packages of app in /Users/alexander/apps/app-coder/crewai-engineering_team/benchmarks/results/2026-10...",
+      "model": "openai/gpt-6-luna",
+      "started": "2026-10-28T16:23:58.520844Z",
+      "ended": "2026-10-28T16:25:19.765152Z",
+      "seconds": 81.244,
+      "ended_with": "completed",
+      "calls": 15,
+      "prompt_tokens": 238190,
+      "cached_prompt_tokens": 214986,
+      "completion_tokens": 3737,
+      "prompt_parts": {
+        "system": 40965,
+        "tools": 169431,
+        "history": 21074,
+        "results": 75689,
+        "tool_schema_per_call": 12102
+      },
+      "tool_calls": 26,
+      "tool_failures": {
+        "bad-arguments": 1,
+        "nothing-to-run": 1
+      },
+      "cost_usd": 0.006338760000000001
+    },
+    {
+      "id": "S7",
+      "stage": "release",
+      "agent": "Quality, security, and release engineer for app",
+      "lane": null,
+      "task": "Perform a release-readiness review of app in /Users/alexander/apps/app-coder/crewai-engineering_team/benchmarks/results/...",
+      "model": "openai/gpt-6-luna",
+      "started": "2026-10-28T16:25:21.111390Z",
+      "ended": "2026-10-28T16:26:34.006706Z",
+      "seconds": 72.895,
+      "ended_with": "completed",
+      "calls": 15,
+      "prompt_tokens": 247695,
+      "cached_prompt_tokens": 209482,
+      "completion_tokens": 2894,
+      "prompt_parts": {
+        "system": 20355,
+        "tools": 169431,
+        "history": 21038,
+        "results": 104552,
+        "tool_schema_per_call": 12102
+      },
+      "tool_calls": 20,
+      "tool_failures": {
+        "invalid-state": 1
+      },
+      "cost_usd": 0.007363120000000001
+    }
+  ],
+  "critical_path": {
+    "sessions": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "S5",
+      "S6",
+      "S7"
+    ],
+    "seconds": 373.132
+  },
+  "sequential_stages": [
+    {
+      "stage": "implement",
+      "sessions": 2,
+      "seconds": 100.947
+    }
+  ],
+  "tool_schema_tokens": {
+    "Backend and platform engineer for app": 12102,
+    "Quality, security, and release engineer for app": 12102,
+    "Product-minded solution architect for app": 7549,
+    "Product analyst and requirements engineer for app": 6326
+  },
+  "rereads": [
+    {
+      "path": "docs/spec.md",
+      "reads": 2,
+      "sessions": 2
+    }
+  ],
+  "failures": [
+    {
+      "tool": "Apply Patch",
+      "kind": "bad-arguments",
+      "message": "Malformed hunk header: '@@'. Use '@@ -start,count +start,count @@' after '--- a/path' and '+++ b/path' lines.",
+      "count": 2
+    },
+    {
+      "tool": "Build Project",
+      "kind": "nothing-to-run",
+      "message": "No build command detected in '.'. Use List Scripts and Run Script, or Run Project Command with the build command.",
+      "count": 1
+    },
+    {
+      "tool": "Move Card",
+      "kind": "invalid-state",
+      "message": "K-010 cannot move from in_progress to in_progress. Allowed next states: verifying, blocked.",
+      "count": 1
+    },
+    {
+      "tool": "Move Card",
+      "kind": "invalid-state",
+      "message": "K-012 cannot move from in_progress to in_progress. Allowed next states: verifying, blocked.",
+      "count": 1
+    },
+    {
+      "tool": "Project Tree",
+      "kind": "path-outside-workspace",
+      "message": "Path must stay inside the project workspace: /Users/alexander/apps/app-coder/crewai-engineering_team/benchmarks/results/2026-10-28/perf-baseline/notes-cli/pipel",
+      "count": 1
+    },
+    {
+      "tool": "Run Project Command",
+      "kind": "command-not-allowed",
+      "message": "Command 'pwd' is not allowed. Add it explicitly with command_allowlist (ENGINEERING_COMMAND_ALLOWLIST) if this project requires it.",
+      "count": 1
+    },
+    {
+      "tool": "Run Script",
+      "kind": "nothing-to-run",
+      "message": "No script named 'test' in notes. Available: none. Call List Scripts to see them.",
+      "count": 1
+    },
+    {
+      "tool": "Run Tests",
+      "kind": "nothing-to-run",
+      "message": "No project files in '.'. Projects found: notes (python (pip)). Pass working_directory=<one of them>.",
+      "count": 1
+    },
+    {
+      "tool": "Run Tests",
+      "kind": "path-not-found",
+      "message": "Path does not exist: .\u05e4\u05ea",
+      "count": 1
+    },
+    {
+      "tool": "Write Note",
+      "kind": "other",
+      "message": "'decisions' is the decision log: add to it with Log Decision.",
+      "count": 1
+    }
+  ]
+}

@@ -41,6 +41,7 @@ class EventMetrics:
     repair_rounds: int = 0
     tool_failures: int = 0
     setup_failures: int = 0
+    sessions: int = 0
     models: list[str] = field(default_factory=list)
     usage: dict[str, Any] = field(default_factory=dict)
 
@@ -55,7 +56,9 @@ def event_metrics(events_file: Path) -> EventMetrics:
     events = list(read_events(events_file))
     for event in events:
         data = event.data
-        if event.type == "verify.repair":
+        if event.type == "agent.started":
+            metrics.sessions += 1
+        elif event.type == "verify.repair":
             metrics.repair_rounds += 1
         elif event.type == "tool.call" and data.get("ok") is False:
             metrics.tool_failures += 1
@@ -76,6 +79,7 @@ def event_metrics(events_file: Path) -> EventMetrics:
             "tokens": report.totals.total_tokens,
             "prompt_tokens": report.totals.prompt_tokens,
             "completion_tokens": report.totals.completion_tokens,
+            "cached_prompt_tokens": report.totals.cached_prompt_tokens,
             "model_calls": report.totals.calls,
             "tool_calls": report.tool_calls,
             "estimated_cost_usd": report.estimated_cost_usd,

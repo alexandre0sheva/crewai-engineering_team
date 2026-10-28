@@ -138,6 +138,63 @@ rest; a Ctrl-C stops every team process and tells you the command.
 | `tool_failures` | `tool.call` events with `ok: false` |
 | `setup_failures` | setup checks (dependency install and the like) that failed or were unavailable |
 
+### Performance baseline (T5)
+
+Where a run's time and tokens go is read with `engineering-team profile RUN`; `bench report` adds a
+"Where the time and money went, by strategy" table (sessions, model calls and prompt tokens per run,
+cached share). This is the "before" for the lean team (T6) and the lead agent (T12).
+
+**Live baseline, 2026-10-28** ([`benchmarks/results/2026-10-28/perf-baseline/`](../benchmarks/results/2026-10-28/perf-baseline/):
+`report.md`, `results.csv`, `batch.json`, one `result.json` and one `profile-*.txt`/`.json` per strategy).
+`notes-cli`, one run each, `--provider openai --profile smoke` (the cheap worker model `gpt-6-luna` for every
+teammate; the minimal team, without the review, DevOps and docs stages). Both runs passed all required
+criteria. Estimated cost (price table), $0.035 for the batch. The `standard` profile was not run: its
+`pipeline` run is estimated at $1.01, above the $0.50 allowance for this measurement.
+
+| | `single` | `pipeline` | `pipeline` / `single` |
+|---|---:|---:|---:|
+| Time | 78 s | 6.4 min (382 s) | 4.9× |
+| Cost | $0.0047 | $0.0300 | 6.4× |
+| Agent sessions | 1 | 7 | |
+| Model calls | 15 | 84 | 5.6× |
+| Prompt tokens (cached share) | 142,177 (87 %) | 1,110,885 (89 %) | 7.8× |
+| Output tokens | 3,114 | 15,356 | 4.9× |
+| Failed tool calls | 0 | 11 | |
+
+What the profile shows for the `pipeline` run:
+
+- **Structure, not work.** Seven sessions ran one after another (parallelism 0.98×; the two `implement`
+  packages depended on each other). `foundation`, `integrate` and `release` (setup, wiring and release
+  paperwork) took 63 % of the cost and 59 % of the session time; the two sessions that wrote the application
+  were 25 % of the cost.
+- **Tool schemas dominate the prompt.** Every call re-sends the agent's tools: about 12,100 tokens for the
+  engineers and the release engineer (the target is 6,000), 7,500 for the architect, 6,300 for the analyst.
+  Shared out over the billed prompt, tool schemas are about 61 % of the `pipeline` prompt tokens and 79 % of
+  `single`'s; tool results are 21 % (the release session alone has 82,000 tokens of them), the task
+  prompt and role text 12 %, conversation history 6 %.
+- **Provider caching already works** (87–89 % of prompt tokens cached) because the tool schemas lead the
+  prompt; the cost of the extra sessions is output and the uncached remainder, and the time is model calls
+  (84 against 15), which caching does not shorten.
+- **Failed calls**: 11 against 0 — a malformed patch (2), moving a card to the state it was in (2), commands
+  that need a working directory or do not exist for the project (4), a path outside the workspace, a command
+  outside the allowlist, a note written to the decision log. `docs/spec.md` was read by two sessions.
+
+The 0.2.0 standard-profile figures (9× time, 25–39× cost against `single`) mix in the stronger model the
+`pipeline` uses for lead and reviewer work; on the cheap model alone the structure costs 5–6×. Comparing
+the two profiles requires the `standard` batch, which needs the user's OK to exceed the allowance.
+
+The offline proxies in `tests/perf/` pin the structure on scripted runs (measured 2026-10-28):
+
+| Scenario | Sessions | Model calls | Tool-schema tokens per call | Ceremony stages |
+|----------|---------:|------------:|----------------------------:|----------------:|
+| `pipeline`, small new project (2 packages) | 11 | 19 | 12,102 | 3 (`devops`, `docs`, `release`) |
+| `pipeline`, medium (4 chained packages) | 13 | 23 | 12,102 | 3 |
+| `fix`, small bugfix (seeded bug, repro, fix, review) | 9 | 12 | 12,102 | 0 |
+| `single`, small new project | 1 | 4 | 12,102 | 0 |
+
+Targets for a small task are 3 sessions, 25 calls, 6,000 schema tokens per agent and no ceremony
+(`docs/IMPLEMENTATION_PLAN_0.3.0.md`); those tests are `xfail` until T6 and T12 meet them.
+
 ## Reading a report
 
 `bench report [BATCH]` (a directory, or a name under `--out`; default the latest) prints Markdown

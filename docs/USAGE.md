@@ -22,6 +22,7 @@ uv run engineering-team <command> --help # its options
 | `analyze [--repo PATH] [--deep]` | Look at an existing project without changing it: languages, detected commands, tests, CI, Git state; `--deep` also writes a codebase map ([Adopting an existing project](#adopting-an-existing-project)). |
 | `resume RUN` | Continue a cancelled, interrupted, or failed run without redoing finished stages. |
 | `report [RUN] [--format html|md] [--open]` | Write the run report: summary, timeline, board, checks, cost, changes ([Run reports](#run-reports)). |
+| `profile [RUN] [--format text|json]` | Where a run's time and money went: sessions by cost and time, prompt parts, critical path, re-read files, tool failures ([Profiling a run](#profiling-a-run-profile)). |
 | `trace [RUN] [--stage S] [--format text|json]` | What a run's agents did and saw: each tool call with its output and what the models said ([Reading what the agents did](#reading-what-the-agents-did-trace)). |
 | `ui [--host H] [--port P] [--demo]` | Serve the web UI and its API on localhost ([Web UI](#web-ui)). Needs `uv sync --extra ui`. |
 | `bench list` / `bench run` / `bench report` | Run the benchmark suite against the team and report pass rates with confidence intervals and cost per success (`--fake` validates the harness offline; source checkout only). See [BENCHMARKS.md](BENCHMARKS.md). |
@@ -165,6 +166,24 @@ uv run engineering-team trace --format json        # entries as data (also: --js
 (`(final)` marks an agent's answer); the continuation lines of a multi-line text are indented. A run made before
 0.3.0 prints that its trajectory was not recorded. The run report links the trace, and the card drawer of the web
 UI shows a call's output with its **Output** button.
+
+### Profiling a run (`profile`)
+
+`profile` answers "where did the time and the money go?" for any run, finished, failed or still going:
+
+```bash
+uv run engineering-team profile                 # the latest run
+uv run engineering-team profile 20261003 --format json
+```
+
+It prints the **sessions** (one agent working on one task: a stage, a work package) twice, by cost and by
+time, with calls, prompt, cached and output tokens, tool calls and failures, and cost; then the prompt of
+each session split into system text (role and task), tool schemas, history and tool results (estimated
+tokens); the **critical path** (the longest chain of sessions that ran one after another) and stages that ran
+several sessions in sequence, which are candidates for parallel lanes; the tool-schema tokens each agent
+sends with every call; the files read more than once; and the tool failures with their messages. The run
+report has the same facts in "Where the time and money went", and `bench report` averages sessions, calls,
+prompt size and cached share per strategy. A run from before 0.3.0 has no prompt sizes; its profile says so.
 
 ### Steering a run
 

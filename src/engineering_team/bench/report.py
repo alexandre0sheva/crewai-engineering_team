@@ -22,9 +22,9 @@ SMALL_SAMPLE = 20  # below this many counted runs the interval is wide enough to
 CSV_COLUMNS = (
     "batch", "task", "strategy", "repeat", "kind", "mode", "subset", "provider", "profile",
     "fake", "outcome", "reason", "failed_criteria", "exit_code", "team_status", "team_verdict",
-    "duration_seconds", "tokens", "prompt_tokens", "completion_tokens", "model_calls",
-    "tool_calls", "cost_usd", "repair_rounds", "tool_failures", "setup_failures", "run_id",
-    "run_dir",
+    "duration_seconds", "tokens", "prompt_tokens", "cached_prompt_tokens", "completion_tokens",
+    "model_calls", "sessions", "tool_calls", "cost_usd", "repair_rounds", "tool_failures",
+    "setup_failures", "run_id", "run_dir",
 )  # fmt: skip
 
 
@@ -45,6 +45,10 @@ class Group:
     repair_mean: float | None
     tool_failures: int
     setup_failures: int
+    sessions_mean: float | None = None
+    calls_mean: float | None = None
+    prompt_mean: float | None = None
+    cached_share: float | None = None
 
     @property
     def rate(self) -> float | None:
@@ -72,6 +76,14 @@ def aggregate(label: str, records: Iterable[RunRecord]) -> Group:
         repair_mean=mean([float(r.repair_rounds) for r in counted]),
         tool_failures=sum(r.tool_failures for r in counted),
         setup_failures=sum(r.setup_failures for r in counted),
+        sessions_mean=mean([float(r.sessions) for r in counted]),
+        calls_mean=mean([float(r.model_calls) for r in counted]),
+        prompt_mean=mean([float(r.prompt_tokens) for r in counted]),
+        cached_share=(
+            sum(r.cached_prompt_tokens for r in counted) / prompts
+            if (prompts := sum(r.prompt_tokens for r in counted))
+            else None
+        ),
     )
 
 
@@ -168,6 +180,23 @@ def render_markdown(batch: dict[str, Any], records: list[RunRecord]) -> str:
     lines += _table(
         ["Strategy", *GROUP_HEADERS[1:]], group_rows(group_by(records, lambda r: r.strategy))
     )
+    lines += ["", "## Where the time and money went, by strategy", ""]
+    lines += _table(
+        ["Strategy", "Sessions / run", "Model calls / run", "Prompt tokens / run", "Cached share",
+         "Mean cost / run", "Median time"],
+        [
+            [
+                g.label,
+                "–" if g.sessions_mean is None else f"{g.sessions_mean:.1f}",
+                "–" if g.calls_mean is None else f"{g.calls_mean:.1f}",
+                "–" if g.prompt_mean is None else f"{g.prompt_mean:,.0f}",
+                "–" if g.cached_share is None else f"{g.cached_share:.0%}",
+                money(g.cost_mean),
+                seconds(g.duration_median),
+            ]
+            for g in group_by(records, lambda r: r.strategy)
+        ],
+    )  # fmt: skip
     lines += ["", "## By task kind and subset", ""]
     lines += _table(
         ["Strategy / kind / subset", *GROUP_HEADERS[1:]],

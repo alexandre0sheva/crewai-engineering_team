@@ -188,7 +188,7 @@ from reading `commands/` logs. This is the single description of its layout:
 | `events.jsonl` | `JsonlSink` | One `Event` per line: `seq`, `ts`, `run_id`, `type`, optional `stage`/`agent`/`lane`, `data` |
 | `trajectory.jsonl` | `TrajectoryRecorder` (`runtime/trajectory.py`) | What the agents saw: one line per tool call (`seq`, `ts`, `stage`, `teammate`, `lane`, `tool`, redacted `args`, redacted and capped `output`, `ok`, `ms`) or model message (`role` = `assistant` reply or `final` answer), plus `notice` lines when the size budget bites. `seq` is the line number; each `tool.call` event carries it as `trajectory_seq`. Secret values are scrubbed before the cut; output is capped per call (`trajectory.max_output_chars`) and per file (`trajectory.max_mb`, past which outputs are cut harder). Read it with `engineering-team trace`, the UI card drawer, or the report's Trace section. Runs from before 0.3.0 have no such file |
 | `request.md` | `RunRecorder` | The request exactly as given |
-| `usage.json` | `RunRecorder` | `UsageReport`: token totals and a breakdown by stage, agent, and model, with per-model cost (`null` when the price is unknown) |
+| `usage.json` | `RunRecorder` | `UsageReport`: token totals and a breakdown by stage, agent, and model, with per-model cost (`null` when the price is unknown), and `sessions`: one `SessionUsage` per agent session ([Usage accounting](#usage-accounting-and-sessions)) |
 | `settings.json` | `RunRecorder` | The effective `Settings` for the record (no secrets: credentials are read from the environment, never stored; hook addresses and MCP server environments are replaced) |
 | `pipeline.json` | `PipelineState` | The pipeline's hand-offs between stages (spec, plan, work-package status, board card ids, agent summaries, the latest check results and the `VerificationRecord`); see [Pipeline, recipes, and resume](#pipeline-recipes-and-resume) |
 | `verification/round-<n>.json` | `Verifier` | The results of each check run (status, exit code, duration, log path, the workspace revision it ran against, the parsed test or diagnostic report); see [Verification and repair](#verification-and-repair) |
@@ -266,6 +266,35 @@ at 80%.
 **Secrets never enter events.** Before a line is written, every value of an environment
 variable whose name contains `KEY`, `TOKEN`, `SECRET`, or `PASSWORD` (at least 8 characters) is
 replaced with `[REDACTED]`, anywhere in the event, including nested data.
+
+
+### Usage accounting and sessions
+
+`UsageTracker` counts `llm.call` events per (stage, agent, model) and `tool.call` events; that is the
+live total the budget guard watches. For the profiler the same log is read back into **agent
+sessions** (`runtime/sessions.py`): a session is one agent working on one task (a stage, a work
+package, a delegation), from CrewAI's `agent.started` to `agent.completed` or `agent.error`
+(a session that never ended is `open`). A session holds the model calls it made (`llm.call`, with
+token usage and cached tokens), the prompts they were sent, its tool calls and its cost. Bridged
+events are matched to a session by CrewAI's `emission` number, because the handler pool records them
+out of order; `tool.call` events (ours) by time, stage and lane.
+
+The bridge adds one event per model call, `llm.request`, with `prompt_chars`: the size in characters
+of the call's `system` text (system messages and the task prompt), `tools` (the schemas sent with the
+call), `history` and `results` (what tools returned), see `runtime/prompt_parts.py`. The profile turns
+them into tokens at four characters per token, an estimate shown next to the billed prompt. Failed tool
+calls are classified by their `ERROR:` message from the trajectory (`write-scope`, `path-not-found`,
+`edit-no-match`, `command-not-allowed`, `timeout`, `bad-arguments`, `other`).
+
+`usage.json` carries the sessions and `manifest.json`'s `summary.sessions` their number, written when
+the run ends; `build_profile` (`runtime/profile.py`) rebuilds everything from `events.jsonl` and
+`trajectory.jsonl` for any run, finished or not, and adds the critical path, stages that ran their
+sessions one after another, re-read files and failures. Runs from before 0.3.0 have no `llm.request`
+events: their profile has sessions, time, tokens and cost but no prompt parts.
+
+The offline performance proxies (`tests/perf/`) run scripted scenarios through the real stage runner and
+assert ceilings on sessions, model calls, tool-schema tokens per agent and always-on prompt size, plus
+`xfail` the targets of the plan until the lean team (T6) and the lead agent (T12) meet them.
 
 ## Run report
 

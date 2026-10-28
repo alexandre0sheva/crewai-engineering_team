@@ -60,6 +60,8 @@ class RunRecord(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     model_calls: int = 0
+    sessions: int = 0  # agent sessions (``agent.started`` events)
+    cached_prompt_tokens: int = 0
     tool_calls: int = 0
     cost_usd: float | None = None  # None: unknown (an unpriced model), never $0
     models: list[str] = []

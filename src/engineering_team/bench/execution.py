@@ -199,7 +199,11 @@ def execute_run(
         duration_seconds=duration, tokens=int(usage.get("tokens") or 0),
         prompt_tokens=int(usage.get("prompt_tokens") or 0),
         completion_tokens=int(usage.get("completion_tokens") or 0),
-        model_calls=int(usage.get("model_calls") or 0),
+        model_calls=int(usage.get("model_calls") or 0), sessions=metrics.sessions,
+        # the team's printed summary has no cached count; the event log (``metrics``) does
+        cached_prompt_tokens=int(
+            usage.get("cached_prompt_tokens") or metrics.usage.get("cached_prompt_tokens") or 0
+        ),
         tool_calls=int(usage.get("tool_calls") or 0),
         cost_usd=usage.get("estimated_cost_usd") if usage else None, models=metrics.models,
         repair_rounds=metrics.repair_rounds, tool_failures=metrics.tool_failures,

@@ -17,6 +17,7 @@ from engineering_team.contracts import (
     RunStatus,
     RunSummary,
     RunVerdict,
+    SessionUsage,
     StageRecord,
     utc_now,
 )
@@ -27,6 +28,7 @@ from engineering_team.runtime.cancel import RunCancelled
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import stage_scope
 from engineering_team.runtime.run_store import RunStore
+from engineering_team.runtime.sessions import run_sessions
 from engineering_team.runtime.snapshot import workspace_revision
 from engineering_team.settings import redacted_dump
 
@@ -262,6 +264,14 @@ class RunRecorder:
             budget_status=ctx.budget.status(),
         )
 
+    def _sessions(self) -> list[SessionUsage]:
+        """The run's agent sessions for ``usage.json`` (accounting must never fail a run)."""
+
+        try:
+            return run_sessions(self.ctx.run_dir, self.ctx.prices)
+        except Exception:
+            return []
+
     def _finish(self, outcome: RunStatus, error: str | None) -> None:
         ctx = self.ctx
         ctx.processes.stop_all("the run ended")  # nothing the run started may keep running
@@ -269,8 +279,10 @@ class RunRecorder:
         close_backend(ctx.backend, "the run ended")  # containers the run still has
         ctx.board.flush()  # board.json and board.md as the run ended
         report = ctx.usage.report(ctx.prices)
+        report.sessions = self._sessions()
         atomic_write_json(ctx.run_dir / "usage.json", report.model_dump(mode="json"))
         summary = self.summary(outcome)
+        summary.sessions = len(report.sessions)
         data = {"status": outcome, "summary": summary.model_dump(mode="json")}
         ctx.events.emit("run.finished", **data, **({"error": error} if error else {}))
 

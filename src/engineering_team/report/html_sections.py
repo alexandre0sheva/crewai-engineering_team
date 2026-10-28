@@ -20,6 +20,7 @@ from engineering_team.report.html_common import (
     table,
 )
 from engineering_team.report.html_overview import banner, summary, timeline, warnings
+from engineering_team.report.html_profile import profile
 from engineering_team.report.html_results import checks, criteria, findings, usage
 
 __all__ = [
@@ -39,6 +40,7 @@ __all__ = [
     "environment",
     "esc",
     "findings",
+    "profile",
     "screenshots",
     "section",
     "summary",

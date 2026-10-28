@@ -12,6 +12,7 @@ from collections.abc import Sequence
 
 from engineering_team.report.fmt import clock, money, size, tail, time_of_day, when
 from engineering_team.report.model import RunReport
+from engineering_team.runtime.profile_text import SESSION_HEAD
 
 SYMBOL = {"good": "✅", "warn": "⚠️", "bad": "❌", "info": "ℹ️"}
 MAX_CARD_MOVES = 12
@@ -50,6 +51,7 @@ def render_markdown(report: RunReport) -> str:
     lines += _agents(report)
     lines += _screenshots(report)
     lines += _usage(report)
+    lines += _profile(report)
     lines += _checks(report)
     lines += _criteria(report)
     lines += _findings(report)
@@ -299,4 +301,47 @@ def _trace(report: RunReport) -> list[str]:
         f"`trajectory.jsonl`. Read it with `engineering-team trace {cell(report.run_id)}`.",
     ]
     lines += [f"- ⚠️ {cell(note)}" for note in trace.notices]
+    return lines
+
+
+def _profile(report: RunReport) -> list[str]:
+    found = report.profile
+    if found is None or not found.sessions:
+        return []
+    ranked = sorted(found.sessions, key=lambda s: (-(s.cost_usd or 0.0), -s.seconds))
+    lines = [
+        "",
+        "## Where the time and money went",
+        "",
+        f"{len(found.sessions)} session(s), {found.calls} model call(s), "
+        f"{found.prompt_tokens:,} prompt tokens ({found.cached_share:.0%} cached), "
+        f"{money(found.cost_usd)}. Elapsed {clock(found.elapsed_seconds)}, session time "
+        f"{clock(found.session_seconds)} (parallelism {found.parallelism:.2f}x). Critical path: "
+        f"{' > '.join(found.critical_path)} ({clock(found.critical_seconds)}).",
+        "",
+    ]
+    lines += table(
+        [*SESSION_HEAD],
+        [
+            [
+                s.id, s.stage or "-", s.agent or "-", clock(s.seconds), s.calls,
+                f"{s.prompt_tokens:,}", f"{s.cached_prompt_tokens:,}", f"{s.completion_tokens:,}",
+                f"{s.tool_calls}/{sum(s.tool_failures.values())}", money(s.cost_usd),
+            ]
+            for s in ranked[:10]
+        ],
+    )  # fmt: skip
+    lines += [
+        f"- Stage {cell(item.stage)} ran {item.sessions} sessions one after another "
+        f"({clock(item.seconds)}): a candidate for parallel lanes."
+        for item in found.sequential_stages
+    ]
+    lines += [
+        f"- Re-read: `{cell(r.path)}` {r.reads} times in {r.sessions} session(s)."
+        for r in found.rereads[:5]
+    ]
+    lines += [
+        f"- Failed {f.count}x: {cell(f.tool)} ({f.kind}): {cell(f.message)}"
+        for f in found.failures[:5]
+    ]
     return lines

@@ -1,0 +1,50 @@
+{
+  "run_id": "20261028-161853-6744cf",
+  "elapsed_seconds": 74.413,
+  "session_seconds": 72.243,
+  "parallelism": 0.97,
+  "model_calls": 15,
+  "prompt_tokens": 142177,
+  "cached_share": 0.8666,
+  "cost_usd": 0.00468634,
+  "sessions": [
+    {
+      "id": "S1",
+      "stage": "build",
+      "agent": "Full-stack engineer and delivery owner for app",
+      "lane": null,
+      "task": "Build app end to end in /Users/alexander/apps/app-coder/crewai-engineering_team/benchmarks/results/2026-10-28/perf-basel...",
+      "model": "openai/gpt-6-luna",
+      "started": "2026-10-28T16:18:59.039435Z",
+      "ended": "2026-10-28T16:20:11.282595Z",
+      "seconds": 72.243,
+      "ended_with": "completed",
+      "calls": 15,
+      "prompt_tokens": 142177,
+      "cached_prompt_tokens": 123204,
+      "completion_tokens": 3114,
+      "prompt_parts": {
+        "system": 11598,
+        "tools": 169431,
+        "history": 27689,
+        "results": 5758,
+        "tool_schema_per_call": 12102
+      },
+      "tool_calls": 14,
+      "tool_failures": {},
+      "cost_usd": 0.00468634
+    }
+  ],
+  "critical_path": {
+    "sessions": [
+      "S1"
+    ],
+    "seconds": 72.243
+  },
+  "sequential_stages": [],
+  "tool_schema_tokens": {
+    "Full-stack engineer and delivery owner for app": 12102
+  },
+  "rereads": [],
+  "failures": []
+}

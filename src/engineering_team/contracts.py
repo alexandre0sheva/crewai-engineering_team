@@ -248,6 +248,32 @@ class UsageRow(UsageTotals):
     cost_usd: float | None = None  # None: the model has no known price
 
 
+class SessionUsage(Contract):
+    """One agent session: an agent working on one task (a stage, a work package, a delegation),
+    from ``agent.started`` to its end. Prompt parts are estimated tokens scaled to the billed
+    prompt (``system`` = role text and task prompt, ``tools`` = tool schemas, ``history``,
+    ``results`` = what tools returned); ``tool_failures`` counts failed calls by error kind."""
+
+    id: str
+    stage: str | None = None
+    agent: str | None = None
+    lane: int | str | None = None
+    task: str | None = None
+    model: str = ""
+    started: datetime
+    ended: datetime
+    seconds: float = 0.0
+    ended_with: Literal["completed", "error", "open"] = "completed"
+    calls: int = 0
+    prompt_tokens: int = 0
+    cached_prompt_tokens: int = 0
+    completion_tokens: int = 0
+    prompt_parts: dict[str, int] = Field(default_factory=dict)
+    tool_calls: int = 0
+    tool_failures: dict[str, int] = Field(default_factory=dict)
+    cost_usd: float | None = None  # None: the model has no known price
+
+
 class UsageReport(Contract):
     """Everything ``usage.json`` holds. ``estimated_cost_usd`` is ``None`` unless *every* model
     that was used has a known price: a partial sum would understate the cost."""
@@ -262,6 +288,7 @@ class UsageReport(Contract):
     by_stage: dict[str, UsageTotals] = Field(default_factory=dict)
     cost_by_model: dict[str, float | None] = Field(default_factory=dict)
     rows: list[UsageRow] = Field(default_factory=list)
+    sessions: list[SessionUsage] = Field(default_factory=list)
 
 
 BudgetState = Literal["unlimited", "ok", "warning", "exceeded"]
@@ -288,6 +315,7 @@ class RunSummary(Contract):
     duration_seconds: float = 0.0
     usage: UsageTotals = Field(default_factory=UsageTotals)
     tool_calls: int = 0
+    sessions: int = 0  # agent sessions (see ``SessionUsage``)
     estimated_cost_usd: float | None = None
     unpriced_models: list[str] = Field(default_factory=list)
     budget_status: BudgetStatus = Field(default_factory=BudgetStatus)

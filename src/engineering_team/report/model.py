@@ -19,6 +19,7 @@ from engineering_team.contracts import (
     Finding,
     UsageReport,
 )
+from engineering_team.runtime.profile import Profile
 
 Tone = Literal["good", "warn", "bad", "info"]
 
@@ -145,6 +146,7 @@ class RunReport:
     diff_note: str = ""
     warnings: list[Notice] = field(default_factory=list)
     trace: TraceInfo | None = None
+    profile: Profile | None = None
     environment: list[tuple[str, str]] = field(default_factory=list)
     questions: list[str] = field(default_factory=list)
     summaries: dict[str, str] = field(default_factory=dict)  # stage -> what its agent said

@@ -33,12 +33,17 @@ from crewai.events.types.crew_events import (
     CrewKickoffFailedEvent,
     CrewKickoffStartedEvent,
 )
-from crewai.events.types.llm_events import LLMCallCompletedEvent, LLMCallFailedEvent
+from crewai.events.types.llm_events import (
+    LLMCallCompletedEvent,
+    LLMCallFailedEvent,
+    LLMCallStartedEvent,
+)
 from crewai.events.types.task_events import TaskCompletedEvent, TaskFailedEvent, TaskStartedEvent
 from crewai.events.types.tool_usage_events import ToolUsageErrorEvent, ToolUsageFinishedEvent
 from crewai.types.usage_metrics import UsageMetrics
 
 from engineering_team.runtime.events import EventSink
+from engineering_team.runtime.prompt_parts import prompt_chars
 from engineering_team.runtime.trajectory import TrajectoryRecorder
 
 MAX_TEXT = 500
@@ -203,6 +208,15 @@ _TRANSLATIONS: list[tuple[type, str, Callable[[Any], dict[str, Any]]]] = [
         ToolUsageErrorEvent,
         "tool.error",
         lambda e: {"tool": e.tool_name, "args": _clip(e.tool_args, 200), "error": _clip(e.error)},
+    ),
+    (
+        LLMCallStartedEvent,
+        "llm.request",
+        lambda e: {
+            "model": _model(e),
+            "call_id": e.call_id,
+            "prompt_chars": prompt_chars(e.messages, e.tools),
+        },
     ),
     (
         LLMCallCompletedEvent,
