@@ -14,3 +14,12 @@ build/
 workspace/
 sandbox/
 benchmarks/.runs/
+
+# A benchmark batch keeps its records (batch.json, report.md, results.csv, result.json, profiles);
+# the workspaces the team built (each its own Git repository), CrewAI's storage, and the process
+# logs stay local.
+benchmarks/results/**/ws/
+benchmarks/results/**/crewai-storage/
+benchmarks/results/**/stdout.log
+benchmarks/results/**/stderr.log
+benchmarks/results/**/request.md
