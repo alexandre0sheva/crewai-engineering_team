@@ -84,7 +84,7 @@ A key that is not built in adds a new teammate. `team show KEY` says which layer
 | `allow_delegation` | Accepted so existing team files keep loading, and ignored: a stage runs one agent, so nobody can be delegated to. |
 | `max_iter` | Most reasoning steps per task (default: from the profile). |
 | `enabled` | `false` takes a teammate out; see "Who steps in" below. |
-| `modes` | Modes it works in (`new`, `feature`, `fix`, `maintain`); empty means all. |
+| `modes` | Modes it works in (`new`, `feature`, `fix`, `maintain`); empty means all. A run's mode is its recipe's `mode` (`new`, `feature`, `fix`, or `maintain` for the `refactor`, `add-tests`, `docs`, `upgrade-deps`, `security-audit` and `custom` recipes); the read-only `adopt` and `review` recipes have none, so everyone may take part. |
 | `stages` | Stages (such as `implement`) it may be given work packages for, in addition to the ones the recipe names. This is how a new teammate gets work. |
 
 ### Example: a data engineer, with no Python

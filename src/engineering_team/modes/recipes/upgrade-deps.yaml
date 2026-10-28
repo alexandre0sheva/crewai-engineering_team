@@ -4,6 +4,7 @@
 # Only manifests and lockfiles may change (policy `manifests_only`). It installs packages, so use
 # --sandbox docker for code you do not trust. See docs/USAGE.md ("Maintaining a project").
 name: upgrade-deps
+mode: maintain
 description: Upgrade dependencies group by group, undoing and bisecting what breaks the checks.
 policies: [manifests_only]
 stages:

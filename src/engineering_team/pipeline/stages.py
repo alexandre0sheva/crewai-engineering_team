@@ -26,6 +26,7 @@ from engineering_team.contracts import Contract, Plan, ReviewReport, Spec, WorkP
 from engineering_team.extensions.agents import agent_extensions
 from engineering_team.intake.context_docs import context_note
 from engineering_team.llm import build_llm
+from engineering_team.model_routing import facts_for
 from engineering_team.modes.codebase_map import (
     ChunkAnalysis,
     CodebaseMap,
@@ -35,10 +36,12 @@ from engineering_team.modes.fix_contracts import FixNote, Repro, Triage
 from engineering_team.modes.fix_input import bug_brief
 from engineering_team.modes.maintain import coverage_brief
 from engineering_team.modes.maintain_contracts import UpgradePlan
+from engineering_team.pipeline.no_retry import NoRetry
 from engineering_team.pipeline.recipes import StageSpec
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.context import RunContext
 from engineering_team.team import Roster, TeamError
+from engineering_team.team.registry import WRITERS
 from engineering_team.tools import WriteScope, build_tools
 
 # Contracts a stage can produce, by output name.
@@ -54,6 +57,10 @@ CONTRACT_MODELS: dict[str, type[Contract]] = {
 
 class StageError(RuntimeError):
     """A stage whose agent did not deliver what the recipe asked for."""
+
+
+class ModelCannotCallTools(StageError, NoRetry):
+    """The model is known not to call tools and a stage that must write got a text answer."""
 
 
 @dataclass(frozen=True)
@@ -267,9 +274,11 @@ class CrewStageRunner:
             # Controller-owned state: agents cannot reach this path through the file tools.
             output_log_file=str(ctx.run_dir / f"crew-log-{request.label}.json"),
         )
+        calls_before = ctx.usage.tool_calls
         result = crew.kickoff(inputs=self._inputs(request))
         if not isinstance(result, CrewOutput):  # a streaming crew; this one never streams
             raise StageError(f"Stage '{stage.name}' produced no output.")
+        self._require_tool_calls(request, agent, calls_before)
         output = StageOutput(summary=str(result.raw or "").strip())
         for name, model in wanted.items():
             if result.pydantic is None or not isinstance(result.pydantic, model):
@@ -279,6 +288,29 @@ class CrewStageRunner:
                 )
             output.contracts[name] = result.pydantic
         return output
+
+    @staticmethod
+    def _require_tool_calls(request: StageRequest, agent: Agent, calls_before: int) -> None:
+        """Fail at once, with the way out, when a stage that must write was worked by a model known
+        not to call tools and the run made no tool call meanwhile (it answered in text, so nothing
+        was written). Other lanes' calls count too, which only errs towards not failing."""
+
+        ctx, teammate = request.ctx, request.teammate
+        member = ctx.team.get(teammate)
+        if not agent.tools or ctx.usage.tool_calls > calls_before:
+            return
+        if not WRITERS & set(member.groups):
+            return
+        resolved = ctx.settings.resolve_model(teammate, tier=member.tier, max_iter=member.max_iter)
+        if facts_for(resolved.model).tool_calling is not False:
+            return
+        raise ModelCannotCallTools(
+            f"{resolved.model} (tier '{resolved.tier}') is known not to call tools, and its first "
+            f"answer in the '{request.stage.name}' stage had no tool call, so {teammate} could "
+            "not write files or run commands. Choose a model with tool calling for this tier "
+            f"([models.tiers.{resolved.tier}], docs/CONFIGURATION.md) and check it with "
+            "`engineering-team doctor --probe-tools`."
+        )
 
     def _agent(self, request: StageRequest) -> Agent:
         ctx, teammate = request.ctx, request.teammate

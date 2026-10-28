@@ -135,6 +135,17 @@ def _model(event: Any) -> str:
     return f"{provider}/{model}" if provider and "/" not in model else model
 
 
+def _qualified(data: dict[str, Any], source: Any) -> None:
+    """Give a bare model name its provider from the event's source (the LLM that made the call).
+    A call made without an agent has no ``from_agent``; without this a local model's call would
+    be priced under a name no ``[pricing]`` entry matches and its cost would read "unknown"."""
+
+    model = data.get("model")
+    provider = getattr(source, "provider", None)
+    if isinstance(model, str) and "/" not in model and isinstance(provider, str) and provider:
+        data["model"] = f"{provider}/{model}"
+
+
 # event class -> (our event type, how to read its data)
 _TRANSLATIONS: list[tuple[type, str, Callable[[Any], dict[str, Any]]]] = [
     (CrewKickoffStartedEvent, "crew.started", lambda e: {"crew": e.crew_name}),
@@ -210,6 +221,7 @@ def _handler(our_type: str, read: Callable[[Any], dict[str, Any]]) -> Callable[[
             return
         try:
             data = read(event)
+            _qualified(data, source)
             emission = getattr(event, "emission_sequence", None)
             if emission:
                 data["emission"] = emission

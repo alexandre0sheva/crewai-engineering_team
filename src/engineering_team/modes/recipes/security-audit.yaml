@@ -4,6 +4,7 @@
 # command line says --fix: then the debugger fixes the serious findings and the controller
 # verifies against the baseline.
 name: security-audit
+mode: maintain
 description: Dependency audit plus a security review of the code; fixes only with --fix.
 stages:
   - name: profile

@@ -198,13 +198,16 @@ class Recipe(BaseModel):
     """An ordered list of stages, and the policies the verify stage enforces on the change
     (``modes/policies.py``: for example ``tests_only`` for a mode that must not touch the code).
 
-    ``source`` (``bundled``, ``user``, or ``project``) and ``path`` say where it was loaded from;
-    they are not part of the recipe's content or digest."""
+    ``mode`` (``new``, ``feature``, ``fix`` or ``maintain``; unset: every teammate may work it)
+    is what a teammate's ``modes`` filter is matched against. ``source`` (``bundled``, ``user``,
+    or ``project``) and ``path`` say where it was loaded from; they are not part of the
+    recipe's content or digest."""
 
     model_config = ConfigDict(extra="forbid")
 
     name: str
     description: str = ""
+    mode: str | None = None
     policies: list[str] = Field(default_factory=list)
     stages: list[StageSpec] = Field(min_length=1)
     source: str = Field(default="bundled", exclude=True)
@@ -212,8 +215,11 @@ class Recipe(BaseModel):
 
     @model_validator(mode="after")
     def _ordered(self) -> Recipe:
+        from engineering_team.intake.templates import MODES
         from engineering_team.modes.policies import POLICY_NAMES
 
+        if self.mode is not None and self.mode not in MODES:
+            raise ValueError(f"unknown mode {self.mode!r}; known: {', '.join(MODES)}")
         unknown = [name for name in self.policies if name not in POLICY_NAMES]
         if unknown:
             raise ValueError(f"unknown policies {unknown}; known: {sorted(POLICY_NAMES)}")
@@ -245,7 +251,7 @@ class Recipe(BaseModel):
     def digest(self) -> str:
         """Identifies the recipe's content: a run only resumes under the recipe it started with."""
 
-        payload = self.model_dump_json()
+        payload = self.model_dump_json(exclude={"mode"})  # who may work it is not its content
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 

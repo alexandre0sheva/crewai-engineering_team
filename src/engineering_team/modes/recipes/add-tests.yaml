@@ -4,6 +4,7 @@
 # controller measures coverage before and after with the project's own coverage tool, when there
 # is one. See docs/USAGE.md ("Maintaining a project").
 name: add-tests
+mode: maintain
 description: Characterization tests for untested code; the controller reports the coverage delta.
 policies: [tests_only]
 stages:

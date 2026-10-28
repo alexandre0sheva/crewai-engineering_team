@@ -78,6 +78,9 @@ class PipelineFlow(Flow[PipelineState]):
                 setattr(state, name, getattr(loaded, name))
         state.recipe, state.recipe_digest, state.request_hash = recipe.name, digest, requested
         state.options = read_run_options(ctx.run_dir)
+        ctx.team.mode = (
+            recipe.mode
+        )  # teammates limited to other modes are not given this run's work
         missing = [
             key for stage in recipe.stages for key in stage.teammates if key not in ctx.team.members
         ]

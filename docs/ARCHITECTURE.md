@@ -463,7 +463,9 @@ a bad definition is a usage error before any state is created. The pipeline buil
 tier=, max_iter=)`), because a roster that changes per project cannot be a fixed set of `@CrewBase` methods. `Roster.assign` picks who works a stage when the one the recipe
 names is disabled or missing (next listed, then the `generalist_engineer`, then the enabled teammate with the most similar
 tools; a `team.fallback` event records it), and a work package's `role` is matched against `package_pool` (the stage's
-teammates plus enabled teammates that list the stage under `stages`), which the plan prompt also shows the architect.
+teammates plus enabled teammates that list the stage under `stages`), which the plan prompt also shows the architect. A recipe carries its `mode`; when the flow starts it sets `Roster.mode`, which `usable` and `assign` use for a teammate's `modes` filter.
+
+**Plan repair** (`pipeline/plan_repair.py`). After the plan stage, `repair_plan` fixes ownership mistakes that are mechanical (a shared root file named by a package is removed, a broad glob is narrowed to the subdirectories, a package left with no paths is dropped and its dependents inherit its dependencies) and the stage emits `plan.repaired` with each package's `before` and `after`; `plan_problems` then checks the result, so what cannot be repaired is still rejected with its original reason. Overlapping globs are not an error and need no repair (`packages.schedule` runs overlapping packages in turn).
 
 **Intake and the spec stage** (`intake/`, `pipeline/spec_stage.py`). `RequestBundle.from_sources` is the one door
 for a request (CLI, library, web UI): it normalises, merges (inline text, then files in order, `-` is stdin), caps

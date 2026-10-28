@@ -3,6 +3,7 @@
 # an existing test or a dependency manifest, and may not grow past maintain.max_refactor_lines.
 # The controller runs the tests again afterwards and compares them with the baseline.
 name: refactor
+mode: maintain
 description: A behaviour-preserving refactor, tests green before and after, with diff limits.
 policies: [tests_untouched, manifests_untouched, diff_size]
 stages:

@@ -220,8 +220,10 @@ applications. These show that the plumbing works, not what the models can do.
 
 The configs are in [`benchmarks/configs/`](../benchmarks/configs/). LM Studio has no CrewAI provider of
 its own; `hosted_vllm/<model>` with `VLLM_BASE_URL=http://localhost:1234/v1` reaches its
-OpenAI-compatible server. The Ollama and LM Studio runs report an unknown cost although a zero price override was
-configured; why was not investigated.
+OpenAI-compatible server. The Ollama and LM Studio runs reported an unknown cost although a zero price override was
+configured. Cause (found and fixed in 0.3.0): a model call made without an agent reached the run's log under its bare
+name (`llama3.2`), which no `ollama/*` price matches; the log now takes the provider from the model that made the
+call, so a zero price gives `$0.00`.
 
 ### Every failure and its cause
 

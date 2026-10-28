@@ -693,6 +693,49 @@ def test_an_invalid_plan_fails_the_plan_stage_with_every_problem(
     assert "depends on unknown package 'WP-9'" in detail and "used twice" in detail
 
 
+def test_a_plan_that_owns_a_shared_file_is_repaired_and_the_run_goes_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    docs_only = PLAN.work_packages[0].model_copy(
+        update={"id": "WP-0", "owned_paths": ["README.md"]}
+    )
+    plan = Plan(work_packages=[docs_only, *PLAN.work_packages])
+    runner = use_runner(monkeypatch, FakeRunner(plan=plan))
+
+    assert start() == 0
+
+    assert ("implement", "WP-0") not in runner.calls and ("implement", "WP-1") in runner.calls
+    events = list(read_events(run_dir(only_run()) / "events.jsonl"))
+    (repaired,) = [e for e in events if e.type == "plan.repaired"]
+    assert repaired.stage == "plan"
+    assert repaired.data["changes"] == [
+        {
+            "package": "WP-0",
+            "action": "dropped",
+            "before": ["README.md"],
+            "after": [],
+            "why": "README.md belongs to foundation and integrate",
+        }
+    ]
+    state = PipelineState.load(run_dir(only_run()))
+    assert state is not None and state.plan is not None
+    assert [p.id for p in state.plan.work_packages] == ["WP-1", "WP-2"]
+
+
+def test_a_plan_that_cannot_be_repaired_still_fails_the_plan_stage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    only_readme = PLAN.work_packages[0].model_copy(update={"owned_paths": ["README.md"]})
+    use_runner(monkeypatch, FakeRunner(plan=Plan(work_packages=[only_readme])))
+
+    assert start() == 1
+
+    detail = next(r for r in only_run().stages if r.name == "plan").detail
+    assert "WP-1 owns 'README.md', which covers shared file(s) README.md" in detail
+    events = list(read_events(run_dir(only_run()) / "events.jsonl"))
+    assert not [e for e in events if e.type == "plan.repaired"]
+
+
 def test_the_event_log_tags_each_stage_and_ends_with_the_run(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -2,6 +2,7 @@
 # works on them, which contracts they read and write, when they are skipped, and how the
 # controller checks the result. See docs/ARCHITECTURE.md ("Pipeline, recipes, and resume").
 name: new
+mode: new
 description: Build a new project from a request, from spec to release report.
 stages:
   # The product analyst returns the spec contract; the controller checks the criterion ids,
@@ -15,6 +16,8 @@ stages:
     verification_policy: artifacts
     retry: 1
 
+  # The controller repairs a plan that gives a package a shared root file (README.md, ...), and
+  # records a `plan.repaired` event; docs/USAGE.md has the rules.
   - name: plan
     kind: agent
     teammates: [solution_architect]

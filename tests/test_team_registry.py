@@ -417,6 +417,37 @@ def test_a_disabled_analyst_is_replaced_by_the_generalist_and_the_run_says_so(
     assert spec_card.assignee == "generalist_engineer"
 
 
+def test_a_teammate_limited_to_other_modes_is_replaced_in_a_run_of_this_mode(
+    install: Callable[[dict[str, ScriptedLLM]], None],
+) -> None:
+    config = team_file('[team.product_analyst]\nmodes = ["fix"]\n', name="team.toml")
+    llms = scripts()
+    llms["generalist_engineer"] = llms.pop("product_analyst")
+    install(llms)
+
+    assert run_cli("--config", str(config)) == 0  # ``new`` runs the recipe whose mode is "new"
+
+    llms["generalist_engineer"].assert_exhausted()
+    (fallback,) = [
+        e.data
+        for e in read_events(run_dir(only_run()) / "events.jsonl")
+        if e.type == "team.fallback"
+    ]
+    assert fallback["used"] == "generalist_engineer"
+    assert fallback["why"] == "teammate 'product_analyst' does not work in the 'new' mode"
+
+
+def test_a_roster_uses_the_mode_of_its_run_when_none_is_asked_for() -> None:
+    roster = build_roster(settings_with(backend_engineer={"modes": ["fix"]}))
+    assert roster.assign(["backend_engineer"], "implement")[0] == "backend_engineer"  # no mode yet
+
+    roster.mode = "new"
+
+    assert not roster.usable("backend_engineer")
+    assert roster.usable("backend_engineer", "fix")  # an explicit mode still wins
+    assert roster.assign(["backend_engineer"], "implement")[0] == "generalist_engineer"
+
+
 # -- the commands ------------------------------------------------------------------------------
 
 

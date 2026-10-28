@@ -2,6 +2,7 @@
 # One agent stage does the goal (the stage's own instructions say how); the controller verifies
 # against the baseline. Copy this file into .engineering-team/recipes/ to make a recipe of your own.
 name: custom
+mode: maintain
 description: Do the goal you describe, verified against the project's baseline.
 stages:
   - name: profile

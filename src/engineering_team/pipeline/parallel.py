@@ -28,6 +28,7 @@ from typing import Literal, TypeVar
 from crewai.tools import BaseTool
 
 from engineering_team.contracts import Plan, WorkPackage
+from engineering_team.pipeline.no_retry import NoRetry
 from engineering_team.pipeline.packages import layers, schedule
 from engineering_team.runtime.budget import BudgetExceeded
 from engineering_team.runtime.cancel import RunCancelled, check_cancelled
@@ -220,6 +221,8 @@ def _attempts(
         except Exception as exc:
             error = str(exc)[:MAX_ERROR]
             note = f"The previous attempt failed: {error}"
+            if isinstance(exc, NoRetry):
+                break
             if attempt < retry:
                 ctx.events.emit(
                     "lane.retry", lane=lane, unit=package.id, attempt=attempts, error=error

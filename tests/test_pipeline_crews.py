@@ -349,3 +349,41 @@ def test_stage_tool_groups_come_from_the_roster(make_context) -> None:  # type: 
     assert "browser" in stage_groups(ctx, "frontend_engineer")
     assert not {"fs_write", "command"} & set(stage_groups(ctx, "product_analyst"))
     assert set(Spec.model_fields) and set(Plan.model_fields)  # contracts imported for the prompts
+
+
+def test_a_model_known_not_to_call_tools_fails_a_writing_stage_at_its_first_answer(
+    models: dict[str, ScriptedLLM], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from dataclasses import replace
+
+    from engineering_team import model_routing
+
+    worker = "openai/gpt-6-luna"  # the backend engineer's model in the default preset
+    flagged = replace(model_routing.facts_for(worker), tool_calling=False)
+    monkeypatch.setitem(model_routing.MODEL_FACTS, worker, flagged)
+    models["backend_engineer"] = ScriptedLLM(["Here is the README text you asked for."])
+    scripted = models["backend_engineer"]
+
+    assert run_cli() == 1
+
+    detail = next(r for r in only_run().stages if r.name == "foundation").detail
+    assert f"{worker} (tier 'worker') is known not to call tools" in detail
+    assert "[models.tiers.worker]" in detail and "doctor --probe-tools" in detail
+    assert scripted.remaining == 0 and len(scripted.calls) == 1  # no second attempt wasted
+
+
+def test_a_stage_that_made_tool_calls_is_not_failed_for_the_models_reputation(
+    models: dict[str, ScriptedLLM], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from dataclasses import replace
+
+    from engineering_team import model_routing
+
+    worker = "openai/gpt-6-luna"
+    monkeypatch.setitem(
+        model_routing.MODEL_FACTS,
+        worker,
+        replace(model_routing.facts_for(worker), tool_calling=False),
+    )
+
+    assert run_cli() == 0  # the scripted model does call the write tool

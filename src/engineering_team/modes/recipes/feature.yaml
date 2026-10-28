@@ -2,6 +2,7 @@
 # worktree, or copy (modes/isolation.py), never in your checkout blindly; every controller write-up
 # goes to the run directory, so the diff holds only the change. See docs/USAGE.md ("Feature mode").
 name: feature
+mode: feature
 description: Add a feature to an existing project, verified against its baseline.
 stages:
   # Adopt: what the project is, what its own checks said before any change, how its code fits.

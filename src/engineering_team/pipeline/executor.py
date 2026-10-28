@@ -26,6 +26,7 @@ from engineering_team.modes.needs_info import NeedsInfo
 from engineering_team.modes.upgrade import run_upgrades
 from engineering_team.pipeline.actions import CONTROLLER_ACTIONS
 from engineering_team.pipeline.executor_base import MAX_NOTE_ERROR, MAX_SUMMARY
+from engineering_team.pipeline.no_retry import NoRetry
 from engineering_team.pipeline.package_exec import PackageExecutor
 from engineering_team.pipeline.recipes import StageSpec
 from engineering_team.pipeline.resume import RESUME_NOTE, StagePlan
@@ -85,7 +86,7 @@ class StageExecutor(PackageExecutor):
             try:
                 self._once(stage, entry, note)
                 return
-            except (RunCancelled, BudgetExceeded, NeedsInfo):
+            except (RunCancelled, BudgetExceeded, NeedsInfo, NoRetry):
                 raise
             except Exception as exc:
                 if attempt >= stage.retry or stage.kind == "parallel":

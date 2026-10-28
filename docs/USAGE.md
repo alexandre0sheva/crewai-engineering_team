@@ -31,7 +31,7 @@ uv run engineering-team <command> --help # its options
 | `note RUN "text" [--card K-004]` | Steer a run: the team reads your note at its next step. |
 | `pause [RUN]` / `unpause [RUN]` | Hold a running run at its agents' next tool call, or let it go on. |
 | `config show` | Every setting and where its value came from. |
-| `doctor [--online]` | Check Python, uv, Git, Docker, language runtimes, and provider credentials. |
+| `doctor [--online] [--probe-tools]` | Check Python, uv, Git, Docker, language runtimes, and provider credentials. |
 | `init` | Write `engineering-team.toml` and a request template here (`--mode new|feature|fix|maintain`). |
 | `examples list` / `examples run NAME` | The bundled example requests. |
 | `team [list]` / `team show KEY` | The teammates and how each is set up; change or add teammates in config ([TEAM.md](TEAM.md)). |
@@ -169,6 +169,16 @@ tool (no stages, no controller-run checks: fast and cheap, the benchmark baselin
 FILE` adds your own) and writes `docs/verification.md` from what it saw. A pipeline run that was
 cancelled, interrupted, or failed continues where it stopped with `resume RUN`; a changed request starts
 a new run instead. How it works is in [ARCHITECTURE.md](ARCHITECTURE.md#pipeline-recipes-and-resume).
+
+**The plan is repaired, not just checked.** The architect splits the work into packages that each own paths, and
+shared root files (`README.md`, `pyproject.toml`, `package.json`, lockfiles, CI configuration) belong to the
+foundation and integrate stages only. When a plan breaks that rule in a mechanical way, the controller fixes it and
+goes on instead of failing the run: a shared file named by a package is taken away, a broad glob such as `*.md` is
+narrowed to the directories below the root, and a package left owning nothing is dropped (what waited for it waits
+for what it waited for). The run records a `plan.repaired` event with each package's paths before and after; a plan
+the controller cannot fix (a glob that still covers a shared file when narrowed, or nothing left to run) is
+rejected with the reason, and the architect retries once. Packages whose paths overlap are not an error: they run
+one after the other.
 
 Running `new` again for the same `--project-name` continues in the same project. To start it over,
 pass `--reset`: it deletes only `workspace/<project>/`, and only if this tool created it (it holds
@@ -400,6 +410,7 @@ The catalogue a recipe is validated against (an error names the file, the stage,
 |------|--------|
 | `kind` | `controller` (runs an `action`, no model), `agent` (one teammate, one task; `outputs` names a contract), `parallel` (one agent per work package of the plan), `verify` (the controller's checks, with bounded repair by its first teammate), `review` (reviewers side by side, read-only), `analyze` (the codebase map), `reproduce` (fix mode's red gate), `upgrade` (upgrade-deps' grouped upgrades) |
 | `action` | `repo_profile`, `baseline`, `change_summary`, `coverage_before`, `coverage_after`, `refactor_precondition`, `dependency_audit`, `security_report`, `security_gate`, `review_target`, `review_gate` |
+| `mode` (recipe) | `new`, `feature`, `fix` or `maintain`: the mode a teammate's `modes` filter is matched against ([TEAM.md](TEAM.md)); unset means every teammate may work it |
 | `teammates` | Keys from `team list` (including your own teammates) |
 | `prompt` / `instructions` | A prompt key of `config/stages.yaml`, or your own text for the stage (not both) |
 | `policies` (recipe) | `tests_only`, `docs_only`, `manifests_only`, `tests_untouched`, `manifests_untouched`, `diff_size`; they need a `verify` stage |
@@ -621,5 +632,9 @@ or a question would change the product, two things can happen:
 
 `doctor` reports what is installed and what is missing, never prints a key value, and exits `1` if
 something required is wrong. `doctor --online` also sends one tiny prompt to each model tier (a real,
-very small API call) to prove the keys and model names work. It recommends the Docker sandbox when
-Docker is available (`new --sandbox docker`).
+very small API call) to prove the keys and model names work. `doctor --probe-tools` sends each distinct model one
+tiny request that offers a single tool and reports `can call tools` or `answers in text only` (it costs cents; it is
+opt-in and never runs in tests). A model that only answers in text cannot drive the team, which is what small local
+models (Ollama, LM Studio) often do; a run with a model known not to call tools stops at the first writing stage with
+the same hint instead of finishing without writing anything. `doctor` recommends the Docker sandbox when Docker is
+available (`new --sandbox docker`).

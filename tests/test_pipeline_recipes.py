@@ -92,6 +92,35 @@ def test_the_digest_changes_with_the_recipe() -> None:
     assert parse_recipe(base, source="a").digest != parse_recipe(changed, source="b").digest
 
 
+def test_recipes_carry_the_mode_a_teammates_modes_filter_is_matched_against() -> None:
+    modes = {name: load_recipe(name).mode for name in bundled_recipes()}
+
+    assert modes == {
+        "new": "new",
+        "feature": "feature",
+        "fix": "fix",
+        "refactor": "maintain",
+        "add-tests": "maintain",
+        "docs": "maintain",
+        "upgrade-deps": "maintain",
+        "security-audit": "maintain",
+        "custom": "maintain",
+        "adopt": None,  # read-only analysis: every teammate may take part
+        "review": None,
+    }
+
+
+def test_the_mode_is_checked_and_is_not_part_of_the_digest() -> None:
+    base = "name: r\nstages:\n  - name: a\n    teammates: [x]\n"
+
+    assert (
+        parse_recipe("mode: fix\n" + base, source="a").digest
+        == parse_recipe(base, source="a").digest
+    )
+    with pytest.raises(RecipeError, match="unknown mode 'rewrite'.*new, feature, fix, maintain"):
+        parse_recipe("mode: rewrite\n" + base, source="a")
+
+
 @pytest.mark.parametrize(
     ("text", "message"),
     [

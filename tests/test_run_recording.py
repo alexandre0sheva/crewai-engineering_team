@@ -399,3 +399,34 @@ def test_jsonl_sink_default_matches_the_run_directory(make_context: MakeContext)
 
     assert [event.type for event in _events(ctx)] == ["probe"]
     assert isinstance(ctx.events, FanoutSink) and (ctx.run_dir / "events.jsonl").is_file()
+
+
+def test_a_local_model_called_without_an_agent_still_costs_zero_not_unknown(
+    make_context: MakeContext,
+) -> None:
+    # CrewAI names the model bare ("llama3.2") and, for a call made without an agent, offers only
+    # the LLM object (the event source) for the provider; the price override is "ollama/*".
+    from engineering_team.pricing import build_table
+    from engineering_team.runtime.bridge import _TRANSLATIONS
+    from engineering_team.runtime.usage import UsageTracker
+
+    ctx = make_context()
+    llm_type, read = next((t, r) for _, t, r in _TRANSLATIONS if t == "llm.call")
+    event = SimpleNamespace(
+        model="llama3.2",
+        call_id="c1",
+        finish_reason="stop",
+        usage={"prompt_tokens": 120, "completion_tokens": 30, "total_tokens": 150},
+        from_agent=None,
+        emission_sequence=None,
+    )
+
+    with bind_run(ctx.run_id, ctx.events):
+        _handler(llm_type, read)(SimpleNamespace(provider="ollama"), event)
+
+    call = next(e for e in _events(ctx) if e.type == "llm.call")
+    assert call.data["model"] == "ollama/llama3.2"
+    report = UsageTracker.from_events(_events(ctx)).report(
+        build_table({"ollama/*": {"input": 0, "output": 0}})
+    )
+    assert report.estimated_cost_usd == 0.0 and report.unpriced_models == []

@@ -1,6 +1,7 @@
 # The recipe for documenting legacy code: the technical writer reads the code and writes the
 # documentation it lacks. Only documentation files may change (policy `docs_only`).
 name: docs
+mode: maintain
 description: The technical writer documents the existing code (documentation files only).
 policies: [docs_only]
 stages:

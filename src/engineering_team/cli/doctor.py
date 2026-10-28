@@ -109,6 +109,8 @@ def run_checks(
     docker: Callable[[], DockerStatus] = docker_status,
     online: bool = False,
     ping: Ping = ping_model,
+    probe_tools: bool = False,
+    tool_ping: Callable[[ResolvedModel, Settings], Any] | None = None,
     python: tuple[int, int, int] | None = None,
 ) -> list[Check]:
     """Every check, in the order they are shown. Never raises and never prints a secret."""
@@ -142,6 +144,10 @@ def run_checks(
     checks.append(_workspace_check(settings))
     if online:
         checks.extend(_online_checks(settings, ping))
+    if probe_tools:
+        from engineering_team.cli.doctor_probe import ping_tools, probe_checks
+
+        checks.extend(probe_checks(settings, tool_ping or ping_tools))
     return checks
 
 
@@ -346,6 +352,14 @@ def doctor(
     online: Annotated[
         bool, typer.Option(help="Also send one tiny prompt to each model tier.")
     ] = False,
+    probe_tools: Annotated[
+        bool,
+        typer.Option(
+            "--probe-tools",
+            help="Also send one tiny tool-calling request to each model (cents) and report "
+            "whether it can call tools or only answers in text.",
+        ),
+    ] = False,
     provider: Annotated[str | None, typer.Option(help="Check this provider's preset.")] = None,
     config: Annotated[str | None, typer.Option(help="Path to a config file.")] = None,
 ) -> None:
@@ -356,7 +370,7 @@ def doctor(
     g = get_globals(ctx)
     overrides: dict[str, Any] = {"provider": provider} if provider else {}
     settings = load(g, config, **overrides)
-    checks = run_checks(settings, online=online)
+    checks = run_checks(settings, online=online, probe_tools=probe_tools)
     failed = any(check.status == "fail" for check in checks)
     if g.json:
         print_json({"ok": not failed, "checks": [asdict(check) for check in checks]})

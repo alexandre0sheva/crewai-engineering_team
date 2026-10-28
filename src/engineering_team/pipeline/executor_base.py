@@ -20,6 +20,7 @@ from engineering_team.modes.policies import SCOPES
 from engineering_team.pipeline.board_sync import StageBoard
 from engineering_team.pipeline.checkpoints import Checkpoints
 from engineering_team.pipeline.packages import PlanError, plan_problems
+from engineering_team.pipeline.plan_repair import repair_plan
 from engineering_team.pipeline.recipes import Recipe, StageSpec
 from engineering_team.pipeline.review import blocking, repair_brief
 from engineering_team.pipeline.spec_stage import (
@@ -81,6 +82,9 @@ class ExecutorBase:
         if "plan" in output.contracts and self.state.plan is not None:
             host = next((s for s in self.recipe.stages if s.kind == "parallel"), None)
             shared = host is not None and host.allow_shared
+            self.state.plan, repairs = repair_plan(self.state.plan, allow_shared=shared)
+            if repairs:
+                self.ctx.events.emit("plan.repaired", stage=stage.name, changes=repairs)
             problems = plan_problems(self.state.plan, self.state.spec, allow_shared=shared)
             if problems:
                 raise PlanError(

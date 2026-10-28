@@ -3,6 +3,7 @@
 # a fix: nothing is changed until a reproduction has been seen failing ("red"), and the same
 # reproduction must pass afterwards ("green"). See docs/USAGE.md ("Fixing a bug").
 name: fix
+mode: fix
 description: Fix a bug in an existing project, seen failing (red) before and passing (green) after.
 stages:
   # Adopt: what the project is, what its own checks said before any change, how its code fits.

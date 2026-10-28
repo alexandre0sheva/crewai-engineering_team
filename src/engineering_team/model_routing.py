@@ -57,6 +57,9 @@ class ModelFacts:
     context_window: int | None = None
     # "responses" when the model cannot use tools over Chat Completions.
     api: str | None = None
+    # False when the model is known not to call tools (measured, docs/BENCHMARKS.md): a stage
+    # that must write then fails at its first answer with a hint instead of finishing empty.
+    tool_calling: bool | None = None
 
 
 # GPT-6 models call tools through the Responses API (gpt-6.1-sol has no tool calling on Chat
@@ -66,6 +69,9 @@ MODEL_FACTS: Final[dict[str, ModelFacts]] = {
     "openai/gpt-6-luna": ModelFacts(1_050_000, "responses"),
     # A conservative window: Ollama's server-side num_ctx is usually far below the model's 256K.
     "ollama/qwen3.8:27b": ModelFacts(context_window=32_768),
+    # Answered the probe task in plain text with no tool call (docs/BENCHMARKS.md, local models).
+    "ollama/gemma3:270m": ModelFacts(tool_calling=False),
+    "hosted_vllm/deepseek-r1-distill-llama-8b-mlx": ModelFacts(tool_calling=False),
 }
 
 # Presets are organised by price. Tiers must never get cheaper as they get more capable, and

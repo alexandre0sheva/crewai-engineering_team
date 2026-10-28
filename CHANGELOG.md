@@ -9,7 +9,18 @@ renames that section and dates it.
 
 ## [Unreleased]
 
+### Added
+
+- `doctor --probe-tools`: sends each distinct model one tiny tool-calling request (cents) and reports whether it
+  can call tools or only answers in text.
+
 ### Changed
+
+- A plan that gives a work package a shared root file (`README.md`, `pyproject.toml`, ...) is repaired instead of
+  rejected: the file is taken away, a broad glob is narrowed, a package left with nothing is dropped, and a
+  `plan.repaired` event records the change. What cannot be repaired is still rejected with its reason.
+- Recipes carry their `mode`, so a teammate's `modes` filter now applies in real runs.
+- A run whose model is known not to call tools stops at the first writing stage with a hint, instead of retrying.
 
 - CrewAI 1.15.31 (`crewai[tools]>=1.15.31,<1.16`; its changelog from 1.15.24 shows no breaking change for us). The
   dependency floors in `pyproject.toml` and `uv.lock` are refreshed: Typer 0.27, Playwright 1.64, FastAPI 0.162,
@@ -18,6 +29,12 @@ renames that section and dates it.
   `eclipse-temurin:25-jdk`, `mcr.microsoft.com/dotnet/sdk:10.0`, `ruby:4.0-slim`, `php:8.5-cli`.
 - The package description and keywords match the README pitch.
 - `crewai run` starts `engineering-team new` with the options you pass (the `run_crew` script).
+
+### Fixed
+
+- A zero price override (`[pricing."ollama/*"]`) reported an unknown cost for local models: a model call made
+  without an agent was logged under its bare name; it now carries its provider, so the cost reads `$0.00`.
+- `Roster.assign` never saw the run's mode, so `modes = [...]` on a teammate was ignored in real runs.
 
 ### Removed
 

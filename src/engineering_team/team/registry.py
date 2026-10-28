@@ -82,9 +82,13 @@ class Teammate:
 
 @dataclass
 class Roster:
-    """The validated team. ``assign`` picks who works a stage when the one asked for cannot."""
+    """The validated team. ``assign`` picks who works a stage when the one asked for cannot.
+
+    ``mode`` is the mode of the run being worked (the recipe's); set once when the run starts, it
+    is what ``usable`` and ``assign`` use when they are not given one."""
 
     members: dict[str, Teammate]
+    mode: str | None = None
     _noted: set[tuple[str, str]] = field(default_factory=set, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -105,7 +109,7 @@ class Roster:
 
     def usable(self, key: str, mode: str | None = None) -> bool:
         member = self.members.get(key)
-        return member is not None and member.enabled and member.works_in(mode)
+        return member is not None and member.enabled and member.works_in(mode or self.mode)
 
     def assign(
         self, preferred: Sequence[str], stage: str, mode: str | None = None
@@ -113,6 +117,7 @@ class Roster:
         """Who works ``stage``: the first usable of ``preferred``, else the nearest enabled
         generalist. Returns ``(key, why)``; ``why`` is empty when the first choice works."""
 
+        mode = mode or self.mode
         for index, key in enumerate(preferred):
             if self.usable(key, mode):
                 return key, "" if index == 0 else f"{preferred[0]} cannot work it"

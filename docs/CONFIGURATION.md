@@ -580,6 +580,9 @@ untested starting points. `config show` prints the price of every resolved model
 - **Ollama** needs a running server (`ollama pull qwen3.8:27b`, 18 GB, 256K native context). The
   context window is capped at 32K for CrewAI because Ollama's server-side `num_ctx` is usually far
   smaller than the model's; raise `context_window` if you configure the server for more.
+- **Local models must call tools.** A model that answers in plain text drives nothing. Check each tier with
+  `engineering-team doctor --probe-tools` ([USAGE.md](USAGE.md#checking-your-setup)); a model known not to call
+  tools (`tool_calling = False` in `model_routing.MODEL_FACTS`) fails the first writing stage with this hint.
 - **Azure is disabled by default.** Enable it with `enable_azure = true` (or `ENGINEERING_ENABLE_AZURE=true`),
   then give the deployment names (Azure model IDs) per tier, e.g. `azure/my-gpt-deployment`. With Azure
   disabled, `provider = "azure"` and any `azure/...` model are rejected with a one-line explanation.
@@ -657,7 +660,9 @@ model, each row with its `source_url` and the date it was checked (`as_of`). Cac
 and cache writes use their own rates where the provider has them; reasoning tokens are part of the
 completion price. Prices change, so treat the cost as an estimate. **A model without a price has an
 unknown cost**: the report says `Estimated cost: unknown (no price for ...)` and never shows `$0`.
-If one of several models is unpriced the total is unknown too (`usage.json` still has the known part).
+If one of several models is unpriced the total is unknown too (`usage.json` still has the known part). A zero price
+is a price: a model with `input = 0` and `output = 0` costs `$0.00`. Usage is recorded under `provider/model`, so a
+local model needs an entry for that name or for `provider/*` (`ollama/*`, `hosted_vllm/*`).
 
 ### Override or add a price
 
