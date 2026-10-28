@@ -10,453 +10,67 @@ interrupted.
 
 from __future__ import annotations
 
-import argparse
 import sys
 import traceback
 import warnings
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
-from datetime import date
-from importlib import resources
-from pathlib import Path
-from typing import Any, TextIO, TypeVar
+from typing import TypeVar
 
-from engineering_team.intake import TEMPLATE_MARKER, ContextScan, RequestBundle, install_context
-from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
-from engineering_team.pipeline.recipes import Recipe, pin_recipe
-from engineering_team.pipeline.runner import (
-    execute_run,
-    open_resume,
-    read_request,
+from engineering_team.api import (
+    _prepare_resume,  # noqa: F401  (the CLI reaches these as ``engine._x``)
+    resume,
 )
-from engineering_team.pipeline.state import RunBundle, RunResult, request_hash
-from engineering_team.pipeline.strategies import (
-    STRATEGY_NAMES,
-    Strategy,
-    get_strategy,
-    recipe_name_for,
+from engineering_team.intake import TEMPLATE_MARKER
+from engineering_team.outcome import (
+    EXIT_FAILURE,
+    EXIT_INTERRUPTED,
+    EXIT_USAGE,
+    exit_code_for,
+    failure_line,
+)
+from engineering_team.request_sources import (
+    available_examples,
+    build_inputs,
+    load_bundle,
+    load_example,
+    load_requirements,
+)
+from engineering_team.run_prep import (
+    PreparedRun,
+    _cli_overrides,  # noqa: F401
+    _open_run,  # noqa: F401
+    _prepare_from_args,  # noqa: F401
+    _run_parser,  # noqa: F401
 )
 from engineering_team.runtime.budget import BudgetExceeded
-from engineering_team.runtime.context import RunContext, new_run_id
-from engineering_team.runtime.locks import WorkspaceLock
-from engineering_team.runtime.session import RunRecorder, format_summary
-from engineering_team.settings import (
-    SMOKE_PROFILE_MARKER,
-    Settings,
-    load_settings,
-)
-from engineering_team.tools import ProjectWorkspace
-from engineering_team.verification.checks_file import ChecksPin, pin_checks
-from engineering_team.workspaces import (
-    prepare_workspace,
-    slugify_project_name,
-)
+from engineering_team.settings import SMOKE_PROFILE_MARKER
+from engineering_team.workspaces import prepare_workspace, slugify_project_name
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
+
+warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
+
 
 __all__ = [
     "SMOKE_PROFILE_MARKER",
     "TEMPLATE_MARKER",
-    "prepare_workspace",
-    "slugify_project_name",
+    "PreparedRun",
+    "available_examples",
+    "build_inputs",
+    "exit_code_for",
+    "failure_line",
+    "load_bundle",
+    "load_example",
     "load_requirements",
-    "run",
+    "prepare_workspace",
     "resume",
+    "run",
     "run_crew",
+    "slugify_project_name",
 ]
 
-DEFAULT_REQUEST_FILENAME = "PROJECT_REQUEST.md"
-DEFAULT_EXAMPLE = "tiny-notes"
-
-EXIT_FAILURE = 1
-EXIT_USAGE = 2
-EXIT_VERIFICATION_FAILED = 3
-EXIT_PARTIAL = 4
-EXIT_INTERRUPTED = 130
 
 T = TypeVar("T")
-
-
-def available_examples() -> list[str]:
-    """Names of the example requests bundled with the package."""
-
-    root = resources.files("engineering_team") / "examples"
-    if not root.is_dir():
-        return []
-    return sorted(
-        entry.name
-        for entry in root.iterdir()
-        if entry.is_dir() and (entry / "request.md").is_file()
-    )
-
-
-def load_example(name: str) -> str:
-    """Read a bundled example request by name."""
-
-    examples = available_examples()
-    if name not in examples:
-        raise ValueError(f"Unknown example '{name}'. Available examples: {', '.join(examples)}.")
-    request = resources.files("engineering_team") / "examples" / name / "request.md"
-    return request.read_text(encoding="utf-8")
-
-
-NO_REQUEST = (
-    "No project request found. Pass --request, --request-file, or "
-    f"--example {DEFAULT_EXAMPLE} (see --help), or create {DEFAULT_REQUEST_FILENAME} "
-    "in the current directory."
-)
-
-
-def load_bundle(
-    *,
-    inline_request: str | None = None,
-    request_files: Sequence[str | Path] = (),
-    example: str | None = None,
-    context_dir: str | Path | None = None,
-    stdin: TextIO | None = None,
-    settings: Settings | None = None,
-) -> RequestBundle:
-    """Load the normalised, non-placeholder request (see :class:`RequestBundle`).
-
-    Explicit sources win over the environment: ``--request`` and ``--request-file`` (repeatable;
-    ``-`` is stdin) merge in that order, ``--example`` stands alone. With none of them the
-    first of ``ENGINEERING_PROJECT_REQUEST``, ``ENGINEERING_REQUEST_FILE``, and
-    ``PROJECT_REQUEST.md`` in the current directory is used. A blank explicit value is an
-    error rather than a silent fallback. ``ValueError`` (``IntakeError``) says what to fix.
-    """
-
-    settings = settings or load_settings()
-    limits = settings.intake
-    if example is not None:
-        if inline_request is not None or request_files:
-            raise ValueError(
-                "Use only one of --example, or --request/--request-file (those can be combined)."
-            )
-        return RequestBundle.from_sources(
-            text=load_example(example), context_dir=context_dir, limits=limits
-        )
-    default_file = Path.cwd() / DEFAULT_REQUEST_FILENAME
-    files: Sequence[str | Path] = request_files
-    if inline_request is None and not files:
-        if settings.request is not None:
-            inline_request = settings.request
-        elif settings.request_file is not None:
-            files = [settings.request_file]
-        elif default_file.is_file():
-            files = [default_file]
-        else:
-            raise ValueError(NO_REQUEST)
-    return RequestBundle.from_sources(
-        text=inline_request, files=files, stdin=stdin, context_dir=context_dir, limits=limits
-    )
-
-
-def load_requirements(
-    *,
-    inline_request: str | None = None,
-    request_file: str | Path | None = None,
-    example: str | None = None,
-    settings: Settings | None = None,
-) -> str:
-    """The text of :func:`load_bundle` for one inline request, file, or example."""
-
-    return load_bundle(
-        inline_request=inline_request,
-        request_files=[request_file] if request_file is not None else [],
-        example=example,
-        settings=settings,
-    ).text
-
-
-def build_inputs(
-    *,
-    project_name: str,
-    requirements: str,
-    workspace: ProjectWorkspace,
-    run_profile: str,
-) -> dict[str, str]:
-    """Create the interpolation inputs shared by every agent and task.
-
-    The request itself is recorded in the run directory by :class:`RunRecorder`.
-    """
-
-    return {
-        "project_name": project_name,
-        "requirements": requirements,
-        "workspace_path": str(workspace.root),
-        "current_date": date.today().isoformat(),
-        "run_profile": run_profile,
-    }
-
-
-def _run_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="engineering-team",
-        description="Build or continue an MVP with the CrewAI engineering team.",
-    )
-    request_source = parser.add_mutually_exclusive_group()
-    request_source.add_argument("--request", help="Inline product requirements.")
-    request_source.add_argument(
-        "--request-file",
-        help="Markdown or text file containing product requirements.",
-    )
-    request_source.add_argument(
-        "--example",
-        help=f"Use a bundled example request (e.g. {DEFAULT_EXAMPLE}).",
-    )
-    parser.add_argument(
-        "--project-name",
-        help="Name used for the persistent workspace directory (default: mvp-app).",
-    )
-    parser.add_argument(
-        "--workspace-root",
-        help="Parent directory for generated projects (default: ./workspace; relative paths "
-        "use the current directory).",
-    )
-    parser.add_argument(
-        "--reset",
-        action="store_true",
-        help="Delete this project's existing workspace before starting (only if this tool "
-        "created it).",
-    )
-    parser.add_argument(
-        "--force-reset",
-        action="store_true",
-        help="Like --reset, but also deletes a directory this tool did not create. "
-        "Dangerous targets (home, cwd, filesystem root, symlinks) are still refused.",
-    )
-    parser.add_argument(
-        "--adopt",
-        action="store_true",
-        help="Let the team work in an existing directory it did not create (not a Git "
-        "repository; see `analyze` and docs/USAGE.md for repositories).",
-    )
-    parser.add_argument(
-        "--prepare-only",
-        action="store_true",
-        help="Validate inputs and prepare the workspace without calling an LLM.",
-    )
-    parser.add_argument(
-        "--profile",
-        choices=list(PROFILE_NAMES),
-        help="Quality/cost routing: standard, the lower-cost smoke, or max-quality.",
-    )
-    parser.add_argument(
-        "--provider",
-        choices=list(PROVIDERS),
-        help="Model provider preset (default: openai).",
-    )
-    parser.add_argument(
-        "--strategy",
-        choices=list(STRATEGY_NAMES),
-        help="How the team is orchestrated: pipeline (staged, resumable; the default, see "
-        "docs/BENCHMARKS.md) or single (one agent, the benchmark "
-        "baseline).",
-    )
-    parser.add_argument(
-        "--allow-web",
-        action="store_true",
-        help="Let the team use the web tools (search, fetch, package info). Off by default; "
-        "see docs/SAFETY.md.",
-    )
-    parser.add_argument(
-        "--sandbox",
-        choices=["local", "docker"],
-        help="Where project commands run: local (on this machine, the default) or docker "
-        "(a hardened container per command; needs Docker, never falls back to local). "
-        "See docs/SAFETY.md.",
-    )
-    parser.add_argument(
-        "--checks",
-        help="YAML file of your own checks the controller runs to verify the result (pipeline "
-        "strategy). Keep it outside the project; see docs/CONFIGURATION.md.",
-    )
-    parser.add_argument(
-        "--no-git",
-        action="store_true",
-        help="Do not make a new project a Git repository or commit after each stage.",
-    )
-    parser.add_argument(
-        "--config",
-        help="Path to a config file (default: ./engineering-team.toml if present).",
-    )
-    return parser
-
-
-def _absolute(path: str | None) -> str | None:
-    """``path`` as an absolute path (relative paths mean the current directory)."""
-
-    return str(Path(path).expanduser().resolve()) if path else None
-
-
-def _cli_overrides(args: Any) -> dict[str, Any]:
-    """Settings overrides from the options a command defines (each command defines some)."""
-
-    names: dict[str, Any] = {
-        "web.enabled": True if getattr(args, "allow_web", False) else None,
-        "provider": getattr(args, "provider", None),
-        "profile": getattr(args, "profile", None),
-        "strategy": getattr(args, "strategy", None),
-        "verify.checks_file": _absolute(getattr(args, "checks", None)),
-        "git.enabled": False if getattr(args, "no_git", False) else None,
-        "execution.backend": getattr(args, "sandbox", None),
-        "verbose": getattr(args, "verbose", None),
-        "project_name": getattr(args, "project_name", None),
-        "workspace_root": getattr(args, "workspace_root", None),
-    }
-    return {key: value for key, value in names.items() if value is not None}
-
-
-@dataclass
-class PreparedRun:
-    """A prepared workspace, its run context, what to run, and the lock held on the workspace."""
-
-    ctx: RunContext
-    inputs: dict[str, str]
-    lock: WorkspaceLock
-    recorder: RunRecorder
-    bundle: RunBundle
-    strategy: Strategy
-    recipe: Recipe | None = None
-
-    def release(self, *, quiet: bool = False) -> None:
-        """Report what the run used and cost (unless ``quiet``: the CLI shows its own summary),
-        then drop the workspace lock."""
-
-        try:
-            summary = self.recorder.manifest.summary
-            if not quiet and summary is not None and (summary.usage.calls or summary.tool_calls):
-                print(f"\n{format_summary(summary)}")
-        finally:
-            self.lock.release()
-
-
-def _prepare_workspace(
-    settings: Settings, *, reset: bool = False, force_reset: bool = False, adopt: bool = False
-) -> ProjectWorkspace:
-    return prepare_workspace(
-        settings.project_name,
-        settings.workspace_root,
-        reset=reset or force_reset,
-        force_reset=force_reset,
-        adopt=adopt,
-        command_allowlist=settings.command_allowlist,
-        subprocess_env_allowlist=settings.subprocess_env_allowlist,
-    )
-
-
-def _open_run(
-    settings: Settings,
-    *,
-    mode: str = "build",
-    requirements: str | None = None,
-    context: ContextScan | None = None,
-    reset: bool = False,
-    force_reset: bool = False,
-    adopt: bool = False,
-    workspace: ProjectWorkspace | None = None,
-    run_id: str | None = None,
-    recipe: Recipe | None = None,
-) -> PreparedRun:
-    """Prepare the workspace, take its write lock, and build the run context and inputs.
-
-    ``context`` (the reference documents of ``--context-dir``) is copied into the workspace.
-    A repository mode passes the ``workspace`` its isolation made (and the ``run_id`` that named
-    the branch) and its ``recipe``: the run then uses the pipeline strategy, and the controller's
-    reports go to the run directory instead of the project's ``docs/``.
-
-    Also creates the run's manifest (``pending``); the caller wraps the work in
-    ``recorder.running()`` and releases the lock (``_execute`` does) once the run is over. A
-    workspace that another run holds raises ``WorkspaceBusy``, which the CLI reports as a
-    usage error.
-    """
-
-    adopted = workspace is not None
-    if workspace is None:
-        workspace = _prepare_workspace(settings, reset=reset, force_reset=force_reset, adopt=adopt)
-    run_id = run_id or new_run_id()
-    lock = WorkspaceLock(workspace.root).acquire(run_id)
-    strategy_name = settings.strategy
-    if recipe is not None:
-        strategy_name = "pipeline"
-    try:
-        if context is not None:
-            install_context(workspace.root, context)
-        ctx = RunContext.create(settings, workspace, run_id=run_id, adopted=adopted)
-        pin = _pin_checks(settings, ctx, mode, strategy_name)
-        if recipe is not None and recipe.source != "bundled":
-            pin_recipe(ctx.run_dir, recipe)
-        recorder = RunRecorder.begin(
-            ctx,
-            mode=mode,
-            request=requirements or "",
-            strategy=strategy_name,
-            recipe=recipe.name if recipe is not None else recipe_name_for(strategy_name),
-        )
-        inputs = (
-            build_inputs(
-                project_name=settings.project_name,
-                requirements=requirements,
-                workspace=workspace,
-                run_profile=settings.profile,
-            )
-            if requirements is not None
-            else {}
-        )
-    except BaseException:
-        lock.release()
-        raise
-    return PreparedRun(
-        ctx=ctx,
-        inputs=inputs,
-        lock=lock,
-        recorder=recorder,
-        bundle=RunBundle(
-            requirements=requirements or "",
-            inputs=inputs,
-            checks_digest=pin.digest,
-            script_digests=pin.script_digests,
-        ),
-        strategy=get_strategy(strategy_name),
-        recipe=recipe,
-    )
-
-
-def _pin_checks(settings: Settings, ctx: RunContext, mode: str, strategy: str) -> ChecksPin:
-    """Validate and pin the user's checks file (a problem with it is a usage error)."""
-
-    source = settings.verify.checks_file
-    if source is None or mode not in ("build", "feature", "fix", "maintain"):
-        return ChecksPin()
-    if strategy != "pipeline":
-        raise ValueError(
-            f"Your checks file is only run by the 'pipeline' strategy, not '{strategy}'. "
-            "Pass --strategy pipeline, or drop --checks."
-        )
-    return pin_checks(ctx, Path(source))
-
-
-def _prepare_from_args(args: Any, mode: str = "build") -> PreparedRun:
-    settings = load_settings(overrides=_cli_overrides(args), config_file=args.config)
-    files = args.request_file
-    bundle = load_bundle(
-        inline_request=args.request,
-        request_files=[files] if isinstance(files, str) else list(files or []),
-        example=args.example,
-        context_dir=getattr(args, "context_dir", None),
-        settings=settings,
-    )
-    settings = settings.for_request(bundle.text)
-    settings.check_ready(require_credentials=not getattr(args, "prepare_only", False))
-    return _open_run(
-        settings,
-        mode="prepare" if getattr(args, "prepare_only", False) else mode,
-        requirements=bundle.text,
-        context=bundle.context,
-        reset=args.reset,
-        force_reset=args.force_reset,
-        adopt=getattr(args, "adopt", False),
-    )
 
 
 def _execute(
@@ -512,109 +126,6 @@ def run(argv: Sequence[str] | None = None) -> int:
     return main(list(sys.argv[1:] if argv is None else argv))
 
 
-def exit_code_for(result: RunResult) -> int:
-    """The process exit code for how a run ended (see the module docstring)."""
-
-    if result.status == "succeeded":
-        return 0
-    if result.status == "cancelled":
-        return EXIT_INTERRUPTED
-    if result.verdict == "failed":
-        return EXIT_VERIFICATION_FAILED
-    if result.verdict in ("partial", "needs-info"):
-        return EXIT_PARTIAL
-    return EXIT_FAILURE
-
-
-def failure_line(result: RunResult, *, resumable: bool) -> str | None:
-    """One line saying how a run that did not succeed ended (``None`` for a success)."""
-
-    hint = f" Continue it with: engineering-team resume {result.run_id}" if resumable else ""
-    if result.status == "succeeded":
-        return None
-    if result.status == "cancelled":
-        return f"Run {result.run_id} was cancelled.{hint}"
-    if result.verdict == "needs-info":
-        return f"Run {result.run_id} needs more information: {result.error.rstrip('.')}."
-    if result.verdict in ("failed", "partial"):
-        return f"Run {result.run_id} is not verified: {result.error.rstrip('.')}.{hint}"
-    return f"Engineering team run failed: {result.error.rstrip('.')}.{hint}"
-
-
-def _report(result: RunResult, *, resumable: bool) -> int:
-    """Say how a run ended (one line each) and return the matching exit code."""
-
-    line = failure_line(result, resumable=resumable)
-    if line is None:
-        print(f"\nProject workspace: {result.workspace}")
-    else:
-        print(f"\n{line}", file=sys.stderr)
-    return exit_code_for(result)
-
-
-def _run_prepared(prepared: PreparedRun) -> int:
-    """Run the prepared run under its strategy and report how it ended."""
-
-    result = execute_run(
-        prepared.ctx, prepared.bundle, strategy=prepared.strategy, recipe=prepared.recipe
-    )
-    return _report(result, resumable=prepared.strategy.resumable)
-
-
-def _prepare_resume(
-    settings: Settings, run_id: str, request: str | None, workspace: Path | None = None
-) -> PreparedRun:
-    """Reopen ``run_id``, or, when ``request`` differs from the one it was started with, start a
-    new run for that request (old evidence is never reused for a different request)."""
-
-    settings.check_ready(require_credentials=True)
-    _, manifest, _ = read_request(settings, run_id, workspace)
-    if request is not None and request_hash(request) != manifest.request_hash:
-        if manifest.mode != "build":
-            raise ValueError(
-                f"The request changed since run {run_id}. A {manifest.mode} run cannot be "
-                f"restarted from a new request; run `engineering-team {manifest.mode}` again."
-            )
-        print(
-            f"The request changed since run {run_id}; starting a new run instead of resuming it.",
-            file=sys.stderr,
-        )
-        fresh = settings.for_request(request).with_overrides(
-            {"strategy": manifest.strategy}, source=f"changed request (was run {run_id})"
-        )
-        return _open_run(fresh, mode="build", requirements=request)
-    opened = open_resume(settings, run_id, workspace)
-    return PreparedRun(
-        ctx=opened.ctx,
-        inputs={},
-        lock=opened.lock,
-        recorder=RunRecorder.attach(opened.ctx),
-        bundle=opened.bundle,
-        strategy=opened.strategy,
-        recipe=opened.recipe,
-    )
-
-
-def resume(
-    run_id: str, *, settings: Settings | None = None, request: str | None = None
-) -> RunResult:
-    """Continue an unfinished or failed pipeline run and return how it ended.
-
-    Stages that finished (and whose workspace state still matches) are not run again. Passing a
-    ``request`` that differs from the run's own starts a new run for it instead. Raises
-    ``ValueError`` when the run cannot be resumed (unknown, already succeeded, a retired strategy,
-    recipe changed) and ``WorkspaceBusy`` when another run holds the workspace.
-    """
-
-    prepared = _prepare_resume(settings or load_settings(), run_id, request)
-    try:
-        return execute_run(
-            prepared.ctx, prepared.bundle, strategy=prepared.strategy, recipe=prepared.recipe
-        )
-    finally:
-        prepared.lock.release()
-
-
 def run_crew() -> int:
     """The ``run_crew`` script that ``crewai run`` calls: ``engineering-team new`` with the
     command-line options (the request comes from ``PROJECT_REQUEST.md`` when none is given)."""
@@ -622,7 +133,3 @@ def run_crew() -> int:
     from engineering_team.cli.app import main
 
     return main(["new", *sys.argv[1:]])
-
-
-if __name__ == "__main__":
-    sys.exit(run())

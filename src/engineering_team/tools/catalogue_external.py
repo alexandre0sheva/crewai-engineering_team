@@ -1,0 +1,201 @@
+"""Tools that reach outside the project files: web, browser, long-running processes."""
+
+from __future__ import annotations
+
+from engineering_team.tools.browser_tools import make_browser_tools
+from engineering_team.tools.network_tools import make_network_tools
+from engineering_team.tools.process_tools import make_process_tools
+from engineering_team.tools.spec import ToolSpec, _spec
+from engineering_team.tools.sqlite_tools import make_sqlite_tools
+from engineering_team.tools.web_tools import make_web_tools
+
+EXTERNAL_SPECS: tuple[ToolSpec, ...] = (
+    ToolSpec(
+        "Web Search",
+        "web",
+        True,
+        True,
+        False,
+        "Web search (Serper, Brave, or Tavily): titles, URLs, snippets; opt-in.",
+        make_web_tools,
+    ),
+    ToolSpec(
+        "Fetch URL",
+        "web",
+        True,
+        True,
+        False,
+        "Read one public web page as Markdown; private addresses refused; opt-in.",
+        make_web_tools,
+    ),
+    ToolSpec(
+        "Package Info",
+        "web",
+        True,
+        True,
+        False,
+        "Latest version, license, and deprecation flags from PyPI, npm, crates.io, or Go.",
+        make_web_tools,
+    ),
+    _spec(
+        "Browser Open",
+        "browser",
+        make_browser_tools,
+        "Open a page of the app (this run's localhost ports) in a headless browser.",
+        read_only=True,
+    ),
+    _spec(
+        "Browser Snapshot",
+        "browser",
+        make_browser_tools,
+        "The page as an accessibility tree with element refs: how an agent sees it.",
+        read_only=True,
+    ),
+    _spec(
+        "Browser Screenshot",
+        "browser",
+        make_browser_tools,
+        "Save a PNG of the page or one element as a run artifact.",
+        read_only=True,
+    ),
+    _spec(
+        "Browser Click",
+        "browser",
+        make_browser_tools,
+        "Click an element by its snapshot ref.",
+        read_only=True,
+    ),
+    _spec(
+        "Browser Type",
+        "browser",
+        make_browser_tools,
+        "Type into an input by its snapshot ref; optionally press Enter.",
+        read_only=True,
+    ),
+    _spec(
+        "Browser Select",
+        "browser",
+        make_browser_tools,
+        "Choose an option of a select by its snapshot ref.",
+        read_only=True,
+    ),
+    _spec(
+        "Browser Press Key",
+        "browser",
+        make_browser_tools,
+        "Press a key or shortcut on the page or an element.",
+        read_only=True,
+    ),
+    _spec(
+        "Browser Wait For",
+        "browser",
+        make_browser_tools,
+        "Wait for text, a load state, or a short pause.",
+        read_only=True,
+    ),
+    _spec(
+        "Browser Console & Errors",
+        "browser",
+        make_browser_tools,
+        "Console output, uncaught errors, failed requests, and refused requests.",
+        read_only=True,
+    ),
+    _spec(
+        "Set Viewport",
+        "browser",
+        make_browser_tools,
+        "Resize to desktop, tablet, mobile, or a custom size.",
+        read_only=True,
+    ),
+    _spec(
+        "Accessibility Check",
+        "browser",
+        make_browser_tools,
+        "Heuristic accessibility findings on the open page.",
+        read_only=True,
+    ),
+    _spec(
+        "Browser Close",
+        "browser",
+        make_browser_tools,
+        "Close your browser context.",
+        read_only=True,
+    ),
+    _spec(
+        "Start Background Process",
+        "runtime",
+        make_process_tools,
+        "Start a server or watcher in the background; wait for a port, URL, log line, or delay.",
+        read_only=False,
+    ),
+    _spec(
+        "List Processes",
+        "runtime",
+        make_process_tools,
+        "This run's background processes with state, age, exit code, and ports.",
+        read_only=True,
+    ),
+    _spec(
+        "Read Process Logs",
+        "runtime",
+        make_process_tools,
+        "Tail, grep, or read-from-offset a background process's output.",
+        read_only=True,
+    ),
+    _spec(
+        "Stop Process",
+        "runtime",
+        make_process_tools,
+        "Stop a background process (whole process group) and show its last output.",
+        read_only=False,
+    ),
+    _spec(
+        "Wait For Service",
+        "runtime",
+        make_process_tools,
+        "Wait for a local port or URL to answer, with a timeout.",
+        read_only=True,
+    ),
+    _spec(
+        "HTTP Request",
+        "runtime",
+        make_network_tools,
+        "Call this run's own servers (loopback, own ports; others only via the allowlist).",
+        read_only=False,
+    ),
+    _spec(
+        "Check Port",
+        "runtime",
+        make_network_tools,
+        "Report whether a local port is free, in use, or accepting connections.",
+        read_only=True,
+    ),
+    _spec(
+        "Find Free Port",
+        "runtime",
+        make_network_tools,
+        "Reserve a free local port, distinct for every caller in the run.",
+        read_only=True,
+    ),
+    _spec(
+        "Environment Info",
+        "runtime",
+        make_network_tools,
+        "OS, CPUs, memory, tool versions on PATH, and missing allowlisted executables.",
+        read_only=False,
+    ),
+    _spec(
+        "Query SQLite",
+        "runtime",
+        make_sqlite_tools,
+        "Run one read-only SELECT against a SQLite file; rows as a table.",
+        read_only=True,
+    ),
+    _spec(
+        "Inspect Database Schema",
+        "runtime",
+        make_sqlite_tools,
+        "Tables, columns, indexes, and row counts of a SQLite file.",
+        read_only=True,
+    ),
+)

@@ -15,7 +15,20 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from engineering_team.atomic_io import atomic_write_json, atomic_write_text
+from engineering_team.board.files import BoardFiles
+from engineering_team.board.limits import (
+    _LIST_FIELDS,
+    BOARD_FILENAME,
+    BOARD_MARKDOWN_FILENAME,
+    MAX_CARDS,
+    MAX_COMMENTS_PER_CARD,
+    MAX_PROGRESS_NOTE,
+    MAX_REASON,
+    MAX_TEXT,
+    MAX_TITLE,
+    UPDATABLE,
+    limit,
+)
 from engineering_team.board.models import (
     CONTROLLER,
     USER,
@@ -28,52 +41,14 @@ from engineering_team.board.models import (
     Move,
 )
 from engineering_team.board.progress import compute_progress
-from engineering_team.board.render import render_board
 from engineering_team.board.rules import WIP_KINDS, BoardError, check_move, is_controller
 from engineering_team.contracts import utc_now
 from engineering_team.runtime.events import EventSink, NullSink
 
 log = logging.getLogger(__name__)
 
-BOARD_FILENAME = "board.json"
-BOARD_MARKDOWN_FILENAME = "board.md"
 
-MAX_CARDS = 500
-MAX_COMMENTS_PER_CARD = 100
-MAX_TITLE = 200
-MAX_TEXT = 4000
-MAX_REASON = 500
-MAX_PROGRESS_NOTE = 200
-
-# Fields the controller may change with ``update`` (everything else changes through a move).
-UPDATABLE = frozenset(
-    {
-        "title",
-        "description",
-        "assignee",
-        "lane",
-        "stage",
-        "depends_on",
-        "criteria_ids",
-        "owned_paths",
-        "artifacts",
-        "tokens",
-        "cost_usd",
-    }
-)
-_LIST_FIELDS = frozenset({"depends_on", "criteria_ids", "owned_paths", "artifacts"})
-
-
-def _limit(name: str, value: str, maximum: int) -> str:
-    value = value.strip()
-    if not value:
-        raise BoardError(f"{name} must not be empty.")
-    if len(value) > maximum:
-        raise BoardError(f"{name} is {len(value)} characters; the limit is {maximum}. Shorten it.")
-    return value
-
-
-class BoardStore:
+class BoardStore(BoardFiles):
     """The run's task board. Thread-safe; ``board.json`` is the machine format, ``board.md`` a view.
 
     ``max_in_progress`` is the WIP limit for the in-progress column (``max_parallel_agents``).
@@ -184,7 +159,7 @@ class BoardStore:
     def add_user_note(self, text: str) -> Card:
         """A run-level note from the human, delivered once to every agent's next prompt."""
 
-        text = _limit("The note", text, MAX_TEXT)
+        text = limit("The note", text, MAX_TEXT)
         comment = Comment(ts=self._clock(), author=USER, text=text)
         with self._lock:
             return self._create(text[:MAX_TITLE], "user_note", USER, "done", {}, [comment])
@@ -210,7 +185,7 @@ class BoardStore:
         self._state.counter += 1
         card = Card(
             id=f"K-{self._state.counter:03d}",
-            title=_limit("The title", title, MAX_TITLE),
+            title=limit("The title", title, MAX_TITLE),
             kind=kind,
             status=status,
             created=now,
@@ -305,7 +280,7 @@ class BoardStore:
     def comment(self, card_id: str, text: str, *, author: str) -> Card:
         """Add a comment; comments authored by ``user`` become steering for the assignee."""
 
-        text = _limit("The comment", text, MAX_TEXT)
+        text = limit("The comment", text, MAX_TEXT)
         with self._lock:
             card = self._card(card_id)
             if len(card.comments) >= MAX_COMMENTS_PER_CARD:
@@ -318,7 +293,7 @@ class BoardStore:
     def report_progress(self, card_id: str, text: str, *, actor: str) -> Card:
         """Set the one-line status of a card the actor owns (shown in the activity feed)."""
 
-        text = " ".join(_limit("The status", text, MAX_PROGRESS_NOTE).split())
+        text = " ".join(limit("The status", text, MAX_PROGRESS_NOTE).split())
         with self._lock:
             card = self._card(card_id)
             if not is_controller(actor) and card.assignee != actor:
@@ -340,7 +315,7 @@ class BoardStore:
             card = self._card(card_id)
             for name, value in changes.items():
                 if name == "title":
-                    value = _limit("The title", value, MAX_TITLE)
+                    value = limit("The title", value, MAX_TITLE)
                 if name in _LIST_FIELDS:
                     value = list(value)
                 setattr(card, name, value)
@@ -407,22 +382,6 @@ class BoardStore:
             self._changed()
             self._events.emit("board.paused" if paused else "board.unpaused")
 
-    # -- files -------------------------------------------------------------------------
-
-    def flush(self) -> None:
-        """Write ``board.json`` and ``board.md`` now (the Markdown is otherwise debounced)."""
-
-        with self._lock:
-            if self._timer is not None:
-                self._timer.cancel()
-                self._timer = None
-            self._save()
-            self._render()
-
-    def markdown(self) -> str:
-        with self._lock:
-            return render_board(self._state, compute_progress(self._state.cards, self._clock()))
-
     # -- internals ---------------------------------------------------------------------
 
     def _card(self, card_id: str) -> Card:
@@ -457,39 +416,3 @@ class BoardStore:
             card=card.model_dump(mode="json"),
             **data,
         )
-
-    def _changed(self) -> None:
-        self._state.updated = self._clock()
-        self._save()
-        if self._render_delay <= 0:
-            self._render()
-        elif self._timer is None:
-            self._timer = threading.Timer(self._render_delay, self._render_later)
-            self._timer.daemon = True
-            self._timer.start()
-
-    def _render_later(self) -> None:
-        with self._lock:
-            self._timer = None
-            self._render()
-
-    def _save(self) -> None:
-        try:
-            atomic_write_json(self.path, self._state.model_dump(mode="json"))
-        except OSError:
-            log.warning("Could not write %s", self.path, exc_info=True)
-
-    def _render(self) -> None:
-        try:
-            atomic_write_text(self.markdown_path, self.markdown())
-        except OSError:
-            log.warning("Could not write %s", self.markdown_path, exc_info=True)
-
-    def _load(self, run_id: str) -> BoardState:
-        try:
-            return BoardState.model_validate_json(self.path.read_text(encoding="utf-8"))
-        except FileNotFoundError:
-            return BoardState(run_id=run_id)
-        except (OSError, ValueError):
-            log.warning("Ignoring unreadable %s; starting an empty board", self.path, exc_info=True)
-            return BoardState(run_id=run_id)

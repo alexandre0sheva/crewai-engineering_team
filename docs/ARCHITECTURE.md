@@ -46,7 +46,8 @@ agents) never see each other's files. The code is split by responsibility: `tool
 (`WriteScope`), `tools/support.py` (`ToolEnv`, the wrapper every tool call goes through), one module
 per group (`read_tools.py`, `search_tools.py`, `write_tools.py`, `command_tools.py`) on top of
 logic modules (`search.py`, `navigation.py`, `symbols.py`, `patching.py`, `changes.py`,
-`scripts.py`, `ignore.py`), and `tools/registry.py`, the catalogue.
+`scripts.py`, `ignore.py`), and the catalogue: `tools/spec.py` (`ToolSpec`, the groups), one
+`catalogue_*.py` per kind of tool, and `tools/registry.py` (`build_tools`).
 
 The catalogue is data: each `ToolSpec` names a tool, its group (`fs_read`, `search`, `fs_write`,
 `command`, the `dev`, `code_intel`, and `runtime` groups, and the coordination groups `board`,
@@ -139,7 +140,7 @@ See [SAFETY.md](SAFETY.md#docker-backend).
 
 ### Git
 
-`GitPort` (`git/port.py`, `ctx.git`) is the controller's Git, a thin wrapper that builds fixed `git` argv
+`GitPort` (`git/port.py`, `ctx.git`; built from `git/core.py`, `reads.py` and `writes.py`) is the controller's Git, a thin wrapper that builds fixed `git` argv
 lists and runs them through `ctx.backend` (so cancellation, timeouts, and a Docker sandbox apply; nothing
 spawns `git` itself). Its rules (no push or remote, no hooks, no outside repository) are in
 [SAFETY.md](SAFETY.md#git). It offers `is_repo`, `is_dirty`, `status`, `current_branch`, `head`,
@@ -330,7 +331,7 @@ allowed next states. The in-progress column has a WIP limit, `parallel.max_paral
 counted over work packages and repairs (stage cards are containers and subtasks belong to their
 parent's agent); the controller sending a card back after failed checks is exempt.
 
-**Persistence and events.** `BoardStore` (`board/store.py`) is thread-safe: every mutation runs
+**Persistence and events.** `BoardStore` (`board/store.py`, with `board/files.py` for saving and loading) is thread-safe: every mutation runs
 under one lock, rewrites `board.json` atomically (the file alone explains the run: each card carries
 its history), and emits a `board.*` event in the same order: `card_created`, `card_moved`,
 `card_commented`, `card_updated`, `paused`/`unpaused`, `steering_delivered`. Each card event carries
@@ -384,7 +385,7 @@ board's stage cards, and (when resuming) decides which stages are finished; one 
 method per stage, keeps recipes data. Each stage builds its own **small crew** (`pipeline/stages.py`:
 one agent from `agents.yaml`, one task from `config/stages.yaml`, `output_pydantic` where a
 contract is expected, the default tool groups, the stage's card id and any steering notes in the
-prompt) and `StageExecutor` (`pipeline/executor.py`) runs it: board moves, retries (the previous
+prompt) and `StageExecutor` (`pipeline/executor.py`, over `executor_base.py` and `package_exec.py`) runs it: board moves, retries (the previous
 error goes into the next attempt's prompt), the artifact check, and work packages in dependency
 order. Unrecoverable failures end the stage `failed` and the run `failed`; a stage whose agent
 stopped because the run was cancelled is never recorded as done.
@@ -772,7 +773,7 @@ others; `cli/maintain_command.maintain` is a thin caller of the same `run_reposi
 
 ## Settings and model routing
 
-`settings.py` is the only module that reads configuration. It builds an immutable, typed
+`settings/` is the only package that reads configuration (`from engineering_team.settings import Settings` and every other name keep working). It builds an immutable, typed
 `Settings` object from layered sources (CLI overrides > environment > project TOML > user TOML >
 defaults), remembers which layer set every value, and never mutates `os.environ`. The profile (for
 example `smoke`, chosen by CLI, environment, config file, or the request's marker) travels inside
@@ -799,7 +800,7 @@ which selects the `smoke` profile unless a profile was chosen explicitly.
 code; the user-facing description is in [CONFIGURATION.md](CONFIGURATION.md), the trust model in
 [SAFETY.md](SAFETY.md#extensions-mcp-plugins-and-hooks). `extensions/config.py` has the settings
 models (`McpServer`, `ConventionsSettings`, `PluginSettings`, `EmbedderSettings`, `HooksSettings`) and
-imports nothing from the package, so `settings.py` can use it; the other modules read a finished
+imports nothing from the package, so `settings/` can use it; the other modules read a finished
 `Settings`.
 
 - **MCP** (`mcp.py`). `mcps_for(settings, teammate)` is the one place that decides which servers an
@@ -922,15 +923,29 @@ code at load time; the tools import the runtime context only for type checking).
 
 | Layer | Modules | Responsibility |
 |-------|---------|----------------|
-| Entry | `main.py`, `__main__.py`, `cli/` | The Typer commands, the live Rich views, `doctor`, and the `run_crew` entry point `crewai run` uses |
+| Entry | `main.py`, `run_prep.py`, `request_sources.py`, `outcome.py`, `api.py`, `__main__.py`, `cli/` | The Typer commands, the live Rich views, `doctor`, and the `run_crew` entry point `crewai run` uses; run preparation, request sources, exit codes, `resume` |
 | Web UI | `ui/` | FastAPI app over the run directories, SSE events, the static single-page app, `ui --demo` |
 | Orchestration | `pipeline/`, `modes/`, `team/`, `llm.py` | Recipes, the Flow pipeline, parallel work packages, resume, strategies; the mode recipes and their actions; the roster; model construction |
 | Control | `verification/`, `board/`, `git/`, `report/`, `intake/` | Controller-run checks and bounded repair, the task board and notes, `GitPort` and checkpoints, the run report, requirements intake |
 | Run state | `runtime/`, `contracts.py`, `artifacts.py`, `atomic_io.py`, `workspaces.py` | `RunContext`, events, budget, usage, processes, the run store, locks, cancellation; the typed contracts; crash-safe file writes; project directories |
 | Agent tools | `tools/`, `devtools/`, `codeintel/`, `webtools/`, `browsertools/` | Every tool an agent can call ([TOOLS.md](TOOLS.md)) and the engines behind them |
 | Execution | `execution/` | `ExecutionBackend`: the local backend and the Docker sandbox; no tool spawns a process any other way |
-| Configuration | `settings.py`, `model_routing.py`, `pricing.py`, `config/`, `data/`, `extensions/`, `plugins.py` | Layered settings, model presets and routing, prices, the built-in teammates and prompts, MCP / conventions / plugins / hooks |
+| Configuration | `settings/`, `model_routing.py`, `pricing.py`, `config/`, `data/`, `extensions/`, `plugins.py` | Layered settings, model presets and routing, prices, the built-in teammates and prompts, MCP / conventions / plugins / hooks |
 | Evaluation | `bench/`, `testing/` | The benchmark harness; `ScriptedLLM` and the offline test helpers (shipped in the wheel) |
+
+Modules stay under 450 lines (`tests/test_module_size.py` fails otherwise); a module that grows past it
+is split by responsibility and keeps its public import path, so callers and plugins do not change. The
+larger ones today:
+
+| Package or module | Parts |
+|-------------------|-------|
+| `settings/` | `sections` (one model per `[table]`), `model` (`Settings`), `env` (the `ENGINEERING_*` variables), `loading` (layering), `masking`, `common` |
+| `main.py` | `run_prep` (options to a prepared run), `request_sources`, `outcome` (exit codes), `api` (`resume`); `main` is the entry and re-exports them |
+| `tools/` catalogue | `spec`, `catalogue_project`, `catalogue_dev`, `catalogue_external`, `catalogue_team`, `registry` (the builder) |
+| `git/` | `core` (the safe command line), `reads`, `writes`, `port` (`GitPort`) |
+| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `executor` (stages) |
+| `report/` HTML | `html_common`, `html_overview`, `html_board`, `html_results`, `html_artifacts`; `html_sections` re-exports them |
+| `board/` | `store` (`BoardStore`), `files` (saving), `limits` |
 
 ## Decisions and rejected alternatives
 

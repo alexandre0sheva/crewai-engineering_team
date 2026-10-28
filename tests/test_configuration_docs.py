@@ -37,8 +37,8 @@ from engineering_team.settings import (
     UiSettings,
     VerifySettings,
     WebSettings,
-    _build,
 )
+from engineering_team.settings.loading import _build
 
 ROOT = Path(__file__).resolve().parents[1]
 DOC = (ROOT / "docs" / "CONFIGURATION.md").read_text(encoding="utf-8")
@@ -137,7 +137,7 @@ def test_only_settings_and_subprocess_code_read_the_process_environment() -> Non
     # benchmark harness builds the environment of the processes it starts: acceptance.py a
     # scrubbed one for the hidden checks, prepare.py the team's (the live environment plus a few
     # variables).
-    allowed = {"settings.py", "commands.py", "docker.py", "acceptance.py", "prepare.py"}
+    allowed = {"loading.py", "commands.py", "docker.py", "acceptance.py", "prepare.py"}
     offenders = []
     for path in (ROOT / "src" / "engineering_team").rglob("*.py"):
         text = path.read_text(encoding="utf-8")

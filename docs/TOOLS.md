@@ -1,7 +1,7 @@
 # Agent tool catalogue
 
 Every tool an agent can call, built per run by `build_tools(ctx, groups=, write_scope=,
-read_only=)` from the catalogue in `src/engineering_team/tools/registry.py`. A test fails if a
+read_only=)` from the catalogue in `src/engineering_team/tools/` (`catalogue_*.py`, assembled by `registry.py`). A test fails if a
 registered tool has no row below, or a row names an unregistered tool, so this file is the
 complete list. Which teammate gets which groups is in [TEAM.md](TEAM.md) (and configurable there); the execution boundary is in [SAFETY.md](SAFETY.md).
 

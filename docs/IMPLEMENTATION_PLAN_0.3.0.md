@@ -368,7 +368,7 @@ format is machine-read, keep one row per task and the first/last columns intact.
 | # | Task | Model | Depends on | Phase | Status |
 |---|------|-------|------------|-------|--------|
 | 1 | Dependency refresh; retire the 0.1.0 surface; release hygiene | S | — | A Foundation | done (2026-10-28) |
-| 2 | Split oversized modules | S | 1 | A | todo |
+| 2 | Split oversized modules | S | 1 | A | done (2026-10-28) |
 | 3 | Fix 0.2.0 leftovers: plan auto-repair, roster modes, local models | S | 1 | A | todo |
 | 4 | Trajectory capture: tool-output log and `trace` export | S | 1 | B Evidence | todo |
 | 5 | Run profiler and performance budgets (where time and tokens go) | S | 4 | B | todo |
@@ -1394,3 +1394,6 @@ works from another directory; the user has the exact tag and publish steps.
 | 2026-10-28 | T1 | Bare `engineering-team` with no arguments and no `./PROJECT_REQUEST.md` still prints help (exit 0); options without a command, or a `PROJECT_REQUEST.md` with no command, print one line and exit 2. `train`, `replay`, `test`, `run_with_trigger` are removed; `run_crew` runs `new` with `sys.argv[1:]` | Help on a bare call is friendlier and was not a 0.1.0 form |
 | 2026-10-28 | T1 | Historical benchmark results under `benchmarks/results/2026-10-04/` and the `docs/BENCHMARKS.md` result tables still name `hierarchical` | They are the measurements that justified the removal |
 | 2026-10-28 | T1 | No tags are made or documented for 0.1.0/0.2.0, and the project version stays `0.2.0` until the 0.3.0 release commit | The user tags 0.3.0 when ready; `tests/test_release_notes.py` requires a dated changelog section for the `pyproject.toml` version, so the bump belongs to the release commit (CONTRIBUTING, Releasing) |
+| 2026-10-28 | T2 | Besides the five modules the task names, `board/store.py` (495 lines) was split too (`board/files.py` mixin, `board/limits.py`); the size guard `tests/test_module_size.py` has an empty allowlist | Everything over 450 lines had to go for the allowlist to stay empty |
+| 2026-10-28 | T2 | Each split keeps the old import path: `settings/__init__.py` re-exports every public name; `main.py` keeps the helpers the CLI calls as `engine._x` (with `noqa`) and the names tests import; `git/port.py`, `report/html_sections.py` and `tools/registry.py` re-export theirs. `GitPort` is a chain `GitCore` → `GitReads` → `GitWrites` → `GitPort` (writes use reads such as `changes`); `StageExecutor` is `ExecutorBase` → `PackageExecutor` → `StageExecutor` | No caller, plugin or doc import changed; mixin chains keep `self.` calls type-checked |
+| 2026-10-28 | T2 | `main._run_prepared` and `main._report` were deleted: T1 had removed their last caller (`run_with_trigger`). `Settings.with_overrides` imports the loader lazily (`settings.loading` builds `Settings`). `test_only_settings_and_subprocess_code_read_the_process_environment` now names `loading.py` | Dead code; one deliberate import cycle break; the env-reading code moved with the loader |
