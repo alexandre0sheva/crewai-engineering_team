@@ -1,0 +1,581 @@
+# Labelled requests for triage (docs/BENCHMARKS.md, "Triage"). `bench triage` checks every case's
+# signal expectations offline (deterministic, free) and scores the signals-only guess; `bench
+# triage --live` also asks the cheap-tier model once per case and reports its accuracy and a
+# confusion matrix of primary intents.
+#
+# Per case:
+#   repo     a benchmark task id whose fixture/ is the repository, "@empty" for an empty
+#            directory, or absent for "no directory" (the request is not about a local project)
+#   git      the repository is made a Git repository first (default true)
+#   mode     an explicit 0.2.0 mode or maintenance preset (it wins over the model)
+#   expect   the label: intents (primary first, then the secondary ones the request asks for),
+#            size, target, and optionally risk and clarify (a good triage asks questions)
+#   signals  what the signal layer must report; every field is checked, and an absent field
+#            means false/empty (git_repo and existing_code default to what repo/git set up)
+cases:
+  # -- question --------------------------------------------------------------------------
+  - id: question-carrier-settings
+    repo: answer-questions
+    request: Where does the parcels app read its carrier settings?
+    expect: {intents: [question], size: trivial, target: existing}
+    signals: {question: true}
+
+  - id: question-quote-rounding
+    repo: answer-questions
+    request: How is the shipping quote rounded in parcels/quote.py, and why?
+    expect: {intents: [question], size: trivial, target: existing}
+    signals: {question: true, paths: [parcels/quote.py]}
+
+  - id: question-no-repo-asyncio
+    request: What is the difference between asyncio tasks and threads in Python?
+    expect: {intents: [question], size: trivial, target: new}
+    signals: {question: true}
+
+  - id: question-why-trace
+    repo: seeded-bug
+    request: |
+      Why does this happen?
+
+      Traceback (most recent call last):
+        File "shop/report.py", line 9, in summary
+          average = total / len(items)
+      ZeroDivisionError: division by zero
+    expect: {intents: [question, bugfix], size: small, target: existing}
+    signals: {question: true, stack_trace: true, paths: [shop/report.py]}
+
+  - id: question-explain-counter
+    repo: go-cli-feature
+    git: false
+    request: Explain how the word counter in internal/count/count.go splits words.
+    expect: {intents: [question], size: trivial, target: existing}
+    signals: {question: true, paths: [internal/count/count.go]}
+
+  - id: question-no-repo-flask-trace
+    request: |
+      My Flask app throws this, how do I fix it?
+      Traceback (most recent call last):
+        File "app.py", line 5, in <module>
+      ImportError: cannot import name 'escape' from 'flask'
+    expect: {intents: [question], size: trivial, target: new}
+    signals: {stack_trace: true, keywords: [bugfix]}
+
+  # -- research --------------------------------------------------------------------------
+  - id: research-orm-compare
+    request: Compare SQLAlchemy, Peewee and Tortoise ORM for a small async web service and recommend one.
+    expect: {intents: [research], size: small, target: new}
+    signals: {keywords: [research]}
+
+  - id: research-express-validation
+    repo: express-api-feature
+    request: >-
+      Research the options for request validation in our Express API (zod, joi,
+      express-validator) and tell us which fits best. Don't change code.
+    expect: {intents: [research], size: small, target: existing}
+    signals: {keywords: [research, plan_only]}
+
+  - id: research-ci-service
+    request: "Which CI service should a small open-source Go library use: GitHub Actions, GitLab CI or CircleCI?"
+    expect: {intents: [research], size: small, target: new}
+    signals: {question: true, keywords: [devops]}
+
+  - id: research-rate-limiting
+    repo: legacy-feature
+    request: >-
+      Investigate how other Flask apps usually add rate limiting and summarise the
+      approaches with links; we will decide later.
+    expect: {intents: [research], size: small, target: existing}
+    signals: {keywords: [feature]}
+
+  # -- review ----------------------------------------------------------------------------
+  - id: review-feature-branch
+    repo: review-seeded-defects
+    request: Review the change on the feature/export branch before we merge it; focus on correctness and security.
+    expect: {intents: [review], size: small, target: existing}
+    signals: {refs: [branch], keywords: [review]}
+
+  - id: review-pr-sessions
+    repo: review-auth-change
+    request: "Please look over PR #17, it changes how sessions are created."
+    expect: {intents: [review], size: small, target: existing, risk: high}
+    signals: {refs: [pull_request], keywords: [review]}
+
+  - id: review-pasted-diff
+    repo: seeded-bug
+    request: |
+      Can you review this diff?
+
+      diff --git a/shop/cart.py b/shop/cart.py
+      --- a/shop/cart.py
+      +++ b/shop/cart.py
+      @@ -10,7 +10,7 @@ def total(items):
+      -    return sum(i.price for i in items)
+      +    return sum(i.price * i.qty for i in items)
+    expect: {intents: [review], size: trivial, target: existing}
+    signals: {refs: [diff], keywords: [review], paths: [shop/cart.py]}
+
+  - id: review-against-main
+    repo: multi-file-refactor
+    request: Give me a code review of everything changed against main since last week.
+    expect: {intents: [review], size: small, target: existing}
+    signals: {refs: [branch], keywords: [review]}
+
+  - id: review-uncommitted-files
+    repo: review-seeded-defects
+    request: Review the uncommitted changes in notes/web.py and notes/storage.py and list problems by severity.
+    expect: {intents: [review], size: small, target: existing}
+    signals: {keywords: [review], paths: [notes/storage.py, notes/web.py]}
+
+  # -- bugfix ----------------------------------------------------------------------------
+  - id: bugfix-empty-cart-trace
+    repo: seeded-bug
+    request: |
+      Running `python -m shop report` on an empty cart crashes:
+
+      Traceback (most recent call last):
+        File "shop/report.py", line 9, in summary
+          average = total / len(items)
+      ZeroDivisionError: division by zero
+    expect: {intents: [bugfix], size: small, target: existing}
+    signals: {stack_trace: true, keywords: [bugfix], paths: [shop/report.py]}
+
+  - id: bugfix-failing-test-id
+    repo: seeded-bug
+    request: tests/test_cart.py::test_empty_cart fails since yesterday's change; make it pass again.
+    expect: {intents: [bugfix], size: small, target: existing}
+    signals:
+      failing_tests: [tests/test_cart.py::test_empty_cart]
+      paths: [tests/test_cart.py]
+      keywords: [bugfix]
+
+  - id: bugfix-node-rounding
+    repo: node-cli-bugfix
+    request: The stats CLI prints 2.675 KB as 2.67 KB instead of 2.68 KB. The rounding in src/format.ts is wrong.
+    expect: {intents: [bugfix], size: small, target: existing}
+    signals: {keywords: [bugfix], paths: [src/format.ts]}
+
+  - id: bugfix-react-vitest
+    repo: react-component-bug
+    git: false
+    request: |
+      OrderSummary shows the old total after the cart changes; it looks like the component never re-renders.
+
+      FAIL tests/OrderSummary.test.tsx > updates the total
+    expect: {intents: [bugfix], size: small, target: existing}
+    signals:
+      failing_tests: [tests/OrderSummary.test.tsx]
+      paths: [tests/OrderSummary.test.tsx]
+      keywords: [bugfix]
+
+  - id: bugfix-go-panic
+    repo: go-cli-feature
+    request: |
+      panic: runtime error: index out of range [1] with length 1
+
+      goroutine 1 [running]:
+      main.main()
+      	/app/main.go:21 +0x1d
+
+      wc crashes when given an empty line.
+    expect: {intents: [bugfix], size: small, target: existing}
+    signals: {stack_trace: true, keywords: [bugfix]}
+
+  - id: bugfix-ledger-misleading-trace
+    repo: ledger-misleading-trace
+    request: |
+      Importing the Rabobank CSV gives wrong (negative) amounts for deposits. The trace points at
+      ledgerly/core/money.py but I'm not sure that's where the cause is.
+
+      Traceback (most recent call last):
+        File "ledgerly/io/csv_import.py", line 40, in import_rows
+        File "ledgerly/core/money.py", line 22, in parse_amount
+      ValueError: negative deposit
+    expect: {intents: [bugfix], size: medium, target: existing}
+    signals:
+      stack_trace: true
+      keywords: [bugfix]
+      paths: [ledgerly/core/money.py, ledgerly/io/csv_import.py]
+
+  - id: bugfix-mode-fix
+    repo: seeded-bug
+    mode: fix
+    request: The report total is off by one cent sometimes.
+    expect: {intents: [bugfix], size: small, target: existing}
+    signals: {}
+
+  # -- feature ---------------------------------------------------------------------------
+  - id: feature-json-flag
+    repo: docs-cli-reference
+    request: Can you add a --json flag to `tasktool list`?
+    expect: {intents: [feature], size: small, target: existing}
+    signals: {keywords: [feature]}
+
+  - id: feature-loans-endpoint
+    repo: express-api-feature
+    request: >-
+      Add a /loans endpoint to the Express API: POST creates a loan for a book, GET lists
+      active loans, and lending a book that is already lent returns 409. Add tests.
+    expect: {intents: [feature, tests], size: medium, target: existing}
+    signals: {keywords: [feature, tests]}
+
+  - id: feature-low-stock
+    repo: legacy-feature
+    request: >-
+      Add a low-stock report to the inventory app: list items whose quantity is below
+      their reorder level, sorted by name.
+    expect: {intents: [feature], size: small, target: existing}
+    signals: {keywords: [feature]}
+
+  - id: feature-go-line-flag
+    repo: go-cli-feature
+    git: false
+    request: Support a -l flag in the wc tool that prints only the line count, like Unix wc.
+    expect: {intents: [feature], size: small, target: existing}
+    signals: {keywords: [feature]}
+
+  - id: feature-multi-carrier
+    repo: answer-questions
+    request: >-
+      Implement multi-carrier quotes for parcels. Today a quote asks one carrier; it should
+      ask every carrier configured in parcels/settings.py, skip carriers that cannot take
+      the parcel's weight or size, and return the three cheapest offers sorted by price, then
+      delivery time. Keep the current single-carrier output when only one carrier is set up,
+      and show the offers as a table in the CLI.
+    expect: {intents: [feature], size: medium, target: existing}
+    signals: {keywords: [feature], paths: [parcels/settings.py]}
+
+  - id: feature-discount-line
+    repo: react-component-bug
+    request: Show a discount line in OrderSummary when the cart has a coupon, and cover it with a test.
+    expect: {intents: [feature, tests], size: small, target: existing}
+    signals: {}
+
+  - id: feature-vague-better
+    repo: legacy-feature
+    request: Make it better.
+    expect: {intents: [feature], size: small, target: existing, clarify: true}
+    signals: {}
+
+  # -- new project -----------------------------------------------------------------------
+  - id: new-notes-cli
+    request: Build me a small CLI app that keeps notes in a JSON file, with add, list and delete commands.
+    expect: {intents: [new_project], size: small, target: new}
+    signals: {keywords: [feature, new_project]}
+
+  - id: new-url-shortener
+    request: >-
+      Create a URL shortener service with a small REST API: POST /links takes a long URL and
+      returns a short code, GET /<code> redirects, and GET /links/<code>/stats returns the
+      number of visits. Store links in SQLite, reject invalid URLs, and include a README
+      with how to run it.
+    expect: {intents: [new_project], size: medium, target: new}
+    signals: {keywords: [new_project, docs]}
+
+  - id: new-empty-dir-markdown
+    repo: "@empty"
+    request: >-
+      Write a Markdown to HTML converter in Python that supports headings, lists, emphasis
+      and code blocks, with a command-line entry point.
+    expect: {intents: [new_project], size: small, target: new}
+    signals: {}
+
+  - id: new-browser-game
+    request: Make a simple browser game where you dodge falling blocks; plain HTML, CSS and JavaScript, no build step.
+    expect: {intents: [new_project], size: small, target: new}
+    signals: {keywords: [new_project]}
+
+  - id: new-booking-platform
+    request: |
+      Build a new multi-tenant booking platform for fitness studios.
+
+      Studios sign up and manage their own schedule of classes, instructors and rooms. Members
+      book, cancel and join waiting lists; a member who cancels less than two hours before a
+      class loses the credit. Studios sell class packs and monthly memberships through a
+      payment provider, and members get email reminders the day before a class.
+
+      There are three web front ends: a public booking page per studio, a studio admin console
+      and a platform admin console for us. Authentication with email and password plus
+      optional Google sign-in; each studio's data must be strictly isolated from the others.
+
+      Provide an HTTP API that the front ends use, with OpenAPI documentation, reports of
+      attendance and revenue per studio and month, and an audit log of admin actions.
+
+      Deploy with Docker: one container for the API, one for the web apps, PostgreSQL for
+      storage, and a worker for reminders. Include end-to-end tests for booking, cancelling,
+      waiting lists and payments, and a CI pipeline that runs them on every pull request.
+    expect: {intents: [new_project, devops], size: large, target: new, risk: high}
+    signals:
+      keywords: [new_project, docs, security_audit, devops]
+      refs: [pull_request]
+
+  - id: new-cron-library
+    request: I need a small Python library that parses cron expressions and tells me the next run time. Include tests.
+    expect: {intents: [new_project, tests], size: small, target: new}
+    signals: {}
+
+  - id: new-ambiguous-contacts
+    request: Make a contacts tool that can export contacts sorted by name.
+    expect: {intents: [new_project], size: small, target: new}
+    signals: {keywords: [new_project]}
+
+  # -- refactor --------------------------------------------------------------------------
+  - id: refactor-extract-pricing
+    repo: multi-file-refactor
+    request: >-
+      Refactor billing: billing/invoice.py, billing/quote.py and billing/receipt.py each
+      compute tax and discounts their own way; extract one pricing module they all use,
+      without changing behaviour.
+    expect: {intents: [refactor], size: medium, target: existing, risk: medium}
+    signals:
+      keywords: [refactor]
+      paths: [billing/invoice.py, billing/quote.py, billing/receipt.py]
+
+  - id: refactor-clean-up-summary
+    repo: behaviour-refactor
+    request: >-
+      Clean up orders/summary.py: it has grown into one 200-line function. The output must
+      stay byte-for-byte the same.
+    expect: {intents: [refactor], size: small, target: existing}
+    signals: {keywords: [refactor], paths: [orders/summary.py]}
+
+  - id: refactor-node-errors
+    repo: node-cli-bugfix
+    request: Simplify error handling in src/errors.ts and src/cli.ts so every error goes through one helper.
+    expect: {intents: [refactor], size: small, target: existing}
+    signals: {keywords: [refactor], paths: [src/cli.ts, src/errors.ts]}
+
+  - id: refactor-rename-package
+    repo: go-cli-feature
+    request: Rename the count package to wordcount and update all imports.
+    expect: {intents: [refactor], size: small, target: existing}
+    signals: {keywords: [refactor]}
+
+  - id: refactor-ledger-plugins
+    repo: ledger-misleading-trace
+    request: |
+      Restructure ledgerly so that bank formats, categorisation rules and reports are plugins.
+
+      Today every bank format is a branch in ledgerly/io/bank_formats.py, every rule kind is
+      hard-coded in ledgerly/rules/, and the report renderer knows each report by name. Introduce
+      a small plugin registry (entry points or a module list in the config), move every existing
+      format, rule and report onto it, and keep the CLI and all existing tests working unchanged.
+      Third parties should be able to add a bank format without editing ledgerly. Update the
+      README's architecture section to match.
+    expect: {intents: [refactor, docs], size: large, target: existing, risk: medium}
+    signals:
+      keywords: [feature, refactor, docs]
+      paths: [ledgerly/io/bank_formats.py, ledgerly/rules]
+
+  # -- tests -----------------------------------------------------------------------------
+  - id: tests-textkit
+    repo: add-tests
+    request: Add unit tests for textkit/words.py; it has none.
+    expect: {intents: [tests], size: small, target: existing}
+    signals: {keywords: [feature, tests], paths: [textkit/words.py]}
+
+  - id: tests-coverage-report
+    repo: seeded-bug
+    request: Increase test coverage of shop/report.py to at least 90%.
+    expect: {intents: [tests], size: small, target: existing}
+    signals: {keywords: [tests], paths: [shop/report.py]}
+
+  - id: tests-go-table-driven
+    repo: go-cli-feature
+    request: Write table-driven tests for internal/count.
+    expect: {intents: [tests], size: small, target: existing}
+    signals: {keywords: [tests], paths: [internal/count]}
+
+  - id: tests-validation-errors
+    repo: express-api-feature
+    request: Our books API has almost no tests for validation errors. Write them.
+    expect: {intents: [tests], size: small, target: existing}
+    signals: {}
+
+  # -- docs ------------------------------------------------------------------------------
+  - id: docs-cli-reference
+    repo: docs-cli-reference
+    request: Write a CLI reference in docs/cli.md covering every tasktool command and option.
+    expect: {intents: [docs], size: small, target: existing}
+    signals: {keywords: [docs]}
+
+  - id: docs-readme-outdated
+    repo: legacy-feature
+    request: "Update the README: the install steps are outdated and it doesn't mention the export command."
+    expect: {intents: [docs], size: small, target: existing}
+    signals: {keywords: [docs, upgrade_deps]}
+
+  - id: docs-docstrings
+    repo: answer-questions
+    git: false
+    request: Add docstrings to every public function in parcels/.
+    expect: {intents: [docs], size: small, target: existing}
+    signals: {keywords: [feature, docs], paths: [parcels]}
+
+  - id: docs-with-fix
+    repo: seeded-bug
+    request: Fix the crash on an empty cart and document the behaviour in the changelog.
+    expect: {intents: [bugfix, docs], size: small, target: existing}
+    signals: {keywords: [bugfix, docs]}
+
+  # -- dependency upgrades ---------------------------------------------------------------
+  - id: upgrade-moneyfmt
+    repo: dependency-upgrade
+    request: Upgrade moneyfmt to 2.0.0 (see vendor-updates/moneyfmt-2.0.0/CHANGELOG.md) and fix whatever breaks.
+    expect: {intents: [upgrade_deps], size: small, target: existing, risk: medium}
+    signals:
+      keywords: [bugfix, docs, upgrade_deps]
+      paths: [vendor-updates/moneyfmt-2.0.0/CHANGELOG.md]
+
+  - id: upgrade-react-major
+    repo: react-component-bug
+    request: Bump react and react-dom to the latest major version and make the tests pass.
+    expect: {intents: [upgrade_deps], size: small, target: existing}
+    signals: {keywords: [upgrade_deps]}
+
+  - id: upgrade-go-modules
+    repo: go-cli-feature
+    request: Update the dependencies in go.mod and move to Go 1.27.
+    expect: {intents: [upgrade_deps], size: small, target: existing}
+    signals: {keywords: [upgrade_deps], paths: [go.mod]}
+
+  - id: upgrade-node-deprecations
+    repo: node-cli-bugfix
+    request: Our build prints deprecation warnings for several packages; get rid of them by moving to supported versions.
+    expect: {intents: [upgrade_deps], size: small, target: existing}
+    signals: {keywords: [upgrade_deps]}
+
+  - id: upgrade-mode-preset
+    repo: dependency-upgrade
+    mode: upgrade-deps
+    request: Keep everything current.
+    expect: {intents: [upgrade_deps], size: small, target: existing}
+    signals: {}
+
+  # -- security audit --------------------------------------------------------------------
+  - id: audit-notes-service
+    repo: review-seeded-defects
+    request: "Audit the notes service for security problems: injection, path traversal, secrets in code."
+    expect: {intents: [security_audit], size: small, target: existing, risk: high}
+    signals: {keywords: [security_audit]}
+
+  - id: audit-owasp
+    repo: express-api-feature
+    request: Check the Express API against the OWASP top 10 and report what you find.
+    expect: {intents: [security_audit], size: small, target: existing, risk: high}
+    signals: {keywords: [security_audit]}
+
+  - id: audit-password-hashing
+    repo: review-auth-change
+    request: Are passwords in accounts/passwords.py hashed safely? Look for vulnerabilities.
+    expect: {intents: [security_audit], size: small, target: existing, risk: high}
+    signals: {question: true, keywords: [security_audit], paths: [accounts/passwords.py]}
+
+  - id: audit-ledger-cves
+    repo: ledger-misleading-trace
+    git: false
+    request: Scan ledgerly for known CVEs in its dependencies and for unsafe file handling in ledgerly/io/.
+    expect: {intents: [security_audit], size: small, target: existing, risk: high}
+    signals: {keywords: [security_audit], paths: [ledgerly/io]}
+
+  # -- performance -----------------------------------------------------------------------
+  - id: perf-balance-report
+    repo: ledger-misleading-trace
+    request: >-
+      Generating the balance report for 50k transactions takes 40 seconds. Make it faster;
+      ledgerly/reports/balance.py looks quadratic.
+    expect: {intents: [performance], size: small, target: existing}
+    signals: {keywords: [performance], paths: [ledgerly/reports/balance.py]}
+
+  - id: perf-node-memory
+    repo: node-cli-bugfix
+    request: The stats CLI uses 2 GB of memory on a 500 MB log file. Reduce the memory usage.
+    expect: {intents: [performance], size: small, target: existing}
+    signals: {keywords: [performance]}
+
+  - id: perf-express-latency
+    repo: express-api-feature
+    request: GET /books got slow after we added validation; profile it and speed up the endpoint.
+    expect: {intents: [performance], size: small, target: existing}
+    signals: {keywords: [performance]}
+
+  - id: perf-quote-hot-path
+    repo: answer-questions
+    request: Optimise the parcel quote calculation; it is called millions of times in a batch job.
+    expect: {intents: [performance], size: small, target: existing}
+    signals: {keywords: [performance]}
+
+  # -- devops ----------------------------------------------------------------------------
+  - id: devops-github-actions
+    repo: seeded-bug
+    request: Add a GitHub Actions workflow that runs the tests on Python 3.12 and 3.13.
+    expect: {intents: [devops], size: small, target: existing}
+    signals: {keywords: [feature, devops]}
+
+  - id: devops-dockerfile
+    repo: express-api-feature
+    request: Write a Dockerfile and a docker-compose file so the API can be deployed.
+    expect: {intents: [devops], size: small, target: existing}
+    signals: {keywords: [devops]}
+
+  - id: devops-kubernetes-cronjob
+    repo: go-cli-feature
+    git: false
+    request: Package the wc tool as a container image and add a Kubernetes CronJob manifest.
+    expect: {intents: [devops], size: small, target: existing}
+    signals: {keywords: [feature, devops]}
+
+  - id: devops-new-rust-ci
+    request: "Set up CI for a new Rust library: build, clippy and tests on every push."
+    expect: {intents: [devops], size: small, target: new}
+    signals: {keywords: [devops]}
+
+  # -- plan only -------------------------------------------------------------------------
+  - id: plan-sqlite-migration
+    repo: legacy-feature
+    request: >-
+      Write a plan for moving the inventory app from JSON files to SQLite. Plan only, don't
+      write any code yet.
+    expect: {intents: [plan_only], size: small, target: existing}
+    signals: {keywords: [plan_only]}
+
+  - id: plan-design-doc
+    request: "Draft a design doc for a multi-region job scheduler: components, data flow, failure modes."
+    expect: {intents: [plan_only], size: small, target: new}
+    signals: {keywords: [bugfix, plan_only]}
+
+  - id: plan-break-down-accounts
+    repo: express-api-feature
+    request: "Break this down into tasks before anyone starts: add user accounts with login, roles and audit logging to the API."
+    expect: {intents: [plan_only], size: small, target: existing}
+    signals: {keywords: [feature, security_audit, plan_only]}
+
+  - id: plan-roadmap-split
+    repo: ledger-misleading-trace
+    request: Propose a roadmap for splitting ledgerly into a library and a CLI, without changing the code.
+    expect: {intents: [plan_only], size: small, target: existing}
+    signals: {keywords: [plan_only]}
+
+  # -- explicit modes and mixed requests -------------------------------------------------
+  - id: mode-review-terse
+    repo: review-seeded-defects
+    mode: review
+    request: Check the latest change.
+    expect: {intents: [review], size: small, target: existing}
+    signals: {}
+
+  - id: mixed-bugfix-tests
+    repo: seeded-bug
+    request: The cart total ignores quantities. Fix it and add a regression test.
+    expect: {intents: [bugfix, tests], size: small, target: existing}
+    signals: {keywords: [bugfix, feature, tests]}
+
+  - id: mixed-feature-docs
+    repo: docs-cli-reference
+    request: Add a `tasktool done <id>` command and document it in the README.
+    expect: {intents: [feature, docs], size: small, target: existing}
+    signals: {keywords: [feature, docs]}
+
+  - id: new-empty-git-question
+    repo: "@empty"
+    request: How should I lay out a new Python package with a src/ directory?
+    expect: {intents: [question], size: trivial, target: new}
+    signals: {question: true}

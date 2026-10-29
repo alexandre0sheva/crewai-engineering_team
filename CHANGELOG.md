@@ -11,6 +11,15 @@ renames that section and dates it.
 
 ### Added
 
+- Triage: a request is classified into a task profile (intents, new or existing target and focus paths, size,
+  risk, how to verify, stack, at most three questions, assumptions, confidence) from deterministic signals (Git
+  repository, stack traces, failing test names, branch/PR/diff references, question form, paths that exist,
+  keywords) and one call on the `cheap` tier; rules override the model where the signals are certain, and an
+  unclear request asks its questions, records assumptions, or ends `needs-info`. `[models.roles.triage]` picks
+  its model.
+- `bench triage` checks the signal layer against 74 labelled requests (`benchmarks/triage/cases.yaml`) offline;
+  `--live` scores one cheap-tier call per request (accuracy and a confusion matrix of intents) through the spend
+  ledger, and `--estimate` prices it.
 - `bench import-swe --dataset FILE --ids ...` turns SWE-bench instances (Python, pytest) from a dataset file you
   downloaded into tasks on the real repository: the issue is the request, the instance's tests run in its SWE-bench
   Docker image as the hidden checks, and each task notes the repository's license. Repositories are fetched at run

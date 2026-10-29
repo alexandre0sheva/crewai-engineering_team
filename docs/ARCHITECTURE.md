@@ -390,6 +390,45 @@ timeout passes, or the run is cancelled; it emits `question` events. It starts n
 where `ask` returns at once and the agent is told to proceed on an assumption; a front end calls
 `enable()` and answers `pending()` questions.
 
+## Triage
+
+`intake/` turns a request into a `TaskProfile` (`contracts.py`): the intents (primary first, at most
+three, from `question`, `research`, `review`, `bugfix`, `feature`, `new_project`, `refactor`, `tests`,
+`docs`, `upgrade_deps`, `security_audit`, `performance`, `devops`, `plan_only`), the target (new or
+existing, the repository, focus paths), size (`trivial` to `large`), risk, how to verify
+(`repro`, `project_tests`, `acceptance_tests`, `review`, `citations`, `build`, `none`), the stack,
+at most three questions, assumptions, confidence and a rationale. Three steps:
+
+```text
+request, --repo/cwd
+   -> signals.collect     code only: a repository or not (and Git), files, languages, stacks, tests
+                           (the profiler), a stack trace, failing test names, a diff/branch/PR/commit
+                           reference, the question form, paths named that exist, keyword groups,
+                           security-sensitive words
+   -> triage.triage       one structured-output call on the `cheap` tier (role `triage`): the
+                           request (as data), the signals and a repository summary -> TriageAnswer
+   -> triage_rules        the controller corrects the answer where the signals are certain
+   -> clarify.settle      questions asked (or recorded as assumptions, or needs-info) before planning
+```
+
+The model's answer is agent-authored text, so the rules (`intake/triage_rules.py`) never take it as
+evidence: without existing code, intents that need it (`bugfix`, `refactor`, `review`,
+`upgrade_deps`, `security_audit`, `performance`) are dropped and a reproduction or the project's tests
+cannot verify; focus paths are kept only when they exist inside the repository; questions are capped
+at three; the stack comes from the profiler; an explicit mode or maintenance preset (`--mode fix`,
+`upgrade-deps`, ...) wins. Each correction is a line in `overrides`. A failed call or an answer that
+does not parse falls back to a guess from the signals alone (`source: signals`, low confidence) with
+the reason recorded, so triage never stops a run.
+
+Clarification (`intake/clarify.py`) uses the run's `HumanChannel`: with a person at the terminal
+(`--interactive`) or in the web UI, the questions are asked and the answers kept as
+`clarifications`; unanswered ones become assumptions. With no one to ask, a low-confidence profile
+ends the run `needs-info` (exit 4, the same `NeedsInfo` flow as an unreproduced bug) and any other
+profile goes on with its questions recorded as assumptions.
+
+`bench triage` measures all of this on `benchmarks/triage/cases.yaml`
+([BENCHMARKS.md](BENCHMARKS.md#triage-bench-triage)).
+
 ## Pipeline, recipes, and resume
 
 The `pipeline` strategy replaces the fixed six-task crew with a controller that is resumable,
@@ -1010,7 +1049,7 @@ code at load time; the tools import the runtime context only for type checking).
 | Entry | `main.py`, `run_prep.py`, `request_sources.py`, `outcome.py`, `api.py`, `__main__.py`, `cli/` | The Typer commands, the live Rich views, `doctor`, and the `run_crew` entry point `crewai run` uses; run preparation, request sources, exit codes, `resume` |
 | Web UI | `ui/` | FastAPI app over the run directories, SSE events, the static single-page app, `ui --demo` |
 | Orchestration | `pipeline/`, `modes/`, `team/`, `llm.py` | Recipes, the Flow pipeline, parallel work packages, resume, strategies; the mode recipes and their actions; the roster; model construction |
-| Control | `verification/`, `board/`, `git/`, `report/`, `intake/` | Controller-run checks and bounded repair, the task board and notes, `GitPort` and checkpoints, the run report, requirements intake |
+| Control | `verification/`, `board/`, `git/`, `report/`, `intake/` | Controller-run checks and bounded repair, the task board and notes, `GitPort` and checkpoints, the run report, requirements intake and triage |
 | Run state | `runtime/`, `contracts.py`, `artifacts.py`, `atomic_io.py`, `workspaces.py` | `RunContext`, events, budget, usage, processes, the run store, locks, cancellation; the typed contracts; crash-safe file writes; project directories |
 | Agent tools | `tools/`, `devtools/`, `codeintel/`, `webtools/`, `browsertools/` | Every tool an agent can call ([TOOLS.md](TOOLS.md)) and the engines behind them |
 | Execution | `execution/` | `ExecutionBackend`: the local backend and the Docker sandbox; no tool spawns a process any other way |

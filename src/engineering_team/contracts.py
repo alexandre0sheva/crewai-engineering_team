@@ -72,6 +72,53 @@ class Contract(BaseModel):
         return cast(dict[str, Any], _lean_schema(super().model_json_schema(*args, **kwargs)))
 
 
+# -- triage ------------------------------------------------------------------------------
+
+Intent = Literal[
+    "question", "research", "review", "bugfix", "feature", "new_project", "refactor", "tests",
+    "docs", "upgrade_deps", "security_audit", "performance", "devops", "plan_only",
+]  # fmt: skip
+TaskScale = Literal["trivial", "small", "medium", "large"]
+Risk = Literal["low", "medium", "high"]
+VerifyBy = Literal[
+    "repro", "project_tests", "acceptance_tests", "review", "citations", "build", "none"
+]
+MAX_TRIAGE_QUESTIONS = 3
+
+
+class TaskTarget(Contract):
+    """Where the work happens: a new project, or an existing one (``repo``) and the paths in it
+    the request is about (each checked to exist by the controller)."""
+
+    kind: Literal["new", "existing"] = "new"
+    repo: str | None = None
+    focus_paths: list[str] = Field(default_factory=list)
+
+
+class TaskProfile(Contract):
+    """What kind of work a request is (``intake/triage.py``). ``intents[0]`` is the primary
+    intent. ``overrides`` are the controller's rules that replaced what the model said."""
+
+    intents: list[Intent] = Field(min_length=1)
+    target: TaskTarget = Field(default_factory=TaskTarget)
+    size: TaskScale = "small"
+    risk: Risk = "low"
+    verify_by: list[VerifyBy] = Field(default_factory=list)
+    stack: list[str] = Field(default_factory=list)
+    needs_clarification: bool = False
+    questions: list[str] = Field(default_factory=list, max_length=MAX_TRIAGE_QUESTIONS)
+    assumptions: list[str] = Field(default_factory=list)
+    clarifications: list[str] = Field(default_factory=list)  # "Q: ... A: ..." the person gave
+    confidence: Confidence = "medium"
+    rationale: str = ""
+    overrides: list[str] = Field(default_factory=list)
+    source: Literal["model", "signals"] = "model"
+
+    @property
+    def primary(self) -> Intent:
+        return self.intents[0]
+
+
 # -- product definition ------------------------------------------------------------------
 
 

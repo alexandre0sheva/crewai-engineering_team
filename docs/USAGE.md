@@ -25,7 +25,7 @@ uv run engineering-team <command> --help # its options
 | `profile [RUN] [--format text|json]` | Where a run's time and money went: sessions by cost and time, prompt parts, critical path, re-read files, tool failures ([Profiling a run](#profiling-a-run-profile)). |
 | `trace [RUN] [--stage S] [--format text|json]` | What a run's agents did and saw: each tool call with its output and what the models said ([Reading what the agents did](#reading-what-the-agents-did-trace)). |
 | `ui [--host H] [--port P] [--demo]` | Serve the web UI and its API on localhost ([Web UI](#web-ui)). Needs `uv sync --extra ui`. |
-| `bench list` / `bench run` / `bench report` / `bench spend` | Run the benchmark suite against the team (filtered by split, intent, language, size, difficulty) and report pass rates with confidence intervals and cost per success; `bench spend` shows the release's live spend per allocation (`--fake` validates the harness offline; `--agent` runs Claude Code, Codex, OpenCode or Aider on the same tasks and checks; source checkout only). See [BENCHMARKS.md](BENCHMARKS.md). |
+| `bench list` / `bench run` / `bench report` / `bench spend` / `bench triage` | Run the benchmark suite against the team (filtered by split, intent, language, size, difficulty) and report pass rates with confidence intervals and cost per success; `bench spend` shows the release's live spend per allocation; `bench triage` scores how requests are classified (`--fake` validates the harness offline; `--agent` runs Claude Code, Codex, OpenCode or Aider on the same tasks and checks; source checkout only). See [BENCHMARKS.md](BENCHMARKS.md). |
 | `status [RUN]` | Where a run stands: stages, progress, cost, blocked cards. |
 | `runs` | List runs (of every project, or one with `--project-name`), newest last. |
 | `board [RUN] [--watch]` | The task board as a kanban; `--watch` keeps it live until the run ends. |
@@ -659,6 +659,27 @@ checkable.
 `engineering-team init --mode new|feature|fix|maintain` writes a template with these headings (problem, users,
 scope, non-goals, acceptance criteria, constraints) for the kind of work you are doing. Running a template
 you have not edited is refused, so replace its text first.
+
+### What kind of work it is (triage)
+
+Before anything is planned, the team works out what a request is: a question, research, a review, a
+bug fix, a feature, a new project, a refactor, tests, docs, a dependency upgrade, a security audit,
+performance, DevOps, or a plan only (possibly several, the main one first), how big and how risky
+it is, and how the result should be verified. Code reads what it can be sure of (is there a
+repository, a stack trace, a failing test, a branch or pull request, which named files exist), and
+one call to the cheapest model tier reads the rest ([ARCHITECTURE.md](ARCHITECTURE.md#triage)). You
+help it by:
+
+- running in (or passing `--repo`) the project the request is about: without existing code, a
+  request cannot be a bug fix, refactor or review of it;
+- pasting the stack trace or the failing test's name, and naming the files you mean
+  (`src/format.ts`);
+- saying "plan only" or "don't change any code" when you want a plan or an answer, not a change.
+
+When the request is too unclear to start, triage asks at most three questions the same way the
+analyst does ([Clarifying questions](#clarifying-questions)); with no one to ask, it records its
+assumptions, or, when it could not even tell what kind of work it is, the run ends `needs-info`
+(exit 4) with the questions. The model it uses is the `cheap` tier, or `[models.roles.triage]`.
 
 ### Request sources and reference documents
 

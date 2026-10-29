@@ -596,6 +596,10 @@ Tiers are `max`, `lead`, `reviewer`, `worker`, `cheap`. Profiles pick them:
 | `smoke` | `worker` / 18 | `cheap` / 14 | no |
 | `max-quality` | `max` / 50 | `lead` / 40 | yes |
 
+Triage, which classifies a request before anything is planned, is the role `triage` on the `cheap` tier
+under `standard` (the worker slot under `smoke` and `max-quality`); `[models.roles.triage]` sets its own
+model.
+
 ### Provider presets
 
 Presets are organised **by price**: a tier never costs less than the tier below it, and only models

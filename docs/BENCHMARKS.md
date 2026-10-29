@@ -13,6 +13,7 @@ uv run engineering-team bench spend                     # the release's live spe
 uv run engineering-team bench run --split dev --intent bugfix --budget-usd 1 --allocation T33
 uv run engineering-team bench run --agent claude-code,codex --strategy pipeline ...  # baselines
 uv run engineering-team bench report                    # the latest batch (Markdown, CSV, JSON)
+uv run engineering-team bench triage                    # triage's signals and signals-only guess, offline
 ```
 
 The suite lives in `benchmarks/` in the source checkout. It is **not** in the wheel or the sdist;
@@ -440,6 +441,53 @@ differently; read them as orders of magnitude. Sessions and model calls describe
 internals, so the report shows them only for the team. Time includes each agent's start-up.
 A pass rate from few runs is wide; the paired table counts per-task wins, not significance.
 
+## Triage (`bench triage`)
+
+Triage ([ARCHITECTURE.md](ARCHITECTURE.md#triage)) is measured on its own, without running the
+team: `benchmarks/triage/cases.yaml` holds 74 labelled requests covering all 14 intents (each at
+least three times as the primary one), every size, 12 with no directory, two with an empty one,
+and the rest on benchmark fixtures (some without Git), plus three with an explicit mode. Each case
+has its label (`intents`, primary first, `size`, `target`, optionally `risk` and `clarify`) and
+**the signals the deterministic layer must report** (Git, existing code, stack trace, failing
+tests, change references, question form, paths, keyword groups).
+
+```bash
+uv run engineering-team bench triage                    # offline: signals checked, signals-only scored
+uv run engineering-team bench triage --estimate --provider openai
+uv run engineering-team bench triage --live --provider openai --allocation T10 \
+  --out benchmarks/results/<date>/triage
+```
+
+Offline (the default, free, part of the gate) every case's repository is set up in a temporary
+directory (the fixture copied and, unless `git: false`, made a Git repository), its signals are
+compared with the expectations (any mismatch fails the command, exit 3), and the signals-only guess
+is scored. `--live` adds one call per case on the triage model (the `cheap` tier); like a live
+`bench run` it prints the estimate, needs `--allocation`, refuses what the ledger cannot afford,
+stops once `--max-cost-usd` (default $0.40) is spent, and appends one ledger line. The scores:
+primary-intent accuracy, size and target accuracy, how many of the labelled secondary intents were
+found, whether it asked exactly when a case expects questions, signals-only fallbacks (calls that
+failed or did not parse), and a confusion matrix of primary intents (`report.md`, `results.json`).
+
+### Triage results (2026-10-29)
+
+`bench triage --live --provider openai --allocation T10`, `openai/gpt-6-luna` (the `cheap` tier,
+reasoning effort `none`), one run of the 74 cases: **$0.0109** (estimate $0.0195), no fallbacks.
+Files: `benchmarks/results/2026-10-29/triage/` (`report.md` has the confusion matrix and every
+miss).
+
+| Triage | Primary intent | Size | Target | Secondary intents found | Asked when expected |
+|--------|---------------:|-----:|-------:|------------------------:|--------------------:|
+| `gpt-6-luna` + rules | 97.3 % (72/74) | 78.4 % | 100 % | 88.9 % | 1/1 |
+| signals only | 83.8 % | 73.0 % | 100 % | 66.7 % | 0/1 |
+
+The two primary-intent misses: "Make it better." on an existing project became `refactor` (with
+questions, as the case expects), and a pasted Flask traceback with no directory became
+`new_project`: the model's `bugfix` was dropped by the no-repository rule, whose fallback only
+recognises the question form, not a trace. Sizes are the weak part: the model calls most plans,
+audits and small greenfield requests `medium` where the labels say `small` (of 16 size misses, 12
+are one step larger, 1 two steps larger, 3 one step smaller). One run on 74 hand-labelled cases, so read the figures with that sample size in
+mind; the labels are the author's.
+
 ## Reading a report
 
 `bench report [BATCH]` (a directory, or a name under `--out`; default the latest) prints Markdown
@@ -652,6 +700,6 @@ runs and every acceptance check get a scrubbed environment with no keys.
 
 | Path | Role |
 |------|------|
-| `src/engineering_team/bench/` | the harness (in the wheel): `tasks` (schema, loading), `selection` (filters), `plan` and `prepare` (what runs and how), `execution` (one run, and `judge`, the hidden-check verdict both kinds share), `agents/` and `agent_run` (external agents, [above](#external-agent-baselines---agent)), `compare` and `export` (paired comparison, `results.json`), `batch` (parallel, budget, resume), `acceptance`, `checklib` and `reviewlib` (the hidden checks' runner and helpers), `metrics` and `results` (what a run records), `report` and `stats`, `estimate` (`--dry-run`), `spend` (the release ledger), `fake_team` (offline mode), `swe`, `repos`, `swe_check` and `swe_runner` (SWE-bench import, repository cache, and its checks) |
-| `src/engineering_team/cli/bench_*.py` | `bench list` and `bench run` (`bench_command`), `bench report` and `--dry-run` (`bench_report_command`), `bench spend` (`bench_spend_command`), `bench import-swe` (`bench_swe_command`), `--agent` options (`bench_agents`) |
-| `benchmarks/` | the suite (repository only): `tasks/`, `images/` (Docker images for the Node and Go checks), `budget.toml` and `spend.jsonl` (the release's live spend), `configs/` (settings files for the measured variants), `results/` (committed results), `swe-starter.txt` (SWE-bench instances to import), and `.runs/`, `.cache/` and `tasks-swe/` (working results, fetched repositories and imported tasks, git-ignored) |
+| `src/engineering_team/bench/` | the harness (in the wheel): `tasks` (schema, loading), `selection` (filters), `plan` and `prepare` (what runs and how), `execution` (one run, and `judge`, the hidden-check verdict both kinds share), `agents/` and `agent_run` (external agents, [above](#external-agent-baselines---agent)), `compare` and `export` (paired comparison, `results.json`), `batch` (parallel, budget, resume), `acceptance`, `checklib` and `reviewlib` (the hidden checks' runner and helpers), `metrics` and `results` (what a run records), `report` and `stats`, `estimate` (`--dry-run`), `spend` (the release ledger), `fake_team` (offline mode), `swe`, `repos`, `swe_check` and `swe_runner` (SWE-bench import, repository cache, and its checks), `triage_eval` (the triage cases and their scores) |
+| `src/engineering_team/cli/bench_*.py` | `bench list` and `bench run` (`bench_command`), `bench report` and `--dry-run` (`bench_report_command`), `bench spend` (`bench_spend_command`), `bench import-swe` (`bench_swe_command`), `bench triage` (`bench_triage_command`), `--agent` options (`bench_agents`) |
+| `benchmarks/` | the suite (repository only): `tasks/`, `triage/cases.yaml` (labelled requests for `bench triage`), `images/` (Docker images for the Node and Go checks), `budget.toml` and `spend.jsonl` (the release's live spend), `configs/` (settings files for the measured variants), `results/` (committed results), `swe-starter.txt` (SWE-bench instances to import), and `.runs/`, `.cache/` and `tasks-swe/` (working results, fetched repositories and imported tasks, git-ignored) |

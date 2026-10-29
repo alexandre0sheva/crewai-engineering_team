@@ -1,0 +1,3438 @@
+{
+  "cases_file": "/Users/alexander/apps/app-coder/crewai-engineering_team/benchmarks/triage/cases.yaml",
+  "signal_problems": [],
+  "signals_only": {
+    "scores": {
+      "cases": 74,
+      "primary_accuracy": 0.8378,
+      "size_accuracy": 0.7297,
+      "target_accuracy": 1.0,
+      "secondary_recall": 0.6667,
+      "clarify_agreement": 0.0,
+      "fallbacks": 74,
+      "confusion": {
+        "bugfix": {
+          "bugfix": 7,
+          "docs": 1,
+          "tests": 1
+        },
+        "devops": {
+          "devops": 4
+        },
+        "docs": {
+          "docs": 2,
+          "upgrade_deps": 1
+        },
+        "feature": {
+          "docs": 1,
+          "feature": 6,
+          "tests": 1
+        },
+        "new_project": {
+          "docs": 2,
+          "new_project": 5
+        },
+        "performance": {
+          "performance": 4
+        },
+        "plan_only": {
+          "plan_only": 4
+        },
+        "question": {
+          "question": 7
+        },
+        "refactor": {
+          "refactor": 5
+        },
+        "research": {
+          "feature": 1,
+          "plan_only": 1,
+          "question": 1,
+          "research": 1
+        },
+        "review": {
+          "review": 6
+        },
+        "security_audit": {
+          "question": 1,
+          "security_audit": 3
+        },
+        "tests": {
+          "feature": 1,
+          "tests": 3
+        },
+        "upgrade_deps": {
+          "upgrade_deps": 5
+        }
+      }
+    },
+    "outcomes": [
+      {
+        "id": "question-carrier-settings",
+        "expected": [
+          "question"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "trivial",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "question-quote-rounding",
+        "expected": [
+          "question"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "trivial",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "question-no-repo-asyncio",
+        "expected": [
+          "question"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "trivial",
+          "trivial"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "question-why-trace",
+        "expected": [
+          "question",
+          "bugfix"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "question-explain-counter",
+        "expected": [
+          "question"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "trivial",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "question-no-repo-flask-trace",
+        "expected": [
+          "question"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "trivial",
+          "trivial"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "research-orm-compare",
+        "expected": [
+          "research"
+        ],
+        "predicted": [
+          "research"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "research-express-validation",
+        "expected": [
+          "research"
+        ],
+        "predicted": [
+          "plan_only"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "research-ci-service",
+        "expected": [
+          "research"
+        ],
+        "predicted": [
+          "question",
+          "devops"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "research-rate-limiting",
+        "expected": [
+          "research"
+        ],
+        "predicted": [
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "review-feature-branch",
+        "expected": [
+          "review"
+        ],
+        "predicted": [
+          "review"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "review-pr-sessions",
+        "expected": [
+          "review"
+        ],
+        "predicted": [
+          "review"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "review-pasted-diff",
+        "expected": [
+          "review"
+        ],
+        "predicted": [
+          "review"
+        ],
+        "size": [
+          "trivial",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "review-against-main",
+        "expected": [
+          "review"
+        ],
+        "predicted": [
+          "review"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "review-uncommitted-files",
+        "expected": [
+          "review"
+        ],
+        "predicted": [
+          "review"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "bugfix-empty-cart-trace",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "bugfix-failing-test-id",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "bugfix-node-rounding",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "bugfix-react-vitest",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "bugfix-go-panic",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "bugfix-ledger-misleading-trace",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix"
+        ],
+        "size": [
+          "medium",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "bugfix-mode-fix",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix",
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "feature-json-flag",
+        "expected": [
+          "feature"
+        ],
+        "predicted": [
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "feature-loans-endpoint",
+        "expected": [
+          "feature",
+          "tests"
+        ],
+        "predicted": [
+          "tests"
+        ],
+        "size": [
+          "medium",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "feature-low-stock",
+        "expected": [
+          "feature"
+        ],
+        "predicted": [
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "feature-go-line-flag",
+        "expected": [
+          "feature"
+        ],
+        "predicted": [
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "feature-multi-carrier",
+        "expected": [
+          "feature"
+        ],
+        "predicted": [
+          "feature"
+        ],
+        "size": [
+          "medium",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "feature-discount-line",
+        "expected": [
+          "feature",
+          "tests"
+        ],
+        "predicted": [
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "feature-vague-better",
+        "expected": [
+          "feature"
+        ],
+        "predicted": [
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": true,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "new-notes-cli",
+        "expected": [
+          "new_project"
+        ],
+        "predicted": [
+          "new_project"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "new-url-shortener",
+        "expected": [
+          "new_project"
+        ],
+        "predicted": [
+          "docs"
+        ],
+        "size": [
+          "medium",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "new-empty-dir-markdown",
+        "expected": [
+          "new_project"
+        ],
+        "predicted": [
+          "new_project"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "new-browser-game",
+        "expected": [
+          "new_project"
+        ],
+        "predicted": [
+          "new_project"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "new-booking-platform",
+        "expected": [
+          "new_project",
+          "devops"
+        ],
+        "predicted": [
+          "docs",
+          "devops"
+        ],
+        "size": [
+          "large",
+          "medium"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "new-cron-library",
+        "expected": [
+          "new_project",
+          "tests"
+        ],
+        "predicted": [
+          "new_project"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "new-ambiguous-contacts",
+        "expected": [
+          "new_project"
+        ],
+        "predicted": [
+          "new_project"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "refactor-extract-pricing",
+        "expected": [
+          "refactor"
+        ],
+        "predicted": [
+          "refactor"
+        ],
+        "size": [
+          "medium",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "refactor-clean-up-summary",
+        "expected": [
+          "refactor"
+        ],
+        "predicted": [
+          "refactor"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "refactor-node-errors",
+        "expected": [
+          "refactor"
+        ],
+        "predicted": [
+          "refactor"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "refactor-rename-package",
+        "expected": [
+          "refactor"
+        ],
+        "predicted": [
+          "refactor"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "refactor-ledger-plugins",
+        "expected": [
+          "refactor",
+          "docs"
+        ],
+        "predicted": [
+          "refactor",
+          "docs"
+        ],
+        "size": [
+          "large",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "tests-textkit",
+        "expected": [
+          "tests"
+        ],
+        "predicted": [
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "tests-coverage-report",
+        "expected": [
+          "tests"
+        ],
+        "predicted": [
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "tests-go-table-driven",
+        "expected": [
+          "tests"
+        ],
+        "predicted": [
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "tests-validation-errors",
+        "expected": [
+          "tests"
+        ],
+        "predicted": [
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "docs-cli-reference",
+        "expected": [
+          "docs"
+        ],
+        "predicted": [
+          "docs"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "docs-readme-outdated",
+        "expected": [
+          "docs"
+        ],
+        "predicted": [
+          "upgrade_deps",
+          "docs"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "docs-docstrings",
+        "expected": [
+          "docs"
+        ],
+        "predicted": [
+          "docs"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "docs-with-fix",
+        "expected": [
+          "bugfix",
+          "docs"
+        ],
+        "predicted": [
+          "docs"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "upgrade-moneyfmt",
+        "expected": [
+          "upgrade_deps"
+        ],
+        "predicted": [
+          "upgrade_deps",
+          "docs"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "upgrade-react-major",
+        "expected": [
+          "upgrade_deps"
+        ],
+        "predicted": [
+          "upgrade_deps"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "upgrade-go-modules",
+        "expected": [
+          "upgrade_deps"
+        ],
+        "predicted": [
+          "upgrade_deps"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "upgrade-node-deprecations",
+        "expected": [
+          "upgrade_deps"
+        ],
+        "predicted": [
+          "upgrade_deps"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "upgrade-mode-preset",
+        "expected": [
+          "upgrade_deps"
+        ],
+        "predicted": [
+          "upgrade_deps",
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "audit-notes-service",
+        "expected": [
+          "security_audit"
+        ],
+        "predicted": [
+          "security_audit"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "audit-owasp",
+        "expected": [
+          "security_audit"
+        ],
+        "predicted": [
+          "security_audit"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "audit-password-hashing",
+        "expected": [
+          "security_audit"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "audit-ledger-cves",
+        "expected": [
+          "security_audit"
+        ],
+        "predicted": [
+          "security_audit"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "perf-balance-report",
+        "expected": [
+          "performance"
+        ],
+        "predicted": [
+          "performance"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "perf-node-memory",
+        "expected": [
+          "performance"
+        ],
+        "predicted": [
+          "performance"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "perf-express-latency",
+        "expected": [
+          "performance"
+        ],
+        "predicted": [
+          "performance"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "perf-quote-hot-path",
+        "expected": [
+          "performance"
+        ],
+        "predicted": [
+          "performance"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "devops-github-actions",
+        "expected": [
+          "devops"
+        ],
+        "predicted": [
+          "devops"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "devops-dockerfile",
+        "expected": [
+          "devops"
+        ],
+        "predicted": [
+          "devops"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "devops-kubernetes-cronjob",
+        "expected": [
+          "devops"
+        ],
+        "predicted": [
+          "devops"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "devops-new-rust-ci",
+        "expected": [
+          "devops"
+        ],
+        "predicted": [
+          "devops"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "plan-sqlite-migration",
+        "expected": [
+          "plan_only"
+        ],
+        "predicted": [
+          "plan_only"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "plan-design-doc",
+        "expected": [
+          "plan_only"
+        ],
+        "predicted": [
+          "plan_only"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "plan-break-down-accounts",
+        "expected": [
+          "plan_only"
+        ],
+        "predicted": [
+          "plan_only"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "plan-roadmap-split",
+        "expected": [
+          "plan_only"
+        ],
+        "predicted": [
+          "plan_only"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "mode-review-terse",
+        "expected": [
+          "review"
+        ],
+        "predicted": [
+          "review",
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "mixed-bugfix-tests",
+        "expected": [
+          "bugfix",
+          "tests"
+        ],
+        "predicted": [
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "mixed-feature-docs",
+        "expected": [
+          "feature",
+          "docs"
+        ],
+        "predicted": [
+          "docs"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      },
+      {
+        "id": "new-empty-git-question",
+        "expected": [
+          "question"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "trivial",
+          "trivial"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "signals",
+        "error": null,
+        "cost_usd": null
+      }
+    ]
+  },
+  "live": {
+    "model": "openai/gpt-6-luna",
+    "estimate_usd": 0.019521,
+    "actual_usd": 0.0109117,
+    "stopped": null,
+    "scores": {
+      "cases": 74,
+      "primary_accuracy": 0.973,
+      "size_accuracy": 0.7838,
+      "target_accuracy": 1.0,
+      "secondary_recall": 0.8889,
+      "clarify_agreement": 1.0,
+      "fallbacks": 0,
+      "confusion": {
+        "bugfix": {
+          "bugfix": 9
+        },
+        "devops": {
+          "devops": 4
+        },
+        "docs": {
+          "docs": 3
+        },
+        "feature": {
+          "feature": 7,
+          "refactor": 1
+        },
+        "new_project": {
+          "new_project": 7
+        },
+        "performance": {
+          "performance": 4
+        },
+        "plan_only": {
+          "plan_only": 4
+        },
+        "question": {
+          "new_project": 1,
+          "question": 6
+        },
+        "refactor": {
+          "refactor": 5
+        },
+        "research": {
+          "research": 4
+        },
+        "review": {
+          "review": 6
+        },
+        "security_audit": {
+          "security_audit": 4
+        },
+        "tests": {
+          "tests": 4
+        },
+        "upgrade_deps": {
+          "upgrade_deps": 5
+        }
+      }
+    },
+    "outcomes": [
+      {
+        "id": "question-carrier-settings",
+        "expected": [
+          "question"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "trivial",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001299
+      },
+      {
+        "id": "question-quote-rounding",
+        "expected": [
+          "question"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "trivial",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.000132
+      },
+      {
+        "id": "question-no-repo-asyncio",
+        "expected": [
+          "question"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "trivial",
+          "trivial"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.000117
+      },
+      {
+        "id": "question-why-trace",
+        "expected": [
+          "question",
+          "bugfix"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.000142
+      },
+      {
+        "id": "question-explain-counter",
+        "expected": [
+          "question"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "trivial",
+          "trivial"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001308
+      },
+      {
+        "id": "question-no-repo-flask-trace",
+        "expected": [
+          "question"
+        ],
+        "predicted": [
+          "new_project"
+        ],
+        "size": [
+          "trivial",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001537
+      },
+      {
+        "id": "research-orm-compare",
+        "expected": [
+          "research"
+        ],
+        "predicted": [
+          "research"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001421
+      },
+      {
+        "id": "research-express-validation",
+        "expected": [
+          "research"
+        ],
+        "predicted": [
+          "research",
+          "plan_only"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00015460000000000002
+      },
+      {
+        "id": "research-ci-service",
+        "expected": [
+          "research"
+        ],
+        "predicted": [
+          "research"
+        ],
+        "size": [
+          "small",
+          "trivial"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001331
+      },
+      {
+        "id": "research-rate-limiting",
+        "expected": [
+          "research"
+        ],
+        "predicted": [
+          "research",
+          "plan_only"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001374
+      },
+      {
+        "id": "review-feature-branch",
+        "expected": [
+          "review"
+        ],
+        "predicted": [
+          "review",
+          "security_audit"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001394
+      },
+      {
+        "id": "review-pr-sessions",
+        "expected": [
+          "review"
+        ],
+        "predicted": [
+          "review"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001366
+      },
+      {
+        "id": "review-pasted-diff",
+        "expected": [
+          "review"
+        ],
+        "predicted": [
+          "review"
+        ],
+        "size": [
+          "trivial",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001417
+      },
+      {
+        "id": "review-against-main",
+        "expected": [
+          "review"
+        ],
+        "predicted": [
+          "review"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": true,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001383
+      },
+      {
+        "id": "review-uncommitted-files",
+        "expected": [
+          "review"
+        ],
+        "predicted": [
+          "review"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.000131
+      },
+      {
+        "id": "bugfix-empty-cart-trace",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00014780000000000001
+      },
+      {
+        "id": "bugfix-failing-test-id",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix",
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00015310000000000004
+      },
+      {
+        "id": "bugfix-node-rounding",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00014869999999999998
+      },
+      {
+        "id": "bugfix-react-vitest",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00015760000000000004
+      },
+      {
+        "id": "bugfix-go-panic",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00015230000000000002
+      },
+      {
+        "id": "bugfix-ledger-misleading-trace",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix"
+        ],
+        "size": [
+          "medium",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.000169
+      },
+      {
+        "id": "bugfix-mode-fix",
+        "expected": [
+          "bugfix"
+        ],
+        "predicted": [
+          "bugfix"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001504
+      },
+      {
+        "id": "feature-json-flag",
+        "expected": [
+          "feature"
+        ],
+        "predicted": [
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00015260000000000002
+      },
+      {
+        "id": "feature-loans-endpoint",
+        "expected": [
+          "feature",
+          "tests"
+        ],
+        "predicted": [
+          "feature",
+          "tests"
+        ],
+        "size": [
+          "medium",
+          "medium"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001533
+      },
+      {
+        "id": "feature-low-stock",
+        "expected": [
+          "feature"
+        ],
+        "predicted": [
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001475
+      },
+      {
+        "id": "feature-go-line-flag",
+        "expected": [
+          "feature"
+        ],
+        "predicted": [
+          "feature",
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00015060000000000003
+      },
+      {
+        "id": "feature-multi-carrier",
+        "expected": [
+          "feature"
+        ],
+        "predicted": [
+          "feature"
+        ],
+        "size": [
+          "medium",
+          "medium"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001644
+      },
+      {
+        "id": "feature-discount-line",
+        "expected": [
+          "feature",
+          "tests"
+        ],
+        "predicted": [
+          "feature",
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001398
+      },
+      {
+        "id": "feature-vague-better",
+        "expected": [
+          "feature"
+        ],
+        "predicted": [
+          "refactor"
+        ],
+        "size": [
+          "small",
+          "medium"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": true,
+        "expect_clarify": true,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00014930000000000002
+      },
+      {
+        "id": "new-notes-cli",
+        "expected": [
+          "new_project"
+        ],
+        "predicted": [
+          "new_project",
+          "feature"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001492
+      },
+      {
+        "id": "new-url-shortener",
+        "expected": [
+          "new_project"
+        ],
+        "predicted": [
+          "new_project",
+          "docs"
+        ],
+        "size": [
+          "medium",
+          "medium"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00016060000000000003
+      },
+      {
+        "id": "new-empty-dir-markdown",
+        "expected": [
+          "new_project"
+        ],
+        "predicted": [
+          "new_project"
+        ],
+        "size": [
+          "small",
+          "medium"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.000138
+      },
+      {
+        "id": "new-browser-game",
+        "expected": [
+          "new_project"
+        ],
+        "predicted": [
+          "new_project"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001393
+      },
+      {
+        "id": "new-booking-platform",
+        "expected": [
+          "new_project",
+          "devops"
+        ],
+        "predicted": [
+          "new_project",
+          "devops"
+        ],
+        "size": [
+          "large",
+          "large"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001872
+      },
+      {
+        "id": "new-cron-library",
+        "expected": [
+          "new_project",
+          "tests"
+        ],
+        "predicted": [
+          "new_project",
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001404
+      },
+      {
+        "id": "new-ambiguous-contacts",
+        "expected": [
+          "new_project"
+        ],
+        "predicted": [
+          "new_project"
+        ],
+        "size": [
+          "small",
+          "medium"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00014710000000000002
+      },
+      {
+        "id": "refactor-extract-pricing",
+        "expected": [
+          "refactor"
+        ],
+        "predicted": [
+          "refactor"
+        ],
+        "size": [
+          "medium",
+          "medium"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00015869999999999998
+      },
+      {
+        "id": "refactor-clean-up-summary",
+        "expected": [
+          "refactor"
+        ],
+        "predicted": [
+          "refactor"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00014260000000000002
+      },
+      {
+        "id": "refactor-node-errors",
+        "expected": [
+          "refactor"
+        ],
+        "predicted": [
+          "refactor"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.000146
+      },
+      {
+        "id": "refactor-rename-package",
+        "expected": [
+          "refactor"
+        ],
+        "predicted": [
+          "refactor"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001469
+      },
+      {
+        "id": "refactor-ledger-plugins",
+        "expected": [
+          "refactor",
+          "docs"
+        ],
+        "predicted": [
+          "refactor",
+          "feature",
+          "docs"
+        ],
+        "size": [
+          "large",
+          "large"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001853
+      },
+      {
+        "id": "tests-textkit",
+        "expected": [
+          "tests"
+        ],
+        "predicted": [
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001388
+      },
+      {
+        "id": "tests-coverage-report",
+        "expected": [
+          "tests"
+        ],
+        "predicted": [
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00014619999999999998
+      },
+      {
+        "id": "tests-go-table-driven",
+        "expected": [
+          "tests"
+        ],
+        "predicted": [
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00013460000000000002
+      },
+      {
+        "id": "tests-validation-errors",
+        "expected": [
+          "tests"
+        ],
+        "predicted": [
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00014060000000000003
+      },
+      {
+        "id": "docs-cli-reference",
+        "expected": [
+          "docs"
+        ],
+        "predicted": [
+          "docs"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001444
+      },
+      {
+        "id": "docs-readme-outdated",
+        "expected": [
+          "docs"
+        ],
+        "predicted": [
+          "docs"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00014460000000000002
+      },
+      {
+        "id": "docs-docstrings",
+        "expected": [
+          "docs"
+        ],
+        "predicted": [
+          "docs"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001474
+      },
+      {
+        "id": "docs-with-fix",
+        "expected": [
+          "bugfix",
+          "docs"
+        ],
+        "predicted": [
+          "bugfix",
+          "docs"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001527
+      },
+      {
+        "id": "upgrade-moneyfmt",
+        "expected": [
+          "upgrade_deps"
+        ],
+        "predicted": [
+          "upgrade_deps",
+          "bugfix"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00017010000000000001
+      },
+      {
+        "id": "upgrade-react-major",
+        "expected": [
+          "upgrade_deps"
+        ],
+        "predicted": [
+          "upgrade_deps",
+          "bugfix"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001554
+      },
+      {
+        "id": "upgrade-go-modules",
+        "expected": [
+          "upgrade_deps"
+        ],
+        "predicted": [
+          "upgrade_deps"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00014340000000000002
+      },
+      {
+        "id": "upgrade-node-deprecations",
+        "expected": [
+          "upgrade_deps"
+        ],
+        "predicted": [
+          "upgrade_deps"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001425
+      },
+      {
+        "id": "upgrade-mode-preset",
+        "expected": [
+          "upgrade_deps"
+        ],
+        "predicted": [
+          "upgrade_deps"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": true,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001439
+      },
+      {
+        "id": "audit-notes-service",
+        "expected": [
+          "security_audit"
+        ],
+        "predicted": [
+          "security_audit"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001464
+      },
+      {
+        "id": "audit-owasp",
+        "expected": [
+          "security_audit"
+        ],
+        "predicted": [
+          "security_audit"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001444
+      },
+      {
+        "id": "audit-password-hashing",
+        "expected": [
+          "security_audit"
+        ],
+        "predicted": [
+          "security_audit"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001457
+      },
+      {
+        "id": "audit-ledger-cves",
+        "expected": [
+          "security_audit"
+        ],
+        "predicted": [
+          "security_audit"
+        ],
+        "size": [
+          "small",
+          "medium"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001566
+      },
+      {
+        "id": "perf-balance-report",
+        "expected": [
+          "performance"
+        ],
+        "predicted": [
+          "performance"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00016010000000000002
+      },
+      {
+        "id": "perf-node-memory",
+        "expected": [
+          "performance"
+        ],
+        "predicted": [
+          "performance"
+        ],
+        "size": [
+          "small",
+          "medium"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001555
+      },
+      {
+        "id": "perf-express-latency",
+        "expected": [
+          "performance"
+        ],
+        "predicted": [
+          "performance"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001438
+      },
+      {
+        "id": "perf-quote-hot-path",
+        "expected": [
+          "performance"
+        ],
+        "predicted": [
+          "performance"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001515
+      },
+      {
+        "id": "devops-github-actions",
+        "expected": [
+          "devops"
+        ],
+        "predicted": [
+          "devops",
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001474
+      },
+      {
+        "id": "devops-dockerfile",
+        "expected": [
+          "devops"
+        ],
+        "predicted": [
+          "devops"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00014710000000000002
+      },
+      {
+        "id": "devops-kubernetes-cronjob",
+        "expected": [
+          "devops"
+        ],
+        "predicted": [
+          "devops"
+        ],
+        "size": [
+          "small",
+          "medium"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00016360000000000002
+      },
+      {
+        "id": "devops-new-rust-ci",
+        "expected": [
+          "devops"
+        ],
+        "predicted": [
+          "devops"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001425
+      },
+      {
+        "id": "plan-sqlite-migration",
+        "expected": [
+          "plan_only"
+        ],
+        "predicted": [
+          "plan_only"
+        ],
+        "size": [
+          "small",
+          "medium"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00014360000000000002
+      },
+      {
+        "id": "plan-design-doc",
+        "expected": [
+          "plan_only"
+        ],
+        "predicted": [
+          "plan_only"
+        ],
+        "size": [
+          "small",
+          "medium"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00014060000000000003
+      },
+      {
+        "id": "plan-break-down-accounts",
+        "expected": [
+          "plan_only"
+        ],
+        "predicted": [
+          "plan_only",
+          "feature",
+          "security_audit"
+        ],
+        "size": [
+          "small",
+          "large"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001662
+      },
+      {
+        "id": "plan-roadmap-split",
+        "expected": [
+          "plan_only"
+        ],
+        "predicted": [
+          "plan_only"
+        ],
+        "size": [
+          "small",
+          "medium"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00015
+      },
+      {
+        "id": "mode-review-terse",
+        "expected": [
+          "review"
+        ],
+        "predicted": [
+          "review"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001399
+      },
+      {
+        "id": "mixed-bugfix-tests",
+        "expected": [
+          "bugfix",
+          "tests"
+        ],
+        "predicted": [
+          "bugfix",
+          "tests"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001444
+      },
+      {
+        "id": "mixed-feature-docs",
+        "expected": [
+          "feature",
+          "docs"
+        ],
+        "predicted": [
+          "feature",
+          "docs"
+        ],
+        "size": [
+          "small",
+          "small"
+        ],
+        "target": [
+          "existing",
+          "existing"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.00015460000000000002
+      },
+      {
+        "id": "new-empty-git-question",
+        "expected": [
+          "question"
+        ],
+        "predicted": [
+          "question"
+        ],
+        "size": [
+          "trivial",
+          "small"
+        ],
+        "target": [
+          "new",
+          "new"
+        ],
+        "asked": false,
+        "expect_clarify": null,
+        "source": "model",
+        "error": null,
+        "cost_usd": 0.0001259
+      }
+    ]
+  }
+}

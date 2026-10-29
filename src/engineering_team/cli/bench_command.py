@@ -42,6 +42,7 @@ from engineering_team.cli.bench_report_command import dry_run as show_dry_run
 from engineering_team.cli.bench_report_command import print_groups, report
 from engineering_team.cli.bench_spend_command import check_spend, record_batch_spend, spend
 from engineering_team.cli.bench_swe_command import import_swe
+from engineering_team.cli.bench_triage_command import triage_command
 from engineering_team.cli.context import fail, one_of, print_json
 from engineering_team.cli.context import get as get_globals
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
@@ -53,6 +54,7 @@ bench_app = typer.Typer(help="Run and report the benchmark suite.", no_args_is_h
 bench_app.command("report")(report)
 bench_app.command("spend")(spend)
 bench_app.command("import-swe")(import_swe)
+bench_app.command("triage")(triage_command)
 
 
 def _strategies(values: list[str] | None, *, agents: bool = False) -> list[str]:
