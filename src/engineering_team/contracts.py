@@ -416,6 +416,7 @@ class RunManifest(Contract):
     versions: dict[str, str] = Field(default_factory=dict)
     strategy: str = "pipeline"
     recipe: str | None = None
+    stage_reasons: dict[str, str] = Field(default_factory=dict)  # a composed recipe's "why"
     status: RunStatus = "pending"
     verdict: RunVerdict | None = None  # set by runs that verify; all but ``verified`` end the run
     resumes: int = 0  # how many times `resume` continued this run

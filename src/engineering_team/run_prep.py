@@ -235,6 +235,7 @@ def _open_run(
             request=requirements or "",
             strategy=strategy_name,
             recipe=recipe.name if recipe is not None else recipe_name_for(strategy_name),
+            stage_reasons={s.name: s.why for s in recipe.stages if s.why} if recipe else None,
         )
         inputs = (
             build_inputs(

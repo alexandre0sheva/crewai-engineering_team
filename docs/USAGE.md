@@ -17,7 +17,7 @@ uv run engineering-team <command> --help # its options
 | `fix --repo PATH --request ...` | Fix a bug in an existing project: reproduce it (red), fix it, prove it gone (green) ([Fixing a bug](#fixing-a-bug)). |
 | `maintain --task T --repo PATH` | Maintain an existing project: `add-tests`, `refactor`, `upgrade-deps`, `docs`, `security-audit`, `custom`, or a recipe of your own ([Maintaining a project](#maintaining-a-project)). |
 | `review [--base BRANCH]` | A read-only review of a branch or your working diff; `findings.json` for CI, exit 3 on a serious finding ([Reviewing a change](#reviewing-a-change)). |
-| `recipes list` / `recipes show NAME` | Which recipes exist (bundled, yours) and what each stage does ([Your own recipes](#your-own-recipes)). |
+| `recipes list` / `recipes show NAME` / `recipes compose --intent I ...` | Which recipes exist (bundled, yours) and what each stage does; `compose` previews the recipe composed for a task profile, with each stage's cost and why ([Your own recipes](#your-own-recipes)). |
 | `diff [RUN] [--stat]` / `export-patch [RUN] --out FILE` | What a `feature` or `fix` run changed, and that change as a patch for `git apply`. |
 | `analyze [--repo PATH] [--deep]` | Look at an existing project without changing it: languages, detected commands, tests, CI, Git state; `--deep` also writes a codebase map ([Adopting an existing project](#adopting-an-existing-project)). |
 | `resume RUN` | Continue a cancelled, interrupted, or failed run without redoing finished stages. |
@@ -482,6 +482,19 @@ The catalogue a recipe is validated against (an error names the file, the stage,
 | `write_scope` | `tests`, `docs`, `manifests` (agent, verify and upgrade stages) |
 | `skip_if` | `no_work_packages`, `minimal_team`, `fixes_requested`, `fixes_not_requested`, `no_findings`, `nothing_to_review` |
 | `retry`, `optional`, `inputs`, `outputs`, `repair: false` (review), `allow_shared` (parallel) | as in [ARCHITECTURE.md](ARCHITECTURE.md#pipeline-recipes-and-resume) |
+| `why` | Optional text saying why the stage is there (the composer sets it; a run records it in its manifest) |
+
+**Composed recipes.** Instead of a mode, a recipe can be composed from what triage found in the request
+([What kind of work it is](#what-kind-of-work-it-is-triage)): the stages each intent needs, merged, in
+order, each with the reason it is there. Preview one:
+
+```bash
+uv run engineering-team recipes compose --intent bugfix --intent docs            # an existing project
+uv run engineering-team recipes compose --intent new_project --target new --size small
+```
+
+A recipe you name (`--task NAME`, your own recipes included) always wins over a composed one. How the
+rules work is in [ARCHITECTURE.md](ARCHITECTURE.md#composing-a-recipe).
 
 **`new --adopt`** is the narrow, older door: it lets `new` work in an existing directory under the workspace
 root that the tool did not create (`--project-name NAME --adopt`), in place and without isolation, so it

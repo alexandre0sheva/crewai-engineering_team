@@ -14,7 +14,7 @@ import typer
 from rich import box
 from rich.table import Table
 
-from engineering_team.cli.context import fail, print_json
+from engineering_team.cli.context import fail, one_of, print_json
 from engineering_team.cli.context import get as get_globals
 from engineering_team.cli.info_commands import ConfigOpt, load
 from engineering_team.pipeline.recipe_list import RecipeInfo, list_recipes
@@ -134,3 +134,56 @@ def show(
             stage.name, stage.kind, ", ".join(stage.teammates), what, ", ".join(stage.skip_if)
         )
     console.print(table)
+
+
+@recipes_app.command("compose")
+def compose_(
+    ctx: typer.Context,
+    intent: Annotated[
+        list[str],
+        typer.Option(
+            "--intent", help="An intent, primary first (repeatable): bugfix, feature, docs, ..."
+        ),
+    ],
+    target: Annotated[
+        str, typer.Option(callback=one_of(["new", "existing"]), help="new or existing project.")
+    ] = "existing",
+    size: Annotated[
+        str, typer.Option(callback=one_of(["trivial", "small", "medium", "large"]))
+    ] = "medium",
+    risk: Annotated[str, typer.Option(callback=one_of(["low", "medium", "high"]))] = "low",
+) -> None:
+    """Preview the recipe composed for a task profile: each stage, its cost, and why."""
+
+    from pydantic import ValidationError
+
+    from engineering_team.contracts import TaskProfile
+    from engineering_team.pipeline.compose import compose, render_plan
+    from engineering_team.pipeline.compose_rules import ComposeError
+
+    g = get_globals(ctx)
+    try:
+        profile = TaskProfile.model_validate(
+            {"intents": intent, "target": {"kind": target}, "size": size, "risk": risk}
+        )
+    except ValidationError as exc:
+        fail(f"Not a task profile: {exc.errors()[0]['msg']} (--intent {', '.join(intent)}).")
+    try:
+        composition = compose(profile)
+    except ComposeError as exc:
+        fail(str(exc))
+    if g.json:
+        print_json(
+            {
+                "name": composition.recipe.name,
+                "description": composition.recipe.description,
+                "mode": composition.recipe.mode,
+                "policies": composition.recipe.policies,
+                "stages": [
+                    {**stage_doc(spec), "entry": s.entry, "cost": s.cost, "summary": s.summary}
+                    for s, spec in zip(composition.stages, composition.recipe.stages, strict=True)
+                ],
+            }
+        )
+        return
+    g.console().print(render_plan(composition), markup=False, highlight=False, soft_wrap=True)

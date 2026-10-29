@@ -517,6 +517,46 @@ a view. Stage agents currently get one default tool table (`fs_read`, `fs_write`
 for the frontend and quality roles when its extra is installed); per-teammate groups replace it
 when the team registry lands.
 
+### Composing a recipe
+
+A recipe can also be **composed** from a triage `TaskProfile` ([Triage](#triage)) instead of picked by
+mode, so "fix this bug, add a test and update the docs" gets one recipe with all three. The data is
+`modes/compose.yaml`; the code is `pipeline/compose_rules.py` (loading and checking) and
+`pipeline/compose.py` (composing).
+
+- **The stage library** holds every stage the bundled recipes use, once per variant (`verify_fix`,
+  `verify_docs` and `verify_plain` are three `verify` stages), each with a cost class (`free`: the
+  controller; `session`: one agent session; `sessions`: parallel packages, reviewers or analysts), a
+  one-line summary, the entries it `requires`, and the stage exactly as a recipe writes it. The
+  library is in one global order in which every entry's prerequisites come earlier.
+- **The rules** map a profile to entries. Each has conditions (`target`, `primary`, `primary_not`,
+  `intent`, `secondary`, `only`, `size_at_least`, `risk_at_least`), the entries to `add`, optional
+  recipe `policies`, and a `why`. Rules are read top to bottom and the first entry to claim a stage
+  name keeps it, so a specific variant (`tests` only → `tests_only`) comes before the general rule.
+  Then each stage's `requires` that no rule added come in ("Needed by fix.").
+- The stages are put in library order, the recipe is validated like any other (shape, actions,
+  prompts, the team), and each stage keeps its reason in `StageSpec.why`. The run's manifest records
+  them (`stage_reasons`), a composed recipe is pinned in the run directory like a recipe from a file,
+  and `recipes compose --intent ...` previews the plan with each stage's cost and reason.
+
+The main rules: an existing project gets `profile` and `baseline` (a review only `profile`); the
+primary intent brings its stages (`bugfix`: `triage`, `reproduce`, `fix`, `verify` red to green;
+`feature`: `design` or `spec`/`impact`, `implement`, `tests`, `verify`; `tests`, `docs`, `refactor`,
+`upgrade_deps`, `security_audit`, `review`: the maintenance and review stages with their policies,
+which apply only when that intent is the only one; `performance` and `devops` on an existing project:
+the generalist `work` stage); a size of `medium` or more, or a risk of `medium` or more, adds the
+codebase `map`; secondary `tests` and `docs` add characterization tests and `docs_legacy`; a new
+project gets the `new` stages, with `docs` and `devops` run unconditionally when triage found them.
+Runtime conditions stay (`small_task`, `minimal_team`, ...): the lean team still skips at run time.
+
+**The bundled recipes are golden outputs**: composing the canonical profile of each (`new`:
+`new_project` on a new project; `feature`, `fix`; the maintenance presets from `tests`, `refactor`,
+`upgrade_deps`, `docs`, `security_audit`, and `custom` from `performance`; `review`; `adopt` from a
+`question`; all medium size, low risk) gives exactly its stages, policies and mode
+(`tests/test_compose.py`). A recipe named explicitly (`--task`, `--recipe`, a user recipe) always wins
+over composition (`compose.choose_recipe`). Questions, research and plans without a project compose
+nothing yet (the answer path is T15).
+
 ### The lean team
 
 Most of a pipeline run's cost used to be structure rather than work: about ten cold-started

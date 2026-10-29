@@ -11,6 +11,12 @@ renames that section and dates it.
 
 ### Added
 
+- The recipe composer: a recipe can be composed from a task profile (the stages each intent needs, merged and
+  ordered, each with the reason it is there), from a stage library and rules in `modes/compose.yaml`. Composing
+  the profile of each 0.2.0 mode gives exactly its bundled recipe; mixed requests (a bug fix with docs, a feature
+  with tests) get one recipe. `recipes compose --intent ...` previews the plan; a recipe you name still wins. A
+  run's manifest records why each stage of a composed recipe is there (`stage_reasons`), and a recipe stage may
+  carry a `why`.
 - Triage: a request is classified into a task profile (intents, new or existing target and focus paths, size,
   risk, how to verify, stack, at most three questions, assumptions, confidence) from deterministic signals (Git
   repository, stack traces, failing test names, branch/PR/diff references, question form, paths that exist,

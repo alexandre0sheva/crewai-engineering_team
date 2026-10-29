@@ -75,6 +75,7 @@ class RunRecorder:
         request: str = "",
         strategy: str = "pipeline",
         recipe: str | None = None,
+        stage_reasons: dict[str, str] | None = None,
     ) -> RunRecorder:
         store = RunStore(ctx.workspace.root)
         canonical = json.dumps(ctx.settings.model_dump(mode="json"), sort_keys=True, default=str)
@@ -91,6 +92,7 @@ class RunRecorder:
                 versions=_versions(),
                 strategy=strategy,
                 recipe=recipe,
+                stage_reasons=dict(stage_reasons or {}),
             )
         )
         return cls(ctx, store)

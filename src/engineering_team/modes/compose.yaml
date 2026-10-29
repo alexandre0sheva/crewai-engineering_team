@@ -1,0 +1,674 @@
+# The recipe composer's data (pipeline/compose.py; docs/ARCHITECTURE.md, "Composing a recipe").
+#
+# `library` is every stage the bundled recipes use, once per variant, in one global order that is
+# also the order of a composed recipe (each entry's `requires` come earlier). An entry is:
+#   id        unique; several ids may hold variants of one stage name (`verify_fix`, `verify_docs`)
+#   cost      free (the controller, no model), session (one agent session), sessions (several:
+#             parallel packages, reviewers, analysts)
+#   summary   what the stage does, for the plan preview
+#   requires  entries added after the rules when no rule added a stage of that name (the
+#             stages whose output it needs)
+#   stage     the stage itself, exactly as in a recipe (pipeline/recipes.py, StageSpec)
+#
+# `rules` map a task profile (contracts.TaskProfile) to entries. Each has `when` (all conditions
+# must hold), `add` (entry ids), optional `policies` (the recipe's verify policies) and `why` (the
+# explanation recorded for each stage it adds). Rules are read top to bottom and the first entry
+# to claim a stage name keeps it, so a specific rule (a variant) comes before a general one.
+# Conditions: target (new|existing), primary / primary_not / intent / secondary (lists of
+# intents), only (the profile has a single intent), size_at_least, risk_at_least.
+#
+# The bundled recipes are golden outputs: composing each 0.2.0 mode's canonical profile must give
+# that recipe's stages and policies (tests/test_compose.py).
+
+library:
+  # -- adopting an existing project ------------------------------------------------------
+  - id: profile
+    cost: free
+    summary: Languages, stacks, detected commands, tests, CI and conventions, from files and Git.
+    stage: {name: profile, kind: controller, action: repo_profile}
+
+  - id: target
+    cost: free
+    summary: Finds the change to review (a branch against its base, or the working diff).
+    requires: [profile]
+    stage: {name: target, kind: controller, action: review_target}
+
+  - id: baseline
+    cost: free
+    summary: Runs the project's own checks once before any change and records what already fails.
+    requires: [profile]
+    stage: {name: baseline, kind: controller, action: baseline}
+
+  - id: baseline_for_fixes
+    cost: free
+    summary: The baseline, only when findings are to be fixed (--fix).
+    requires: [profile]
+    stage: {name: baseline, kind: controller, action: baseline, skip_if: [fixes_not_requested]}
+
+  - id: precondition
+    cost: free
+    summary: Stops with questions unless the project's tests pass (nothing could show behaviour kept).
+    requires: [baseline]
+    stage: {name: precondition, kind: controller, action: refactor_precondition}
+
+  - id: map
+    cost: sessions
+    summary: Read-only analysts map the code; the controller writes the codebase map.
+    requires: [profile]
+    stage: {name: map, kind: analyze, teammates: [codebase_analyst]}
+
+  - id: map_lean
+    cost: sessions
+    summary: The codebase map, skipped when the run is sized small.
+    requires: [profile]
+    stage: {name: map, kind: analyze, teammates: [codebase_analyst], skip_if: [small_task]}
+
+  - id: coverage_before
+    cost: free
+    summary: Measures coverage with the project's own tool before the change.
+    requires: [baseline]
+    stage: {name: coverage_before, kind: controller, action: coverage_before}
+
+  # -- what to build ---------------------------------------------------------------------
+  - id: design_new
+    cost: session
+    summary: One session writes the spec and the plan (small and medium tasks).
+    stage:
+      name: design
+      kind: agent
+      teammates: [solution_architect]
+      inputs: [request]
+      outputs: [spec, plan]
+      skip_if: [large_task]
+      retry: 1
+
+  - id: design_change
+    cost: session
+    summary: One session writes the criteria and the impact plan of the change (small and medium).
+    stage:
+      name: design
+      kind: agent
+      teammates: [solution_architect]
+      inputs: [request]
+      outputs: [spec, plan]
+      prompt: design_change
+      skip_if: [large_task]
+      retry: 1
+
+  - id: spec_new
+    cost: session
+    summary: The product analyst writes the spec (large tasks).
+    stage:
+      name: spec
+      kind: agent
+      teammates: [product_analyst]
+      inputs: [request]
+      outputs: [spec, "file:docs/spec.md"]
+      skip_if: [not_large_task]
+      verification_policy: artifacts
+      retry: 1
+
+  - id: spec_change
+    cost: session
+    summary: The analyst writes the criteria, including the behaviour the change must keep (large).
+    stage:
+      name: spec
+      kind: agent
+      teammates: [product_analyst]
+      inputs: [request]
+      outputs: [spec]
+      prompt: spec_change
+      skip_if: [not_large_task]
+      retry: 1
+
+  - id: plan_new
+    cost: session
+    summary: The architect plans disjoint work packages (large tasks).
+    stage:
+      name: plan
+      kind: agent
+      teammates: [solution_architect]
+      inputs: [request, spec]
+      outputs: [plan, "file:docs/architecture.md"]
+      skip_if: [not_large_task]
+      verification_policy: artifacts
+      retry: 1
+
+  - id: impact
+    cost: session
+    summary: The architect plans the smallest change as work packages with exact paths (large).
+    stage:
+      name: impact
+      kind: agent
+      teammates: [solution_architect]
+      inputs: [request, spec]
+      outputs: [plan]
+      skip_if: [not_large_task]
+      retry: 1
+
+  # -- bugs ------------------------------------------------------------------------------
+  - id: triage
+    cost: session
+    summary: The debugger ranks hypotheses from the report and the code (skipped when small).
+    stage:
+      name: triage
+      kind: agent
+      teammates: [debugger]
+      inputs: [request]
+      outputs: [triage]
+      skip_if: [small_task]
+      retry: 1
+
+  - id: reproduce
+    cost: session
+    summary: A failing test or script the controller runs and accepts only if it fails (red).
+    requires: [triage]
+    stage:
+      name: reproduce
+      kind: reproduce
+      teammates: [debugger]
+      inputs: [request, triage]
+      outputs: [repro]
+
+  # -- audits and upgrades ---------------------------------------------------------------
+  - id: dependency_audit
+    cost: free
+    summary: The ecosystem's own dependency audit, run by the controller.
+    requires: [profile]
+    stage: {name: dependency_audit, kind: controller, action: dependency_audit}
+
+  - id: audit
+    cost: session
+    summary: The security engineer reads the code for vulnerabilities (read-only).
+    stage:
+      name: audit
+      kind: review
+      teammates: [security_engineer]
+      prompt: audit_security
+      repair: false
+
+  - id: security_report
+    cost: free
+    summary: Merges the dependency audit and the code audit into findings.json and findings.md.
+    requires: [dependency_audit, audit]
+    stage: {name: report, kind: controller, action: security_report}
+
+  - id: plan_upgrades
+    cost: session
+    summary: Plans which dependencies to upgrade, and which to leave alone.
+    stage:
+      name: plan_upgrades
+      kind: agent
+      teammates: [devops_engineer]
+      inputs: [request]
+      outputs: [upgrades]
+      prompt: dependency_plan
+      retry: 1
+
+  - id: upgrade
+    cost: session
+    summary: Applies the upgrades in groups, checking after each and bisecting a group that fails.
+    requires: [plan_upgrades]
+    stage:
+      name: upgrade
+      kind: upgrade
+      teammates: [devops_engineer]
+      write_scope: manifests
+
+  # -- making the change -----------------------------------------------------------------
+  - id: foundation
+    cost: session
+    summary: Lays the project's foundation (skipped for a one-package plan).
+    stage:
+      name: foundation
+      kind: agent
+      teammates: [backend_engineer]
+      inputs: [spec, plan]
+      outputs: ["file:README.md"]
+      skip_if: [single_package]
+      verification_policy: artifacts
+      retry: 1
+
+  - id: implement_new
+    cost: sessions
+    summary: One engineer per work package, side by side on disjoint paths.
+    stage:
+      name: implement
+      kind: parallel
+      teammates: [backend_engineer, frontend_engineer]
+      inputs: [spec, plan]
+      skip_if: [no_work_packages]
+      solo_prompt: implement_solo
+      retry: 1
+
+  - id: implement_change
+    cost: sessions
+    summary: The planned change, one engineer per package; packages may own shared root files.
+    stage:
+      name: implement
+      kind: parallel
+      teammates: [backend_engineer, frontend_engineer]
+      inputs: [spec, plan]
+      skip_if: [no_work_packages]
+      prompt: implement_change
+      allow_shared: true
+      retry: 1
+
+  - id: integrate
+    cost: session
+    summary: Builds, runs the tests and fixes where the packages meet.
+    stage:
+      name: integrate
+      kind: agent
+      teammates: [backend_engineer]
+      inputs: [spec, plan]
+      outputs: ["file:docs/integration.md"]
+      skip_if: [no_work_packages, single_package]
+      verification_policy: artifacts
+      retry: 1
+
+  - id: fix
+    cost: session
+    summary: The smallest change that fixes the cause; the reproduction is read-only for it.
+    requires: [reproduce]
+    stage:
+      name: fix
+      kind: agent
+      teammates: [debugger]
+      inputs: [request, triage, repro]
+      outputs: [fix_note]
+      retry: 1
+
+  - id: fix_findings
+    cost: session
+    summary: Fixes the serious audit findings (only with --fix and when there are findings).
+    requires: [security_report]
+    stage:
+      name: fix
+      kind: agent
+      teammates: [debugger]
+      prompt: fix_findings
+      skip_if: [fixes_not_requested, no_findings]
+      retry: 1
+
+  - id: refactor
+    cost: session
+    summary: The behaviour-preserving refactor.
+    stage:
+      name: refactor
+      kind: agent
+      teammates: [backend_engineer]
+      inputs: [request]
+      prompt: refactor
+      retry: 1
+
+  - id: work
+    cost: session
+    summary: A generalist does the request with the smallest change that achieves it.
+    stage:
+      name: work
+      kind: agent
+      teammates: [generalist_engineer]
+      inputs: [request]
+      instructions: >
+        Carry out the goal in the request, on the existing code, with the smallest change that
+        achieves it. If the goal is unclear or unsafe, say so in your summary and change nothing.
+      retry: 1
+
+  - id: tests_change
+    cost: session
+    summary: Tests for the change, in the style the project already uses.
+    stage:
+      name: tests
+      kind: agent
+      teammates: [quality_engineer]
+      inputs: [spec, plan]
+      retry: 1
+
+  - id: tests_characterize
+    cost: session
+    summary: Tests that pin what the code does today; only test files may change.
+    stage:
+      name: tests
+      kind: agent
+      teammates: [quality_engineer]
+      inputs: [request]
+      prompt: add_tests
+      write_scope: tests
+      retry: 1
+
+  - id: docs_legacy
+    cost: session
+    summary: The technical writer documents the existing code; only documentation files may change.
+    stage:
+      name: docs
+      kind: agent
+      teammates: [technical_writer]
+      inputs: [request]
+      prompt: docs_legacy
+      write_scope: docs
+      retry: 1
+
+  # -- verification ----------------------------------------------------------------------
+  - id: verify_new
+    cost: session
+    summary: The controller runs the checks; while one fails the debugger repairs (bounded rounds).
+    stage: {name: verify, kind: verify, teammates: [debugger], inputs: [spec, plan]}
+
+  - id: verify_fix
+    cost: session
+    summary: The reproduction must now pass (green) and the checks add no failure to the baseline.
+    stage: {name: verify, kind: verify, teammates: [debugger], prompt: repair_fix}
+
+  - id: verify_tests
+    cost: session
+    summary: The checks against the baseline; repairs stay inside the test files.
+    stage:
+      name: verify
+      kind: verify
+      teammates: [quality_engineer]
+      prompt: repair_tests
+      write_scope: tests
+
+  - id: verify_docs
+    cost: session
+    summary: The checks against the baseline; repairs stay inside the documentation.
+    stage:
+      name: verify
+      kind: verify
+      teammates: [technical_writer]
+      prompt: repair_docs
+      write_scope: docs
+
+  - id: verify_refactor
+    cost: session
+    summary: "The tests again, compared with the baseline: behaviour must be unchanged."
+    stage: {name: verify, kind: verify, teammates: [debugger], prompt: repair_refactor}
+
+  - id: verify_upgrade
+    cost: session
+    summary: The checks against the baseline; repairs stay inside manifests and lockfiles.
+    stage:
+      name: verify
+      kind: verify
+      teammates: [devops_engineer]
+      prompt: repair_upgrade
+      write_scope: manifests
+
+  - id: verify_findings
+    cost: session
+    summary: Verifies the fixed findings against the baseline (only with --fix and findings).
+    stage:
+      name: verify
+      kind: verify
+      teammates: [debugger]
+      skip_if: [fixes_not_requested, no_findings]
+
+  - id: verify_plain
+    cost: session
+    summary: The project's checks against the baseline; the debugger repairs what the change broke.
+    stage: {name: verify, kind: verify, teammates: [debugger]}
+
+  - id: coverage_after
+    cost: free
+    summary: Measures coverage again and reports the change.
+    requires: [coverage_before]
+    stage: {name: coverage_after, kind: controller, action: coverage_after}
+
+  # -- review ----------------------------------------------------------------------------
+  - id: review_new
+    cost: sessions
+    summary: Read-only reviewers side by side; serious findings go back to repair.
+    stage:
+      name: review
+      kind: review
+      teammates: [code_reviewer, security_engineer]
+      inputs: [spec, plan]
+      outputs: ["file:docs/review.md"]
+      skip_if: [minimal_team]
+      optional: true
+      verification_policy: artifacts
+
+  - id: review_change
+    cost: sessions
+    summary: Reviewers read the change, with the diff noise the plan does not account for.
+    stage:
+      name: review
+      kind: review
+      teammates: [code_reviewer, security_engineer]
+      inputs: [spec, plan]
+      skip_if: [minimal_team]
+      optional: true
+      prompt: review_change
+
+  - id: review_fix
+    cost: sessions
+    summary: Reviewers read the fix against the cause and the reproduction.
+    requires: [reproduce]
+    stage:
+      name: review
+      kind: review
+      teammates: [code_reviewer, security_engineer]
+      inputs: [request, triage, repro]
+      skip_if: [minimal_team]
+      optional: true
+      prompt: review_fix
+
+  - id: review_maintain
+    cost: session
+    summary: The code reviewer reads the maintenance change.
+    stage:
+      name: review
+      kind: review
+      teammates: [code_reviewer]
+      skip_if: [minimal_team]
+      optional: true
+      prompt: review_maintain
+
+  - id: review_diff
+    cost: sessions
+    summary: Read-only reviewers read the diff against the base; nothing is repaired.
+    requires: [target]
+    stage:
+      name: review
+      kind: review
+      teammates: [code_reviewer, security_engineer]
+      prompt: review_diff
+      repair: false
+      skip_if: [nothing_to_review]
+
+  - id: review_gate
+    cost: free
+    summary: Writes findings.json and fails the run when a finding reaches review.fail_on.
+    requires: [review_diff]
+    stage: {name: gate, kind: controller, action: review_gate}
+
+  - id: security_gate
+    cost: free
+    summary: Without --fix the audit is the result; fails the run on a serious finding.
+    requires: [security_report]
+    stage: {name: gate, kind: controller, action: security_gate, skip_if: [fixes_requested]}
+
+  # -- ceremony and records --------------------------------------------------------------
+  - id: devops
+    cost: session
+    summary: CI, containers and deployment, when the request asks for them.
+    stage:
+      name: devops
+      kind: agent
+      teammates: [devops_engineer]
+      inputs: [spec, plan]
+      outputs: ["file:docs/devops.md"]
+      skip_if: [minimal_team, devops_not_requested]
+      optional: true
+      verification_policy: artifacts
+      retry: 1
+
+  - id: devops_requested
+    cost: session
+    summary: CI, containers and deployment (triage found them in the request).
+    stage:
+      name: devops
+      kind: agent
+      teammates: [devops_engineer]
+      inputs: [spec, plan]
+      outputs: ["file:docs/devops.md"]
+      skip_if: [minimal_team]
+      optional: true
+      verification_policy: artifacts
+      retry: 1
+
+  - id: docs_ceremony
+    cost: session
+    summary: User documentation, when the request asks for it.
+    stage:
+      name: docs
+      kind: agent
+      teammates: [technical_writer]
+      inputs: [spec, plan]
+      outputs: ["file:docs/usage.md"]
+      skip_if: [minimal_team, docs_not_requested]
+      optional: true
+      verification_policy: artifacts
+      retry: 1
+
+  - id: docs_requested
+    cost: session
+    summary: User documentation (triage found it in the request).
+    stage:
+      name: docs
+      kind: agent
+      teammates: [technical_writer]
+      inputs: [spec, plan]
+      outputs: ["file:docs/usage.md"]
+      skip_if: [minimal_team]
+      optional: true
+      verification_policy: artifacts
+      retry: 1
+
+  - id: release_notes
+    cost: free
+    summary: docs/release-report.md, written by the controller from the run's records.
+    stage: {name: release_notes, kind: controller, action: release_notes}
+
+  - id: summary
+    cost: free
+    summary: CHANGE_SUMMARY.md and changes.patch in the run directory, from Git.
+    requires: [profile]
+    stage: {name: summary, kind: controller, action: change_summary}
+
+  - id: summary_for_fixes
+    cost: free
+    summary: The change summary, only when findings were fixed (--fix).
+    requires: [profile]
+    stage: {name: summary, kind: controller, action: change_summary, skip_if: [fixes_not_requested]}
+
+rules:
+  # -- a new project -----------------------------------------------------------------------
+  - when: {target: new, intent: [docs]}
+    add: [docs_requested]
+    why: The request asks for documentation, so the docs stage runs whatever its wording.
+
+  - when: {target: new, intent: [devops]}
+    add: [devops_requested]
+    why: The request asks for CI, containers or deployment, so the devops stage runs.
+
+  - when: {target: new, primary_not: [question, research, plan_only]}
+    add: [design_new, spec_new, plan_new, foundation, implement_new, integrate, verify_new,
+          review_new, devops, docs_ceremony, release_notes]
+    why: A new project is specified, planned, built, verified and reviewed from nothing.
+
+  # -- an existing project: the primary intent ---------------------------------------------
+  - when: {target: existing, primary: [bugfix]}
+    add: [triage, reproduce, fix, verify_fix, review_fix, summary]
+    why: A bug fix is seen failing (red) before it is changed and passing (green) after.
+
+  - when: {target: existing, primary: [feature]}
+    add: [design_change, spec_change, impact, implement_change, tests_change, verify_new,
+          review_change, summary]
+    why: A feature is specified against the existing behaviour, planned as the smallest change, built, tested and verified against the baseline.
+
+  - when: {target: existing, primary: [tests], only: true}
+    add: [tests_characterize]
+    policies: [tests_only]
+    why: A request only for tests may change test files only.
+
+  - when: {target: existing, primary: [tests]}
+    add: [coverage_before, tests_characterize, verify_tests, coverage_after, review_maintain,
+          summary]
+    why: Tests pin what the code does today; the controller reports the coverage change.
+
+  - when: {target: existing, primary: [docs], only: true}
+    add: [verify_docs]
+    policies: [docs_only]
+    why: A request only for documentation may change documentation files only.
+
+  - when: {target: existing, primary: [docs]}
+    add: [docs_legacy, verify_plain, review_maintain, summary]
+    why: The technical writer documents the existing code, verified against the baseline.
+
+  - when: {target: existing, primary: [refactor]}
+    add: [precondition, refactor, verify_refactor, review_maintain, summary]
+    policies: [tests_untouched, manifests_untouched, diff_size]
+    why: A refactor starts from passing tests and must keep them passing, with diff limits.
+
+  - when: {target: existing, primary: [upgrade_deps], only: true}
+    add: [verify_upgrade]
+    policies: [manifests_only]
+    why: A request only to upgrade dependencies may change manifests and lockfiles only.
+
+  - when: {target: existing, primary: [upgrade_deps]}
+    add: [plan_upgrades, upgrade, verify_plain, summary]
+    why: Dependencies are upgraded in groups, each checked, a failing group bisected.
+
+  - when: {target: existing, primary: [security_audit]}
+    add: [baseline_for_fixes, dependency_audit, audit, security_report, fix_findings,
+          verify_findings, security_gate, summary_for_fixes]
+    why: A security audit reads the code and the dependencies and reports; it changes code only with --fix.
+
+  - when: {target: existing, primary: [review]}
+    add: [target, review_diff, review_gate]
+    why: A review reads the change read-only and gates on serious findings.
+
+  - when: {target: existing, primary: [question, research, plan_only]}
+    add: [map]
+    why: Until the answer path exists (T15), a question about the project gets its profile, baseline and codebase map.
+
+  - when: {target: existing, primary: [performance, devops]}
+    add: [work, verify_plain, review_maintain, summary]
+    why: No specialised stages for this kind of change; a generalist makes it, verified against the baseline.
+
+  # -- an existing project: size and risk --------------------------------------------------
+  - when: {target: existing, primary: [bugfix, feature], size_at_least: medium}
+    add: [map_lean]
+    why: A medium or large change needs the codebase map (still skipped if the run is sized small).
+
+  - when: {target: existing, primary: [bugfix, feature], risk_at_least: medium}
+    add: [map_lean]
+    why: A risky change needs the codebase map (still skipped if the run is sized small).
+
+  - when: {target: existing, primary: [tests, docs, refactor, security_audit, performance, devops], size_at_least: medium}
+    add: [map]
+    why: A medium or large task needs the codebase map.
+
+  - when: {target: existing, primary: [tests, docs, refactor, security_audit, performance, devops], risk_at_least: medium}
+    add: [map]
+    why: A risky task needs the codebase map.
+
+  # -- an existing project: secondary intents ----------------------------------------------
+  - when: {target: existing, secondary: [tests], primary: [bugfix, docs, performance, devops, upgrade_deps]}
+    add: [tests_characterize]
+    why: The request also asks for tests.
+
+  - when: {target: existing, secondary: [docs], primary: [bugfix, feature, tests, performance, devops, upgrade_deps]}
+    add: [docs_legacy]
+    why: The request also asks for documentation.
+
+  # -- an existing project: always ---------------------------------------------------------
+  - when: {target: existing, primary_not: [review]}
+    add: [profile, baseline]
+    why: An existing project is profiled and its checks recorded before anything changes.
+
+  - when: {target: existing}
+    add: [profile]
+    why: An existing project is profiled before anything else.

@@ -114,6 +114,8 @@ class StageSpec(BaseModel):
     instructions: str | None = None
     write_scope: WriteScopeName | None = None
     repair: bool = True
+    # Why the stage is in the recipe: the composer's explanation (``pipeline/compose.py``).
+    why: str = ""
 
     @field_validator("name")
     @classmethod
@@ -264,6 +266,8 @@ class Recipe(BaseModel):
         for stage in data["stages"]:
             if stage.get("solo_prompt") is None:  # added in 0.3.0: unset keeps older digests
                 stage.pop("solo_prompt", None)
+            if not stage.get("why"):  # likewise
+                stage.pop("why", None)
         payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
