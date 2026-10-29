@@ -14,6 +14,9 @@ build/
 workspace/
 sandbox/
 benchmarks/.runs/
+# Repositories fetched for imported tasks, and the tasks `bench import-swe` writes.
+benchmarks/.cache/
+benchmarks/tasks-swe/
 
 # A benchmark batch keeps its records (batch.json, report.md, results.csv, result.json, profiles);
 # the workspaces the team built (each its own Git repository), CrewAI's storage, and the process

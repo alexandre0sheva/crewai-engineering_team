@@ -89,6 +89,9 @@ benchmarks/tasks/<id>/
   trace.txt        fix mode: the stack trace handed to `fix --trace-file`
 ```
 
+An imported real-repository task names a `repository` instead of a `fixture/`, its reference is
+`reference/solution.patch`, and it needs no `sabotage` ([below](#real-repository-tasks-swe-bench)).
+
 `intent` is one of the triage intents (`question`, `review`, `bugfix`, `feature`, `new_project`,
 `refactor`, `tests`, `docs`, `upgrade_deps`, ...); `size` is `trivial|small|medium|large`,
 `difficulty` `easy|medium|hard`, `languages` a list, `toolchains` what the checks need besides
@@ -118,6 +121,76 @@ Rules a task follows (the tests in `tests/test_bench_tasks.py` enforce most of t
 To add a task, copy a similar one, keep to the rules above, and run the three offline halves of
 `bench run --fake --tasks <id>`: the reference passes, `--fake-solution broken` fails the named
 criteria, and `--fake-solution fixture` (nothing done) fails.
+
+## Real-repository tasks (SWE-bench)
+
+The suite's fixtures are small; `bench import-swe` adds real repositories from
+[SWE-bench](https://www.swebench.com/), a public set of GitHub issues in Python projects, each with
+the commit it was filed against, the fix that closed it, and the tests that judge a fix. Only
+instances whose tests are pytest node ids are imported for now (Django's and SymPy's own test
+runners are skipped with the reason). Entries such as `[100%]`, fragments of pytest's progress bar
+that SWE-bench's log parser kept as tests, are dropped and listed in `swe.json` as
+`ignored_tests`.
+
+1. **Download the dataset yourself** (the harness never does): a JSON Lines file of instances, for
+   example SWE-bench Lite's test split from Hugging Face (`princeton-nlp/SWE-bench_Lite`), saved with
+   `datasets` as `load_dataset("princeton-nlp/SWE-bench_Lite", split="test").to_json("swe-lite.jsonl")`.
+   Its rows need `instance_id`, `repo`, `base_commit`, `problem_statement`, `patch`, `test_patch`,
+   `FAIL_TO_PASS` and `PASS_TO_PASS` (a list, or a JSON-encoded list as Hugging Face stores it).
+2. **Import** the instances you want; `benchmarks/swe-starter.txt` lists 15 from small repositories
+   (Flask, seaborn, pytest, pylint) whose tests need no network:
+
+   ```bash
+   uv run engineering-team bench import-swe --dataset swe-lite.jsonl --ids-file benchmarks/swe-starter.txt
+   uv run engineering-team bench list --tasks-dir benchmarks/tasks-swe
+   ```
+
+   Each instance becomes `benchmarks/tasks-swe/<id>/` (git-ignored; `--out DIR` elsewhere, `--force`
+   replaces): a `feature` task with intent `bugfix`, split `heldout` (`--split dev` to change it),
+   `request.md` = the issue text (hints are not given), `repository` in `task.yaml` (name, URL, base
+   commit and the repository's **license**: check it before you publish results; an unknown one is
+   reported), `reference/solution.patch` = the instance's fix, and the hidden checks:
+   `acceptance/test.patch` with `fail-to-pass` (every test the fix makes pass passes) and
+   `pass-to-pass` (every test that passed still does).
+3. **Pull the images** the checks run in, the SWE-bench harness's published evaluation images (the
+   repository at the base commit, installed): `docker pull swebench/sweb.eval.x86_64.<key>:latest`,
+   where `<key>` is the instance id with `__` written `_1776_` (`acceptance/swe.json` names it; a
+   missing image is a check `error` that says the command). They are x86-64 images, emulated on an
+   Arm machine; `--image-template` points the import at images you built. Each takes about 2 GB unpacked
+   (images share a 2.2 GB base): remove them when you are done (`docker rmi <image>`), and the
+   repository cache `benchmarks/.cache/` with them; they are fetched again when needed.
+4. **Run** like any task, with `--tasks-dir`:
+
+   ```bash
+   uv run engineering-team bench run --tasks-dir benchmarks/tasks-swe --fake --fake-solution fixture
+   ```
+
+**The repository is fetched at run time**, never committed: the first run of an instance fetches
+its base commit (`git fetch --depth 1`) into `<suite>/.cache/repos/` (`--repo-cache DIR` or
+`BENCH_REPO_CACHE`; git-ignored) and later runs reuse it. The team's `repo/` is a copy of that tree
+with one commit, so the upstream history (and the later fix) is not there to look up.
+
+**The checks** run inside the instance's image with no network: the team's tree is laid over
+`/testbed`, the files the test patch touches are put back as they were at the base commit and the
+test patch is applied, then `pytest -rA` runs the *files* the group's tests are in and each listed
+test must pass (or be an expected failure), as the SWE-bench harness does. Files, not test ids:
+SWE-bench stores an id that holds a space cut at that space (`test_x[a b]` as `test_x[a`), and pytest
+stops the whole run at an id it cannot find. A cut id is matched against the start of the reported
+test name; when several tests share it, a failing one wins. A test patch that no longer applies to the team's tree
+fails the criterion; Docker down or a missing image is an `error`, never a fail. A criterion may take
+up to 15 minutes (`check_timeout_seconds` in `task.yaml`). `--acceptance-sandbox local` runs the
+same steps on this machine over the cached checkout with this Python: only for repositories whose
+tests run with your packages, such as the synthetic instance in `tests/test_bench_swe.py`.
+
+**Checked on real instances** (2026-10-29, Docker Desktop on an Arm Mac, x86-64 images emulated):
+`pytest-dev__pytest-7373`, `pytest-dev__pytest-5227`, `pallets__flask-4992`,
+`mwaskom__seaborn-3010` and `pylint-dev__pylint-7114`, one per starter repository. With `--fake`
+the instance's own fix passes both criteria and the untouched repository fails `fail-to-pass` only.
+A criterion took 2 to 13 seconds; an image is 1.0 to 1.3 GB to download.
+
+**Offline mode** replays `reference/solution.patch` (the fake team writes the patched files) and
+`--fake-solution fixture` leaves the repository as it was; an imported task has no `sabotage`, so
+`--fake-solution broken` refuses it. The fetch still needs the network the first time.
 
 ## How a run works
 
@@ -564,8 +637,9 @@ runs and every acceptance check get a scrubbed environment with no keys.
 
 ## Limits
 
-- Most tasks are small; one fixture has 2,000 lines and none is a real-world repository (task 9
-  imports those). TypeScript and Go have a few tasks each; UI polish and long-running work are not
+- Most tasks are small; one fixture has 2,000 lines. Real-world repositories come from
+  `bench import-swe` (pytest-based SWE-bench instances only, judged by the instance's own tests,
+  which can be incomplete) and need Docker and the SWE-bench images. TypeScript and Go have a few tasks each; UI polish and long-running work are not
   covered. Scoring a review, an answer or a recorded assumption by checks is keyword- and
   location-based: generous enough for other wording, but a check, not a judge.
 - A passing run means the stated behaviours hold, not that the code is good: review quality, tests
@@ -578,6 +652,6 @@ runs and every acceptance check get a scrubbed environment with no keys.
 
 | Path | Role |
 |------|------|
-| `src/engineering_team/bench/` | the harness (in the wheel): `tasks` (schema, loading), `selection` (filters), `plan` and `prepare` (what runs and how), `execution` (one run, and `judge`, the hidden-check verdict both kinds share), `agents/` and `agent_run` (external agents, [above](#external-agent-baselines---agent)), `compare` and `export` (paired comparison, `results.json`), `batch` (parallel, budget, resume), `acceptance`, `checklib` and `reviewlib` (the hidden checks' runner and helpers), `metrics` and `results` (what a run records), `report` and `stats`, `estimate` (`--dry-run`), `spend` (the release ledger), `fake_team` (offline mode) |
-| `src/engineering_team/cli/bench_*.py` | `bench list` and `bench run` (`bench_command`), `bench report` and `--dry-run` (`bench_report_command`), `bench spend` (`bench_spend_command`), `--agent` options (`bench_agents`) |
-| `benchmarks/` | the suite (repository only): `tasks/`, `images/` (Docker images for the Node and Go checks), `budget.toml` and `spend.jsonl` (the release's live spend), `configs/` (settings files for the measured variants), `results/` (committed results), and `.runs/` (working results, git-ignored) |
+| `src/engineering_team/bench/` | the harness (in the wheel): `tasks` (schema, loading), `selection` (filters), `plan` and `prepare` (what runs and how), `execution` (one run, and `judge`, the hidden-check verdict both kinds share), `agents/` and `agent_run` (external agents, [above](#external-agent-baselines---agent)), `compare` and `export` (paired comparison, `results.json`), `batch` (parallel, budget, resume), `acceptance`, `checklib` and `reviewlib` (the hidden checks' runner and helpers), `metrics` and `results` (what a run records), `report` and `stats`, `estimate` (`--dry-run`), `spend` (the release ledger), `fake_team` (offline mode), `swe`, `repos`, `swe_check` and `swe_runner` (SWE-bench import, repository cache, and its checks) |
+| `src/engineering_team/cli/bench_*.py` | `bench list` and `bench run` (`bench_command`), `bench report` and `--dry-run` (`bench_report_command`), `bench spend` (`bench_spend_command`), `bench import-swe` (`bench_swe_command`), `--agent` options (`bench_agents`) |
+| `benchmarks/` | the suite (repository only): `tasks/`, `images/` (Docker images for the Node and Go checks), `budget.toml` and `spend.jsonl` (the release's live spend), `configs/` (settings files for the measured variants), `results/` (committed results), `swe-starter.txt` (SWE-bench instances to import), and `.runs/`, `.cache/` and `tasks-swe/` (working results, fetched repositories and imported tasks, git-ignored) |

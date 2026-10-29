@@ -14,7 +14,13 @@ index in §5, rules in §4). When the user says "implement task N" (or "do task 
 2. If a dependency is not `done`, stop and tell the user.
 3. Implement only that task, following the rules (hermetic tests, docs updated per the
    Documentation map, `CHANGELOG.md` entry under `[Unreleased]`, no duplicated docs).
-4. Run the gate, then `uv run python scripts/plan_task.py done N`.
+4. Run the gate, then `uv run python scripts/plan_task.py done N`. A task with a live run (plan §4
+   *Live spend cap*): make the run yourself as part of the task. Before the first live command, ask
+   the user to check the balance of each provider it bills (name them, the estimate and the
+   allocation left) and wait for the reply; never leave a live run to the user.
+   Large downloads (Docker images, datasets, toolchains): fetch them again when the task needs
+   them, and remove what the task fetched before marking it done (plan §4 *Large downloads and
+   disk space*).
 5. **Never `git commit`, `git push`, tag or publish** — the user commits manually. Finish with
    files changed, gate results, decisions (also append deviations to the plan's Decision log)
    and a suggested commit message.

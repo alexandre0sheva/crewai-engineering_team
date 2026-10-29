@@ -258,12 +258,14 @@ Read this section before starting any task.
    they conflict; record the difference in the Decision log.
 3. Work test-first where practical: failing test → implementation → green. Every bug fix gets a
    regression test.
-4. Run the full gate (below) before declaring done.
+4. Run the full gate (below) before declaring done. A task with a live run (§4 *Live spend cap*)
+   makes that run itself, as part of the task (see *Who runs live*).
 5. Update documentation per the **Documentation map** (in `CONTRIBUTING.md`; `plan_task.py show`
    prints it) and add a `CHANGELOG.md` entry under `[Unreleased]` (Added/Changed/Removed/Fixed/
    Security; one line per user-visible change, no implementation chatter).
 6. Mark the task done with `uv run python scripts/plan_task.py done N` and add any deviation to the
-   Decision log (§7).
+   Decision log (§7). Before that, clean up the large files the task fetched (§4 *Large downloads
+   and disk space*).
 7. **Do not `git commit`, `git push`, tag, or publish.** End with: files changed, gate output
    summary, decisions made, follow-ups, and a suggested commit message.
 
@@ -313,6 +315,17 @@ and the final evaluation together — stays **under $15.00 (API-billed)**. Alloc
 | T33 | final evaluation incl. T21's live tuning and the learning on/off check | $9.70 |
 | — | reserve (reruns after a harness bug; needs the user's OK to use) | $0.50 |
 
+Who runs live:
+- **The executor (the model implementing the task) makes every live run of its task itself**:
+  probes, screens, benchmark batches, tuning, example reports, recordings. A live run is never left
+  to the user as a follow-up, and a task with a live run is not `done` until that run is made and
+  recorded in the ledger (or the task says why it was skipped).
+- **Before the first live command of a task**, the executor asks the user in chat to check the
+  balance of every provider the run will bill: it names the providers, the estimate (`bench plan
+  --estimate` / `--dry-run`) and the task's remaining allocation, then waits for the user's reply.
+  That one confirmation covers the task's live runs within its allocation; a run that would go over
+  it still needs the explicit OK below.
+
 Rules:
 - Every live command goes through the spend ledger `benchmarks/spend.jsonl` (built in T7): one line
   per run with date, task, command, estimated and actual cost. `benchmarks/budget.toml` holds the
@@ -328,6 +341,26 @@ Rules:
 - Unspent allocation may move to a later task; going over any allocation or the total needs the
   user's explicit OK in chat, never a flag.
 - Tests never spend: everything in the gate is offline.
+
+### Large downloads and disk space
+
+Disk space on the development machine is limited (about 50 GB free): nothing large is kept
+"in case".
+
+- **Fetch again when a task needs it.** Docker images (the SWE-bench evaluation images, about
+  2 GB each unpacked; the Node and Go check images of `benchmarks/images/`), datasets (SWE-bench
+  Lite), toolchains and npm packages are not kept between tasks. A task that needs one pulls,
+  builds or downloads it itself, saying beforehand what and how large; it never assumes an
+  earlier task left it behind.
+- **Clean up when they are no longer needed.** Before a task is marked done, it removes what it
+  fetched and no later step of the same task needs: the images it pulled or built
+  (`docker rmi <image>`), downloaded datasets and toolchains, scratch batch directories and the
+  repository cache `benchmarks/.cache/`. What the task must keep (committed results under
+  `benchmarks/results/`, files the plan says to commit) stays, and so do small files that save a
+  download later (the imported tasks in `benchmarks/tasks-swe/`, under 1 MB).
+- Only remove what the task itself created: images, caches and files of other projects or of the
+  user are left alone (mention them if they are large). The task report says what was removed and
+  how much space it freed.
 
 ### Tool design rules (every new agent tool)
 
@@ -375,7 +408,7 @@ format is machine-read, keep one row per task and the first/last columns intact.
 | 6 | Lean team: fewer sessions, less re-sent context, no ceremony by default | O | 5 | B | done (2026-10-28) |
 | 7 | Benchmark v2: harder, broader tasks and fixed splits | O | 1 | B | done (2026-10-29) |
 | 8 | External agent baselines (Claude Code, Codex, OpenCode, Aider) | S | 7 | B | done (2026-10-29) |
-| 9 | SWE-bench-style real-repository task importer | O | 7 | B | todo |
+| 9 | SWE-bench-style real-repository task importer | O | 7 | B | done (2026-10-29) |
 | 10 | Triage: `TaskProfile` from deterministic signals and one model call | O | 3 | C Universal agent | todo |
 | 11 | Recipe composer: stage library and composition rules | O | 10 | C | todo |
 | 12 | Dynamic team: a lead agent that calls teammates on demand | O | 6,11 | C | todo |
@@ -399,7 +432,7 @@ format is machine-read, keep one row per task and the first/last columns intact.
 | 30 | MCP server: let other agents delegate to the team | S | 14 | F | todo |
 | 31 | Web UI v2: one textbox, triage preview, threads, attempts, learning views | S | 14,15,16,18,20,23 | G UX | todo |
 | 32 | Public website on GitHub Pages: landing, docs, leaderboard, live demos | S | 8,31 | G | todo |
-| 33 | Live evaluation 0.3.0 and defaults decision (needs your API spend) | S | 8,13,20,23,25,32 | H Release | todo |
+| 33 | Live evaluation 0.3.0 and defaults decision (live runs by the executor) | S | 8,13,20,23,25,32 | H Release | todo |
 | 34 | Docs overhaul, PyPI publishing, release 0.3.0 | S | all | H | todo |
 
 Order notes: tasks 2, 3, 4, 7 are independent after 1; 5 → 6 (speed and cost) right after 4 — do
@@ -1302,7 +1335,7 @@ team does, prove it with numbers, and link to everything else without duplicatin
    The workflow does not run on forks' pull requests with secrets; it needs none.
 5. A recorded terminal demo (`vhs` tape committed, GIF generated) of `do` on a bug in a real small
    repository; if tools are missing locally, commit the tape and leave rendering to the user.
-6. Replace scripted example reports with **live** ones (≤ $1.00 together with the recording;
+6. Replace scripted example reports with **live** ones (made by the executor, §4 *Who runs live*) (≤ $1.00 together with the recording;
    cheapest passing preset; clearly labelled with model, cost, date),
    keeping the scripted ones for offline regeneration.
 7. README: lead with `do`, link the site and the leaderboard, an architecture diagram; the README
@@ -1317,13 +1350,14 @@ results; publishing is one push by the user.
 
 ### Phase H — Release
 
-#### Task 33 — Live evaluation 0.3.0 and defaults decision *(needs your API spend)*
+#### Task 33 — Live evaluation 0.3.0 and defaults decision *(live runs by the executor)*
 
 **Depends on:** 8,13,20,23,25,32 · **Model:** S
 
 **Do:**
-1. **Budget: ≤ $9.70 for this task, inside the $15 release cap** (check `bench spend` first; use
-   what T3/T10/T25/T32 left over only with the user's OK). Before any run, write the evaluation
+1. **Budget: ≤ $9.70 for this task, inside the $15 release cap.** The executor makes every run,
+   after asking the user to check provider balances (§4 *Who runs live*). Check `bench spend` first; use
+   what T3/T10/T25/T32 left over only with the user's OK. Before any run, write the evaluation
    matrix with `bench plan --estimate` and fit it to the budget, roughly: held-out split first,
    two repeats, cheapest passing presets for worker tiers, `--attempts 3` on a subset only,
    `pipeline`/`team` rungs only where `auto` escalates; target ≈ $6.70 matrix, ≈ $1.50 tuning, ≈ $0.50
@@ -1450,3 +1484,14 @@ works from another directory; the user has the exact tag and publish steps.
 | 2026-10-29 | T8 | Review tasks are not run by external agents (`applies`: `mode != review`); the report lists them as not applicable. The agent request is the request text plus a fix task's stack trace and reproduction command as text; `maintain` presets are not passed | `review` ends in `findings.json` through a team-only command and the presets add instructions: giving them to one side would make the comparison unfair, adding a findings protocol for each agent is out of scope. Reviews stay a team-only measure until a later task needs more |
 | 2026-10-29 | T8 | Billing is detected from the environment (API key or cloud switch means `api`, none means a plan for Claude Code and Codex; OpenCode is `unknown`, Aider `api`) and overridable with `--agent-billing`. A plan run has `cost_usd = null` plus `equivalent_cost_usd`; the ledger gets a `billing: subscription` line (0 charged); `unknown` is charged like `api`. A paid agent's ledger estimate is its per-run cap, since nothing prices an agent beforehand, and only Claude Code can be capped on its command line | A wrong guess in either direction would hide spend or block free runs, so it is shown in the report header and overridable; the plan says a plan is never $0 and never counted |
 | 2026-10-29 | T8 | `--fake` makes only the team scripted; `--fake --agent X` runs X for real (tests put fake binaries on `PATH`), and such a report says "Mixed batch". `results.json` is written by `bench run` and `bench report`; its `contenders`, `paired` and `runs` keys are what T32's leaderboard reads | The done-when asks for a mixed report from a fake team and a fake agent; the leaderboard needs a stable schema |
+| 2026-10-29 | T9 | Imported tasks live in their own directory (`benchmarks/tasks-swe/`, git-ignored with the repository cache `benchmarks/.cache/`), selected with `bench run`/`list --tasks-dir`; the suite (ledger, budget, `.runs/`) stays `benchmarks/` | Mixing them into `benchmarks/tasks/` would make the default `bench run --fake` and the gate's suite tests need the network and Docker. Whether to commit imported tasks (issue text and test patches under each repository's license) is left to the user |
+| 2026-10-29 | T9 | `task.yaml` gains `repository` (name, url, full commit SHA, license) and `check_timeout_seconds`; `sabotage` is optional for repository tasks (the untouched repository is the solution that must fail; `--fake-solution broken` refuses them), and their reference is `reference/solution.patch`, which the fake team turns into written files | SWE-bench has no sabotage edits and the reference only exists as a diff against a repository not present at import time |
+| 2026-10-29 | T9 | Imported instances are `feature` tasks with intent `bugfix`, split `heldout` by default; the request is the issue text with one framing line, without `hints_text` | `fix` mode requires a stack trace or repro command, which issues lack; SWE-bench's standard setting gives no hints; a public set is better kept out of tuning |
+| 2026-10-29 | T9 | The team's repository is a copy of the cached tree with one commit (no upstream history) | A known SWE-bench leak: the later fix is reachable in a full clone |
+| 2026-10-29 | T9 | Checks use the SWE-bench published evaluation images (`swebench/sweb.eval.x86_64.<id, __ as _1776_>:latest`, conda Python at `/opt/miniconda3/envs/testbed/bin/python`, `--platform linux/amd64`), never pulled automatically. A stdlib runner (`bench/swe_runner.py`, Python 3.6 syntax, `UP` rules off for that file) lays the team's tree over `/testbed`, restores the test patch's files at the base commit, applies the test patch and runs `pytest -rA`; `PASSED`/`XFAIL` count as a pass, as in the SWE-bench harness. A patch that no longer applies is a failed criterion; Docker missing/stopped or a missing image is a check `error` | Reuses the images the community already builds instead of re-deriving each environment; no host shell (the runner is argv-only Python in the container); the oldest SWE-bench environments run Python 3.6 |
+| 2026-10-29 | T9 | Only instances with pytest node ids are imported; others are skipped with the reason. The starter list (15 SWE-bench Lite ids, checked against the public dataset viewer) covers Flask, seaborn, pytest and pylint (GPL-2.0, noted) and leaves out psf/requests | Django and SymPy use their own runners; many requests tests call httpbin.org, which the checks' `--network none` blocks |
+| 2026-10-29 | plan | The executor of a task makes its live runs itself (never a follow-up for the user) and first asks the user in chat to check the balance of each provider the run bills, naming the providers, the estimate and the remaining allocation; that confirmation covers the task's runs within its allocation. Ledger, caps and the explicit OK to go over are unchanged. T3's `doctor --probe-tools` allocation ($0.10) has no ledger line: T25 runs that probe for every candidate anyway | User's instruction (2026-10-29): live runs belong to the task, the user only confirms the money is there |
+| 2026-10-29 | T9 | Checked against real SWE-bench images (no API spend): dataset = SWE-bench Lite test split (300 rows, Hugging Face rows API), 5 instances (one per starter repository plus pytest-5227) with `--fake`: reference passes both criteria, untouched repository fails `fail-to-pass` only, 2–13 s per criterion emulated. The image's HEAD is a `SWE-bench` commit over the base that only changes file modes, so restoring test files from the base commit is right | The done-when only needed a synthetic instance; the real run found two dataset quirks below |
+| 2026-10-29 | T9 | The runner runs the test *files* the ids name and matches each id against the start of the reported node id (a failing match wins over a passing one), instead of passing ids to pytest | SWE-bench cut ids at the first space; pytest aborts the whole run on one id it cannot find, so every `pass-to-pass` test of pytest-7373 came back missing. Running files is also what the SWE-bench harness does |
+| 2026-10-29 | T9 | Test entries starting with `[` (`[100%]`, `[`) are dropped on import and kept in `swe.json` as `ignored_tests` | Progress-bar fragments SWE-bench's parser kept; only pytest-5227 in Lite has them, and skipping the instance would have dropped a valid task |
+| 2026-10-29 | plan | §4 *Large downloads and disk space*: images, datasets and toolchains are fetched again by each task that needs them and removed (with scratch batches and `benchmarks/.cache/`) before the task is done; only what the task created is removed. T9's five SWE-bench images (about 12 GB unpacked) and its repository cache were removed after the real-instance check | User's instruction (2026-10-29): about 50 GB free, no redundant large files kept forever; an image is pulled again in about 30 s |

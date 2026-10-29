@@ -144,11 +144,12 @@ def judge(
     The checks decide; ``ended`` (how ``who`` says it stopped) only explains a failure.
     """
 
+    cache = str(options.repo_cache) if options.repo_cache else None
     outcomes = run_acceptance(
         spec.task,
         workspace,
-        timeout=options.acceptance_timeout,
-        settings=CheckSettings(options.acceptance_sandbox, options.node_modules),
+        timeout=max(options.acceptance_timeout, spec.task.check_timeout_seconds or 0),
+        settings=CheckSettings(options.acceptance_sandbox, options.node_modules, cache),
     )
     criteria = [
         CriterionRecord(id=o.id, passed=o.passed, error=o.status == "error", required=o.required,

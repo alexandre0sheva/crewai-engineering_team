@@ -52,6 +52,7 @@ class RunOptions:
     acceptance_timeout: float = 120.0
     acceptance_sandbox: str = "docker"  # where Node/Go checks run: docker or local
     node_modules: str | None = None  # local Node checks: the task packages' node_modules
+    repo_cache: Path | None = None  # where tasks' repositories are fetched (bench/repos.py)
     resume: bool = False
     agent_models: Mapping[str, str] = field(
         default_factory=dict

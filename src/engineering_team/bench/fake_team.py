@@ -6,8 +6,9 @@ CLI. It builds a real CrewAI ``Agent`` on a :class:`ScriptedLLM` whose script is
 so the tool layer (path rules, protected paths, events, usage) is exercised without a model.
 ``--solution broken`` applies the task's ``sabotage`` to the reference first; ``--solution fixture``
 writes nothing, so the workspace is the starting point (the fixture, or nothing) and the checks must
-fail it. The output is a JSON summary shaped like ``new --json``, so the harness treats both teams
-the same way.
+fail it. A repository task's reference is a patch: it is applied to copies of the files it touches
+in the workspace, and the patched files are written the same way. The output is a JSON summary
+shaped like ``new --json``, so the harness treats both teams the same way.
 """
 
 from __future__ import annotations
@@ -19,7 +20,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from engineering_team.bench.tasks import BenchError, BenchTask, load_task
+from engineering_team.bench.repos import RepositoryError, patched_files
+from engineering_team.bench.tasks import REFERENCE_PATCH, BenchError, BenchTask, load_task
 
 FAKE_MODEL = "ollama/qwen3.8:27b"  # a priced (free) model name, so the cost reads $0.00
 WRITE_TOOL = "Write Project File"
@@ -27,15 +29,27 @@ SKIP_SUFFIXES = (".pyc",)
 SOLUTIONS = ("reference", "broken", "fixture")
 
 
-def reference_files(task: BenchTask, solution: str = "reference") -> dict[str, str]:
+def reference_files(
+    task: BenchTask, solution: str = "reference", workspace: Path | None = None
+) -> dict[str, str]:
     """The files the fake team writes: the reference, the reference after the task's sabotage, or
-    nothing (``fixture``: the work not done)."""
+    nothing (``fixture``: the work not done). A repository task's reference patch is applied over
+    ``workspace``."""
 
     if solution not in SOLUTIONS:
         raise BenchError(f"solution must be 'reference', 'broken' or 'fixture', not {solution!r}.")
     files: dict[str, str] = {}
     if solution == "fixture":
         return files
+    if task.sabotage is None and solution == "broken":
+        raise BenchError(f"Task {task.id} has no sabotage: use --fake-solution fixture instead.")
+    if task.repository is not None:
+        if workspace is None:
+            raise BenchError(f"Task {task.id}: its reference patch needs the workspace.")
+        try:
+            return patched_files(task.reference_patch.read_text(encoding="utf-8"), workspace)
+        except RepositoryError as exc:
+            raise BenchError(f"Task {task.id}: reference/{REFERENCE_PATCH}: {exc}") from exc
     root = task.reference_dir
     for path in sorted(root.rglob("*")):
         relative = path.relative_to(root)
@@ -45,7 +59,7 @@ def reference_files(task: BenchTask, solution: str = "reference") -> dict[str, s
             and path.suffix not in SKIP_SUFFIXES
         ):
             files[relative.as_posix()] = path.read_text(encoding="utf-8")
-    if solution == "broken":
+    if solution == "broken" and task.sabotage:
         for edit in task.sabotage.edits:
             if edit.path not in files:
                 raise BenchError(f"Task {task.id}: sabotage edits {edit.path}, not in reference/.")
@@ -140,7 +154,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--solution", choices=SOLUTIONS, default="reference")
     args = parser.parse_args(argv)
     try:
-        files = reference_files(load_task(args.task_dir), args.solution)
+        files = reference_files(load_task(args.task_dir), args.solution, args.workspace)
     except BenchError as exc:
         summary_out.write(json.dumps({"status": "error", "error": str(exc), "exit_code": 2}) + "\n")
         summary_out.flush()

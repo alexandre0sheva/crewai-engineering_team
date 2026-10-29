@@ -31,10 +31,17 @@ from engineering_team.bench.selection import TaskFilter, select_tasks, split_val
 from engineering_team.bench.spend import SpendLedger
 from engineering_team.bench.tasks import BenchError, load_suite
 from engineering_team.cli.bench_agents import agent_names, agent_pairs, probe_agents
-from engineering_team.cli.bench_options import OutOption, SuiteOption, suite_path
+from engineering_team.cli.bench_options import (
+    OutOption,
+    SuiteOption,
+    TasksDirOption,
+    suite_path,
+    tasks_dir_path,
+)
 from engineering_team.cli.bench_report_command import dry_run as show_dry_run
 from engineering_team.cli.bench_report_command import print_groups, report
 from engineering_team.cli.bench_spend_command import check_spend, record_batch_spend, spend
+from engineering_team.cli.bench_swe_command import import_swe
 from engineering_team.cli.context import fail, one_of, print_json
 from engineering_team.cli.context import get as get_globals
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
@@ -45,6 +52,7 @@ EXIT_INTERRUPTED = 130
 bench_app = typer.Typer(help="Run and report the benchmark suite.", no_args_is_help=True)
 bench_app.command("report")(report)
 bench_app.command("spend")(spend)
+bench_app.command("import-swe")(import_swe)
 
 
 def _strategies(values: list[str] | None, *, agents: bool = False) -> list[str]:
@@ -95,12 +103,14 @@ def _settings(
 
 
 @bench_app.command("list")
-def list_tasks(ctx: typer.Context, suite: SuiteOption = None) -> None:
+def list_tasks(
+    ctx: typer.Context, suite: SuiteOption = None, tasks_dir: TasksDirOption = None
+) -> None:
     """List the benchmark tasks."""
 
     g = get_globals(ctx)
     try:
-        tasks = load_suite(suite_path(suite))
+        tasks = load_suite(suite_path(suite), tasks_dir_path(tasks_dir))
     except BenchError as exc:
         fail(str(exc))
     if g.json:
@@ -111,6 +121,7 @@ def list_tasks(ctx: typer.Context, suite: SuiteOption = None) -> None:
                     "split": t.split, "size": t.size, "difficulty": t.difficulty,
                     "languages": t.languages, "toolchains": t.toolchains,
                     "criteria": [c.id for c in t.criteria], "title": t.title,
+                    "repository": t.repository.model_dump() if t.repository else None,
                 }
                 for t in tasks
             ]
@@ -118,7 +129,7 @@ def list_tasks(ctx: typer.Context, suite: SuiteOption = None) -> None:
         return
     table = Table("Task", "Intent", "Split", "Languages", "Size", "Difficulty", "Title", box=None)
     for t in tasks:
-        languages = ", ".join(t.languages) + (" (Docker)" if t.toolchains else "")
+        languages = ", ".join(t.languages) + (" (Docker)" if t.toolchains or t.repository else "")
         table.add_row(t.id, t.intent, t.split, languages, t.size, t.difficulty, t.title)
     g.console().print(table)
 
@@ -227,6 +238,14 @@ def run(
             "tasks' packages (benchmarks/images/node/package.json).",
         ),
     ] = None,
+    repo_cache: Annotated[
+        str | None,
+        typer.Option(
+            envvar="BENCH_REPO_CACHE",
+            help="Where the repositories of imported tasks are fetched and kept (default: "
+            "<suite>/.cache/repos).",
+        ),
+    ] = None,
     allocation: Annotated[
         str | None,
         typer.Option(
@@ -247,6 +266,7 @@ def run(
         bool, typer.Option(help="Exit 0 even when runs fail (they are the data).")
     ] = False,
     suite: SuiteOption = None,
+    tasks_dir: TasksDirOption = None,
     out: OutOption = None,
 ) -> None:
     """Run benchmark tasks through the team, judge each with hidden checks, and write a report."""
@@ -265,7 +285,7 @@ def run(
         difficulties=tuple(split_values(difficulty)),
     )
     try:
-        chosen = select_tasks(load_suite(suite_dir), tasks, task_filter)
+        chosen = select_tasks(load_suite(suite_dir, tasks_dir_path(tasks_dir)), tasks, task_filter)
     except BenchError as exc:
         fail(str(exc))
     specs, not_applicable = plan_runs(chosen, [*strategies, *agents], repeat)
@@ -337,6 +357,8 @@ def run(
         run_budget_usd=run_cap, resume=resume, agent_models=models, agent_billing=agent_billing_of,
         agent_versions={n: i.version for n, i in infos.items() if i.version},
         acceptance_sandbox=acceptance_sandbox, node_modules=node_modules,
+        repo_cache=Path(repo_cache).expanduser().resolve() if repo_cache
+        else suite_dir / ".cache" / "repos",
     )  # fmt: skip
     batch_dir.mkdir(parents=True, exist_ok=True)
     write_batch_manifest(

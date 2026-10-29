@@ -11,6 +11,11 @@ renames that section and dates it.
 
 ### Added
 
+- `bench import-swe --dataset FILE --ids ...` turns SWE-bench instances (Python, pytest) from a dataset file you
+  downloaded into tasks on the real repository: the issue is the request, the instance's tests run in its SWE-bench
+  Docker image as the hidden checks, and each task notes the repository's license. Repositories are fetched at run
+  time into a cache (`--repo-cache`), `bench run`/`list --tasks-dir` use the imported tasks, and
+  `benchmarks/swe-starter.txt` lists 15 small-repository instances.
 - `bench run --agent claude-code|codex|opencode|aider` runs those tools on the same tasks, time limit and hidden checks as
   the team (`--agent-model` pins their model); reports compare strategies and agents side by side with Wilson
   intervals and per-task wins, plan-billed runs are labelled (never $0), and `results.json` holds both in one schema.

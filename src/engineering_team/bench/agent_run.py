@@ -40,7 +40,7 @@ def agent_request(task: BenchTask) -> str:
     return text
 
 
-def prepare_workspace(spec: RunSpec, run_dir: Path) -> Path:
+def prepare_workspace(spec: RunSpec, run_dir: Path, repo_cache: Path | None = None) -> Path:
     """The run directory and the workspace the agent starts in (nothing is started)."""
 
     task = spec.task
@@ -51,7 +51,7 @@ def prepare_workspace(spec: RunSpec, run_dir: Path) -> Path:
         workspace.mkdir(parents=True)
     else:
         workspace = run_dir / "repo"
-        make_repository(task, workspace)
+        make_repository(task, workspace, repo_cache)
     return workspace
 
 
@@ -67,7 +67,7 @@ def execute_agent_run(
     if run_dir.exists():
         shutil.rmtree(run_dir)
     try:
-        workspace = prepare_workspace(spec, run_dir)
+        workspace = prepare_workspace(spec, run_dir, options.repo_cache)
         request = agent_request(spec.task)
     except (OSError, BenchError, subprocess.CalledProcessError) as exc:
         record = base_record(

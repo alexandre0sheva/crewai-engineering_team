@@ -25,8 +25,12 @@ LINK = re.compile(r"(?<!\!)\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)|!\[[^\]]*\]
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 FENCE = re.compile(r"^\s*(```|~~~)")
 SKIP_DIRECTORIES = {".git", ".venv", "node_modules", "dist", "build", "workspace", "sandbox"}
-# Run records and generated or third-party trees whose Markdown is not ours to check.
-SKIP_PARTS = {"fixture", "reference", ".engineering-team", "results", "knowledge", ".runs"}
+# Run records and generated or third-party trees whose Markdown is not ours to check (``tasks-swe``
+# and ``.cache``: imported SWE-bench issues and the repositories fetched for them).
+SKIP_PARTS = {
+    "fixture", "reference", ".engineering-team", "results", "knowledge", ".runs", "tasks-swe",
+    ".cache",
+}  # fmt: skip
 
 
 def markdown_files() -> list[Path]:

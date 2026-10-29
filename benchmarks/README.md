@@ -11,3 +11,7 @@ uv run engineering-team bench spend           # the release's live spend (budget
 ```
 
 Results go to `benchmarks/.runs/` (git-ignored).
+
+Real-repository tasks: `bench import-swe` writes SWE-bench instances (`swe-starter.txt` lists a starter set) to
+`tasks-swe/`, and their repositories are fetched into `.cache/` (both git-ignored); see
+[docs/BENCHMARKS.md](../docs/BENCHMARKS.md#real-repository-tasks-swe-bench).

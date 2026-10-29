@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Literal
 
 from engineering_team.bench.checklib import NODE_MODULES_ENV, SANDBOX_ENV
+from engineering_team.bench.repos import CACHE_ENV
 from engineering_team.bench.tasks import BenchTask, copy_tree
 
 DETAIL_LIMIT = 1500
@@ -38,6 +39,7 @@ class CheckSettings:
 
     sandbox: str = "docker"
     node_modules: str | None = None  # local only: a node_modules directory with the task deps
+    repo_cache: str | None = None  # local only: the cached checkouts of repository tasks
 
 
 @dataclass(frozen=True)
@@ -89,6 +91,8 @@ def check_environment(home: Path, settings: CheckSettings | None = None) -> dict
     env[SANDBOX_ENV] = settings.sandbox
     if settings.node_modules:
         env[NODE_MODULES_ENV] = settings.node_modules
+    if settings.repo_cache:
+        env[CACHE_ENV] = settings.repo_cache
     return env
 
 

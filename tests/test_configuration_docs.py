@@ -146,7 +146,9 @@ def test_only_settings_and_subprocess_code_read_the_process_environment() -> Non
     # scrubbed one for the hidden checks, prepare.py the team's (the live environment plus a few
     # variables); checklib.py runs inside a check, reading that scrubbed environment (where its
     # toolchain commands run) and passing it on to them; agents/base.py gives an external agent
-    # (Claude Code, Codex, ...) the live environment, with its own credentials.
+    # (Claude Code, Codex, ...) the live environment, with its own credentials. repos.py starts
+    # `git` to fetch a task's repository (the live environment, prompts off); swe_check.py runs
+    # inside a check, like checklib.py, and reads where its tests run and the repository cache.
     allowed = {
         "loading.py",
         "commands.py",
@@ -155,6 +157,8 @@ def test_only_settings_and_subprocess_code_read_the_process_environment() -> Non
         "prepare.py",
         "checklib.py",
         "base.py",
+        "repos.py",
+        "swe_check.py",
     }
     offenders = []
     for path in (ROOT / "src" / "engineering_team").rglob("*.py"):

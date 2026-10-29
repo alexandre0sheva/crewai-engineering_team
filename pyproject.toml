@@ -118,6 +118,8 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.ruff.lint.per-file-ignores]
 # The JavaScript run inside the page is one string; wrapping it would only hurt readability.
 "src/engineering_team/browsertools/scripts.py" = ["E501"]
+# Runs inside a SWE-bench environment, whose Python may be as old as 3.6: no newer syntax.
+"src/engineering_team/bench/swe_runner.py" = ["UP"]
 
 [tool.mypy]
 files = ["src"]

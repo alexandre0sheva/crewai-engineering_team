@@ -11,6 +11,11 @@ A task lives in ``<suite>/tasks/<id>/``::
 
 ``task.yaml`` also names a ``sabotage``: edits that break the reference on purpose, and the
 criteria that must then fail. It proves the checks tell a good solution from a bad one.
+
+A task imported from a real repository (``bench import-swe``, :mod:`engineering_team.bench.swe`)
+names a ``repository`` instead of shipping a ``fixture/``: the repository at one commit, fetched at
+run time into a cache. Its reference is a patch (``reference/solution.patch``) and it needs no
+sabotage: the untouched repository is the solution that must fail.
 """
 
 from __future__ import annotations
@@ -31,6 +36,8 @@ from pydantic import (
 )
 
 SLUG = re.compile(r"[a-z0-9][a-z0-9-]*")
+COMMIT = re.compile(r"[0-9a-f]{40}")
+REFERENCE_PATCH = "solution.patch"  # a repository task's reference: a patch over the repository
 MAINTAIN_PRESETS = ("add-tests", "refactor", "upgrade-deps", "docs", "security-audit", "custom")
 # Never copied from a workspace, fixture, or reference: caches and the controller's state.
 SKIP_NAMES = frozenset(
@@ -94,6 +101,22 @@ class Sabotage(_Strict):
     fails: list[str] = Field(min_length=1)  # criteria that must fail once the edits are applied
 
 
+class RepositorySource(_Strict):
+    """The repository a task starts from, at one commit (fetched at run time, never committed)."""
+
+    name: str  # owner/name, as the dataset names it
+    url: str
+    commit: str
+    license: str = "unknown"
+
+    @field_validator("commit")
+    @classmethod
+    def _full_sha(cls, value: str) -> str:
+        if not COMMIT.fullmatch(value):
+            raise ValueError(f"commit {value!r} must be a full 40-character hexadecimal SHA")
+        return value
+
+
 class BenchTask(_Strict):
     id: str
     title: str
@@ -106,13 +129,15 @@ class BenchTask(_Strict):
     languages: list[str] = Field(default_factory=lambda: ["python"], min_length=1)
     toolchains: list[Toolchain] = []  # what the checks need besides Python (run in Docker)
     timeout_seconds: int = Field(default=1800, ge=60)
+    check_timeout_seconds: int | None = Field(default=None, ge=10)  # one criterion (default 120)
     scale: float = Field(default=1.0, gt=0)  # relative size, for the ``--dry-run`` estimate
     request: str = "request.md"
     trace_file: str | None = None  # fix mode: a stack trace file in the task directory
     repro: str | None = None  # fix mode: a command that shows the bug
     maintain_task: str | None = None  # maintain mode: the recipe (``--task``)
+    repository: RepositorySource | None = None  # instead of fixture/ (see the module docstring)
     criteria: list[Criterion] = Field(min_length=1)
-    sabotage: Sabotage
+    sabotage: Sabotage | None = None  # required unless the task names a repository
     root: Path = Field(default=Path("."), exclude=True)
 
     @model_validator(mode="before")
@@ -160,6 +185,12 @@ class BenchTask(_Strict):
         return self.root / "reference"
 
     @property
+    def reference_patch(self) -> Path:
+        """A repository task's reference: a patch applied over the repository."""
+
+        return self.reference_dir / REFERENCE_PATCH
+
+    @property
     def checks_file(self) -> Path:
         return self.root / "acceptance" / "checks.py"
 
@@ -182,8 +213,14 @@ class BenchTask(_Strict):
             problems.append("criterion ids must be unique")
         if (self.kind == "greenfield") != (self.mode == "new"):
             problems.append("greenfield tasks use mode 'new'; brownfield tasks the other modes")
-        if self.kind == "brownfield" and not self.fixture_dir.is_dir():
-            problems.append("a brownfield task needs a fixture/ directory")
+        if self.kind == "brownfield" and not (self.fixture_dir.is_dir() or self.repository):
+            problems.append("a brownfield task needs a fixture/ directory or a repository")
+        if self.repository and self.kind != "brownfield":
+            problems.append("a task with a repository is brownfield")
+        if self.repository and not self.reference_patch.is_file():
+            problems.append(f"a task with a repository needs reference/{REFERENCE_PATCH}")
+        if self.sabotage is None and not self.repository:
+            problems.append("a task without a repository needs a sabotage")
         if self.mode == "fix" and not (self.trace_file or self.repro):
             problems.append("a fix task needs trace_file or repro")
         if self.mode == "maintain" and self.maintain_task not in MAINTAIN_PRESETS:
@@ -197,7 +234,7 @@ class BenchTask(_Strict):
             problems.append("missing acceptance/checks.py")
         if not any(self.reference_dir.rglob("*")):
             problems.append("reference/ is empty")
-        for criterion in self.sabotage.fails:
+        for criterion in self.sabotage.fails if self.sabotage else []:
             if criterion not in ids:
                 problems.append(f"sabotage.fails names an unknown criterion {criterion!r}")
         if problems:
@@ -227,11 +264,13 @@ def load_task(directory: Path) -> BenchTask:
     return task
 
 
-def load_suite(suite: Path) -> list[BenchTask]:
-    """Every task under ``<suite>/tasks``, sorted by id."""
+def load_suite(suite: Path, tasks_dir: Path | None = None) -> list[BenchTask]:
+    """Every task under ``<suite>/tasks`` (or ``tasks_dir``, such as imported tasks), by id."""
 
-    tasks_dir = suite / "tasks"
-    if not tasks_dir.is_dir():
+    if tasks_dir is not None:
+        if not tasks_dir.is_dir():
+            raise BenchError(f"No task directory {tasks_dir}.")
+    elif not (tasks_dir := suite / "tasks").is_dir():
         raise BenchError(
             f"No benchmark suite at {suite} (expected {tasks_dir}). The suite ships in the "
             "source checkout, not the wheel: run from the repository root or pass --suite DIR."

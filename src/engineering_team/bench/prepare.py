@@ -2,7 +2,8 @@
 
 The team always runs as ``python -m engineering_team ...`` in a process of its own; with ``fake``
 it is :mod:`engineering_team.bench.fake_team` instead, which replays the task's reference solution.
-Nothing here starts a process except the ``git`` commands that make a repository fixture.
+Nothing here starts a process except the ``git`` commands that make a repository fixture (and
+fetch a task's repository into the cache the first time, :mod:`engineering_team.bench.repos`).
 """
 
 from __future__ import annotations
@@ -17,7 +18,8 @@ from pathlib import Path
 
 from engineering_team.bench.acceptance import clean_environment, source_root
 from engineering_team.bench.plan import RunOptions, RunSpec
-from engineering_team.bench.tasks import BenchTask, copy_tree
+from engineering_team.bench.repos import RepositoryError, checkout
+from engineering_team.bench.tasks import BenchError, BenchTask, copy_tree
 
 PROJECT = "app"  # the directory name of a new project and the project name of a repository run
 REVIEW_BRANCH = "change"  # review tasks: the branch with the change, on top of ``main``
@@ -54,11 +56,26 @@ def _git(repo: Path, *args: str) -> None:
     )
 
 
-def make_repository(task: BenchTask, repo: Path) -> None:
-    """The fixture as a clean Git repository on ``main`` with one commit; a review task's
-    ``change/`` is one more commit, on the branch ``change``."""
+def fixture_source(task: BenchTask, repo_cache: Path | None) -> Path:
+    """The tree a brownfield run starts from: ``fixture/``, or the task's repository at its
+    commit from the cache (fetched now if it is not there)."""
 
-    copy_tree(task.fixture_dir, repo)
+    if task.repository is None:
+        return task.fixture_dir
+    if repo_cache is None:
+        raise BenchError(f"Task {task.id} starts from a repository: it needs a repository cache.")
+    try:
+        return checkout(task.repository.url, task.repository.commit, repo_cache)
+    except RepositoryError as exc:
+        raise BenchError(f"Task {task.id}: {exc}") from exc
+
+
+def make_repository(task: BenchTask, repo: Path, repo_cache: Path | None = None) -> None:
+    """The fixture as a clean Git repository on ``main`` with one commit; a review task's
+    ``change/`` is one more commit, on the branch ``change``. A repository task's tree is copied
+    without its history, so the team cannot read later commits."""
+
+    copy_tree(fixture_source(task, repo_cache), repo)
     _git(repo, "init", "-q", "-b", "main")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "fixture")
@@ -132,7 +149,7 @@ def prepare(spec: RunSpec, options: RunOptions, run_dir: Path) -> Prepared:
         workspace = work_root / PROJECT
     else:
         workspace = run_dir / "repo"
-        make_repository(task, workspace)
+        make_repository(task, workspace, options.repo_cache)
 
     if options.fake:
         home = run_dir / "home"

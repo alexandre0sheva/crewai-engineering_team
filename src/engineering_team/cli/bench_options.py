@@ -16,6 +16,17 @@ SuiteOption = Annotated[
 OutOption = Annotated[
     str | None, typer.Option(help="Where batches are kept (default: <suite>/.runs).")
 ]
+TasksDirOption = Annotated[
+    str | None,
+    typer.Option(
+        help="A directory of task folders to use instead of <suite>/tasks, such as the tasks "
+        "`bench import-swe` wrote (<suite>/tasks-swe)."
+    ),
+]
+
+
+def tasks_dir_path(tasks_dir: str | None) -> Path | None:
+    return Path(tasks_dir).expanduser().resolve() if tasks_dir else None
 
 
 def default_suite() -> Path:
