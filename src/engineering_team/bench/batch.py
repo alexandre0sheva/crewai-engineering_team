@@ -6,15 +6,16 @@ import hashlib
 import platform
 import sys
 import threading
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
 
 from engineering_team.atomic_io import atomic_write_json
+from engineering_team.bench.agent_run import execute_agent_run
 from engineering_team.bench.execution import ProcessRegistry, base_record, execute_run
-from engineering_team.bench.plan import RunOptions, RunSpec
+from engineering_team.bench.plan import RunOptions, RunSpec, is_agent
 from engineering_team.bench.results import BATCH_FILE, COUNTED, RunRecord, read_result, write_result
 from engineering_team.bench.tasks import BenchTask
 
@@ -91,6 +92,7 @@ def write_batch_manifest(
     not_applicable: Sequence[tuple[str, str]],
     budget_usd: float | None,
     parallel: int,
+    agents: Mapping[str, Mapping[str, object]] | None = None,
 ) -> None:
     """``batch.json``: what was run and with what, so a report can say how to reproduce it."""
 
@@ -107,6 +109,7 @@ def write_batch_manifest(
             "sandbox": options.sandbox,
             "config_sha256": _file_digest(options.config),
             "strategies": list(strategies),
+            "agents": {name: dict(info) for name, info in (agents or {}).items()},
             "repeat": repeat,
             "parallel": parallel,
             "budget_usd": budget_usd,
@@ -156,7 +159,7 @@ def run_batch(
         run_dir = options.batch_dir / spec.task.id / f"{spec.strategy}-{spec.repeat}"
         if options.resume and (kept := read_result(run_dir)) and kept.outcome in COUNTED:
             return kept
-        cap = options.run_budget_usd
+        cap = options.cap_for(spec.strategy)
         if not ledger.reserve(cap):
             run_dir.mkdir(parents=True, exist_ok=True)
             skipped = base_record(
@@ -170,7 +173,8 @@ def run_batch(
             return skipped
         record: RunRecord | None = None
         try:
-            record = execute_run(spec, options, registry, cancel)
+            execute = execute_agent_run if is_agent(spec.strategy) else execute_run
+            record = execute(spec, options, registry, cancel)
             return record
         finally:
             ledger.settle(cap, record.cost_usd if record else None)

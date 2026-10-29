@@ -54,7 +54,7 @@ def _git(repo: Path, *args: str) -> None:
     )
 
 
-def _make_repository(task: BenchTask, repo: Path) -> None:
+def make_repository(task: BenchTask, repo: Path) -> None:
     """The fixture as a clean Git repository on ``main`` with one commit; a review task's
     ``change/`` is one more commit, on the branch ``change``."""
 
@@ -132,7 +132,7 @@ def prepare(spec: RunSpec, options: RunOptions, run_dir: Path) -> Prepared:
         workspace = work_root / PROJECT
     else:
         workspace = run_dir / "repo"
-        _make_repository(task, workspace)
+        make_repository(task, workspace)
 
     if options.fake:
         home = run_dir / "home"

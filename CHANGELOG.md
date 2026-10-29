@@ -11,6 +11,9 @@ renames that section and dates it.
 
 ### Added
 
+- `bench run --agent claude-code|codex|opencode|aider` runs those tools on the same tasks, time limit and hidden checks as
+  the team (`--agent-model` pins their model); reports compare strategies and agents side by side with Wilson
+  intervals and per-task wins, plan-billed runs are labelled (never $0), and `results.json` holds both in one schema.
 - Benchmark v2: 22 tasks in Python, TypeScript and Go over nine intents, including an Express API feature, a
   React/Vitest bug, a Go CLI feature, a 2,000-line project with a misleading stack trace, a multi-file refactor,
   two reviews scored by recall and precision against seeded defects, questions answered with checked citations,

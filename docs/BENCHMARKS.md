@@ -11,7 +11,8 @@ uv run engineering-team bench run --fake                # offline: validates the
 uv run engineering-team bench run --dry-run --split dev --strategy pipeline,single --provider openai
 uv run engineering-team bench spend                     # the release's live spend, per allocation
 uv run engineering-team bench run --split dev --intent bugfix --budget-usd 1 --allocation T33
-uv run engineering-team bench report                    # the latest batch (Markdown + CSV)
+uv run engineering-team bench run --agent claude-code,codex --strategy pipeline ...  # baselines
+uv run engineering-team bench report                    # the latest batch (Markdown, CSV, JSON)
 ```
 
 The suite lives in `benchmarks/` in the source checkout. It is **not** in the wheel or the sdist;
@@ -201,11 +202,13 @@ rest; a Ctrl-C stops every team process and tells you the command.
 
 ## What a run records
 
-`result.json` (schema version 2; version 1 files, with `subset`, still read):
+`result.json` (schema version 3; versions 1 and 2 still read, `subset` included):
 
 | Field | Meaning |
 |-------|---------|
 | `task`, `intent`, `split` | the task, what kind of work it is, and whether it is held out |
+| `strategy`, `agent`, `agent_version` | who did the run: a team strategy, or `strategy` = `agent` = the external agent's name with the version its `--version` printed |
+| `billing`, `equivalent_cost_usd` | `api`, `subscription`, `unknown` or `none`; for a plan, the API-equivalent cost the agent reported (its `cost_usd` is `null`) |
 | `outcome` | `passed`, `failed`, `timeout`, `error` (the harness could not run it, or a check could not judge it: not counted), or `skipped` (budget: not counted) |
 | `reason`, `criteria` | why it did not pass; every criterion with its pass and `error` flags and the check's output |
 | `team_status`, `team_verdict`, `exit_code` | what the team said about itself (never the evidence) |
@@ -298,10 +301,79 @@ The targets for a small task (3 sessions, 25 calls, 6,000 schema tokens per agen
 teammates the lead called") is T12's. Whether the leaner structure keeps the pass rate is a live
 question: the scripted proxies measure structure, not quality (T33 measures both).
 
+## External agent baselines (`--agent`)
+
+"Better than Claude Code or Codex" is a claim about a harness, so those tools run on the **same
+tasks, the same time limit and the same hidden checks** as the team:
+
+```bash
+# Claude Code on a plan (no API key in the environment), next to the team's pipeline
+uv run engineering-team bench run --split dev --strategy pipeline --agent claude-code \
+    --budget-usd 3 --allocation T33 --agent-model claude-code=claude-sonnet-5-5 --provider anthropic
+uv run engineering-team bench run --agent codex,opencode --repeat 3 --budget-usd 2 --allocation T33
+uv run engineering-team bench run --fake --agent codex --strategy pipeline   # mixed, offline team
+```
+
+`--agent` takes `claude-code`, `codex`, `opencode` and `aider` (repeat or comma-separate). Alone, it
+replaces the default `pipeline`; with `--strategy` the report compares both. A missing command stops
+the batch (exit 2) instead of dropping the contender. `--fake` only makes the *team* scripted: an
+external agent always runs for real, so a fake agent in a test is a script on `PATH`.
+
+**What is the same for every contender.** A fresh copy of the fixture per run (an empty project
+directory, or a clean Git repository on `main` with one commit); the same request text (a fix task's
+stack trace and reproduction command are appended to the text for an agent, because the team gets
+them as files); the task's wall-clock limit (the team is asked to stop at 90 % of it, an agent is
+killed at 100 %); and the hidden checks, which are never in the run directory. Only the checks
+decide the verdict: what an agent says about itself is a note in the record.
+
+**What differs, on purpose.** Each agent runs with *its own default settings* (your user-level
+Claude Code or Codex configuration is read, as it would be for you), its own tools, and no
+presets: the team's `maintain` recipes and its `review` command add instructions the others never
+see, so review tasks are not run by external agents (the report lists them as not applicable).
+To separate the harness from the model, **pin the same model**: `--agent-model AGENT=MODEL`
+(`claude-code=claude-sonnet-5-5` beside `--provider anthropic`, `codex=<model>`,
+`opencode=provider/model`, `aider=<model>`). The report header and `result.json` record the model
+each agent actually used when it says so, and the pinned one otherwise; an unpinned agent is a
+comparison of products, not of harnesses, and the report says "its own default".
+
+| Agent | Command (non-interactive) | Cost |
+|-------|---------------------------|------|
+| `claude-code` | `claude -p PROMPT --output-format json --permission-mode bypassPermissions --no-session-persistence [--model M] [--max-budget-usd CAP]` | `total_cost_usd` of its result; the only agent a spend cap can stop |
+| `codex` | `codex exec --json --color never --skip-git-repo-check --ephemeral --sandbox danger-full-access -C DIR [-m M] -- PROMPT` | reported tokens times the price table (`unknown` when the model has no price) |
+| `opencode` | `opencode run --format json --auto [-m provider/model] PROMPT` | the `cost` of each `step-finish` event |
+| `aider` | `aider --message PROMPT --yes-always --no-pretty --no-stream --no-auto-commits --no-check-update --no-analytics [--model M]` | the `Cost: $x session` line it prints |
+
+Everything goes through the same `ExecutionBackend` the team's tools use, in its own process group,
+with the batch's cancellation. The permission flags are what an unattended run needs; they are not a
+sandbox, so run baselines where you would run the agent unattended (the team's own `local` backend
+is no stricter). Flags were checked against each tool's `--help` on 2026-10-29 (Claude Code 2.1.287,
+Codex 0.162.1, OpenCode 1.19.4); Aider was not installed there, so its line follows its
+documentation and is unchecked.
+
+**Cost and billing.** A run's `billing` is `api` (per token), `subscription` (a plan), `unknown`
+(OpenCode can be either), or `none` (the offline team). It is detected from the environment (an
+`ANTHROPIC_API_KEY`, a cloud-provider switch, `OPENAI_API_KEY` or `CODEX_API_KEY` means `api`;
+without one Claude Code and Codex are taken to be signed in with a plan) and overridden with
+`--agent-billing AGENT=api|subscription`. A plan's runs have **no `cost_usd`** and the report shows
+`plan (≈$x)` with the API-equivalent figure the agent reported, never `$0`; they are written to
+`spend.jsonl` as `billing: subscription` with their token counts and are not charged. API and
+`unknown` runs are charged like the team's: a batch needs `--budget-usd`, `--allocation`, and an
+affordable ledger, and an agent's estimate is its per-run cap (`--run-budget-usd`, else the budget
+over the paid runs) because nothing prices an agent before it runs. Only Claude Code takes the cap
+on its command line; for the others the time limit is the only brake, so give them a small budget.
+
+**What is not comparable.** Token counts: Aider rounds what it prints and the others count
+differently; read them as orders of magnitude. Sessions and model calls describe the team's
+internals, so the report shows them only for the team. Time includes each agent's start-up.
+A pass rate from few runs is wide; the paired table counts per-task wins, not significance.
+
 ## Reading a report
 
 `bench report [BATCH]` (a directory, or a name under `--out`; default the latest) prints Markdown
-and writes `report.md` and `results.csv` (one row per run) into the batch.
+and writes `report.md`, `results.csv` (one row per run) and `results.json` into the batch.
+`results.json` is one document for the team and the agents: `contenders` (pass rate with its Wilson
+interval, cost, billing, models per strategy or agent), `paired` (per-task wins, losses and ties
+between every two) and `runs` (every `result.json`); the site's leaderboard reads it.
 
 - **Pass rate** is passed over *counted* runs (`passed`, `failed`, `timeout`) with a **Wilson 95 %
   interval**. The interval is the point: 3 of 3 is "somewhere between 44 % and 100 %", and two
@@ -309,8 +381,10 @@ and writes `report.md` and `results.csv` (one row per run) into the batch.
   20 counted runs carry a small-sample warning.
 - **Cost per successful task** is *all* spend, failed runs included, divided by the number of
   successes. A strategy that is cheap per run but rarely succeeds is not cheap.
-- Tables by strategy, by strategy, kind and split (dev against held out), and by task and strategy,
-  with median time, repairs per run, tool failures and setup failures.
+- Tables by strategy or agent, by kind and split (dev against held out), and by task, with median
+  time, repairs per run, tool failures and setup failures. With two or more contenders, a **paired
+  comparison**: per pair, the tasks where one has the higher pass rate, and a task-by-contender grid
+  of passed over counted runs.
 - **Every failure is listed** with the criteria it missed and why. Nothing is averaged away.
 
 ## Results (2026-10-04)
@@ -504,6 +578,6 @@ runs and every acceptance check get a scrubbed environment with no keys.
 
 | Path | Role |
 |------|------|
-| `src/engineering_team/bench/` | the harness (in the wheel): `tasks` (schema, loading), `selection` (filters), `plan` and `prepare` (what runs and how), `execution` (one run), `batch` (parallel, budget, resume), `acceptance`, `checklib` and `reviewlib` (the hidden checks' runner and helpers), `metrics` and `results` (what a run records), `report` and `stats`, `estimate` (`--dry-run`), `spend` (the release ledger), `fake_team` (offline mode) |
-| `src/engineering_team/cli/bench_*.py` | `bench list` and `bench run` (`bench_command`), `bench report` and `--dry-run` (`bench_report_command`), `bench spend` (`bench_spend_command`) |
+| `src/engineering_team/bench/` | the harness (in the wheel): `tasks` (schema, loading), `selection` (filters), `plan` and `prepare` (what runs and how), `execution` (one run, and `judge`, the hidden-check verdict both kinds share), `agents/` and `agent_run` (external agents, [above](#external-agent-baselines---agent)), `compare` and `export` (paired comparison, `results.json`), `batch` (parallel, budget, resume), `acceptance`, `checklib` and `reviewlib` (the hidden checks' runner and helpers), `metrics` and `results` (what a run records), `report` and `stats`, `estimate` (`--dry-run`), `spend` (the release ledger), `fake_team` (offline mode) |
+| `src/engineering_team/cli/bench_*.py` | `bench list` and `bench run` (`bench_command`), `bench report` and `--dry-run` (`bench_report_command`), `bench spend` (`bench_spend_command`), `--agent` options (`bench_agents`) |
 | `benchmarks/` | the suite (repository only): `tasks/`, `images/` (Docker images for the Node and Go checks), `budget.toml` and `spend.jsonl` (the release's live spend), `configs/` (settings files for the measured variants), `results/` (committed results), and `.runs/` (working results, git-ignored) |

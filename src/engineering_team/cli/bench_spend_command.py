@@ -5,6 +5,7 @@ from __future__ import annotations
 import shlex
 import sys
 from collections.abc import Sequence
+from typing import Any, Literal
 
 import typer
 from rich.table import Table
@@ -99,7 +100,20 @@ def record_spend(
     estimate: float,
     records: Sequence[RunRecord],
     batch: str,
+    billing: Literal["api", "subscription"] = "api",
 ) -> SpendEntry:
+    """Append one ledger line. A ``subscription`` line (runs a plan paid for) costs nothing: it
+    only records that they happened, with their token usage."""
+
+    if billing == "subscription":
+        tokens = sum(r.tokens for r in records)
+        entry = SpendEntry(
+            date=now(), task=allocation, command=shlex.join(["engineering-team", *sys.argv[1:]]),
+            estimated_usd=0.0, actual_usd=0.0, billing="subscription", batch=batch,
+            note=f"{len(records)} run(s) on a plan, {tokens} tokens",
+        )  # fmt: skip
+        ledger.record(entry)
+        return entry
     entry = SpendEntry(
         date=now(),
         task=allocation,
@@ -111,3 +125,35 @@ def record_spend(
     )
     ledger.record(entry)
     return entry
+
+
+def record_batch_spend(
+    console: Any,
+    ledger: SpendLedger,
+    allocation: str,
+    charged: float | None,
+    records: Sequence[RunRecord],
+    began: str,
+    batch: str,
+) -> None:
+    """Write what this invocation spent into the ledger: one line for the money-billed runs
+    (when any were charged) and one for the runs a plan paid for."""
+
+    ran = runs_since(records, began)
+    on_plan = [r for r in ran if r.billing == "subscription"]
+    billed = [r for r in ran if r.billing not in ("subscription", "none")]
+    if charged is not None:
+        entry = record_spend(ledger, allocation, charged, billed, batch)
+        console.print(
+            f"Spend recorded in {ledger.ledger_path.name}: {allocation} "
+            f"{reporting.money(entry.actual_usd)} (estimate ${entry.estimated_usd:.4f}).",
+            markup=False,
+            soft_wrap=True,
+        )
+    if on_plan:
+        record_spend(ledger, allocation, 0.0, on_plan, batch, billing="subscription")
+        console.print(
+            f"{len(on_plan)} run(s) on a plan recorded in {ledger.ledger_path.name} (not charged).",
+            markup=False,
+            soft_wrap=True,
+        )

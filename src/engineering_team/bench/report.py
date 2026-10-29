@@ -15,15 +15,17 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from engineering_team.bench.compare import render_comparison
 from engineering_team.bench.results import RunRecord
 from engineering_team.bench.stats import cost_per_success, mean, median, total_cost, wilson_interval
 
 SMALL_SAMPLE = 20  # below this many counted runs the interval is wide enough to need a warning
 CSV_COLUMNS = (
-    "batch", "task", "strategy", "repeat", "kind", "mode", "intent", "split", "provider", "profile",
-    "fake", "outcome", "reason", "failed_criteria", "exit_code", "team_status", "team_verdict",
-    "duration_seconds", "tokens", "prompt_tokens", "cached_prompt_tokens", "completion_tokens",
-    "model_calls", "sessions", "tool_calls", "cost_usd", "repair_rounds", "tool_failures",
+    "batch", "task", "strategy", "repeat", "kind", "mode", "intent", "split", "agent",
+    "agent_version", "billing", "provider", "profile", "fake", "outcome", "reason",
+    "failed_criteria", "exit_code", "team_status", "team_verdict", "duration_seconds", "tokens",
+    "prompt_tokens", "cached_prompt_tokens", "completion_tokens", "model_calls", "sessions",
+    "tool_calls", "cost_usd", "equivalent_cost_usd", "repair_rounds", "tool_failures",
     "setup_failures", "run_id", "run_dir",
 )  # fmt: skip
 
@@ -49,6 +51,8 @@ class Group:
     calls_mean: float | None = None
     prompt_mean: float | None = None
     cached_share: float | None = None
+    billing: str = ""  # api, subscription, unknown, none, or mixed
+    equivalent_total: float | None = None  # a plan's API-equivalent cost, when every run said
 
     @property
     def rate(self) -> float | None:
@@ -76,15 +80,25 @@ def aggregate(label: str, records: Iterable[RunRecord]) -> Group:
         repair_mean=mean([float(r.repair_rounds) for r in counted]),
         tool_failures=sum(r.tool_failures for r in counted),
         setup_failures=sum(r.setup_failures for r in counted),
-        sessions_mean=mean([float(r.sessions) for r in counted]),
-        calls_mean=mean([float(r.model_calls) for r in counted]),
+        # sessions and model calls describe the team's internals; an external agent reports neither
+        sessions_mean=mean([float(r.sessions) for r in counted if not r.agent]),
+        calls_mean=mean([float(r.model_calls) for r in counted if not r.agent]),
         prompt_mean=mean([float(r.prompt_tokens) for r in counted]),
         cached_share=(
             sum(r.cached_prompt_tokens for r in counted) / prompts
             if (prompts := sum(r.prompt_tokens for r in counted))
             else None
         ),
+        billing=_billing(counted),
+        equivalent_total=total_cost(r.equivalent_cost_usd for r in counted)
+        if counted and all(r.billing == "subscription" for r in counted)
+        else None,
     )
+
+
+def _billing(counted: list[RunRecord]) -> str:
+    kinds = {r.billing for r in counted}
+    return kinds.pop() if len(kinds) == 1 else ("mixed" if kinds else "")
 
 
 def group_by(records: Iterable[RunRecord], key: Callable[[RunRecord], str]) -> list[Group]:
@@ -98,6 +112,17 @@ def money(value: float | None) -> str:
     if value is None:
         return "unknown"
     return f"${value:.4f}" if value < 0.1 else f"${value:.2f}"
+
+
+def cost_cell(group: Group, value: float | None) -> str:
+    """A cost for a table: money, ``unknown``, or for a plan ``plan`` (never $0) with the
+    API-equivalent figure the agent reported, when it did."""
+
+    if group.billing != "subscription":
+        return money(value)
+    if group.equivalent_total is None or not group.counted:
+        return "plan"
+    return f"plan (≈{money(group.equivalent_total / group.counted)})"
 
 
 def percent(group: Group) -> str:
@@ -124,7 +149,7 @@ def group_rows(groups: list[Group]) -> list[list[str]]:
             g.label,
             f"{g.passed}/{g.counted}",
             percent(g),
-            money(g.cost_mean),
+            cost_cell(g, g.cost_mean),
             money(g.cost_per_success) if g.passed else "–",
             seconds(g.duration_median),
             "–" if g.repair_mean is None else f"{g.repair_mean:.1f}",
@@ -141,16 +166,38 @@ GROUP_HEADERS = [
 ]  # fmt: skip
 
 
+def agent_facts(records: list[RunRecord]) -> list[str]:
+    """One header line per external agent: its version, the model it ran, and how it was paid."""
+
+    lines = []
+    for name in sorted({r.agent for r in records if r.agent}):
+        own = [r for r in records if r.agent == name]
+        version = next((r.agent_version for r in own if r.agent_version), None)
+        models = sorted({m for r in own for m in r.models}) or ["its own default"]
+        billing = sorted({r.billing for r in own})
+        lines.append(
+            f"- **Agent {name}:** {version or 'version unknown'}; model: {', '.join(models)}; "
+            f"billing: {', '.join(billing)}"
+        )
+    return lines
+
+
 def render_markdown(batch: dict[str, Any], records: list[RunRecord]) -> str:
     """The report: header, results by strategy, kind and split, by task, and every failure."""
 
     name = batch.get("batch") or (records[0].batch if records else "batch")
     versions = batch.get("versions") or {}
     lines = [f"# Benchmark report: {name}", ""]
-    if batch.get("fake") or any(r.fake for r in records):
+    if records and all(r.fake for r in records):
         lines += [
             "> **Offline run (`--fake`)**: scripted reference solutions, no model. This validates "
             "the harness; it says nothing about the team's quality.",
+            "",
+        ]
+    elif any(r.fake for r in records):
+        lines += [
+            "> **Mixed batch**: the runs marked `--fake` are scripted reference solutions, not a "
+            "model; only the external agents' runs measure anything.",
             "",
         ]
     facts = [
@@ -158,12 +205,16 @@ def render_markdown(batch: dict[str, Any], records: list[RunRecord]) -> str:
             "Provider / profile",
             f"{batch.get('provider') or 'default'} / {batch.get('profile') or 'default'}",
         ),
-        ("Strategies", ", ".join(batch.get("strategies") or sorted({r.strategy for r in records}))),
+        (
+            "Strategies and agents",
+            ", ".join(batch.get("strategies") or sorted({r.contender for r in records})),
+        ),
         ("Repeats per task", str(batch.get("repeat", "?"))),
         ("Created", str(batch.get("created", "?"))),
         ("Versions", ", ".join(f"{k} {v}" for k, v in versions.items() if v) or "?"),
     ]
-    lines += [f"- **{label}:** {value}" for label, value in facts] + [""]
+    lines += [f"- **{label}:** {value}" for label, value in facts]
+    lines += agent_facts(records) + [""]
 
     counted = [r for r in records if r.counted]
     other = [r for r in records if not r.counted]
@@ -178,12 +229,14 @@ def render_markdown(batch: dict[str, Any], records: list[RunRecord]) -> str:
 
     lines += ["## Results by strategy", ""]
     lines += _table(
-        ["Strategy", *GROUP_HEADERS[1:]], group_rows(group_by(records, lambda r: r.strategy))
+        ["Strategy / agent", *GROUP_HEADERS[1:]],
+        group_rows(group_by(records, lambda r: r.contender)),
     )
-    lines += ["", "## Where the time and money went, by strategy", ""]
+    lines += [""] + render_comparison(records)
+    lines += ["## Where the time and money went, by strategy", ""]
     lines += _table(
-        ["Strategy", "Sessions / run", "Model calls / run", "Prompt tokens / run", "Cached share",
-         "Mean cost / run", "Median time"],
+        ["Strategy / agent", "Sessions / run", "Model calls / run", "Prompt tokens / run",
+         "Cached share", "Mean cost / run", "Median time"],
         [
             [
                 g.label,
@@ -191,31 +244,31 @@ def render_markdown(batch: dict[str, Any], records: list[RunRecord]) -> str:
                 "–" if g.calls_mean is None else f"{g.calls_mean:.1f}",
                 "–" if g.prompt_mean is None else f"{g.prompt_mean:,.0f}",
                 "–" if g.cached_share is None else f"{g.cached_share:.0%}",
-                money(g.cost_mean),
+                cost_cell(g, g.cost_mean),
                 seconds(g.duration_median),
             ]
-            for g in group_by(records, lambda r: r.strategy)
+            for g in group_by(records, lambda r: r.contender)
         ],
     )  # fmt: skip
     lines += ["", "## By task kind and split", ""]
     lines += _table(
-        ["Strategy / kind / split", *GROUP_HEADERS[1:]],
-        group_rows(group_by(records, lambda r: f"{r.strategy} · {r.kind} · {r.split}")),
+        ["Strategy / agent · kind · split", *GROUP_HEADERS[1:]],
+        group_rows(group_by(records, lambda r: f"{r.contender} · {r.kind} · {r.split}")),
     )
     lines += ["", "## By task", ""]
     lines += _table(
-        ["Task / strategy", *GROUP_HEADERS[1:]],
-        group_rows(group_by(records, lambda r: f"{r.task} · {r.strategy}")),
+        ["Task / strategy or agent", *GROUP_HEADERS[1:]],
+        group_rows(group_by(records, lambda r: f"{r.task} · {r.contender}")),
     )
 
     failures = [r for r in records if r.outcome != "passed"]
     lines += ["", f"## Failures ({len(failures)})", ""]
     if failures:
         lines += _table(
-            ["Task", "Strategy", "Run", "Outcome", "Missed criteria", "Why"],
+            ["Task", "Strategy / agent", "Run", "Outcome", "Missed criteria", "Why"],
             [
                 [
-                    r.task, r.strategy, str(r.repeat), r.outcome,
+                    r.task, r.contender, str(r.repeat), r.outcome,
                     ", ".join(r.failed_criteria or r.errored_criteria) or "–",
                     r.reason.replace("|", "\\|") or "–",
                 ]
@@ -233,7 +286,11 @@ def render_markdown(batch: dict[str, Any], records: list[RunRecord]) -> str:
     skipped = batch.get("not_applicable") or []
     if skipped:
         pairs = ", ".join(f"{s['task']} × {s['strategy']}" for s in skipped)
-        lines += ["", f"Not applicable (repository modes use the pipeline only): {pairs}."]
+        lines += [
+            "",
+            "Not applicable (the repository modes use the pipeline only; external agents skip "
+            f"reviews): {pairs}.",
+        ]
     lines += [
         "",
         "Pass rate is passed over counted runs (passed, failed, timeout). Cost per success is all "

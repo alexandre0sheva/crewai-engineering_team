@@ -21,11 +21,14 @@ from engineering_team.atomic_io import atomic_write_json
 # not judge it (not the team's fault; left out of pass rates and never kept by ``--resume``).
 # skipped: not started, because the batch budget was spent.
 Outcome = Literal["passed", "failed", "timeout", "error", "skipped"]
+# api: per-token money. subscription: covered by a plan (cost unknown, never $0). unknown: could be
+# either (charged like api). none: an offline run.
+RunBilling = Literal["api", "subscription", "unknown", "none"]
 COUNTED: frozenset[str] = frozenset({"passed", "failed", "timeout"})
 
 RESULT_FILE = "result.json"
 BATCH_FILE = "batch.json"
-SCHEMA_VERSION = 2  # 2: ``split`` (was ``subset``), ``intent``, criterion ``error``
+SCHEMA_VERSION = 3  # 3: ``agent``, ``agent_version``, ``billing``; 2: ``split``, ``intent``
 
 
 class CriterionRecord(BaseModel):
@@ -43,12 +46,14 @@ class RunRecord(BaseModel):
     schema_version: int = SCHEMA_VERSION
     batch: str
     task: str
-    strategy: str
+    strategy: str  # the team's strategy, or the name of the external agent that did the run
     repeat: int
     kind: str
     mode: str
     split: str = Field(validation_alias=AliasChoices("split", "subset"))
     intent: str = ""
+    agent: str | None = None  # set for an external agent (claude-code, codex, ...)
+    agent_version: str | None = None
     provider: str | None = None
     profile: str | None = None
     fake: bool = False
@@ -66,7 +71,9 @@ class RunRecord(BaseModel):
     sessions: int = 0  # agent sessions (``agent.started`` events)
     cached_prompt_tokens: int = 0
     tool_calls: int = 0
-    cost_usd: float | None = None  # None: unknown (an unpriced model), never $0
+    cost_usd: float | None = None  # None: unknown (an unpriced model, or a plan), never $0
+    billing: RunBilling = "api"
+    equivalent_cost_usd: float | None = None  # a plan run: the API-equivalent cost it reported
     models: list[str] = []
     repair_rounds: int = 0
     tool_failures: int = 0
@@ -76,6 +83,12 @@ class RunRecord(BaseModel):
     finished: str = ""
     run_dir: str = ""  # relative to the batch directory
     workspace: str = ""  # relative to the batch directory
+
+    @property
+    def contender(self) -> str:
+        """Who did the run: the external agent, or the team's strategy."""
+
+        return self.agent or self.strategy
 
     @property
     def counted(self) -> bool:

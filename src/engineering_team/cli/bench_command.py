@@ -21,17 +21,20 @@ from rich.table import Table
 
 from engineering_team.bench import estimate as estimating
 from engineering_team.bench import report as reporting
+from engineering_team.bench.agents import BILLINGS
 from engineering_team.bench.batch import BudgetLedger, run_batch, write_batch_manifest
+from engineering_team.bench.export import write_results_json
 from engineering_team.bench.fake_team import SOLUTIONS
-from engineering_team.bench.plan import STRATEGIES, RunOptions, plan_runs
+from engineering_team.bench.plan import STRATEGIES, RunOptions, is_agent, plan_runs
 from engineering_team.bench.results import RunRecord, collect_results, read_batch
 from engineering_team.bench.selection import TaskFilter, select_tasks, split_values
 from engineering_team.bench.spend import SpendLedger
 from engineering_team.bench.tasks import BenchError, load_suite
+from engineering_team.cli.bench_agents import agent_names, agent_pairs, probe_agents
 from engineering_team.cli.bench_options import OutOption, SuiteOption, suite_path
 from engineering_team.cli.bench_report_command import dry_run as show_dry_run
 from engineering_team.cli.bench_report_command import print_groups, report
-from engineering_team.cli.bench_spend_command import check_spend, record_spend, runs_since, spend
+from engineering_team.cli.bench_spend_command import check_spend, record_batch_spend, spend
 from engineering_team.cli.context import fail, one_of, print_json
 from engineering_team.cli.context import get as get_globals
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
@@ -44,8 +47,12 @@ bench_app.command("report")(report)
 bench_app.command("spend")(spend)
 
 
-def _strategies(values: list[str] | None) -> list[str]:
-    chosen = [s.strip() for raw in values or ["pipeline"] for s in raw.split(",") if s.strip()]
+def _strategies(values: list[str] | None, *, agents: bool = False) -> list[str]:
+    """The team's strategies to run: ``pipeline`` unless told otherwise, or none when only
+    external agents were asked for."""
+
+    default = [] if agents else ["pipeline"]
+    chosen = [s.strip() for raw in values or default for s in raw.split(",") if s.strip()]
     unknown = [s for s in chosen if s not in STRATEGIES]
     if unknown:
         fail(f"Unknown strategy: {', '.join(unknown)}. Choose from {', '.join(STRATEGIES)}.")
@@ -147,7 +154,25 @@ def run(
         list[str] | None,
         typer.Option(help="pipeline or single; repeat or comma-separate."),
     ] = None,
-    repeat: Annotated[int, typer.Option(min=1, help="Runs per task and strategy.")] = 1,
+    agent: Annotated[
+        list[str] | None,
+        typer.Option(
+            help="External agents to run on the same tasks and checks: claude-code, codex, "
+            "opencode, aider; repeat or comma-separate. Alone, they replace the team."
+        ),
+    ] = None,
+    agent_model: Annotated[
+        list[str] | None,
+        typer.Option(help="Pin an agent's model, AGENT=MODEL (repeatable); default: its own."),
+    ] = None,
+    agent_billing: Annotated[
+        list[str] | None,
+        typer.Option(
+            help="Override how an agent is paid for, AGENT=api|subscription (default: api when "
+            "an API key is in the environment, else a plan for Claude Code and Codex)."
+        ),
+    ] = None,
+    repeat: Annotated[int, typer.Option(min=1, help="Runs per task and strategy or agent.")] = 1,
     parallel: Annotated[int, typer.Option(min=1, help="Runs at the same time.")] = 1,
     budget_usd: Annotated[
         float | None,
@@ -228,7 +253,10 @@ def run(
 
     g = get_globals(ctx)
     suite_dir = suite_path(suite)
-    strategies = _strategies(strategy)
+    agents = agent_names(agent)
+    strategies = _strategies(strategy, agents=bool(agents))
+    models = agent_pairs(agent_model, "--agent-model", agents)
+    billing_override = agent_pairs(agent_billing, "--agent-billing", agents, BILLINGS[:2])
     task_filter = TaskFilter(
         split=split,
         intents=tuple(split_values(intent)),
@@ -240,9 +268,10 @@ def run(
         chosen = select_tasks(load_suite(suite_dir), tasks, task_filter)
     except BenchError as exc:
         fail(str(exc))
-    specs, not_applicable = plan_runs(chosen, strategies, repeat)
+    specs, not_applicable = plan_runs(chosen, [*strategies, *agents], repeat)
     if not specs:
         fail("Nothing to run: the selected strategies do not apply to the selected tasks.")
+    agents = [a for a in agents if any(s.strategy == a for s in specs)]
     console = g.console(stderr=True)
 
     config_file = _config_path(config)
@@ -253,30 +282,48 @@ def run(
         )
         return
 
+    infos = probe_agents(agents, billing_override)
+    agent_billing_of = {name: info.billing for name, info in infos.items()}
+    team_specs = [s for s in specs if not is_agent(s.strategy)]
+    paid_agent_runs = sum(1 for s in specs if agent_billing_of.get(s.strategy) != "subscription"
+                          and is_agent(s.strategy))  # fmt: skip
+    billed_runs = (0 if fake else len(team_specs)) + paid_agent_runs
     charged: float | None = None
-    if not fake:
+    if agents and not fake and not allocation:
+        fail(
+            "Runs of external agents are recorded in the release ledger, even on a plan: pass "
+            "--allocation TASK (see `bench spend`)."
+        )
+    if billed_runs:
         if budget_usd is None:
             fail("A live run needs --budget-usd (a spend cap for the batch); try --dry-run first.")
-        settings = _settings(provider, profile, config_file, credentials=True)
-        settings.check_ready(require_credentials=True)
-        try:
-            unpriced = estimating.unpriced_models(settings)
-        except ValueError as exc:  # a settings problem (an Azure deployment name, ...)
-            fail(str(exc))
-        if unpriced and not allow_unpriced:
-            fail(
-                f"No price for {', '.join(unpriced)}: the cost cap cannot stop a run it cannot "
-                'price. Add a [pricing."MODEL"] override to a --config file '
-                "(docs/CONFIGURATION.md), or pass --allow-unpriced."
-            )
-        estimate = estimating.estimate_batch(specs, settings).total_usd
+        run_cap = run_budget_usd or round(budget_usd / billed_runs, 4)
+        team_estimate: float | None = 0.0
+        if not fake and team_specs:
+            settings = _settings(provider, profile, config_file, credentials=True)
+            settings.check_ready(require_credentials=True)
+            try:
+                unpriced = estimating.unpriced_models(settings)
+            except ValueError as exc:  # a settings problem (an Azure deployment name, ...)
+                fail(str(exc))
+            if unpriced and not allow_unpriced:
+                fail(
+                    f"No price for {', '.join(unpriced)}: the cost cap cannot stop a run it cannot "
+                    'price. Add a [pricing."MODEL"] override to a --config file '
+                    "(docs/CONFIGURATION.md), or pass --allow-unpriced."
+                )
+            team_estimate = estimating.estimate_batch(team_specs, settings).total_usd
+        # An agent's cost is only known afterwards: its estimate is the cap of each run.
+        estimate = None if team_estimate is None else team_estimate + run_cap * paid_agent_runs
         charged = check_spend(ledger, allocation, estimate, budget_usd)
         g.console(stderr=True).print(
-            f"Estimated {reporting.money(estimate)} for {len(specs)} run(s) (cap "
+            f"Estimated {reporting.money(estimate)} for {billed_runs} billed run(s) (cap "
             f"${budget_usd:.2f}); {allocation} has spent ${ledger.spent(allocation):.4f}.",
             markup=False,
             soft_wrap=True,
         )
+    else:
+        run_cap = None
     if resume and not batch:
         fail("--resume needs --batch NAME.")
     out_dir = Path(out).expanduser().resolve() if out else suite_dir / ".runs"
@@ -284,17 +331,21 @@ def run(
     batch_dir = out_dir / name
     if batch_dir.exists() and not resume:
         fail(f"{batch_dir} exists. Choose another --batch name, or pass --resume to continue it.")
-    run_cap = run_budget_usd or (round(budget_usd / len(specs), 4) if budget_usd else None)
     options = RunOptions(
         batch=name, batch_dir=batch_dir, provider=provider, profile=profile, sandbox=sandbox,
         config=config_file, fake=fake, fake_solution=fake_solution,
-        run_budget_usd=None if fake else run_cap, resume=resume,
+        run_budget_usd=run_cap, resume=resume, agent_models=models, agent_billing=agent_billing_of,
+        agent_versions={n: i.version for n, i in infos.items() if i.version},
         acceptance_sandbox=acceptance_sandbox, node_modules=node_modules,
     )  # fmt: skip
     batch_dir.mkdir(parents=True, exist_ok=True)
     write_batch_manifest(
-        options, chosen, strategies, repeat, planned=len(specs), not_applicable=not_applicable,
-        budget_usd=budget_usd, parallel=parallel,
+        options, chosen, [*strategies, *agents], repeat, planned=len(specs),
+        not_applicable=not_applicable, budget_usd=budget_usd, parallel=parallel,
+        agents={
+            n: {"version": i.version, "model": models.get(n), "billing": i.billing}
+            for n, i in infos.items()
+        },
     )  # fmt: skip
 
     began = datetime.now(UTC).isoformat(timespec="seconds")
@@ -315,11 +366,12 @@ def run(
             soft_wrap=True,
         )
 
-    budget = BudgetLedger(None if fake else budget_usd)
+    budget = BudgetLedger(budget_usd if billed_runs else None)
     if not g.quiet:
         console.print(
             f"Batch {name}: {len(specs)} run(s), {parallel} at a time"
-            + (" (offline, scripted)" if fake else f", budget ${budget_usd:.2f}")
+            + (" (offline, scripted)" if fake and not agents else "")
+            + (f", budget ${budget_usd:.2f}" if budget_usd is not None else "")
             + f". Results: {batch_dir}",
             markup=False,
             soft_wrap=True,
@@ -335,20 +387,16 @@ def run(
         )
         raise typer.Exit(EXIT_INTERRUPTED) from None
     finally:
-        if charged is not None and allocation:  # live: what it spent goes in the ledger, always
-            ran = runs_since(collect_results(batch_dir), began)
-            entry = record_spend(ledger, allocation, charged, ran, name)
-            console.print(
-                f"Spend recorded in {ledger.ledger_path.name}: {allocation} "
-                f"{reporting.money(entry.actual_usd)} (estimate ${entry.estimated_usd:.4f}).",
-                markup=False,
-                soft_wrap=True,
+        if allocation and not (fake and not agents):  # live: what it spent goes in the ledger
+            record_batch_spend(
+                console, ledger, allocation, charged, collect_results(batch_dir), began, name
             )
 
     records = collect_results(batch_dir)
     meta = read_batch(batch_dir)
     (batch_dir / "report.md").write_text(reporting.render_markdown(meta, records), encoding="utf-8")
     (batch_dir / "results.csv").write_text(reporting.render_csv(records), encoding="utf-8")
+    write_results_json(batch_dir, meta, records)
     passed = sum(1 for r in records if r.outcome == "passed")
     clean = passed == len(specs)
     if g.json:
@@ -356,9 +404,11 @@ def run(
             {
                 "batch": name, "directory": str(batch_dir), "planned": len(specs),
                 "passed": passed, "report": str(batch_dir / "report.md"),
-                "csv": str(batch_dir / "results.csv"), "spent_usd": budget.spent,
+                "csv": str(batch_dir / "results.csv"),
+                "results": str(batch_dir / "results.json"), "spent_usd": budget.spent,
                 "runs": [
-                    {"task": r.task, "strategy": r.strategy, "repeat": r.repeat,
+                    {"task": r.task, "strategy": r.strategy, "agent": r.agent, "repeat": r.repeat,
+                     "billing": r.billing,
                      "outcome": r.outcome, "cost_usd": r.cost_usd, "reason": r.reason}
                     for r in records
                 ],
