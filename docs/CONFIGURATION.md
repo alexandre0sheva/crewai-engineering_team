@@ -36,7 +36,7 @@ a profile.
 |---|---|---|---|
 | `provider` | `ENGINEERING_PROVIDER` | `openai` | Model preset: `openai`, `anthropic`, `google`, `ollama` (`azure` needs `enable_azure`) |
 | `profile` | `ENGINEERING_RUN_PROFILE` | `standard` | `standard`, `smoke` (cheap end-to-end check), `max-quality` |
-| `strategy` | `ENGINEERING_STRATEGY` | `pipeline` | How the team is orchestrated: `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)) or `single` (one agent with every tool, the benchmark baseline). `--strategy` overrides it. Chosen with the [benchmarks](BENCHMARKS.md#results-2026-10-04); only `new` follows it, the repository modes always use `pipeline`. |
+| `strategy` | `ENGINEERING_STRATEGY` | `pipeline` | How the team is orchestrated: `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)), `single` (one agent with every tool, the benchmark baseline) or `team` (a lead agent that does the work and calls teammates on demand; see [Team strategy](#team-strategy-delegation)). `--strategy` overrides it for `new`. Chosen with the [benchmarks](BENCHMARKS.md#results-2026-10-04). The repository modes use `pipeline`, or `team` when it is the configured strategy (they never run `single`). |
 | `team_profile` | `ENGINEERING_TEAM_PROFILE` | `full` | `full` runs every stage of the `new` recipe that the task's size and request call for ([Lean team](#lean-team-lean-and-toolslazy)); `minimal` leaves out the optional ones (review, DevOps, docs), as `--profile smoke` does. To drop only one, disable its teammates instead (`[team.code_reviewer] enabled = false`; a stage is skipped when none of its teammates is enabled). See [Review](#review-review-and-team_profile) |
 | `project_name` | `ENGINEERING_PROJECT_NAME` | `mvp-app` | Workspace directory name |
 | `workspace_root` | `ENGINEERING_WORKSPACE_ROOT` | `workspace` | Parent of generated projects (relative → current directory) |
@@ -62,6 +62,8 @@ a profile.
 | `budget.max_tool_calls` | `ENGINEERING_BUDGET_MAX_TOOL_CALLS` | – | Stop after this many agent tool calls |
 | `lean.size` | `ENGINEERING_LEAN_SIZE` | `auto` | How big the task is, which decides what a `pipeline` run leaves out: `auto` (from the request, the repository and the plan), `small`, `medium`, or `large` (every stage, spec and plan apart). See [Lean team](#lean-team-lean-and-toolslazy) |
 | `lean.ceremony` | `ENGINEERING_LEAN_CEREMONY` | `auto` | The `devops` and `docs` stages: `auto` runs them only when the request asks for them, `always` runs them (0.2.0 behaviour), `never` skips them |
+| `delegation.max_delegations` | `ENGINEERING_MAX_DELEGATIONS` | `auto` | How many teammate jobs the `team` strategy's lead may start in one run (each brief of a Delegate Parallel counts): `auto` is 2 for a small task, 5 for a medium one, 12 for a large one; `0` lets the lead work alone. See [Team strategy](#team-strategy-delegation) |
+| `delegation.max_iter` | – | `20` | The most model calls one delegated job may make (2–60); the lead may ask for fewer, never more |
 | `tools.lazy` | `ENGINEERING_LAZY_TOOLS` | `true` | Hold rarely used tools back behind Find Tool and Use Tool, so every model call sends fewer tool schemas ([TOOLS.md](TOOLS.md#held-back-tools-find-tool-and-use-tool)); `false` gives every agent all its tools |
 | `budget.max_repair_rounds` | `ENGINEERING_BUDGET_MAX_REPAIR_ROUNDS` | `3` | Fix-and-verify rounds the whole run may spend repairing checks the controller found failing (see [Verification](#verification-verify-and---checks)); `0` never calls a repair agent |
 
@@ -534,6 +536,24 @@ ceremony = "always"   # devops and docs whatever the request says
 
 [tools]
 lazy = false          # every tool as its own schema in every call
+```
+
+### Team strategy (`[delegation]`)
+
+`--strategy team` (or `strategy = "team"`) runs one lead agent, the generalist, that does the work
+itself with every tool and calls teammates only for bounded jobs ([Dynamic team](ARCHITECTURE.md#dynamic-team-the-team-strategy)).
+The controller caps how much it delegates: `delegation.max_delegations` jobs per run (by the task's
+[size](#lean-team-lean-and-toolslazy) unless set), each limited to `delegation.max_iter` model
+calls and to the paths the lead gave it; a teammate cannot delegate further. The run's
+[budgets](#budgets) cover every job. The defaults are provisional until the 0.3.0 live evaluation
+measures them.
+
+```toml
+strategy = "team"
+
+[delegation]
+max_delegations = 5   # or "auto" (by size), or 0: the lead works alone
+max_iter = 15         # model calls per delegated job
 ```
 
 ### Review (`[review]` and `team_profile`)

@@ -12,6 +12,7 @@ from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
 from engineering_team.pipeline.recipes import Recipe, pin_recipe
 from engineering_team.pipeline.state import RunBundle
 from engineering_team.pipeline.strategies import (
+    RECIPE_STRATEGIES,
     STRATEGY_NAMES,
     Strategy,
     get_strategy,
@@ -93,8 +94,8 @@ def _run_parser() -> argparse.ArgumentParser:
         "--strategy",
         choices=list(STRATEGY_NAMES),
         help="How the team is orchestrated: pipeline (staged, resumable; the default, see "
-        "docs/BENCHMARKS.md) or single (one agent, the benchmark "
-        "baseline).",
+        "docs/BENCHMARKS.md), single (one agent, the benchmark baseline) or team (a lead "
+        "agent that calls teammates on demand; see docs/ARCHITECTURE.md).",
     )
     parser.add_argument(
         "--allow-web",
@@ -205,8 +206,9 @@ def _open_run(
 
     ``context`` (the reference documents of ``--context-dir``) is copied into the workspace.
     A repository mode passes the ``workspace`` its isolation made (and the ``run_id`` that named
-    the branch) and its ``recipe``: the run then uses the pipeline strategy, and the controller's
-    reports go to the run directory instead of the project's ``docs/``.
+    the branch) and its ``recipe``: the run then uses the pipeline strategy (or the team
+    strategy, when it is the configured one, which derives the lead's recipe from it), and the
+    controller's reports go to the run directory instead of the project's ``docs/``.
 
     Also creates the run's manifest (``pending``); the caller wraps the work in
     ``recorder.running()`` and releases the lock (``_execute`` does) once the run is over. A
@@ -220,7 +222,7 @@ def _open_run(
     run_id = run_id or new_run_id()
     lock = WorkspaceLock(workspace.root).acquire(run_id)
     strategy_name = settings.strategy
-    if recipe is not None:
+    if recipe is not None and strategy_name not in RECIPE_STRATEGIES:
         strategy_name = "pipeline"
     try:
         if context is not None:
@@ -272,10 +274,10 @@ def _pin_checks(settings: Settings, ctx: RunContext, mode: str, strategy: str) -
     source = settings.verify.checks_file
     if source is None or mode not in ("build", "feature", "fix", "maintain"):
         return ChecksPin()
-    if strategy != "pipeline":
+    if strategy not in RECIPE_STRATEGIES:
         raise ValueError(
-            f"Your checks file is only run by the 'pipeline' strategy, not '{strategy}'. "
-            "Pass --strategy pipeline, or drop --checks."
+            f"Your checks file is only run by the 'pipeline' and 'team' strategies, not "
+            f"'{strategy}'. Pass --strategy pipeline, or drop --checks."
         )
     return pin_checks(ctx, Path(source))
 

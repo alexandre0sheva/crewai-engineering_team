@@ -52,6 +52,7 @@ from engineering_team.settings.sections import (
     AnalysisSettings,
     BrowserSettings,
     BudgetSettings,
+    DelegationSettings,
     ExecutionSettings,
     FixSettings,
     GitSettings,
@@ -80,7 +81,7 @@ from engineering_team.settings.sections import (
 class Settings(_Frozen):
     provider: Literal["openai", "anthropic", "google", "ollama", "azure"] = "openai"
     profile: Literal["standard", "smoke", "max-quality"] = "standard"
-    strategy: Literal["pipeline", "single"] = "pipeline"
+    strategy: Literal["pipeline", "single", "team"] = "pipeline"
     project_name: str = "mvp-app"
     workspace_root: str = "workspace"
     request: str | None = None
@@ -112,6 +113,7 @@ class Settings(_Frozen):
     review: ReviewSettings = ReviewSettings()
     analysis: AnalysisSettings = AnalysisSettings()
     lean: LeanSettings = LeanSettings()
+    delegation: DelegationSettings = DelegationSettings()
     fix: FixSettings = FixSettings()
     maintain: MaintainSettings = MaintainSettings()
     ui: UiSettings = UiSettings()

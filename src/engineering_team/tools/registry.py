@@ -59,6 +59,14 @@ EAGER_TOOLS = frozenset(
         "Comment On Card",
         "Block Card",
         "Ask Human",
+        # Only the lead has the ``team`` group; its calls are the reason it exists.
+        "Delegate",
+        "Delegate Parallel",
+        "Ask Reviewer",
+        "Ask Security Review",
+        "Ask Debugger",
+        "Ask Architect",
+        "Ask Analyst",
     }
 )
 

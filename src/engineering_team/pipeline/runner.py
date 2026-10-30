@@ -20,7 +20,12 @@ from engineering_team.pipeline.state import (
     RunResult,
     request_hash,
 )
-from engineering_team.pipeline.strategies import RETIRED_STRATEGIES, Strategy, get_strategy
+from engineering_team.pipeline.strategies import (
+    RECIPE_STRATEGIES,
+    RETIRED_STRATEGIES,
+    Strategy,
+    get_strategy,
+)
 from engineering_team.runtime.cancel import cancellation, request_cancel
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.inbox import inbox_watch
@@ -131,10 +136,11 @@ def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = No
             "so it cannot be resumed. Start a new run (the pipeline strategy can be resumed)."
         )
     strategy = get_strategy(manifest.strategy)
-    # The single-agent strategy supplies its own one-stage recipe; the pipeline loads its own.
+    # The single-agent strategy supplies its own one-stage recipe; the pipeline loads its own,
+    # and the team strategy derives the lead's from it.
     recipe = (
         pinned_recipe(store.run_dir(run_id)) or load_recipe(manifest.recipe, workspace_dir)
-        if manifest.strategy == "pipeline" and manifest.recipe
+        if manifest.strategy in RECIPE_STRATEGIES and manifest.recipe
         else None
     )
     effective = strategy.recipe_for(recipe)

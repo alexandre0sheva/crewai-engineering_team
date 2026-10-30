@@ -26,9 +26,9 @@ from engineering_team.modes.needs_info import NeedsInfo
 from engineering_team.modes.upgrade import run_upgrades
 from engineering_team.pipeline.actions import CONTROLLER_ACTIONS
 from engineering_team.pipeline.executor_base import MAX_NOTE_ERROR, MAX_SUMMARY
+from engineering_team.pipeline.lead_exec import LeadExecutor
 from engineering_team.pipeline.lean import reviewers
 from engineering_team.pipeline.no_retry import NoRetry
-from engineering_team.pipeline.package_exec import PackageExecutor
 from engineering_team.pipeline.recipes import StageSpec
 from engineering_team.pipeline.resume import RESUME_NOTE, StagePlan
 from engineering_team.pipeline.review import repair_brief
@@ -48,7 +48,7 @@ from engineering_team.runtime.events import stage_scope
 from engineering_team.verification.loop import RepairCall, VerificationError, VerificationLoop
 
 
-class StageExecutor(PackageExecutor):
+class StageExecutor(LeadExecutor):
     """Runs one stage of a recipe: kind-specific work, retries, and the final gate."""
 
     # -- the stage -----------------------------------------------------------------------
@@ -118,6 +118,8 @@ class StageExecutor(PackageExecutor):
             self._reproduce(stage)
         elif stage.kind == "upgrade":
             self._upgrade(stage)
+        elif stage.kind == "lead":
+            self._lead(stage, note)
         else:
             self._agent(stage, note)
         self._check_artifacts(stage)

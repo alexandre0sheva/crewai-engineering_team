@@ -1,4 +1,5 @@
-"""Tools that coordinate the team: the board, notes, and asking a human."""
+"""Tools that coordinate the team: the board, notes, asking a human, and (the lead only) calling
+teammates."""
 
 from __future__ import annotations
 
@@ -6,6 +7,7 @@ from engineering_team.tools.board_tools import make_board_tools
 from engineering_team.tools.human_tools import make_human_tools
 from engineering_team.tools.notes_tools import make_notes_tools
 from engineering_team.tools.spec import ToolSpec, _spec
+from engineering_team.tools.team_tools import make_team_tools
 
 TEAM_SPECS: tuple[ToolSpec, ...] = (
     _spec(
@@ -98,5 +100,54 @@ TEAM_SPECS: tuple[ToolSpec, ...] = (
         make_human_tools,
         "Ask the person running the team a question and wait, with a timeout.",
         read_only=True,
+    ),
+    _spec(
+        "Delegate",
+        "team",
+        make_team_tools,
+        "Lead only: one bounded job to a teammate (brief, owned paths); returns its typed result.",
+        read_only=False,
+    ),
+    _spec(
+        "Delegate Parallel",
+        "team",
+        make_team_tools,
+        "Lead only: independent jobs with disjoint owned paths, side by side in lanes.",
+        read_only=False,
+    ),
+    _spec(
+        "Ask Reviewer",
+        "team",
+        make_team_tools,
+        "Lead only: the code reviewer reads the current change and returns findings.",
+        read_only=False,
+    ),
+    _spec(
+        "Ask Security Review",
+        "team",
+        make_team_tools,
+        "Lead only: the security engineer reads the current change and returns findings.",
+        read_only=False,
+    ),
+    _spec(
+        "Ask Debugger",
+        "team",
+        make_team_tools,
+        "Lead only: a diagnosis of a failing check and, given paths, a fix.",
+        read_only=False,
+    ),
+    _spec(
+        "Ask Architect",
+        "team",
+        make_team_tools,
+        "Lead only: a decision on a design question or plan draft.",
+        read_only=False,
+    ),
+    _spec(
+        "Ask Analyst",
+        "team",
+        make_team_tools,
+        "Lead only: acceptance criteria or an answer for an unclear request.",
+        read_only=False,
     ),
 )

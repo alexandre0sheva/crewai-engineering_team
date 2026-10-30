@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from engineering_team.settings import Settings
 
 StageKind = Literal[
-    "agent", "controller", "parallel", "verify", "review", "analyze", "reproduce", "upgrade"
+    "agent", "controller", "parallel", "verify", "review", "analyze", "reproduce", "upgrade", "lead"
 ]
 # Named sets of paths an ``agent`` stage may write (``modes/policies.py`` has what they hold).
 WriteScopeName = Literal["tests", "docs", "manifests"]
@@ -54,6 +54,13 @@ CONDITIONS: dict[str, Callable[[PipelineState, Settings], bool]] = {
     ),
     # The lean team's: the task's size, a one-package plan, ceremony nobody asked for.
     **LEAN_CONDITIONS,
+    # The ``team`` strategy's security review: only when the controller saw a security signal
+    # and no security review has read the project as it is now (``pipeline/lead.py``).
+    "no_security_signal": lambda state, _: (
+        state.lead is None
+        or not state.lead.signals
+        or state.lead.security_reviewed == state.lead.handed_back
+    ),
 }
 
 
@@ -86,6 +93,9 @@ class StageSpec(BaseModel):
     ``verify`` (its repair agent) or ``upgrade`` stage to one named set of paths; ``repair: false``
     keeps a ``review`` stage's findings from being sent to the verify stage's repair agent.
     ``optional`` stages are skipped when none of their teammates is enabled.
+    ``lead`` (the ``team`` strategy, ``pipeline/lead.py``) runs one long session of its first
+    teammate with the full toolbelt plus the ``team`` tools, through which it calls teammates for
+    bounded jobs; the controller checks, runs and records each one.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -136,7 +146,9 @@ class StageSpec(BaseModel):
 
     @model_validator(mode="after")
     def _consistent(self) -> StageSpec:
-        needs_team = ("agent", "parallel", "verify", "review", "analyze", "reproduce", "upgrade")
+        needs_team = (
+            "agent", "parallel", "verify", "review", "analyze", "reproduce", "upgrade", "lead"
+        )  # fmt: skip
         if self.kind in needs_team and not self.teammates:
             raise ValueError(f"stage {self.name!r} ({self.kind}) needs at least one teammate")
         if self.kind == "controller" and not self.action:

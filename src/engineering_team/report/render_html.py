@@ -10,7 +10,8 @@ from engineering_team.report.model import RunReport
 
 NAV = (
     ("summary", "Summary"), ("warnings", "Warnings"), ("timeline", "Timeline"),
-    ("board", "Board"), ("agents", "Teammates"), ("screenshots", "Screenshots"),
+    ("board", "Board"), ("agents", "Teammates"), ("delegations", "Delegations"),
+    ("screenshots", "Screenshots"),
     ("usage", "Cost"), ("profile", "Time and money"), ("checks", "Checks"),
     ("criteria", "Criteria"),
     ("findings", "Findings"), ("diff", "Changes"), ("trace", "Trace"),
@@ -28,6 +29,7 @@ def render_html(report: RunReport, run_dir: Path | None = None) -> str:
         "timeline": s.timeline(report),
         "board": s.board(report),
         "agents": s.agents(report),
+        "delegations": s.delegations(report),
         "screenshots": s.screenshots(report, run_dir),
         "usage": s.usage(report),
         "profile": s.profile(report),

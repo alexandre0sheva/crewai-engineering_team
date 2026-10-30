@@ -21,7 +21,7 @@ from engineering_team.report.html_common import (
 )
 from engineering_team.report.html_overview import banner, summary, timeline, warnings
 from engineering_team.report.html_profile import profile
-from engineering_team.report.html_results import checks, criteria, findings, usage
+from engineering_team.report.html_results import checks, criteria, delegations, findings, usage
 
 __all__ = [
     "COLUMN_TITLES",
@@ -36,6 +36,7 @@ __all__ = [
     "checks",
     "code",
     "criteria",
+    "delegations",
     "diff",
     "environment",
     "esc",

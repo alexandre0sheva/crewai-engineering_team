@@ -14,8 +14,9 @@ from engineering_team.board.models import (
     OldestInProgress,
 )
 
-# Stages are one unit, a work package two, a check one, a subtask half. Repairs, findings and
-# user notes appear mid-run and carry no weight, so a late discovery never makes progress go back.
+# Stages are one unit, a work package two, a check one, a subtask half. Repairs, findings, user
+# notes and the lead's delegations appear mid-run and carry no weight, so a late discovery never
+# makes progress go back.
 WEIGHTS: dict[CardKind, float] = {
     "stage": 1.0,
     "work_package": 2.0,

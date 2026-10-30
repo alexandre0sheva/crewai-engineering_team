@@ -27,6 +27,7 @@ GROUPS = (
     "board",
     "notes",
     "human",
+    "team",
 )
 
 

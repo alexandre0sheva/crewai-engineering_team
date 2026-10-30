@@ -37,6 +37,7 @@ from engineering_team.modes.maintain_contracts import (
     UpgradePlan,
 )
 from engineering_team.modes.repo_profile import RepoProfile
+from engineering_team.pipeline.lead_contracts import DelegationRecord, LeadRecord
 from engineering_team.pipeline.lean import LeanProfile
 
 STATE_FILENAME = "pipeline.json"
@@ -91,6 +92,9 @@ class PipelineState(Contract):
     upgrade_outcomes: list[UpgradeOutcome] = Field(default_factory=list)
     audit: list[AuditNote] = Field(default_factory=list)
     audit_findings: list[Finding] = Field(default_factory=list)  # from the dependency audit
+    # The ``team`` strategy: the lead's record and every job it gave a teammate, in order.
+    lead: LeadRecord | None = None
+    delegations: list[DelegationRecord] = Field(default_factory=list)
     error: str = ""
 
     @classmethod

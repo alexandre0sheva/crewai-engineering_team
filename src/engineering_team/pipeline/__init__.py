@@ -7,6 +7,7 @@ from engineering_team.pipeline.strategies import (
     PipelineStrategy,
     SingleAgentStrategy,
     Strategy,
+    TeamStrategy,
     get_strategy,
 )
 
@@ -21,6 +22,7 @@ __all__ = [
     "SingleAgentStrategy",
     "StageSpec",
     "Strategy",
+    "TeamStrategy",
     "get_strategy",
     "load_recipe",
 ]

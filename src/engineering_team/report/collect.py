@@ -98,6 +98,7 @@ def build_report(run_dir: Path) -> RunReport:
         findings=findings,
         questions=list(state.needs_info) if state else [],
         summaries=dict(state.summaries) if state else {},
+        delegations=list(state.delegations) if state else [],
         environment=_environment(run_dir, manifest),
     )
     report.stages = _stages(manifest, end)

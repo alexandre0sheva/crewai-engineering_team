@@ -25,6 +25,7 @@ from engineering_team.modes.change_report import PATCH_FILE, SUMMARY_FILE
 from engineering_team.modes.isolation import Isolation, isolate
 from engineering_team.modes.run_options import write_run_options
 from engineering_team.pipeline.recipes import load_recipe
+from engineering_team.pipeline.strategies import RECIPE_STRATEGIES
 from engineering_team.runtime.context import new_run_id
 from engineering_team.runtime.run_index import register_workspace
 from engineering_team.settings import Settings, load_settings
@@ -97,12 +98,13 @@ def run_repository_mode(g: Globals, run: RepoRun) -> None:
         label = project_name_of(run.root, run.project_name)
         overrides = {
             **engine._cli_overrides(run.options),
-            "strategy": "pipeline",
             "project_name": label,
             **({"git.squash": True} if run.squash else {}),
             **run.overrides,
         }
         settings = load_settings(overrides=overrides, config_file=run.config)
+        if settings.strategy not in RECIPE_STRATEGIES:  # a repository mode runs its recipe
+            settings = settings.with_overrides({"strategy": "pipeline"}, source="repository mode")
         if run.check is not None:
             run.check(settings)
         bundle = run.load(settings)

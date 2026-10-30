@@ -22,6 +22,7 @@ from engineering_team.extensions.plugin_loader import PluginSet, load_plugins
 from engineering_team.pricing import PriceTable
 from engineering_team.runtime.browsers import BrowserDriver, BrowserRegistry
 from engineering_team.runtime.budget import Budget, BudgetGuard
+from engineering_team.runtime.delegation import DelegationHub
 from engineering_team.runtime.events import (
     EventSink,
     FanoutSink,
@@ -131,7 +132,8 @@ class RunContext:
     where the controller's own write-ups go (the project's ``docs/``, or the run directory for a
     project the team did not create), ``plugins`` the plugin tools this run offers and
     ``conventions`` the repository conventions the agents' context carries (both:
-    ``docs/CONFIGURATION.md``).
+    ``docs/CONFIGURATION.md``), and ``delegation`` how the ``team`` strategy's lead reaches the
+    controller to call teammates, and what each delegated job used (``runtime/delegation.py``).
     """
 
     run_id: str
@@ -160,6 +162,7 @@ class RunContext:
     llm_rate: RateLimiter | None = None
     plugins: PluginSet = field(default_factory=PluginSet)
     conventions: Conventions = field(default_factory=Conventions)
+    delegation: DelegationHub = field(default_factory=DelegationHub)
 
     @classmethod
     def create(
@@ -214,6 +217,7 @@ class RunContext:
             else UsageTracker()
         )
         prices = settings.price_table()
+        hub = DelegationHub()
         guard = BudgetGuard(Budget.from_settings(settings.budget), usage, prices, cancel_event)
         # The usage tracker must see an event before the guard evaluates it.
         sink = FanoutSink(
@@ -221,6 +225,7 @@ class RunContext:
             or JsonlSink(run_dir / EVENTS_FILENAME, run_id, scrubber=Scrubber(secret_values())),
             usage,
             guard,
+            hub,
         )
         guard.attach(sink)
         _announce_extensions(sink, settings, team, plugins, conventions)
@@ -279,4 +284,5 @@ class RunContext:
             ),
             plugins=plugins,
             conventions=conventions,
+            delegation=hub,
         )

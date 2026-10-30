@@ -24,7 +24,7 @@ engineering-team team show product_analyst
 | `technical_writer` | README, `docs/usage.md`, and a changelog for the generated project (`docs` stage); changes documentation only. | `worker` | `fs_read`, `fs_write`, `search`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `mcp:docs` |
 | `debugger` | Reproduces a failure, finds the root cause, makes the smallest fix: the repair agent of the `verify` stage, for failing checks and for review findings. | `worker` | everything but `web`: as `quality_engineer` without `web` |
 | `codebase_analyst` | Reads an existing codebase and explains it: modules, key flows, conventions, risks, how to run and test (the `map` stage of the `adopt` recipe; `engineering-team analyze --deep`). Read-only: the controller writes `.engineering-team/codebase-map.md`. | `worker` | `fs_read`, `search`, `code_intel`, `git_read`, `board`, `notes`, `knowledge` (no `human`, no `web`) |
-| `generalist_engineer` | Does everything alone (`single` strategy) and stands in for a missing teammate. | `worker` | as `frontend_engineer` |
+| `generalist_engineer` | Does everything alone (`single` strategy), leads the `team` strategy (with the `team` group added for that session only), and stands in for a missing teammate. | `worker` | as `frontend_engineer` |
 
 Groups marked `web` and `browser` are used only when they exist: `web` needs `web.enabled` (and the
 teammate in `web.roles`, if set), `browser` needs the optional Playwright extra. A group that is not
@@ -52,11 +52,33 @@ The three are optional. They are skipped by `--profile smoke`, by `team_profile 
 their teammates is enabled (`[team.devops_engineer] enabled = false`); with only one reviewer enabled, the other
 simply does not run. See [CONFIGURATION.md](CONFIGURATION.md#review-review-and-team_profile).
 
+## When teammates are called (the `team` strategy)
+
+With `--strategy team` nobody works on a fixed schedule: the generalist leads, does the work itself,
+and calls a teammate only for a bounded job, through the [team tools](TOOLS.md#team-tools). Which
+teammate does what is then the lead's choice, guided by `config/lead.yaml`:
+
+| The lead calls | When | With |
+|---|---|---|
+| `backend_engineer`, `frontend_engineer`, any teammate that can write | Independent parts with disjoint paths, side by side; a different stack | `Delegate`, `Delegate Parallel` |
+| `code_reviewer` | A non-trivial change is ready | `Ask Reviewer` |
+| `security_engineer` | The change touches authentication, secrets, crypto, SQL, subprocesses or deserialisation | `Ask Security Review` |
+| `debugger` | A check still fails after two tries of the lead's own | `Ask Debugger` |
+| `solution_architect`, `product_analyst` | Large or unclear work, before building | `Ask Architect`, `Ask Analyst` |
+
+A teammate gets a brief (the job, its owned paths, the criteria, why), never the lead's history,
+and cannot call anyone itself. The controller caps the jobs (`delegation.max_delegations`, by task
+size unless set; [CONFIGURATION.md](CONFIGURATION.md#team-strategy-delegation)), allows only
+teammates the roster allows for the mode, and still steps in on its own in two places: the
+`security_engineer` reviews the final change when a security signal fired and nobody reviewed it,
+and failing checks after the lead hands back go to the generalist for repair. Disabling a teammate
+(`enabled = false`) takes it out of the lead's list.
+
 ## Tool groups
 
 Every group, and what is in it, is listed in [TOOLS.md](TOOLS.md): `fs_read`, `search`, `fs_write`,
 `command`, `dev`, `code_intel`, `git_read`, `knowledge`, `web`, `browser`, `runtime`, `board`, `notes`,
-`human`. `mcp:<name>` is not a tool group: it attaches the MCP server `[mcp.<name>]` of the
+`human`, and `team` (the lead's only; listing it for a teammate gives it nothing it can use). `mcp:<name>` is not a tool group: it attaches the MCP server `[mcp.<name>]` of the
 configuration ([CONFIGURATION.md](CONFIGURATION.md#mcp-servers-mcpname)); `mcp:docs` attaches the
 `docs_mcp_urls` servers of 0.1.0 and the server `[mcp.docs]` if there is one (no MCP at all in the
 `smoke` profile). A [plugin tool](TOOLS.md#plugin-tools)'s own group can be listed too. Anything else

@@ -2,7 +2,7 @@
 
 ## Strategies
 
-`settings.strategy` (`--strategy`) picks how a run is orchestrated. Both implement
+`settings.strategy` (`--strategy`) picks how a run is orchestrated. All implement
 `Strategy.run(ctx, recipe, bundle) -> RunResult` (`pipeline/strategies.py`) and run inside the run
 recorder, so every one leaves a manifest, an event log, and usage:
 
@@ -10,6 +10,7 @@ recorder, so every one leaves a manifest, an event log, and usage:
 |----------|-----------|-----------|
 | `pipeline` (default) | A recipe's stages as a CrewAI Flow with typed hand-offs, a task board, resume, and cancellation ([below](#pipeline-recipes-and-resume)) | yes |
 | `single` | One agent (`generalist_engineer`) with every tool and one task: the baseline for the benchmarks. It runs through the pipeline machinery as a one-stage recipe, so it has a board card, a stage record, resume, and cancellation too | yes |
+| `team` | A lead agent that does the work and calls teammates on demand for bounded, typed jobs; the recipe's controller skeleton and verification stay ([below](#dynamic-team-the-team-strategy)). Also through the pipeline machinery, as a recipe derived from the mode's | yes |
 
 The default is `pipeline`; the evidence and its limits are in [BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04). The 0.1.0 manager-led crew (`hierarchical`) was removed in 0.3.0 after it hit the time limit on all three measured runs; a run it recorded stays viewable but cannot be resumed.
 
@@ -336,7 +337,7 @@ own cards, start and hand over their own work, flag blockers, comment, and repor
 move is validated.
 
 **Cards** (`board/models.py`) have an id (`K-001`, …), a `kind` (`stage`, `work_package`,
-`subtask`, `repair`, `finding`, `check`, `user_note`), a `status`, an assignee (teammate key), lane,
+`subtask`, `repair`, `finding`, `check`, `user_note`, `delegation`), a `status`, an assignee (teammate key), lane,
 stage, parent, dependencies, criteria, owned paths, artifacts, an attempt count, a blocked reason,
 comments, the ids of the checks that justify `done`, tokens and cost, timestamps, and a `history`
 of every move (who, from, to, why, with which evidence). **Columns** are `backlog · ready ·
@@ -602,6 +603,63 @@ is called and the `new`, `feature` and `fix` recipes skip what that size does no
   contracts and the project context, and the tool list never changes during a session, so a
   provider's automatic prefix caching can serve the start of each call; `profile` reports the
   cached share. (Explicit cache control for Anthropic is T26.)
+
+### Dynamic team: the `team` strategy
+
+The `pipeline` strategy runs every stage of its recipe in a fixed order, each a cold session. The
+`team` strategy (`pipeline/lead.py`, `pipeline/lead_exec.py`, `pipeline/delegation.py`) is the
+subagent pattern instead: one **lead** session works the whole task with a warm context, and calls
+a teammate only when that pays for a session of its own. It is not 0.2.0's `hierarchical` crew,
+whose manager had no tools and delegated everything through chat: the lead has the generalist's
+full toolbelt and works itself, and the controller caps how much it may delegate.
+
+- **The lead's recipe.** `lead_recipe` derives it from the mode's recipe (any recipe with a verify
+  stage; `team-<name>`, deterministic, so a run resumes under it): the controller stages before
+  verification (`profile`, `baseline`, ...) and the `reproduce` stage stay, every stage that does
+  the work (design, spec, plan, packages, integration, tests, the map, reviews) becomes one `lead`
+  stage, and `verify` and the controller's write-ups after it stay. The lead's teammate (the
+  generalist) also writes a fix's reproduction and repairs failing checks, so no teammate works
+  unless the lead called it. The lead's prompt (`{lead}`) carries what the skeleton established
+  (the baseline, the reproduction seen failing, any criteria), the teammates it can call, and when
+  to call them: guidance kept as data in `config/lead.yaml` (tunable in T21).
+- **Delegation tools** (group `team`, the lead only; [TOOLS.md](TOOLS.md#team-tools)): `Delegate`
+  (a teammate, a brief, owned paths, criteria, a step budget), `Delegate Parallel` (independent
+  briefs with disjoint owned paths), `Ask Reviewer` / `Ask Security Review` (the current change),
+  `Ask Debugger` (a failing check id; with paths it may fix them), `Ask Architect` / `Ask Analyst`
+  (a question or plan draft). Each job is a small crew of its own run synchronously; the lead gets a
+  compact result (at most about 1,500 tokens): what the controller saw (files changed, the commands
+  the teammate ran, the controller's checks after a job that changed files, model calls, tokens and
+  cost) and, labelled as such, what the teammate said or found. A teammate gets the brief and the
+  hand-off pack, never the lead's history.
+- **Controller limits.** The tools reach the controller through the run's `DelegationHub`
+  (`runtime/delegation.py`), which only the lead's own session can use: a teammate, or the lead
+  outside its session, gets a refusal, so delegation is one level deep. `delegation.max_delegations`
+  caps the jobs per run (by size: small 2, medium 5, large 12; every brief of a parallel call
+  counts), `delegation.max_iter` the model calls per job (the lead may ask for fewer); a job that
+  writes must name its owned paths and runs with a write scope of exactly them (the reproduction
+  stays read-only); parallel jobs' paths must not overlap; a teammate the roster does not allow for
+  the mode cannot be called; the run's budgets cover every job, and a budget stop inside a job ends
+  the lead's session and the run.
+- **Board and timeline.** Every job is a `delegation` card under the lead's stage card (assignee,
+  brief, the lead's reason, owned paths; the result as a comment; done, failed or cancelled by the
+  controller) and runs in its own lane (`D1`, `D2`, ... with `lane.started`/`lane.finished`), so the
+  UI's lanes and the report's timeline show it beside the lead. `delegation.started` and
+  `delegation.finished` events carry the teammate, the reason, the files and the cost; the report's
+  *Delegations* section lists who was called, why, and what it cost.
+- **Verification unchanged.** The controller runs the verify stage's checks after each job that
+  changed files (without repair; the lead reads the result) and as the `verify` stage after the
+  lead hands back; the lead never marks anything done. When a deterministic security signal fired
+  (auth, crypto, subprocess, SQL, deserialisation, secrets: in the request or in a file the run
+  changed; `config/lead.yaml`) and no security review read the tree the lead handed back, the
+  controller runs its own `security_review` stage, whose serious findings go to repair as in the
+  pipeline.
+- **Resume.** Each job is recorded in `pipeline.json` (`delegations`) before it starts. A run that
+  stopped mid-job resumes the `lead` stage: the job is marked `interrupted` (its card cancelled,
+  its use counted against the cap), and the lead's new session is told which jobs earlier sessions
+  gave out and how they ended.
+
+The static `pipeline` strategy stays for large new projects and whenever it is asked for
+(`--strategy pipeline`); choosing between them per task is T13's escalation ladder.
 
 ## Parallel execution
 
@@ -1106,7 +1164,7 @@ larger ones today:
 | `main.py` | `run_prep` (options to a prepared run), `request_sources`, `outcome` (exit codes), `api` (`resume`); `main` is the entry and re-exports them |
 | `tools/` catalogue | `spec`, `catalogue_project`, `catalogue_dev`, `catalogue_external`, `catalogue_team`, `registry` (the builder), `finder` (Find Tool and Use Tool) |
 | `git/` | `core` (the safe command line), `reads`, `writes`, `port` (`GitPort`) |
-| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `executor` (stages); `lean` (task size and what it skips), `handoff` (hand-off packs), `release_notes` |
+| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `lead_exec` (the lead stage), `executor` (stages); `lean` (task size and what it skips), `handoff` (hand-off packs), `release_notes`; `lead` (the lead's recipe and prompt), `delegation` and `delegation_briefs` (checking, running and reporting delegated jobs), `lead_contracts` |
 | `report/` HTML | `html_common`, `html_overview`, `html_board`, `html_results`, `html_artifacts`; `html_sections` re-exports them |
 | `board/` | `store` (`BoardStore`), `files` (saving), `limits` |
 
@@ -1119,6 +1177,7 @@ building 0.2.0 are in the [0.2.0 implementation plan's decision log](https://git
 |----------|------------|-----|
 | The controller runs the checks and owns every card's final state; agents only report | Trusting an agent's "done" | Agent-authored text is never evidence ([SAFETY.md](SAFETY.md#untrusted-content)); the 0.1.0 guardrails only checked that files existed |
 | `pipeline` (a Flow of single-agent stage crews) is the default strategy | The 0.1.0 manager-led crew (removed in 0.3.0), or one `single` agent | Measured: the 0.1.0 crew did not finish in the time limit; `single` is cheaper and not distinguishable on pass rate at this sample size ([BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) |
+| The `team` strategy's lead works itself and delegates bounded, typed jobs through controller-checked tools | A manager agent delegating through CrewAI's `allow_delegation` | The tool-less manager of 0.1.0 never finished; tools let the controller cap, scope, record and verify every job, and keep teammates one level deep |
 | Parallel work packages **own paths** (a `WriteScope`) | Git worktrees per package, merged afterwards | A merge conflict needs a model to resolve it, which is the nondeterminism ownership avoids |
 | Per-stage state is readable JSON beside the manifest, written atomically | CrewAI's native checkpointing; a database | A stage is one agent and one task, so a task-boundary checkpoint holds nothing; the files the tools changed are in the workspace, which the tree hash covers |
 | Every process goes through `ExecutionBackend` | Each tool calling `subprocess` | One place to sandbox (the Docker backend), time out, log and cancel; a test fails any tool that imports `subprocess` |

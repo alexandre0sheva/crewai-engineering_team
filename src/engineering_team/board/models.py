@@ -13,7 +13,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from engineering_team.contracts import Contract, utc_now
 
-CardKind = Literal["stage", "work_package", "subtask", "repair", "finding", "check", "user_note"]
+CardKind = Literal[
+    "stage", "work_package", "subtask", "repair", "finding", "check", "user_note", "delegation"
+]
 CardStatus = Literal[
     "backlog", "ready", "in_progress", "verifying", "blocked", "done", "failed", "cancelled"
 ]

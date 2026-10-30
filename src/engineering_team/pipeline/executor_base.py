@@ -158,7 +158,7 @@ class ExecutorBase:
         note: str,
         package: WorkPackage | None = None,
         *,
-        lane: int | None = None,
+        lane: int | str | None = None,
         scope: WriteScope | None = None,
         failures: str = "",
         findings: str = "",
@@ -169,6 +169,9 @@ class ExecutorBase:
         profile: str = "",
         upgrades: str = "",
         audit: str = "",
+        brief: str = "",
+        lead: str = "",
+        max_iter: int | None = None,
     ) -> StageOutput:
         self.ctx.board.wait_while_paused(self.ctx.cancel_event)
         check_cancelled(self.ctx)
@@ -208,6 +211,9 @@ class ExecutorBase:
             audit=audit or self._audit_text(),
             tier=tier_for(self._lean, stage.kind, stage.contract_outputs),
             handoff=handoff_pack(self.ctx, self.state, stage),
+            brief=brief,
+            lead=lead,
+            max_iter=max_iter,
         )
         if stage.prompt == "fix_findings" and not findings:  # a stage that fixes the audit's
             request = replace(

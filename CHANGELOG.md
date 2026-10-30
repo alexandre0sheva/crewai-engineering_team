@@ -11,6 +11,16 @@ renames that section and dates it.
 
 ### Added
 
+- The `team` strategy (`--strategy team`, or `strategy = "team"`, which `feature` and `fix` follow too): one lead
+  agent does the work with every tool and calls teammates on demand through new `team` tools (`Delegate`,
+  `Delegate Parallel`, `Ask Reviewer`, `Ask Security Review`, `Ask Debugger`, `Ask Architect`, `Ask Analyst`).
+  Each job gets a brief instead of the lead's history, a write scope of its owned paths, a board card and a lane,
+  and returns a compact result with the files changed, the commands run, the controller's checks and its cost.
+  The controller keeps the profile, baseline and reproduction before the lead and verification after it, caps
+  delegation (`[delegation] max_delegations`, by task size by default; `max_iter` per job), keeps teammates from
+  delegating further, and reviews a security-sensitive change the lead did not have reviewed. A run that stopped
+  mid-job resumes with the job marked interrupted. The run report has a *Delegations* section.
+
 - The recipe composer: a recipe can be composed from a task profile (the stages each intent needs, merged and
   ordered, each with the reason it is there), from a stage library and rules in `modes/compose.yaml`. Composing
   the profile of each 0.2.0 mode gives exactly its bundled recipe; mixed requests (a bug fix with docs, a feature

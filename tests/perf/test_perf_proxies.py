@@ -7,8 +7,8 @@ fails the gate without a paid benchmark. Two kinds of test:
 * ``test_*_does_not_grow`` pin today's structure: a ceiling a little above the measured value.
   When a task makes the team leaner, lower the ceiling to the new value in the same change.
 * ``test_*_meets_the_target`` state the target for each scenario. The small-task targets are met
-  since T6 (lean team); the medium target ("sessions only for teammates the lead called") is
-  T12's and has no proxy yet.
+  since T6 (lean team); the medium target ("sessions only for teammates the lead called") since
+  T12 (the team strategy).
 """
 
 from __future__ import annotations
@@ -21,9 +21,11 @@ from scenarios import (
     Measured,
     full_pipeline,
     medium_feature_pipeline,
+    medium_new_project_team,
     small_bugfix_fix_mode,
     small_new_project_pipeline,
     small_new_project_single,
+    small_new_project_team,
 )
 from test_baseline import interpreter_on_path  # noqa: F401  (the repro command needs pytest)
 
@@ -41,6 +43,9 @@ PIPELINE_MEDIUM = Measured(9, 15, 3_234, 2_250, 0, ())
 PIPELINE_FULL = Measured(10, 17, 3_234, 1_719, 2, ())  # lean.size = large, ceremony = always
 SINGLE_SMALL = Measured(1, 4, 3_234, 404, 0, ())
 FIX_SMALL = Measured(3, 6, 3_234, 1_849, 0, ())
+# The team strategy (measured 2026-10-30, T12): the lead's schema carries the seven team tools.
+TEAM_SMALL = Measured(1, 3, 4_651, 912, 0, ())
+TEAM_MEDIUM = Measured(4, 9, 4_651, 1_346, 0, ())
 HEADROOM = 1.15
 
 
@@ -127,3 +132,32 @@ def test_the_single_agent_baseline_is_within_the_small_task_targets(
 
 def test_the_always_on_prompt_stays_under_its_cap(monkeypatch: pytest.MonkeyPatch) -> None:
     assert small_new_project_pipeline(monkeypatch).always_on_tokens <= ALWAYS_ON_TOKENS
+
+
+# -- the team strategy (T12) ---------------------------------------------------------------------
+
+
+def test_a_small_team_run_does_not_grow(monkeypatch: pytest.MonkeyPatch) -> None:
+    within(small_new_project_team(monkeypatch), TEAM_SMALL)
+
+
+def test_a_medium_team_run_does_not_grow(monkeypatch: pytest.MonkeyPatch) -> None:
+    within(medium_new_project_team(monkeypatch)[0], TEAM_MEDIUM)
+
+
+def test_a_small_task_the_lead_does_alone_is_one_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    measured = small_new_project_team(monkeypatch)
+
+    assert measured.sessions == 1
+    assert measured.model_calls <= SMALL_MODEL_CALLS
+    assert measured.ceremony_stages == 0
+
+
+def test_a_medium_task_has_sessions_only_for_the_teammates_the_lead_called(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    measured, called = medium_new_project_team(monkeypatch)
+
+    assert called == ["backend_engineer", "frontend_engineer", "code_reviewer"]
+    assert measured.sessions == 1 + len(called)  # the lead, and one session per job it gave out
+    assert measured.schema_tokens <= SCHEMA_TOKENS  # the lead's team tools included

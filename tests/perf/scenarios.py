@@ -21,6 +21,7 @@ from engineering_team import main
 from engineering_team.contracts import Design, Plan, ReviewReport, RunManifest, WorkPackage
 from engineering_team.pipeline import strategies
 from engineering_team.pipeline.stages import CrewStageRunner
+from engineering_team.pipeline.state import PipelineState
 from engineering_team.pricing import build_table
 from engineering_team.runtime.profile import build_profile
 from engineering_team.testing import ScriptedLLM, ToolCall
@@ -57,7 +58,7 @@ def run_new(*extra: str) -> int:
             "demo",
             "--workspace-root",
             str(Path.cwd() / ROOT),
-            *(["--checks", str(write_checks())] if "pipeline" in extra else []),
+            *(["--checks", str(write_checks())] if {"pipeline", "team"} & set(extra) else []),
             *extra,
         ]
     )
@@ -140,6 +141,54 @@ def small_new_project_single(monkeypatch: pytest.MonkeyPatch) -> Measured:
     install(monkeypatch, llms)
     assert run_new("--strategy", "single") == 0
     return measure()
+
+
+def small_new_project_team(monkeypatch: pytest.MonkeyPatch) -> Measured:
+    """The team strategy on the same request: the lead builds it alone (no teammate called)."""
+
+    llms = {
+        "generalist_engineer": ScriptedLLM(
+            [write("README.md"), write("src/notes.py", "VALUE = 1\n"), "Built the notes CLI."]
+        )
+    }
+    install(monkeypatch, llms)
+    assert run_new("--strategy", "team") == 0
+    for llm in llms.values():
+        llm.assert_exhausted()
+    return measure()
+
+
+def medium_new_project_team(monkeypatch: pytest.MonkeyPatch) -> tuple[Measured, list[str]]:
+    """The team strategy on a medium task: the lead hands two independent parts to two
+    teammates side by side, asks the reviewer once and integrates. Returns the teammates the
+    lead called, in the order the controller recorded them."""
+
+    monkeypatch.setenv("ENGINEERING_LEAN_SIZE", "medium")
+    parts = [
+        {"teammate": "backend_engineer", "brief": "The storage API.", "owned_paths": ["api/**"]},
+        {"teammate": "frontend_engineer", "brief": "The notes page.", "owned_paths": ["web/**"]},
+    ]
+    llms = {
+        "generalist_engineer": ScriptedLLM(
+            [
+                ToolCall("Delegate Parallel", {"briefs": parts}),
+                write("README.md"),
+                ToolCall("Ask Reviewer", {"focus": "the whole change"}),
+                "Integrated the API and the page.",
+            ]
+        ),
+        "backend_engineer": ScriptedLLM([write("api/store.py", "VALUE = 1\n"), "API done."]),
+        "frontend_engineer": ScriptedLLM([write("web/index.html", "<p>notes</p>\n"), "Done."]),
+        "code_reviewer": ScriptedLLM([ReviewReport(summary="Reads well.").model_dump_json()]),
+    }
+    install(monkeypatch, llms)
+    assert run_new("--strategy", "team") == 0
+    for llm in llms.values():
+        llm.assert_exhausted()
+    manifest = only_run()
+    state = PipelineState.load(run_dir(manifest))
+    assert state is not None
+    return measure(manifest), [record.teammate for record in state.delegations]
 
 
 def medium_feature_pipeline(monkeypatch: pytest.MonkeyPatch) -> Measured:

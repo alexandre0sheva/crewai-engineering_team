@@ -44,6 +44,8 @@ from engineering_team.team import Roster, TeamError
 from engineering_team.team.registry import WRITERS
 from engineering_team.tools import WriteScope, build_tools
 
+TEAM_GROUP = "team"  # the lead's delegation tools (``tools/team_tools.py``)
+
 # Contracts a stage can produce, by output name.
 CONTRACT_MODELS: dict[str, type[Contract]] = {
     "spec": Spec,
@@ -90,6 +92,9 @@ class StageRequest:
     audit: str = ""  # what the controller's dependency audit found, as text
     tier: str | None = None  # the model tier to run on instead of the teammate's own (lean.py)
     handoff: str = ""  # the controller's hand-off pack: files, last checks, earlier stages
+    brief: str = ""  # a delegated job: what the lead asks of the teammate (``delegation.py``)
+    lead: str = ""  # the lead stage: the skeleton's facts, the teammates and when to call them
+    max_iter: int | None = None  # a delegated job: its cap on model calls (below the teammate's)
 
     @property
     def label(self) -> str:
@@ -111,9 +116,9 @@ class StageRunner(Protocol):
 def stage_groups(ctx: RunContext, teammate: str) -> tuple[str, ...]:
     """The teammate's tool groups. One the machine or setup cannot provide (browser extra not
     installed, web disabled) is left out by ``build_tools``, never an error mid-run; `doctor`
-    says what is missing."""
+    says what is missing. ``team`` is never among them: only the lead stage adds it."""
 
-    return ctx.team.get(teammate).groups
+    return tuple(g for g in ctx.team.get(teammate).groups if g != TEAM_GROUP)
 
 
 @functools.cache
@@ -138,7 +143,7 @@ def prompt_key(stage: StageSpec, *, synthesis: bool = False, findings: bool = Fa
         return "custom"
     key = stage.prompt or {
         "parallel": "implement", "verify": "repair", "analyze": "analyze_chunk",
-        "upgrade": "upgrade_apply", "review": "review",
+        "upgrade": "upgrade_apply", "review": "review", "lead": "lead",
     }.get(stage.kind, stage.name)  # fmt: skip
     if stage.kind == "analyze" and synthesis:
         key = "analyze_synthesis"  # the last step combines what the chunk analysts found
@@ -343,6 +348,9 @@ class CrewStageRunner:
         resolved = ctx.settings.resolve_model(
             teammate, tier=request.tier or member.tier, max_iter=member.max_iter
         )
+        max_iter = (
+            min(resolved.max_iter, request.max_iter) if request.max_iter else resolved.max_iter
+        )
         llm = (
             self._llm_factory(teammate) if self._llm_factory else build_llm(resolved, ctx.settings)
         )
@@ -362,7 +370,7 @@ class CrewStageRunner:
             ),
             **agent_extensions(ctx.settings, member),
             allow_delegation=False,  # a stage crew has one agent: nobody to delegate to
-            max_iter=resolved.max_iter,
+            max_iter=max_iter,
             verbose=ctx.settings.verbose,
             inject_date=True,
         )
@@ -421,4 +429,6 @@ class CrewStageRunner:
             "audit": request.audit,
             "coverage": coverage_brief(request.state),
             "handoff": request.handoff,
+            "brief": request.brief,
+            "lead": request.lead,
         }

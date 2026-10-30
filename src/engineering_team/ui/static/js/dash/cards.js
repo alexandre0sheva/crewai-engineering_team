@@ -5,8 +5,8 @@ import { append, clear, duration, h, icon, seconds } from "../dom.js";
 import { avatar, label, tint } from "./colors.js";
 import { STATUS_LABEL } from "./store.js";
 
-const KIND_ICON = { stage: "layers", work_package: "box", subtask: "list", repair: "wrench", finding: "flag", check: "shield", user_note: "message" };
-const KIND_LABEL = { stage: "Stage", work_package: "Work package", subtask: "Subtask", repair: "Repair", finding: "Finding", check: "Check", user_note: "Note" };
+const KIND_ICON = { stage: "layers", work_package: "box", subtask: "list", repair: "wrench", finding: "flag", check: "shield", user_note: "message", delegation: "user" };
+const KIND_LABEL = { stage: "Stage", work_package: "Work package", subtask: "Subtask", repair: "Repair", finding: "Finding", check: "Check", user_note: "Note", delegation: "Delegation" };
 export const TOOLTIP = "The controller moves cards, not people. Open the card to send the team a steering note.";
 
 export function describe(card) {

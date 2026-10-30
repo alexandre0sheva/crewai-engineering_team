@@ -64,6 +64,28 @@ def usage(report: RunReport) -> str:
     return section("usage", "Usage and cost", body)
 
 
+def delegations(report: RunReport) -> str:
+    """Who the lead called, why, and what it cost (the team strategy)."""
+
+    if not report.delegations:
+        return ""
+    rows = [
+        [
+            esc(d.id),
+            esc(d.teammate),
+            esc(d.kind.replace("_", " ")),
+            badge(d.status),
+            esc(d.why or "-"),
+            esc(", ".join(d.files_changed[:6]) + (" ..." if len(d.files_changed) > 6 else "")),
+            str(d.calls),
+            esc(money(d.cost_usd)),
+        ]
+        for d in report.delegations
+    ]
+    head = ["Job", "Teammate", "Kind", "Status", "Why (the lead)", "Files", "Model calls", "Cost"]
+    return section("delegations", "Delegations", table(head, rows, (6, 7)))
+
+
 def checks(report: RunReport) -> str:
     if not report.checks:
         return section(

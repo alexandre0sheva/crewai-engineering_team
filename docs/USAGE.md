@@ -233,6 +233,17 @@ FILE` adds your own) and writes `docs/verification.md` from what it saw. A pipel
 cancelled, interrupted, or failed continues where it stopped with `resume RUN`; a changed request starts
 a new run instead. How it works is in [ARCHITECTURE.md](ARCHITECTURE.md#pipeline-recipes-and-resume).
 
+`--strategy team` runs a lead agent that does the work itself and calls teammates only when it pays:
+an independent part or another stack (`Delegate`, `Delegate Parallel`), a review of the change, a
+check it could not fix, a design question. The controller still runs the checks (after each job that
+changed files, and after the lead hands back) and writes `docs/verification.md`; a small task the
+lead does alone is one session. The board shows each job as a *Delegation* card in its own lane, and
+the run report's *Delegations* section lists who was called, why, and what it cost. `strategy =
+"team"` in the configuration also applies to `feature` and `fix`, whose profile, baseline and
+reproduction stay controller stages. The cap and the per-job limit are in
+[CONFIGURATION.md](CONFIGURATION.md#team-strategy-delegation); how it works is in
+[ARCHITECTURE.md](ARCHITECTURE.md#dynamic-team-the-team-strategy).
+
 **The plan is repaired, not just checked.** The architect splits the work into packages that each own paths, and
 shared root files (`README.md`, `pyproject.toml`, `package.json`, lockfiles, CI configuration) belong to the
 foundation and integrate stages only. When a plan breaks that rule in a mechanical way, the controller fixes it and

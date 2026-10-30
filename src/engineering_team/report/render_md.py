@@ -49,6 +49,7 @@ def render_markdown(report: RunReport) -> str:
     lines += _timeline(report)
     lines += _board(report)
     lines += _agents(report)
+    lines += _delegations(report)
     lines += _screenshots(report)
     lines += _usage(report)
     lines += _profile(report)
@@ -256,6 +257,28 @@ def _criteria(report: RunReport) -> list[str]:
         for c in report.coverage
     ]
     return lines + table(["ID", "Criterion", "Status", "Checks / note"], rows)
+
+
+def _delegations(report: RunReport) -> list[str]:
+    """Who the lead called, why, and what it cost (the team strategy)."""
+
+    if not report.delegations:
+        return []
+    rows = [
+        (
+            d.id,
+            d.teammate,
+            d.kind.replace("_", " "),
+            d.status,
+            d.why or "-",
+            len(d.files_changed),
+            d.calls,
+            money(d.cost_usd),
+        )
+        for d in report.delegations
+    ]
+    head = ["Job", "Teammate", "Kind", "Status", "Why (the lead)", "Files", "Model calls", "Cost"]
+    return ["", "## Delegations", "", *table(head, rows)]
 
 
 def _findings(report: RunReport) -> list[str]:

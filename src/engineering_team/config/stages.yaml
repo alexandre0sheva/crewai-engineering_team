@@ -24,7 +24,11 @@
 # ``maintain`` recipes' prompts are ``add_tests`` ({coverage}: where the tests are thinnest),
 # ``refactor``, ``docs_legacy``, ``dependency_plan``, ``upgrade_apply``, ``audit_security``,
 # ``fix_findings`` (the serious findings are {findings}) and their ``repair_*`` and
-# ``review_maintain`` companions; ``review_diff`` is the ``review`` command's.
+# ``review_maintain`` companions; ``review_diff`` is the ``review`` command's. ``lead`` is the
+# ``team`` strategy's lead session ({lead}: what the controller established, the teammates it can
+# call and when); ``delegate_work``, ``delegate_review``, ``delegate_debug`` and
+# ``delegate_consult`` are the jobs it gives teammates ({brief}: the job as the lead wrote it, with
+# the paths the teammate may change).
 
 spec:
   description: >
@@ -1316,3 +1320,133 @@ fix_findings:
     {resume_note}
   expected_output: >
     The confirmed findings fixed in the workspace and a short summary per finding id.
+
+lead:
+  description: >
+    You lead the work on {project_name} in {workspace_path}: do it yourself with your tools, and
+    call a teammate only for a bounded job that pays for its own session.
+
+    Request:
+
+    {requirements}
+
+    {bug}
+
+    {context}
+
+    {lead}
+
+    Read what exists first and reuse coherent code. Make the smallest change that fully meets the
+    request (for a new project: a conventional structure, real behaviour for every requirement,
+    focused tests, and a README.md with setup, run and test). Run the tests and the cheapest
+    build or start-up check, fix what fails, and never report a check as passing unless you ran
+    it. When the work is done, hand back: the controller then runs the project's checks itself.
+
+    {handoff}
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A summary of what you changed (files), which teammates you called and why, the commands you
+    ran with their exit codes, and any honest limitation.
+
+delegate_work:
+  description: >
+    The lead of {project_name} in {workspace_path} gives you one bounded job. You get this brief,
+    not the lead's history: read the code you need before you change it.
+
+    Request the team is working on:
+
+    {requirements}
+
+    Your job:
+
+    {brief}
+
+    {context}
+
+    Change only the paths the brief gives you. Implement real behaviour with focused tests where
+    the project has tests, run them, fix what fails, and never report a check as passing unless
+    you ran it. Do not do more than the job asks.
+
+    {handoff}
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A short report for the lead: what you did, the files you changed, the commands you ran with
+    their exit codes, and anything left undone.
+
+delegate_review:
+  description: >
+    The lead of {project_name} in {workspace_path} asks you to review the change made so far.
+    You can only read: do not write or change any file, and do not report anything you have not
+    seen in the code.
+
+    Request the team is working on:
+
+    {requirements}
+
+    {brief}
+
+    Find what changed (Git Info diff, Workspace Changes, or the files the hand-off lists as most
+    recently changed) and read it, then the code that calls it. Report only defects the change
+    introduced or left behind, each once, with the file and line, a severity (critical, high,
+    medium, low, info) that reflects its impact, and a concrete suggested fix. Leave out style
+    preferences. If you find nothing, say so with an empty list.
+
+    {handoff}
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    A JSON review report: a one- or two-sentence summary and a findings list (each finding has
+    severity, summary, file, line, and suggested_fix).
+
+delegate_debug:
+  description: >
+    The lead of {project_name} in {workspace_path} could not make a check pass and asks you to
+    find out why.
+
+    Request the team is working on:
+
+    {requirements}
+
+    {brief}
+
+    Run the check, read the failure and the code it points to, and find the root cause; name the
+    file and line. If the brief lets you change paths, make the smallest fix there and run the
+    check again; otherwise change nothing. Never report a check as passing unless you ran it.
+
+    {handoff}
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The diagnosis (root cause, file and line, the evidence you saw), what you changed if
+    anything, and the commands you ran with their exit codes.
+
+delegate_consult:
+  description: >
+    The lead of {project_name} in {workspace_path} asks for your decision. You can only read: do
+    not write or change any file.
+
+    Request the team is working on:
+
+    {requirements}
+
+    The question (or plan draft):
+
+    {brief}
+
+    {context}
+
+    Read the code that bears on it, then answer: your decision or the acceptance criteria, the
+    reasons in a few sentences, and the assumptions you made. Keep it short enough to act on.
+
+    {handoff}
+    {card}
+    {notes}
+    {resume_note}
+  expected_output: >
+    The decision (or the criteria), its reasons, and its assumptions, in under 300 words.

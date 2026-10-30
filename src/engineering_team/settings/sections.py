@@ -263,6 +263,24 @@ class LeanSettings(_Frozen):
     ceremony: Literal["auto", "always", "never"] = "auto"
 
 
+class DelegationSettings(_Frozen):
+    """The ``team`` strategy's lead and the teammates it calls (``pipeline/lead.py``)."""
+
+    # How many teammate jobs the lead may start in one run (every brief of a Delegate Parallel
+    # counts): auto is 2 for a small task, 5 for a medium one and 12 for a large one; 0 lets the
+    # lead work alone.
+    max_delegations: Literal["auto"] | int = "auto"
+    # The most model calls one delegated job may make (the lead may ask for fewer, never more).
+    max_iter: int = Field(default=20, ge=2, le=60)
+
+    @field_validator("max_delegations")
+    @classmethod
+    def _cap(cls, value: Literal["auto"] | int) -> Literal["auto"] | int:
+        if value != "auto" and not 0 <= value <= 50:
+            raise ValueError("max_delegations must be 'auto' or a whole number from 0 to 50")
+        return value
+
+
 class FixSettings(_Frozen):
     """Fix mode: how hard the team tries to reproduce a bug before it asks you."""
 

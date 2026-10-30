@@ -95,7 +95,7 @@ class StageBoard:
     # -- moves ---------------------------------------------------------------------------
 
     def start(
-        self, card_id: str | None, assignee: str | None = None, lane: int | None = None
+        self, card_id: str | None, assignee: str | None = None, lane: int | str | None = None
     ) -> None:
         """Get a card to ``in_progress`` (in ``lane``), reopening it first if an earlier attempt
         ended it."""
@@ -134,7 +134,7 @@ class StageBoard:
             return False
         return True
 
-    def _start(self, card_id: str, assignee: str | None, lane: int | None) -> None:
+    def _start(self, card_id: str, assignee: str | None, lane: int | str | None) -> None:
         card: Card = self.board.get(card_id)
         if assignee and card.assignee != assignee:
             self.board.update(card_id, assignee=assignee)

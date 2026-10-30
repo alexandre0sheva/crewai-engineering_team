@@ -482,14 +482,16 @@ def test_a_checks_file_inside_the_project_is_a_usage_error(
     assert code == 2 and "outside the project" in capsys.readouterr().err
 
 
-def test_a_checks_file_needs_the_pipeline_strategy(capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_checks_file_needs_a_strategy_that_verifies(capsys: pytest.CaptureFixture[str]) -> None:
     code = main.run(
         ["new", "--request", REQUEST, "--project-name", "demo",
          "--workspace-root", str(Path.cwd() / ROOT),
          "--strategy", "single", "--checks", str(write_checks())]
     )  # fmt: skip
 
-    assert code == 2 and "only run by the 'pipeline' strategy" in capsys.readouterr().err
+    assert (
+        code == 2 and "only run by the 'pipeline' and 'team' strategies" in capsys.readouterr().err
+    )
 
 
 def test_the_real_repair_crew_is_briefed_with_the_failures_and_its_tokens_are_counted(

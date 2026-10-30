@@ -105,6 +105,18 @@ def describe_event(event: Event) -> FeedLine | None:
         status = str(data.get("status", ""))
         level = "good" if status == "succeeded" else "bad"
         return FeedLine(ts, f"lane {lane} finished {data.get('unit', '')}: {status}", level)
+    if kind == "delegation.started":
+        why = f": {_short(data.get('why'))}" if data.get("why") else ""
+        return FeedLine(ts, f"lead called {data.get('teammate', '?')} ({data.get('id', '')}){why}")
+    if kind == "delegation.finished":
+        status = str(data.get("status", ""))
+        cost = data.get("cost_usd")
+        spent = f", ${cost:.4f}" if isinstance(cost, int | float) else ""
+        return FeedLine(
+            ts,
+            f"{data.get('teammate', '?')} {status} ({data.get('id', '')}{spent})",
+            "good" if status == "succeeded" else "bad",
+        )
     if kind == "tool.call":
         ok = data.get("ok", True)
         return FeedLine(

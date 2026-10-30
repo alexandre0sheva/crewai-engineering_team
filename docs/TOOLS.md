@@ -23,6 +23,7 @@ complete list. Which teammate gets which groups is in [TEAM.md](TEAM.md) (and co
 | `board` | See the task board; start, hand over, block, and comment on your own cards | Coordination, not project work: the controller decides when a card is done ([ARCHITECTURE.md](ARCHITECTURE.md#task-board)). |
 | `notes` | Shared notes between agents; the project's decision log | Files under the run directory and `.engineering-team/`, reached only through these tools. |
 | `human` | Ask the person running the team a question | Blocks with a timeout; with nobody to answer it tells the agent to proceed on an assumption. |
+| `team` | The `team` strategy's lead calls teammates for bounded, typed jobs | [Team tools](#team-tools). **The lead only**, in its own session: no teammate's tool set includes the group, and a call from anyone else is refused. |
 
 `read_only=True` keeps only the tools marked read-only below, in any group. *Read-only* means a
 tool never changes project files or runs agent-chosen commands (`Hotspots` and `Find TODOs` run
@@ -120,6 +121,13 @@ once never share them. The default groups for the 0.1 crew are the four project 
 | `List Notes` | `notes` | yes | no | no | Keys and sizes of the run's notes. |
 | `Log Decision` | `notes` | yes | no | no | Append a dated one-line decision (≤ 1,000 characters) to `.engineering-team/decisions.md`; the log persists across runs, only grows, and is capped at 50,000 characters. |
 | `Ask Human` | `human` | yes | no | no | Ask a question and wait (5–900 s, default 300). No human wired up: returns "No human is available…" at once. Marks the caller's `in_progress` card `blocked` while waiting when given `card_id`. |
+| `Delegate` | `team` | no | no | no | One job for a named teammate: brief (≤ 4,000 characters), `owned_paths` (required; the teammate's write scope), criteria, `max_steps` (≤ `delegation.max_iter`), why. Waits for it and returns the [typed result](#team-tools). |
+| `Delegate Parallel` | `team` | no | no | no | Several such briefs at once, one lane each (≤ `parallel.max_parallel_agents` at a time); refused when two briefs' owned paths may overlap. Each brief counts against `delegation.max_delegations`. |
+| `Ask Reviewer` | `team` | no | no | no | The code reviewer reads the current change (read-only tools) and returns findings with file, line, severity and a fix; an optional focus. |
+| `Ask Security Review` | `team` | no | no | no | The same, by the security engineer. A review after the lead's last change stands in for the controller's own security review. |
+| `Ask Debugger` | `team` | no | no | no | A diagnosis of a failing controller check (by id; unknown ids are refused with the known ones); with `paths` the debugger may also fix them. |
+| `Ask Architect` | `team` | no | no | no | A decision on a design question or plan draft, read-only. |
+| `Ask Analyst` | `team` | no | no | no | Acceptance criteria or an answer for an unclear request, read-only. |
 
 ## Developer tools
 
@@ -285,6 +293,27 @@ For verifying a user interface: load the app, read it, use it, and check what it
   The Verifier can run your own Playwright script as a `browser_script` check
   ([CONFIGURATION.md](CONFIGURATION.md#verification-verify-and---checks)).
 
+## Team tools
+
+The `team` strategy's lead ([ARCHITECTURE.md](ARCHITECTURE.md#dynamic-team-the-team-strategy)) has
+the `team` group on top of the generalist's; every other agent never does (`stage_groups` leaves it
+out, and a teammate listing it in `tool_groups` gets tools that refuse). A call reaches the
+controller's delegator through the run's `DelegationHub`, only from the lead's own session (not from
+a lane, so a teammate cannot delegate: depth 1). The controller checks the call (the cap
+`delegation.max_delegations`, a teammate the roster allows for this run, `owned_paths` for a job
+that writes and a teammate that can write, disjoint paths between parallel briefs) and answers a
+refusal with an `ERROR:` that says what to do instead.
+
+Each job is a small crew of its own (the teammate's prompt, its tools, the brief and the hand-off
+pack, never the lead's conversation), on a `delegation` board card and in its own lane (`D1`,
+`D2`, ...). Asks are read-only; a write job's tools are scoped to its owned paths. The result is at
+most 6,000 characters: one line of what the controller saw (status, seconds, model calls, tokens,
+cost, files changed), the files changed, the commands it ran (`Run Tests`, `Run Project Command`,
+...), the findings (≤ 8), what the teammate said (labelled as its own words, not evidence), the
+controller's checks after a job that changed files, and how many delegations are left. All seven
+tools are eager (sent as tools of their own): they are why the lead has the group; with them the
+lead sends about 4,700 schema tokens per call.
+
 ## Held-back tools: Find Tool and Use Tool
 
 Every model call sends the schema of every tool the agent has: a teammate with a dozen groups paid
@@ -293,7 +322,8 @@ about 12,000 tokens per call for schemas while a session used a handful of tools
 time (`EAGER_TOOLS` in `tools/registry.py`: `List Project Files`, `Read Project File`,
 `Read File Range`, `Read Many Files`, `Search Project Files`, `Find Files`, `Write Project File`,
 `Replace In Project File`, `Apply Patch`, `Run Project Command`, `Run Tests`, `Comment On Card`,
-`Block Card`, `Ask Human`, as far as its groups include them) and holds the rest of its groups' tools
+`Block Card`, `Ask Human`, and the lead's [team tools](#team-tools), as far as its groups include
+them) and holds the rest of its groups' tools
 back behind two tools that come last. Every built-in teammate now sends under 6,000 schema tokens
 per call (a test checks it).
 
