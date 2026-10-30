@@ -93,9 +93,10 @@ def _run_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--strategy",
         choices=list(STRATEGY_NAMES),
-        help="How the team is orchestrated: pipeline (staged, resumable; the default, see "
-        "docs/BENCHMARKS.md), single (one agent, the benchmark baseline) or team (a lead "
-        "agent that calls teammates on demand; see docs/ARCHITECTURE.md).",
+        help="How the team is orchestrated: auto (the default: start cheap and escalate while "
+        "verification fails), pipeline (every stage of the recipe), single (one agent, the "
+        "benchmark baseline) or team (a lead agent that calls teammates on demand); see "
+        "docs/ARCHITECTURE.md.",
     )
     parser.add_argument(
         "--allow-web",
@@ -206,8 +207,9 @@ def _open_run(
 
     ``context`` (the reference documents of ``--context-dir``) is copied into the workspace.
     A repository mode passes the ``workspace`` its isolation made (and the ``run_id`` that named
-    the branch) and its ``recipe``: the run then uses the pipeline strategy (or the team
-    strategy, when it is the configured one, which derives the lead's recipe from it), and the
+    the branch) and its ``recipe``: the run then uses the configured strategy when it runs a
+    recipe (``auto``, ``team``, which derive their rungs or the lead's recipe from it, or
+    ``pipeline``) and the pipeline strategy otherwise, and the
     controller's reports go to the run directory instead of the project's ``docs/``.
 
     Also creates the run's manifest (``pending``); the caller wraps the work in
@@ -276,8 +278,8 @@ def _pin_checks(settings: Settings, ctx: RunContext, mode: str, strategy: str) -
         return ChecksPin()
     if strategy not in RECIPE_STRATEGIES:
         raise ValueError(
-            f"Your checks file is only run by the 'pipeline' and 'team' strategies, not "
-            f"'{strategy}'. Pass --strategy pipeline, or drop --checks."
+            f"Your checks file is only run by the 'auto', 'pipeline' and 'team' strategies, "
+            f"not '{strategy}'. Pass --strategy auto, or drop --checks."
         )
     return pin_checks(ctx, Path(source))
 

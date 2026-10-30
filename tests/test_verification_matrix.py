@@ -489,9 +489,8 @@ def test_a_checks_file_needs_a_strategy_that_verifies(capsys: pytest.CaptureFixt
          "--strategy", "single", "--checks", str(write_checks())]
     )  # fmt: skip
 
-    assert (
-        code == 2 and "only run by the 'pipeline' and 'team' strategies" in capsys.readouterr().err
-    )
+    err = capsys.readouterr().err
+    assert code == 2 and "only run by the 'auto', 'pipeline' and 'team' strategies" in err
 
 
 def test_the_real_repair_crew_is_briefed_with_the_failures_and_its_tokens_are_counted(

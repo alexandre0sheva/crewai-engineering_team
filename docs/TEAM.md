@@ -24,7 +24,7 @@ engineering-team team show product_analyst
 | `technical_writer` | README, `docs/usage.md`, and a changelog for the generated project (`docs` stage); changes documentation only. | `worker` | `fs_read`, `fs_write`, `search`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `mcp:docs` |
 | `debugger` | Reproduces a failure, finds the root cause, makes the smallest fix: the repair agent of the `verify` stage, for failing checks and for review findings. | `worker` | everything but `web`: as `quality_engineer` without `web` |
 | `codebase_analyst` | Reads an existing codebase and explains it: modules, key flows, conventions, risks, how to run and test (the `map` stage of the `adopt` recipe; `engineering-team analyze --deep`). Read-only: the controller writes `.engineering-team/codebase-map.md`. | `worker` | `fs_read`, `search`, `code_intel`, `git_read`, `board`, `notes`, `knowledge` (no `human`, no `web`) |
-| `generalist_engineer` | Does everything alone (`single` strategy), leads the `team` strategy (with the `team` group added for that session only), and stands in for a missing teammate. | `worker` | as `frontend_engineer` |
+| `generalist_engineer` | Does everything alone (`single` strategy), leads the `team` strategy (with the `team` group added for that session only) and the `auto` strategy's `solo` and `team` rungs, and stands in for a missing teammate. | `worker` | as `frontend_engineer` |
 
 Groups marked `web` and `browser` are used only when they exist: `web` needs `web.enabled` (and the
 teammate in `web.roles`, if set), `browser` needs the optional Playwright extra. A group that is not

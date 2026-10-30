@@ -17,6 +17,7 @@ from engineering_team.tools import WriteScope, build_tools
 from engineering_team.verification.loop import VerificationError, VerificationLoop
 
 READ_ONLY_KINDS = ("review", "security_review", "architect", "analyst")
+SOLO_RUNG = "solo"  # the escalation ladder's rung on which the lead works alone (``ladder.py``)
 MAX_CHECK_LINES = 12
 
 
@@ -27,7 +28,7 @@ class LeadExecutor(PackageExecutor):
         ctx, state = self.ctx, self.state
         teammate = lead_teammate(ctx, stage)
         size = state.lean.size if state.lean is not None else None
-        cap = delegation_cap(ctx, size)
+        cap = 0 if state.rung == SOLO_RUNG else delegation_cap(ctx, size)
         if state.lead is None:
             state.lead = LeadRecord(cap=cap)
         delegator = Delegator(

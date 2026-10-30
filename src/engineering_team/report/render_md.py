@@ -49,6 +49,7 @@ def render_markdown(report: RunReport) -> str:
     lines += _timeline(report)
     lines += _board(report)
     lines += _agents(report)
+    lines += _escalation(report)
     lines += _delegations(report)
     lines += _screenshots(report)
     lines += _usage(report)
@@ -257,6 +258,34 @@ def _criteria(report: RunReport) -> list[str]:
         for c in report.coverage
     ]
     return lines + table(["ID", "Criterion", "Status", "Checks / note"], rows)
+
+
+def _escalation(report: RunReport) -> list[str]:
+    """The rungs an ``auto`` run climbed, why, and what each cost."""
+
+    ladder = report.ladder
+    if ladder is None:
+        return []
+    lines = ["", "## Escalation", ""]
+    lines.append(
+        f"Started on **{ladder.start}** ({cell('; '.join(ladder.reasons))}); highest rung allowed: "
+        f"{ladder.max_rung}."
+    )
+    rows = [
+        (
+            rung.rung,
+            rung.status,
+            rung.why,
+            rung.outcome or "-",
+            ", ".join(rung.failing_checks) or "-",
+            money(rung.cost_usd),
+        )
+        for rung in ladder.rungs
+    ]
+    lines += ["", *table(["Rung", "Status", "Why", "Outcome", "Failing checks", "Cost"], rows)]
+    if ladder.stopped:
+        lines += ["", f"Stopped: {cell(ladder.stopped)}"]
+    return lines
 
 
 def _delegations(report: RunReport) -> list[str]:

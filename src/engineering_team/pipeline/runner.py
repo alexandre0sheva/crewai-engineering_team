@@ -137,13 +137,13 @@ def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = No
         )
     strategy = get_strategy(manifest.strategy)
     # The single-agent strategy supplies its own one-stage recipe; the pipeline loads its own,
-    # and the team strategy derives the lead's from it.
+    # the team strategy derives the lead's from it, and auto walks the rung its ladder is on.
     recipe = (
         pinned_recipe(store.run_dir(run_id)) or load_recipe(manifest.recipe, workspace_dir)
         if manifest.strategy in RECIPE_STRATEGIES and manifest.recipe
         else None
     )
-    effective = strategy.recipe_for(recipe)
+    effective = strategy.resumed_recipe(store.run_dir(run_id), recipe)
     saved = PipelineState.load(store.run_dir(run_id))
     if saved is not None and saved.recipe_digest != effective.digest:
         raise ResumeError(

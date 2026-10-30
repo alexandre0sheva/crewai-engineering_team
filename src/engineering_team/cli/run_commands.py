@@ -146,7 +146,7 @@ def new(
     ] = None,
     allow_web: Annotated[bool, typer.Option(help="Let the team use the web tools.")] = False,
     checks: Annotated[
-        str | None, typer.Option(help="YAML file of your own checks (pipeline strategy).")
+        str | None, typer.Option(help="YAML file of your own checks (not with --strategy single).")
     ] = None,
     no_git: Annotated[bool, typer.Option(help="No Git repository or stage commits.")] = False,
     sandbox: Annotated[

@@ -11,6 +11,8 @@ from engineering_team.report.model import (
     RunReport,
 )
 
+RUNG_TONE = {"succeeded": "good", "escalated": "warn"}
+
 # -- usage, checks, criteria, findings -------------------------------------------------------
 
 
@@ -62,6 +64,32 @@ def usage(report: RunReport) -> str:
         by_model = [[esc(m), esc(money(c))] for m, c in data.cost_by_model.items()]
         body += "<h3>By model</h3>" + table(["Model", "Estimated cost"], by_model, (1,))
     return section("usage", "Usage and cost", body)
+
+
+def escalation(report: RunReport) -> str:
+    """The rungs an ``auto`` run climbed, why, and what each cost."""
+
+    ladder = report.ladder
+    if ladder is None:
+        return ""
+    rows = [
+        [
+            esc(rung.rung),
+            badge(rung.status, RUNG_TONE.get(rung.status, "info")),
+            esc(rung.why),
+            esc(rung.outcome or "-"),
+            esc(", ".join(rung.failing_checks) or "-"),
+            esc(money(rung.cost_usd)),
+        ]
+        for rung in ladder.rungs
+    ]
+    lead = (
+        f"<p>Started on <strong>{esc(ladder.start)}</strong> ({esc('; '.join(ladder.reasons))}); "
+        f"highest rung allowed: {esc(ladder.max_rung)}.</p>"
+    )
+    stopped = f"<p>Stopped: {esc(ladder.stopped)}</p>" if ladder.stopped else ""
+    head = ["Rung", "Status", "Why", "Outcome", "Failing checks", "Cost"]
+    return section("escalation", "Escalation", lead + table(head, rows, (5,)) + stopped)
 
 
 def delegations(report: RunReport) -> str:

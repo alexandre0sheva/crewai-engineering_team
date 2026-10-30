@@ -76,6 +76,7 @@ def _build_env_table() -> dict[str, tuple[str, Callable[[str], Any]]]:
         "ENGINEERING_LEAN_SIZE": ("lean.size", _text),
         "ENGINEERING_LEAN_CEREMONY": ("lean.ceremony", _text),
         "ENGINEERING_MAX_DELEGATIONS": ("delegation.max_delegations", _auto_or_int),
+        "ENGINEERING_LADDER_MAX_RUNG": ("ladder.max_rung", _text),
         "ENGINEERING_LAZY_TOOLS": ("tools.lazy", _bool),
     }
     # 0.1.0 model variables: the standard names only affect the standard profile and the

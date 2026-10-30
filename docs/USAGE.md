@@ -223,12 +223,24 @@ cheaper run use `--profile smoke` or `team_profile = "minimal"`, which keep only
 ([TEAM.md](TEAM.md)).
 
 
+By default (`--strategy auto`) a run starts cheap and spends more only when the checks say so: a
+small task starts with one lead agent working alone, a medium or high-risk one with the lead and
+its teammates, a large one with the full pipeline. When the controller's checks still fail after the
+repair rounds, or the agent is stuck, the run escalates to the next rung on the same workspace, and
+the new rung is told what failed, what the last attempt changed and what it tried. The live feed
+shows each move (`escalated solo -> team: ...`), the board titles every card with its rung, and the
+run report's *Escalation* section lists the rungs with their reasons and cost. With a cost limit
+(`budget.max_cost_usd`) a rung the budget cannot pay for is not started; the run says so and stops.
+`resume RUN` continues on the rung the run reached. The starting rungs and the highest one are in
+[CONFIGURATION.md](CONFIGURATION.md#escalation-ladder-ladder); how it works is in
+[ARCHITECTURE.md](ARCHITECTURE.md#escalation-ladder-the-auto-strategy).
+
 `--strategy pipeline` (or `ENGINEERING_STRATEGY=pipeline`) runs the team as a staged, resumable
 pipeline (design or spec and plan, foundation, implement, integrate, verify, review, devops, docs, release
 notes, of which a small task runs design, implement, verify, review and release notes); `--strategy single` runs one agent with every
-tool (no stages, no controller-run checks: fast and cheap, the benchmark baseline). `pipeline` is the default: in the benchmarks
-([BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) it passed 10/10 where the removed 0.1.0 manager-led crew finished 0/3, and
-`single` did as well on pass rate for far less money but skips the staged review and verification report. In a pipeline run the controller, not an agent, runs the tests and checks (`--checks
+tool (no stages, no controller-run checks: fast and cheap, the benchmark baseline). In the 0.2.0 benchmarks
+([BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) `pipeline` passed 10/10 where the removed 0.1.0 manager-led crew finished 0/3, and
+`single` did as well on pass rate for far less money but skips the staged review and verification report, which is why `auto` starts small tasks with one agent and keeps the controller's checks. In a pipeline run the controller, not an agent, runs the tests and checks (`--checks
 FILE` adds your own) and writes `docs/verification.md` from what it saw. A pipeline run that was
 cancelled, interrupted, or failed continues where it stopped with `resume RUN`; a changed request starts
 a new run instead. How it works is in [ARCHITECTURE.md](ARCHITECTURE.md#pipeline-recipes-and-resume).

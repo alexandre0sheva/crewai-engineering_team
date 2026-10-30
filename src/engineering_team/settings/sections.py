@@ -281,6 +281,23 @@ class DelegationSettings(_Frozen):
         return value
 
 
+RungName = Literal["solo", "team", "pipeline"]
+
+
+class LadderSettings(_Frozen):
+    """The ``auto`` strategy's escalation ladder (``pipeline/ladder.py``).
+
+    The rung a task starts on comes from its size, raised to ``start_high_risk`` for a high-risk
+    one; a rung whose verification still fails escalates to the next, up to ``max_rung``. The
+    defaults are provisional until the 0.3.0 live evaluation (T33) measures them."""
+
+    start_small: RungName = "solo"
+    start_medium: RungName = "team"
+    start_large: RungName = "pipeline"
+    start_high_risk: RungName = "team"  # the lowest rung a high-risk task starts on
+    max_rung: RungName = "pipeline"  # the highest rung escalation may reach
+
+
 class FixSettings(_Frozen):
     """Fix mode: how hard the team tries to reproduce a bug before it asks you."""
 

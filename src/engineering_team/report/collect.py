@@ -22,6 +22,7 @@ from engineering_team.contracts import (
     RunManifest,
     UsageReport,
 )
+from engineering_team.pipeline.ladder_contracts import LadderRecord
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.pricing import PriceTable, default_prices
 from engineering_team.report import analysis
@@ -99,6 +100,7 @@ def build_report(run_dir: Path) -> RunReport:
         questions=list(state.needs_info) if state else [],
         summaries=dict(state.summaries) if state else {},
         delegations=list(state.delegations) if state else [],
+        ladder=LadderRecord.load(run_dir),
         environment=_environment(run_dir, manifest),
     )
     report.stages = _stages(manifest, end)

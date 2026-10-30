@@ -590,16 +590,16 @@ def test_a_busy_workspace_refuses_a_resume(
 # -- strategy selection --------------------------------------------------------------------------
 
 
-def test_the_strategy_comes_from_the_flag_the_environment_or_defaults_to_pipeline(
+def test_the_strategy_comes_from_the_flag_the_environment_or_defaults_to_auto(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     use_runner(monkeypatch, FakeRunner())
     base = ["new", "--request", REQUEST, "--workspace-root", str(Path.cwd() / ROOT)]
     checks = ["--checks", str(write_checks())]
 
-    # The default was chosen by the benchmarks (docs/BENCHMARKS.md): the staged pipeline.
+    # The default is the escalation ladder (provisional until the 0.3.0 live evaluation).
     assert main.run([*base, "--project-name", "default", *checks]) == 0
-    assert RunStore(project("default")).latest().strategy == "pipeline"  # type: ignore[union-attr]
+    assert RunStore(project("default")).latest().strategy == "auto"  # type: ignore[union-attr]
 
     monkeypatch.setenv("ENGINEERING_STRATEGY", "single")
     assert main.run([*base, "--project-name", "from-env"]) == 0

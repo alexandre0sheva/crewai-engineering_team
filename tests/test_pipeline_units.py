@@ -252,8 +252,8 @@ def test_a_resumed_context_continues_the_usage_and_the_event_log(
 # -- settings --------------------------------------------------------------------------------
 
 
-def test_strategy_defaults_to_pipeline_and_is_validated() -> None:
-    assert load_settings().strategy == "pipeline"
+def test_strategy_defaults_to_auto_and_is_validated() -> None:
+    assert load_settings().strategy == "auto"
     assert load_settings(overrides={"strategy": "single"}).strategy == "single"
     for removed in ("swarm", "hierarchical"):  # hierarchical, the 0.1.0 crew, was removed in 0.3.0
         with pytest.raises(SettingsError, match="strategy"):

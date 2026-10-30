@@ -132,7 +132,9 @@ are in [docs/TOOLS.md](docs/TOOLS.md).
 ## Measured, not assumed
 
 A benchmark suite of greenfield and brownfield tasks, judged by hidden behavioural checks the team never
-sees, decided the default strategy; pass rates come with confidence intervals and cost per success.
+sees, shapes the default strategy: one agent matched the staged team at a fraction of the cost, so a run
+starts cheap and escalates only when the checks fail. Pass rates come with confidence intervals and cost per
+success.
 Method, threat model and every number: [docs/BENCHMARKS.md](docs/BENCHMARKS.md#results-2026-10-04) and
 [`benchmarks/results/`](benchmarks/results/2026-10-04/). `engineering-team bench run --fake` checks the
 harness offline.

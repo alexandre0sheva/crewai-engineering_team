@@ -22,11 +22,13 @@ from engineering_team.settings import Settings
 TOKEN_PRIORS: dict[str, tuple[int, int]] = {
     "pipeline": (1_200_000, 150_000),
     "single": (500_000, 70_000),
+    "team": (800_000, 100_000),  # a lead and a few delegated jobs (the escalation ladder's rung)
 }
 # Which share of a run's tokens each model tier handles.
 TIER_MIX: dict[str, dict[str, float]] = {
     "pipeline": {"lead": 0.25, "reviewer": 0.15, "worker": 0.60},
     "single": {"worker": 1.0},
+    "team": {"lead": 0.10, "reviewer": 0.10, "worker": 0.80},
 }
 LOW_FACTOR, HIGH_FACTOR = 0.5, 2.0
 

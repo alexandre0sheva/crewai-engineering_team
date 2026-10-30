@@ -253,6 +253,7 @@ def small_bugfix_fix_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Me
         "code_reviewer": ScriptedLLM([ReviewReport(summary="Reads well.").model_dump_json()]),
     }
     install(monkeypatch, llms)
+    monkeypatch.setenv("ENGINEERING_STRATEGY", "pipeline")  # the fix recipe's own structure
     command = ["--workspace-root", str(Path.cwd() / ROOT), "fix", "--repo", str(repo)]
     result = CliRunner().invoke(app, [*command, "--request", REPORT])
     assert result.exit_code == 0, result.output

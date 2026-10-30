@@ -11,6 +11,16 @@ renames that section and dates it.
 
 ### Added
 
+- The `auto` strategy, an escalation ladder: a run starts on the cheapest rung its size and risk allow (`solo`,
+  one lead agent working alone; `team`, the lead with teammates on demand; `pipeline`, every stage of the
+  recipe) and, when the controller's checks still fail after the rung's repair rounds or the agent is stuck,
+  escalates to the next rung on the same workspace, telling it which checks failed, what the earlier attempt
+  changed and what it tried. The profile, baseline and reproduction are kept, not redone. A rung whose estimated
+  cost is more than the budget has left is not started. `[ladder]` sets the starting rung per size
+  (`start_small`, `start_medium`, `start_large`), for high-risk requests (`start_high_risk`) and the highest rung
+  (`max_rung`). Escalations are `ladder.*` events, notes on the board (whose cards carry their rung) and an
+  *Escalation* section in the run report; `resume` continues on the rung the run reached. The ladder climbs for
+  `new`, `feature` and `fix`; maintenance tasks and recipes of your own run as written.
 - The `team` strategy (`--strategy team`, or `strategy = "team"`, which `feature` and `fix` follow too): one lead
   agent does the work with every tool and calls teammates on demand through new `team` tools (`Delegate`,
   `Delegate Parallel`, `Ask Reviewer`, `Ask Security Review`, `Ask Debugger`, `Ask Architect`, `Ask Analyst`).
@@ -80,6 +90,9 @@ renames that section and dates it.
 
 ### Changed
 
+- The default strategy is `auto` (it was `pipeline`), for `new` and for the repository modes; `--strategy
+  pipeline`, `team` or `single` still forces one. The starting rungs are provisional until the 0.3.0 live
+  evaluation.
 - A benchmark check that cannot judge (a missing toolchain, Docker not running, a missing check function) is
   recorded as `error`, left out of pass rates and repeated by `--resume`, instead of failing the run. `result.json`
   is schema 2 (`split` instead of `subset`, plus `intent` and a per-criterion `error`); version 1 files still read.

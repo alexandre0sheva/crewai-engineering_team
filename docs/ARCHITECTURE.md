@@ -8,11 +8,15 @@ recorder, so every one leaves a manifest, an event log, and usage:
 
 | Strategy | What it is | Resumable |
 |----------|-----------|-----------|
-| `pipeline` (default) | A recipe's stages as a CrewAI Flow with typed hand-offs, a task board, resume, and cancellation ([below](#pipeline-recipes-and-resume)) | yes |
+| `auto` (default) | The escalation ladder: start on the cheapest rung the task's size and risk allow (a lead alone, a lead with teammates, the full pipeline) and escalate on the same workspace while verification fails ([below](#escalation-ladder-the-auto-strategy)). Each rung is a walk of the pipeline machinery | yes |
+| `pipeline` | A recipe's stages as a CrewAI Flow with typed hand-offs, a task board, resume, and cancellation ([below](#pipeline-recipes-and-resume)) | yes |
 | `single` | One agent (`generalist_engineer`) with every tool and one task: the baseline for the benchmarks. It runs through the pipeline machinery as a one-stage recipe, so it has a board card, a stage record, resume, and cancellation too | yes |
 | `team` | A lead agent that does the work and calls teammates on demand for bounded, typed jobs; the recipe's controller skeleton and verification stay ([below](#dynamic-team-the-team-strategy)). Also through the pipeline machinery, as a recipe derived from the mode's | yes |
 
-The default is `pipeline`; the evidence and its limits are in [BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04). The 0.1.0 manager-led crew (`hierarchical`) was removed in 0.3.0 after it hit the time limit on all three measured runs; a run it recorded stays viewable but cannot be resumed.
+The default is `auto`, provisional until the 0.3.0 live evaluation (T33) measures it: in the 0.2.0
+benchmark ([BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) one agent matched the pipeline's pass
+rate at a small fraction of its cost, so the team is spent only where verification says it is needed.
+`single`, `team` and `pipeline` stay forceable with `--strategy`. The 0.1.0 manager-led crew (`hierarchical`) was removed in 0.3.0 after it hit the time limit on all three measured runs; a run it recorded stays viewable but cannot be resumed.
 
 ## Filesystem model
 
@@ -192,6 +196,7 @@ from reading `commands/` logs. This is the single description of its layout:
 | `usage.json` | `RunRecorder` | `UsageReport`: token totals and a breakdown by stage, agent, and model, with per-model cost (`null` when the price is unknown), and `sessions`: one `SessionUsage` per agent session ([Usage accounting](#usage-accounting-and-sessions)) |
 | `settings.json` | `RunRecorder` | The effective `Settings` for the record (no secrets: credentials are read from the environment, never stored; hook addresses and MCP server environments are replaced) |
 | `pipeline.json` | `PipelineState` | The pipeline's hand-offs between stages (spec, plan, work-package status, board card ids, agent summaries, the latest check results and the `VerificationRecord`); see [Pipeline, recipes, and resume](#pipeline-recipes-and-resume) |
+| `ladder.json`, `rungs/<rung>.json` | `pipeline/ladder_run.py` | `auto` runs only: the `LadderRecord` (where the ladder started and why, each rung's reason, outcome, failing checks, cost and the brief it was given) and each rung's final `pipeline.json` once the run escalated past it; see [Escalation ladder](#escalation-ladder-the-auto-strategy) |
 | `verification/round-<n>.json` | `Verifier` | The results of each check run (status, exit code, duration, log path, the workspace revision it ran against, the parsed test or diagnostic report); see [Verification and repair](#verification-and-repair) |
 | `fix-input.json` | `fix` | `fix` runs only: the person's `--repro` command, the whole `--trace-file`, and `--allow-unreproduced`; read by the controller, never by agents |
 | `run-options.json` | the repository-mode commands | What the command line asked beyond the request (`maintain --fix`, `review --base`); read again when the pipeline starts or resumes, never by agents |
@@ -659,7 +664,57 @@ full toolbelt and works itself, and the controller caps how much it may delegate
   gave out and how they ended.
 
 The static `pipeline` strategy stays for large new projects and whenever it is asked for
-(`--strategy pipeline`); choosing between them per task is T13's escalation ladder.
+(`--strategy pipeline`); choosing between them per task is the [escalation
+ladder](#escalation-ladder-the-auto-strategy).
+
+### Escalation ladder: the `auto` strategy
+
+`auto` (`pipeline/ladder.py`, `ladder_run.py`, `ladder_brief.py`, `ladder_contracts.py`) spends the
+team only where the evidence says it pays. It climbs rungs, cheapest first, each a walk of the same
+Flow machinery:
+
+| Rung | What runs | Recipe |
+|------|-----------|--------|
+| `solo` | The lead alone (delegation cap 0), then the controller's verification and repair | `solo-<mode>`: the lead's recipe |
+| `team` | The lead with its teammates on demand, the cap set by size ([Dynamic team](#dynamic-team-the-team-strategy)) | `team-<mode>` |
+| `pipeline` | The mode's full recipe: design, parallel packages, reviewers | `<mode>` |
+
+Best-of-N attempts become the rung above `pipeline` in a later 0.3.0 task.
+
+- **Start.** The run is sized once, before any model is called ([The lean team](#the-lean-team)),
+  and the size picks the first rung (`ladder.start_small` `solo`, `start_medium` `team`,
+  `start_large` `pipeline`); a high-risk request starts at least on `ladder.start_high_risk`
+  (`team`), and nothing starts above `ladder.max_rung`. The ladder climbs for the bundled (or
+  composed) `new`, `feature` and `fix` recipes only: a maintenance task (grouped upgrades, a
+  tests-only or docs-only policy), a review and a recipe of your own run as written, on the
+  `pipeline` rung alone. The thresholds are provisional until T33.
+- **Escalation.** A rung escalates when the controller's evidence says it failed: its verification
+  still fails after the rung's repair rounds (`budget.max_repair_rounds` per rung: each rung starts
+  a fresh verification record), or a work stage could not deliver after its retries (the agent is
+  stuck). A budget stop, a cancel, a bug the team could not reproduce (`needs-info`), a setup problem
+  (a model that cannot call tools) or a failing controller stage ends the run where it is: another
+  rung would not change those. The next rung works **on the same workspace**; its sessions get the
+  controller's brief through the hand-off pack: the checks that still failed, the diff since the run
+  started, and the earlier attempt's trace in short (tool counts, failed calls, its last answer),
+  quoted as data, not instructions. The ladder stops at `ladder.max_rung`.
+- **The skeleton stays.** An escalated rung leaves out the controller stages and the reproduction
+  before verification (profile, baseline, `reproduce`) and carries their facts over (`isolation`,
+  `profile`, `baseline`, `repro`, `fix`, `lean`, the pinned checks' digests): the baseline must stay
+  what the checks said before any change, and a reproduction seen failing is not written again.
+- **Budget.** Before a rung starts, its cost is estimated from the benchmark priors
+  (`bench/estimate.py`, by the task's size). The first rung steps down to the highest cheaper rung
+  the budget can pay for; an escalation whose rung costs more than `budget.max_cost_usd` has left is
+  not started, and the run stops with that reason. Without a cost limit (or a price) nothing is held
+  back.
+- **Visible.** `ladder.planned`, `ladder.rung_started`, `ladder.escalated` (from, to, reason, the
+  failing checks, the rung's cost) and `ladder.stopped` events; a controller note on the card where a
+  rung stopped, and every rung's cards titled with it (`Solo: Lead`, `Team: Verify`); the report's
+  *Escalation* section (one row per rung: why, outcome, failing checks, cost).
+- **Resume.** `ladder.json` is written before each rung starts. A rung's earlier stage records are
+  renamed `<rung>:<stage>` (they stay in the timeline) so resume never takes them for the next
+  rung's; `pipeline.json` belongs to the current rung and the one before is kept as
+  `rungs/<rung>.json`. `resume` walks the rung the ladder reached, continuing its stages as any
+  pipeline resume does, and escalates from there.
 
 ## Parallel execution
 
@@ -1164,7 +1219,7 @@ larger ones today:
 | `main.py` | `run_prep` (options to a prepared run), `request_sources`, `outcome` (exit codes), `api` (`resume`); `main` is the entry and re-exports them |
 | `tools/` catalogue | `spec`, `catalogue_project`, `catalogue_dev`, `catalogue_external`, `catalogue_team`, `registry` (the builder), `finder` (Find Tool and Use Tool) |
 | `git/` | `core` (the safe command line), `reads`, `writes`, `port` (`GitPort`) |
-| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `lead_exec` (the lead stage), `executor` (stages); `lean` (task size and what it skips), `handoff` (hand-off packs), `release_notes`; `lead` (the lead's recipe and prompt), `delegation` and `delegation_briefs` (checking, running and reporting delegated jobs), `lead_contracts` |
+| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `lead_exec` (the lead stage), `executor` (stages); `lean` (task size and what it skips), `handoff` (hand-off packs), `release_notes`; `lead` (the lead's recipe and prompt), `delegation` and `delegation_briefs` (checking, running and reporting delegated jobs), `lead_contracts`; `ladder` (the escalation policy), `ladder_run` (walking it), `ladder_brief` (what the next rung is told), `ladder_contracts` |
 | `report/` HTML | `html_common`, `html_overview`, `html_board`, `html_results`, `html_artifacts`; `html_sections` re-exports them |
 | `board/` | `store` (`BoardStore`), `files` (saving), `limits` |
 

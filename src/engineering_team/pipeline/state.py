@@ -95,7 +95,15 @@ class PipelineState(Contract):
     # The ``team`` strategy: the lead's record and every job it gave a teammate, in order.
     lead: LeadRecord | None = None
     delegations: list[DelegationRecord] = Field(default_factory=list)
+    # The ``auto`` strategy (``ladder.py``): the rung this state belongs to, and what the
+    # controller told it about the rung before (the hand-off pack carries it).
+    rung: str = ""
+    escalation: str = ""
     error: str = ""
+    # Why the walk stopped (``flow.py``): ``verification``, ``stage`` (a stage could not deliver),
+    # ``needs-info``, ``budget``, ``cancelled`` or ``config``; and the stage it stopped at.
+    stopped_by: str = ""
+    stopped_at: str = ""
 
     @classmethod
     def load(cls, run_dir: Path) -> PipelineState | None:
@@ -117,6 +125,17 @@ class RunBundle:
     resume: bool = False
     checks_digest: str = ""  # the pinned user checks file (``--checks``); see verification/
     script_digests: dict[str, str] = field(default_factory=dict)
+    rung: RungSeed | None = None  # the ``auto`` strategy's rung (``ladder.py``)
+
+
+@dataclass(frozen=True)
+class RungSeed:
+    """What a rung of the escalation ladder starts its fresh state with: its name, the facts it
+    carries over from the rung before (state fields, as JSON) and the controller's brief."""
+
+    rung: str
+    carried: dict[str, Any] = field(default_factory=dict)
+    escalation: str = ""
 
 
 @dataclass(frozen=True)

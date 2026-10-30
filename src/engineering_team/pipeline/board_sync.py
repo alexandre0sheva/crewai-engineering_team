@@ -43,8 +43,9 @@ class StageBoard:
         for index, stage in enumerate(self.recipe.stages):
             card_id = self.state.stage_cards.get(stage.name)
             if card_id is None or not self._exists(card_id):
+                title = stage.name.replace("_", " ").capitalize()
                 card = self.board.create_card(
-                    stage.name.replace("_", " ").capitalize(),
+                    f"{self.state.rung.capitalize()}: {title}" if self.state.rung else title,
                     kind="stage",
                     status="ready" if index == 0 else "backlog",
                     assignee=lead_teammate(self.ctx, stage) if stage.teammates else None,

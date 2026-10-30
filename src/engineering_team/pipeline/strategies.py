@@ -9,6 +9,9 @@
   (``pipeline/lead.py``); the recipe's controller skeleton and verification stay. Also through
   the pipeline machinery, as the recipe :func:`~engineering_team.pipeline.lead.lead_recipe`
   derives.
+* ``AutoStrategy`` (the default): the escalation ladder (``pipeline/ladder.py``). It starts on the
+  rung the task's size and risk call for (a lead alone, a lead with teammates, or the full
+  pipeline) and escalates on the same workspace while verification fails.
 
 A strategy runs *inside* ``recorder.running()`` (``pipeline/runner.py``) and returns how its work
 ended; an exception means the run failed.
@@ -17,10 +20,13 @@ ended; an exception means the run failed.
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import Protocol
 
 from engineering_team.contracts import RunVerdict
 from engineering_team.pipeline.flow import run_flow
+from engineering_team.pipeline.ladder_contracts import LadderRecord
+from engineering_team.pipeline.ladder_run import current_recipe, run_ladder
 from engineering_team.pipeline.lead import lead_recipe
 from engineering_team.pipeline.recipes import Recipe, StageSpec, load_recipe
 from engineering_team.pipeline.stages import CrewStageRunner, StageRunner
@@ -28,9 +34,9 @@ from engineering_team.pipeline.state import PipelineState, RunBundle, RunResult
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.run_store import RunStore
 
-STRATEGY_NAMES = ("pipeline", "single", "team")
+STRATEGY_NAMES = ("auto", "pipeline", "single", "team")
 # Strategies that run a recipe of the mode (the others bring their own).
-RECIPE_STRATEGIES = ("pipeline", "team")
+RECIPE_STRATEGIES = ("auto", "pipeline", "team")
 # Strategies 0.2.0 could record in a manifest that no longer exist: their runs stay viewable, but
 # cannot be resumed.
 RETIRED_STRATEGIES = ("hierarchical",)
@@ -60,6 +66,8 @@ class Strategy(Protocol):
     resumable: bool
 
     def recipe_for(self, recipe: Recipe | None) -> Recipe: ...
+
+    def resumed_recipe(self, run_dir: Path, recipe: Recipe | None) -> Recipe: ...
 
     def run(self, ctx: RunContext, recipe: Recipe | None, bundle: RunBundle) -> RunResult: ...
 
@@ -96,6 +104,11 @@ class PipelineStrategy:
     def recipe_for(self, recipe: Recipe | None) -> Recipe:
         return recipe or load_recipe(DEFAULT_RECIPE)
 
+    def resumed_recipe(self, run_dir: Path, recipe: Recipe | None) -> Recipe:
+        """The recipe a resume of the run in ``run_dir`` walks (its saved digest must match)."""
+
+        return self.recipe_for(recipe)
+
     def run(self, ctx: RunContext, recipe: Recipe | None, bundle: RunBundle) -> RunResult:
         status, error = run_flow(ctx, self.recipe_for(recipe), bundle, self._runner_factory())
         return _result(ctx, status, error, verdict=True)
@@ -115,6 +128,19 @@ class TeamStrategy(PipelineStrategy):
         return lead_recipe(recipe or load_recipe(DEFAULT_RECIPE))
 
 
+class AutoStrategy(PipelineStrategy):
+    name = "auto"
+
+    def resumed_recipe(self, run_dir: Path, recipe: Recipe | None) -> Recipe:
+        base = self.recipe_for(recipe)
+        record = LadderRecord.load(run_dir)
+        return base if record is None or record.current is None else current_recipe(record, base)
+
+    def run(self, ctx: RunContext, recipe: Recipe | None, bundle: RunBundle) -> RunResult:
+        status, error = run_ladder(ctx, self.recipe_for(recipe), bundle, self._runner_factory())
+        return _result(ctx, status, error, verdict=True)
+
+
 def get_strategy(name: str, runner_factory: RunnerFactory | None = None) -> Strategy:
     """The strategy called ``name``; ``runner_factory`` swaps the stage runner (tests)."""
 
@@ -123,6 +149,8 @@ def get_strategy(name: str, runner_factory: RunnerFactory | None = None) -> Stra
             f"The '{name}' strategy was removed in 0.3.0. Choose from: {', '.join(STRATEGY_NAMES)}."
         )
     factory = runner_factory or CrewStageRunner
+    if name == "auto":
+        return AutoStrategy(factory)
     if name == "pipeline":
         return PipelineStrategy(factory)
     if name == "single":
@@ -135,6 +163,6 @@ def get_strategy(name: str, runner_factory: RunnerFactory | None = None) -> Stra
 def recipe_name_for(strategy: str) -> str | None:
     """The recipe recorded in the manifest for a strategy (``None``: it does not use one)."""
 
-    return {"pipeline": DEFAULT_RECIPE, "single": SINGLE_RECIPE.name, "team": DEFAULT_RECIPE}.get(
-        strategy
-    )
+    if strategy == "single":
+        return SINGLE_RECIPE.name
+    return DEFAULT_RECIPE if strategy in RECIPE_STRATEGIES else None

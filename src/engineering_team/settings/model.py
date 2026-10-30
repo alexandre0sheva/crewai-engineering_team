@@ -58,6 +58,7 @@ from engineering_team.settings.sections import (
     GitSettings,
     IntakeSettings,
     KnowledgeSettings,
+    LadderSettings,
     LeanSettings,
     MaintainSettings,
     ModelOverride,
@@ -81,7 +82,7 @@ from engineering_team.settings.sections import (
 class Settings(_Frozen):
     provider: Literal["openai", "anthropic", "google", "ollama", "azure"] = "openai"
     profile: Literal["standard", "smoke", "max-quality"] = "standard"
-    strategy: Literal["pipeline", "single", "team"] = "pipeline"
+    strategy: Literal["auto", "pipeline", "single", "team"] = "auto"
     project_name: str = "mvp-app"
     workspace_root: str = "workspace"
     request: str | None = None
@@ -114,6 +115,7 @@ class Settings(_Frozen):
     analysis: AnalysisSettings = AnalysisSettings()
     lean: LeanSettings = LeanSettings()
     delegation: DelegationSettings = DelegationSettings()
+    ladder: LadderSettings = LadderSettings()
     fix: FixSettings = FixSettings()
     maintain: MaintainSettings = MaintainSettings()
     ui: UiSettings = UiSettings()

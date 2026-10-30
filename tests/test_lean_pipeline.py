@@ -198,6 +198,7 @@ def test_a_small_feature_designs_in_one_session_and_skips_the_map(
     from test_feature_mode import LEGACY, latest, run_feature
 
     repo = make_repo(tmp_path / "legacy", LEGACY)
+    monkeypatch.setenv("ENGINEERING_STRATEGY", "pipeline")  # the feature recipe's own structure
 
     result, fake = run_feature(repo, monkeypatch)
 

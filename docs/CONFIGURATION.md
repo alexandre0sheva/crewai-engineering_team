@@ -36,7 +36,7 @@ a profile.
 |---|---|---|---|
 | `provider` | `ENGINEERING_PROVIDER` | `openai` | Model preset: `openai`, `anthropic`, `google`, `ollama` (`azure` needs `enable_azure`) |
 | `profile` | `ENGINEERING_RUN_PROFILE` | `standard` | `standard`, `smoke` (cheap end-to-end check), `max-quality` |
-| `strategy` | `ENGINEERING_STRATEGY` | `pipeline` | How the team is orchestrated: `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)), `single` (one agent with every tool, the benchmark baseline) or `team` (a lead agent that does the work and calls teammates on demand; see [Team strategy](#team-strategy-delegation)). `--strategy` overrides it for `new`. Chosen with the [benchmarks](BENCHMARKS.md#results-2026-10-04). The repository modes use `pipeline`, or `team` when it is the configured strategy (they never run `single`). |
+| `strategy` | `ENGINEERING_STRATEGY` | `auto` | How the team is orchestrated: `auto` (the [escalation ladder](#escalation-ladder-ladder): start on the cheapest rung the task's size and risk allow and escalate while verification fails), `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)), `single` (one agent with every tool, the benchmark baseline) or `team` (a lead agent that does the work and calls teammates on demand; see [Team strategy](#team-strategy-delegation)). `--strategy` overrides it for `new`. The default is provisional until the 0.3.0 live evaluation. The repository modes follow `auto`, `team` and `pipeline` and use `pipeline` instead of `single`; under `auto`, `maintain` tasks and recipes of your own run as written (the ladder climbs for `new`, `feature` and `fix`). |
 | `team_profile` | `ENGINEERING_TEAM_PROFILE` | `full` | `full` runs every stage of the `new` recipe that the task's size and request call for ([Lean team](#lean-team-lean-and-toolslazy)); `minimal` leaves out the optional ones (review, DevOps, docs), as `--profile smoke` does. To drop only one, disable its teammates instead (`[team.code_reviewer] enabled = false`; a stage is skipped when none of its teammates is enabled). See [Review](#review-review-and-team_profile) |
 | `project_name` | `ENGINEERING_PROJECT_NAME` | `mvp-app` | Workspace directory name |
 | `workspace_root` | `ENGINEERING_WORKSPACE_ROOT` | `workspace` | Parent of generated projects (relative → current directory) |
@@ -64,8 +64,11 @@ a profile.
 | `lean.ceremony` | `ENGINEERING_LEAN_CEREMONY` | `auto` | The `devops` and `docs` stages: `auto` runs them only when the request asks for them, `always` runs them (0.2.0 behaviour), `never` skips them |
 | `delegation.max_delegations` | `ENGINEERING_MAX_DELEGATIONS` | `auto` | How many teammate jobs the `team` strategy's lead may start in one run (each brief of a Delegate Parallel counts): `auto` is 2 for a small task, 5 for a medium one, 12 for a large one; `0` lets the lead work alone. See [Team strategy](#team-strategy-delegation) |
 | `delegation.max_iter` | – | `20` | The most model calls one delegated job may make (2–60); the lead may ask for fewer, never more |
+| `ladder.start_small`, `ladder.start_medium`, `ladder.start_large` | – | `solo`, `team`, `pipeline` | The rung an `auto` run starts on for a small, medium or large task (`solo`, `team` or `pipeline`). See [Escalation ladder](#escalation-ladder-ladder) |
+| `ladder.start_high_risk` | – | `team` | The lowest rung a high-risk request (auth, secrets, payments, uploads, ...) starts on |
+| `ladder.max_rung` | `ENGINEERING_LADDER_MAX_RUNG` | `pipeline` | The highest rung an `auto` run may start on or escalate to; `solo` never escalates |
 | `tools.lazy` | `ENGINEERING_LAZY_TOOLS` | `true` | Hold rarely used tools back behind Find Tool and Use Tool, so every model call sends fewer tool schemas ([TOOLS.md](TOOLS.md#held-back-tools-find-tool-and-use-tool)); `false` gives every agent all its tools |
-| `budget.max_repair_rounds` | `ENGINEERING_BUDGET_MAX_REPAIR_ROUNDS` | `3` | Fix-and-verify rounds the whole run may spend repairing checks the controller found failing (see [Verification](#verification-verify-and---checks)); `0` never calls a repair agent |
+| `budget.max_repair_rounds` | `ENGINEERING_BUDGET_MAX_REPAIR_ROUNDS` | `3` | Fix-and-verify rounds the whole run (each rung of an `auto` run) may spend repairing checks the controller found failing (see [Verification](#verification-verify-and---checks)); `0` never calls a repair agent |
 
 ### Docker sandbox (`[execution.docker]` and `--sandbox`)
 
@@ -555,6 +558,32 @@ strategy = "team"
 max_delegations = 5   # or "auto" (by size), or 0: the lead works alone
 max_iter = 15         # model calls per delegated job
 ```
+
+### Escalation ladder (`[ladder]`)
+
+The default strategy, `auto`, climbs a ladder of rungs ([how it works](ARCHITECTURE.md#escalation-ladder-the-auto-strategy)):
+`solo` (the lead alone, then the controller's checks and repair), `team` (the lead and its
+teammates on demand) and `pipeline` (every stage of the mode's recipe). The task's
+[size](#lean-team-lean-and-toolslazy) picks the first rung and a high-risk request starts at least on
+`start_high_risk`; when a rung's checks still fail after its repair rounds, or its agent cannot
+deliver, the run escalates to the next rung on the same workspace, up to `max_rung`. A rung whose
+estimated cost is more than [`budget.max_cost_usd`](#budgets) has left is not started: the first rung
+steps down to one the budget can pay for, and an escalation stops the run with that reason. The
+defaults are provisional until the 0.3.0 live evaluation measures them. The ladder climbs for
+`new`, `feature` and `fix`; a `maintain` task, a review and a recipe of your own run as written.
+
+```toml
+strategy = "auto"
+
+[ladder]
+start_small = "solo"       # solo, team or pipeline
+start_medium = "team"
+start_large = "pipeline"
+start_high_risk = "team"   # the lowest start for a high-risk request
+max_rung = "pipeline"      # "team" never runs the full pipeline; "solo" never escalates
+```
+
+`--strategy single`, `team` or `pipeline` (or `strategy = ...`) runs one of them without the ladder.
 
 ### Review (`[review]` and `team_profile`)
 

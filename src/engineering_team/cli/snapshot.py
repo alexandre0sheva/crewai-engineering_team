@@ -105,6 +105,19 @@ def describe_event(event: Event) -> FeedLine | None:
         status = str(data.get("status", ""))
         level = "good" if status == "succeeded" else "bad"
         return FeedLine(ts, f"lane {lane} finished {data.get('unit', '')}: {status}", level)
+    if kind == "ladder.rung_started":
+        again = " (resumed)" if data.get("resumed") else ""
+        why = _short(data.get("why"))
+        return FeedLine(ts, f"rung {data.get('rung', '?')} started{again}: {why}")
+    if kind == "ladder.escalated":
+        return FeedLine(
+            ts,
+            f"escalated {data.get('from', '?')} -> {data.get('to', '?')}: "
+            f"{_short(data.get('reason'))}",
+            "bad",
+        )
+    if kind == "ladder.stopped":
+        return FeedLine(ts, f"ladder stopped: {_short(data.get('reason'))}", "bad")
     if kind == "delegation.started":
         why = f": {_short(data.get('why'))}" if data.get("why") else ""
         return FeedLine(ts, f"lead called {data.get('teammate', '?')} ({data.get('id', '')}){why}")

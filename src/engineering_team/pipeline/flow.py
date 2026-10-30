@@ -15,10 +15,12 @@ from crewai.flow.flow import Flow, listen, or_, router, start
 from pydantic import PrivateAttr
 
 from engineering_team.contracts import RunStatus, StageRecord
+from engineering_team.modes.needs_info import NeedsInfo
 from engineering_team.modes.run_options import read_run_options
 from engineering_team.pipeline.board_sync import StageBoard
 from engineering_team.pipeline.executor import StageExecutor, reset_for
 from engineering_team.pipeline.lean import assess, count_files
+from engineering_team.pipeline.no_retry import NoRetry
 from engineering_team.pipeline.recipes import CONDITIONS, Recipe
 from engineering_team.pipeline.resume import ResumeError, StagePlan, plan_resume
 from engineering_team.pipeline.stages import StageRunner
@@ -28,6 +30,7 @@ from engineering_team.runtime.cancel import RunCancelled, check_cancelled
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.session import RunRecorder
 from engineering_team.runtime.snapshot import workspace_revision
+from engineering_team.verification.loop import VerificationError
 
 MAX_ERROR = 600
 
@@ -77,7 +80,14 @@ class PipelineFlow(Flow[PipelineState]):
                 )
             for name in PipelineState.model_fields:
                 setattr(state, name, getattr(loaded, name))
+        elif (seed := self._bundle.rung) is not None:  # a rung of the ladder starts fresh
+            given = PipelineState.model_validate(
+                {**seed.carried, "rung": seed.rung, "escalation": seed.escalation}
+            )
+            for name in (*seed.carried, "rung", "escalation"):
+                setattr(state, name, getattr(given, name))
         state.recipe, state.recipe_digest, state.request_hash = recipe.name, digest, requested
+        state.stopped_by = state.stopped_at = ""
         state.options = read_run_options(ctx.run_dir)
         if state.lean is None:  # sized once, before any model is called; a resume keeps it
             state.lean = assess(self._bundle.requirements, ctx.settings, count_files(ctx.workspace))
@@ -142,11 +152,13 @@ class PipelineFlow(Flow[PipelineState]):
             self._executor.run(stage, entry)
             return "next_stage"
         except RunCancelled as exc:
-            return self._halt("cancelled", str(exc))
+            return self._halt("cancelled", str(exc), "cancelled", stage.name)
         except BudgetExceeded as exc:
-            return self._halt("failed", str(exc))
+            return self._halt("failed", str(exc), "budget", stage.name)
         except Exception as exc:  # the stage already recorded itself as failed
-            return self._halt("failed", f"Stage '{stage.name}' failed: {exc}")
+            return self._halt(
+                "failed", f"Stage '{stage.name}' failed: {exc}", _cause(exc), stage.name
+            )
 
     def _finish_gate(self) -> str:
         """Every stage is done; the project must still be what the verify stage verified."""
@@ -161,11 +173,12 @@ class PipelineFlow(Flow[PipelineState]):
             self._executor.checkpoints.final(f"{recipe.name}: {title}" if title else "")
             return "finished"
         except RunCancelled as exc:
-            return self._halt("cancelled", str(exc))
+            return self._halt("cancelled", str(exc), "cancelled")
         except BudgetExceeded as exc:
-            return self._halt("failed", str(exc))
+            return self._halt("failed", str(exc), "budget")
         except Exception as exc:
-            return self._halt("failed", f"Final verification: {exc}")
+            verify = next((s.name for s in recipe.stages if s.kind == "verify"), "")
+            return self._halt("failed", f"Final verification: {exc}", _cause(exc), verify)
 
     @listen("finished")
     def finish(self) -> None:
@@ -178,9 +191,10 @@ class PipelineFlow(Flow[PipelineState]):
 
     # -- helpers -------------------------------------------------------------------------
 
-    def _halt(self, status: RunStatus, error: str) -> str:
+    def _halt(self, status: RunStatus, error: str, cause: str, stage: str = "") -> str:
         self._outcome, self._error = status, error[:MAX_ERROR]
         self.state.error = self._error
+        self.state.stopped_by, self.state.stopped_at = cause, stage
         self.state.save(self._ctx.run_dir)
         return status
 
@@ -211,6 +225,18 @@ class PipelineFlow(Flow[PipelineState]):
             stages={name: {"action": e.action, "reason": e.reason} for name, e in plans.items()},
         )
         return plans
+
+
+def _cause(exc: Exception) -> str:
+    """Why a stage's exception stopped the walk (``PipelineState.stopped_by``)."""
+
+    if isinstance(exc, VerificationError):
+        return "verification"
+    if isinstance(exc, NeedsInfo):
+        return "needs-info"
+    if isinstance(exc, NoRetry | ResumeError):
+        return "config"
+    return "stage"
 
 
 def run_flow(

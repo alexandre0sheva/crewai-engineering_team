@@ -53,9 +53,10 @@ def _signals() -> tuple[tuple[str, re.Pattern[str]], ...]:
     return tuple((name, re.compile(pattern, re.IGNORECASE)) for name, pattern in found.items())
 
 
-def lead_recipe(base: Recipe, lead: str = GENERALIST) -> Recipe:
+def lead_recipe(base: Recipe, lead: str = GENERALIST, *, alone: bool = False) -> Recipe:
     """``base`` as the lead's recipe (see the module docstring); deterministic, so a run of it
-    resumes under the same digest."""
+    resumes under the same digest. ``alone`` is the ladder's ``solo`` rung (``ladder.py``): the
+    same stages, named ``solo-<name>``, and the lead may call no teammate."""
 
     position = next((i for i, s in enumerate(base.stages) if s.kind == "verify"), None)
     if position is None:
@@ -85,7 +86,9 @@ def lead_recipe(base: Recipe, lead: str = GENERALIST) -> Recipe:
         outputs=["file:README.md"] if new_project else [],
         verification_policy="artifacts" if new_project else "none",
         retry=1,
-        description="The lead does the work and calls teammates for bounded jobs.",
+        description="The lead does the work alone."
+        if alone
+        else "The lead does the work and calls teammates for bounded jobs.",
         why="The team strategy: one lead session replaces the stages that do the work.",
     )
     verify = kept(base.stages[position], teammates=[lead])
@@ -105,8 +108,9 @@ def lead_recipe(base: Recipe, lead: str = GENERALIST) -> Recipe:
     after = [kept(s) for s in base.stages[position + 1 :] if s.kind == "controller"]
     try:
         recipe = Recipe(
-            name=f"team-{base.name}",
-            description=f"{base.description} (lead and teammates on demand)".strip(),
+            name=f"{'solo' if alone else 'team'}-{base.name}",
+            description=f"{base.description} "
+            f"({'one lead, no teammates' if alone else 'lead and teammates on demand'})".strip(),
             mode=base.mode,
             policies=list(base.policies),
             stages=[*before, lead_stage, verify, security, *after],
