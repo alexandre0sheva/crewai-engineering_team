@@ -35,6 +35,7 @@ from engineering_team.cli import (
 from engineering_team.cli import doctor as doctor_module
 from engineering_team.cli import info_commands as info
 from engineering_team.cli.context import Globals
+from engineering_team.cli.harness_command import harness_app
 from engineering_team.cli.plugins_command import plugins_app
 from engineering_team.cli.team_commands import team_app
 from engineering_team.runtime.context import reserve_run_id
@@ -43,7 +44,7 @@ COMMANDS = (
     "do", "new", "resume", "continue", "status", "runs", "board", "cancel", "note", "pause",
     "unpause", "config", "doctor", "init", "examples", "team", "analyze", "feature", "fix",
     "maintain", "review", "recipes", "diff", "export-patch", "report", "trace", "profile", "ui",
-    "bench", "plugins",
+    "bench", "plugins", "harness",
 )  # fmt: skip
 HELP_FLAGS = ("-h", "--help")
 FLAGS = ("--json", "--quiet", "-q", "--verbose", "-v", "--no-color", "--answers-via-inbox")
@@ -68,6 +69,7 @@ app.add_typer(config_app, name="config")
 app.add_typer(examples_app, name="examples")
 app.add_typer(team_app, name="team")
 app.add_typer(plugins_app, name="plugins")
+app.add_typer(harness_app, name="harness")
 app.add_typer(recipes_command.recipes_app, name="recipes")
 app.add_typer(bench_command.bench_app, name="bench")
 

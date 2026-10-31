@@ -177,3 +177,4 @@ class RunReport:
     answer: Answer | None = None  # the answer path's answer and the check of its citations
     answer_check: AnswerCheck | None = None
     thread: ThreadInfo | None = None  # the run it follows and its follow-ups
+    harness: str = ""  # the domain, its packs and the skills loaded (``harness_line``)

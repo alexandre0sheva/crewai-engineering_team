@@ -11,6 +11,7 @@ import json
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -80,6 +81,7 @@ def build_report(run_dir: Path) -> RunReport:
         mode=manifest.mode,
         strategy=manifest.strategy,
         recipe=manifest.recipe,
+        harness=harness_line(manifest.harness),
         status=manifest.status,
         verdict=manifest.verdict,
         created=manifest.created,
@@ -194,10 +196,30 @@ def _trace(run_dir: Path) -> TraceInfo | None:
     return None if found is None else TraceInfo(found.entries, found.size, found.notices)
 
 
+def harness_line(record: dict[str, Any]) -> str:
+    """``bugfix/python · packs base, python, bugfix · 1 of 4 skills loaded: pytest-failures``."""
+
+    if not record.get("domain"):
+        return ""  # a run of 0.2.0, or one made before T18
+    packs = ", ".join(str(p.get("name")) for p in record.get("packs") or [])
+    listed, loaded = record.get("skills_listed") or [], record.get("skills_loaded") or []
+    used = f"{len(loaded)} of {len(listed)} skills loaded" + (
+        f": {', '.join(loaded)}" if loaded else ""
+    )
+    return f"{record['domain']} · packs {packs} · {used}"
+
+
 def _environment(run_dir: Path, manifest: RunManifest) -> list[tuple[str, str]]:
     rows = [("Mode", manifest.mode), ("Strategy", manifest.strategy)]
     if manifest.recipe:
         rows.append(("Recipe", manifest.recipe))
+    if manifest.harness.get("domain"):
+        rows.append(("Harness domain", str(manifest.harness["domain"])))
+        rows += [
+            (f"Pack {p.get('name')}", f"{p.get('source')} · {p.get('sha256')}")
+            for p in manifest.harness.get("packs") or []
+        ]
+        rows.append(("Skills listed", ", ".join(manifest.harness.get("skills_listed") or [])))
     rows += sorted(manifest.versions.items())
     try:
         settings = json.loads((run_dir / "settings.json").read_text(encoding="utf-8"))

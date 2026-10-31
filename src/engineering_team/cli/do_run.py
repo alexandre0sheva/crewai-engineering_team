@@ -101,6 +101,7 @@ def execute(
             load=request_bundle,
             options=options,
             composed=plan.recipe,
+            profile=plan.profile,
             worktree=worktree,
             allow_dirty=allow_dirty,
             squash=squash,
@@ -146,6 +147,7 @@ def run_new(
             reset=reset,
             force_reset=force_reset,
             recipe=plan.recipe if settings.strategy in RECIPE_STRATEGIES else None,
+            profile=plan.profile,
         )
         opened(prepared)
         return prepared

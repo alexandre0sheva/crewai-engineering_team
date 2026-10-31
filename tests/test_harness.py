@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import inspect
 import json
+import re
 import textwrap
 from pathlib import Path
 
@@ -19,7 +20,9 @@ from engineering_team.harness import (
     stage_prompts,
     teammate_fields,
 )
+from engineering_team.harness.domains import Domain
 from engineering_team.harness.files import fold
+from engineering_team.harness.library import resolve
 from engineering_team.harness.loader import (
     BASE_LABEL,
     EVIDENCE,
@@ -59,15 +62,23 @@ def write(root: Path, files: dict[str, str]) -> Path:
 # -- golden: the move kept every 0.2.0 prompt --------------------------------------------------
 
 
-def test_every_teammate_prompt_is_the_0_2_0_prompt() -> None:
+def test_no_sentence_of_a_0_2_0_teammate_prompt_is_lost() -> None:
+    """T17 moved the prompts unchanged; T18 moved checklists into ``base`` skills. Every 0.2.0
+    sentence is still in the teammate's always-on text or in a skill it can load."""
+
     roster = builtin_roster()
+    teammates = builtin_teammates()
+    skills = resolve(Domain()).skills.values()
 
     assert set(roster.members) == set(GOLDEN["teammates"])
     for key, golden in GOLDEN["teammates"].items():
         member = roster.get(key)
         assert same(member.role) == same(golden["role"]), key
         assert same(member.goal) == same(golden["goal"]), key
-        assert same(member.backstory) == same(golden["backstory"]), key
+        own = same(teammates[key]["backstory"])
+        loadable = [same(s.body) for s in skills if s.visible_to(key)]
+        for sentence in re.split(r"(?<=\.)\s+(?=[A-Z])", same(golden["backstory"])):
+            assert sentence in own or any(sentence in body for body in loadable), (key, sentence)
 
 
 def test_every_stage_prompt_is_the_0_2_0_prompt_after_the_evidence_boundary() -> None:
@@ -97,10 +108,18 @@ def test_a_stage_states_that_evidence_is_data_exactly_when_it_hands_evidence() -
     assert "not instructions" in boundary()
 
 
-def test_every_teammate_stays_under_the_always_on_cap() -> None:
+def test_every_teammate_stays_under_the_always_on_cap_in_every_bundled_domain() -> None:
     sizes = {m.key: m.always_on_chars for m in builtin_roster().all()}
+    for intent in ("*", "bugfix", "refactor", "upgrade_deps", "security_audit", "review"):
+        for stack in ("*", "python", "typescript", "go", "rust", "java"):
+            harness = resolve(Domain(intent, stack))
+            roster = build_roster(load_settings(), harness=harness)
+            for member in roster.all():
+                where = f"{member.key} in {intent}/{stack}"
+                sizes[where] = member.always_on_chars
 
-    assert max(sizes.values()) <= ALWAYS_ON_CAP, sizes
+    assert max(sizes.values()) <= ALWAYS_ON_CAP, max(sizes.items(), key=lambda kv: kv[1])
+    assert ALWAYS_ON_CAP < 1_075  # T17's cap, lowered once domain knowledge moved to skills
 
 
 def test_every_placeholder_a_stage_can_name_is_filled_by_the_stage_runner() -> None:
@@ -308,7 +327,9 @@ def test_an_inline_backstory_replaces_every_component_and_beats_the_folder() -> 
         {"team": {"debugger": {"harness": "h", "backstory": "You fix things."}}}, source="t"
     )
 
-    assert build_roster(settings).get("debugger").backstory == "You fix things."
+    backstory = build_roster(settings).get("debugger").backstory
+    assert backstory.startswith("You fix things. Skills (Load Skill returns one):")
+    assert "Never." not in backstory and "You debug by evidence" not in backstory
 
 
 def test_a_team_file_may_not_point_outside_the_project(tmp_path: Path) -> None:

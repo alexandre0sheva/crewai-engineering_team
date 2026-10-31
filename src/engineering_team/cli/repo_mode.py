@@ -20,6 +20,7 @@ import typer
 
 from engineering_team.cli.context import Globals, fail, print_json
 from engineering_team.cli.run_commands import present_run, wants_questions
+from engineering_team.contracts import TaskProfile
 from engineering_team.intake.bundle import RequestBundle
 from engineering_team.modes.change_report import PATCH_FILE, SUMMARY_FILE
 from engineering_team.modes.isolation import Isolation, isolate
@@ -78,6 +79,7 @@ class RepoRun:
     overrides: dict[str, Any] = field(default_factory=dict)
     # What the command line asked beyond the request (``modes/run_options.py``).
     run_options: dict[str, Any] = field(default_factory=dict)
+    profile: TaskProfile | None = None  # what `do` understood; picks the harness domain
     # Checked after the recipe is loaded; raise ``ValueError`` for a usage error.
     check: Callable[[Settings], None] | None = None
     slug_fallback: str = "change"
@@ -150,6 +152,8 @@ def run_repository_mode(g: Globals, run: RepoRun) -> None:
             workspace=workspace,
             run_id=run_id,
             recipe=recipe,
+            profile=run.profile,
+            project_root=run.root,
         )
         if run.run_options:
             write_run_options(prepared.ctx.run_dir, run.run_options)

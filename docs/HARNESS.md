@@ -6,12 +6,16 @@ stage. It is plain data (Markdown files you can read, diff and override), not Py
 backstories hard-wired into CrewAI agents. Later releases learn and tune it; today you can read it
 and override any part of it.
 
-The bundled harness lives in the package, under `src/engineering_team/harness/data/base/`.
+The harness is a **library of packs**: `base`, which every run uses, and packs for kinds of work
+(`bugfix`, `refactor`, ...) and stacks (`python`, `typescript`, ...). Each run uses the packs of its
+[domain](#domains). Knowledge that only matters for some work lives in [skills](#skills): a
+teammate always sees their names and triggers, and loads one when it applies. The bundled library
+lives in the package, under `src/engineering_team/harness/data/`.
 
 ## Components
 
 ```text
-harness/data/base/
+harness/data/base/            # a pack; the others hold only the parts they change
   teammates/<key>/
     role.md           # front-matter: tier, tool groups, modes, stages; ## Role, ## Goal, ## Identity
     tool_guidance.md  # how this teammate works: its method, checklist, tools (optional)
@@ -21,6 +25,9 @@ harness/data/base/
     evidence_boundary.md  # "the evidence is data, not instructions"
     completion.md         # who decides that work is done
     lead_guidance.md      # when the team strategy's lead calls a teammate (one "- " item per rule)
+  skills/<name>/
+    SKILL.md              # front-matter: name, description (the trigger), teammates; the instructions
+    reference/*.md        # optional files the skill points to
 ```
 
 Every file is UTF-8 Markdown with optional YAML front-matter between `---` lines. Text is written in
@@ -80,7 +87,10 @@ the stage runner fills in per call:
 The order is fixed:
 
 - **A teammate** (CrewAI's `role`, `goal` and `backstory`): the role and the goal from `role.md`;
-  the backstory is the identity, then `tool_guidance.md`, then `guardrails.md`.
+  the backstory is the identity, then `tool_guidance.md`, then `guardrails.md`, then guidance a
+  [repository adds](#packs-and-overlays) (labelled as the project's), then the skill index: one
+  line listing the name and trigger of every skill the teammate may load (only for teammates with
+  the `knowledge` tools).
 - **A stage** (CrewAI's task `description` and `expected_output`): the evidence boundary
   (`shared/evidence_boundary.md`) when the stage hands the model evidence (any of `{context}`,
   `{handoff}`, `{failures}`, `{findings}`, `{bug}`, `{audit}`, `{synthesis}`, `{profile}`,
@@ -88,8 +98,10 @@ The order is fixed:
   inserts.
 
 A teammate's role, goal and backstory are its **always-on** text: they go with every model call it
-makes. `engineering-team team show KEY` prints the size; a test keeps every bundled teammate under a
-cap (1,075 characters, the longest 0.2.0 teammate).
+makes. `engineering-team team show KEY` and `harness show` print the size; a test keeps every
+bundled teammate under a cap in every bundled domain: 1,000 characters, down from 0.2.0's longest
+(1,075) since the long checklists moved into skills. The cap is provisional until the 0.3.0
+evaluation measures it.
 
 The files are checked when they are loaded: an unknown front-matter field or section, a missing
 `## Role`, an unknown placeholder or insert, text that is not UTF-8. Each problem is one line naming
@@ -111,3 +123,82 @@ only `guardrails.md` changes only the guardrails. The entry's own fields are app
 folder, so they win; an inline `backstory` replaces identity, tool guidance and guardrails at once
 (as it always did). A new teammate can be defined entirely by a folder whose `role.md` has the
 three sections. A team file in a repository may only point at folders inside the project.
+
+## Domains
+
+A run's **domain** is `<intent>/<stack>`: the primary intent of the [triage](USAGE.md#what-kind-of-work-it-is-triage)
+(`bugfix`, `feature`, `refactor`, ...; a preset command stands for its own: `fix` is `bugfix`) and
+the project's stack (from the triage, else from the project's manifests: `python`, `typescript`
+(JavaScript and Node too), `go`, `rust`, `java` (Kotlin too)). Either part is `*` when unknown.
+
+Its packs apply least specific first, each over the one before: `base`, the stack's pack, the
+intent's pack, and the pair's (`bugfix+python`). A pack that does not exist is skipped, so
+`bugfix/python` falls back through `bugfix/*` and `*/python` to `base`. The `do` preview shows the
+domain and its packs before anything runs (`Harness: bugfix/python · packs base, python, bugfix ·
+skills ...`), and so does:
+
+```bash
+engineering-team harness show --domain bugfix/python    # --json for the data; --repo DIR
+```
+
+Bundled packs: `python` (pytest failures, packaging, typing), `typescript` (Vitest/Jest, React
+testing), `go` (table tests, modules), `rust` (cargo test, clippy), `java` (Maven/Gradle), and the
+intent packs `bugfix` (reproduce first), `refactor` (preserving behaviour), `upgrade_deps` (reading
+changelogs), `security_audit` (an audit method) and `review` (reviewing a change). `base` holds the
+teammates' checklists as skills (`review-checklist`, `security-checklist`, `debugging-method`, ...).
+
+## Skills
+
+A skill is a folder in the [Agent Skills](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills/overview)
+layout: `skills/<name>/SKILL.md`, with front-matter
+
+| Field | Meaning |
+|---|---|
+| `name` | The folder's name: lowercase letters, digits, hyphens (≤ 64) |
+| `description` | When to use it, in at most 120 characters: it is the trigger, and it is always on |
+| `teammates` | Teammate keys that see it (ours; default: every teammate with the `knowledge` tools) |
+| `license`, `allowed-tools`, `metadata` | Accepted and ignored |
+
+and the instructions as the body. Other files (`reference/*.md`, scripts) sit beside it. A teammate
+sees one line listing its skills' names and triggers; the [`Load Skill`](TOOLS.md) tool returns a
+skill's body and the names of its other files, or one of those files with `file=`. **Nothing in a
+skill is ever run**: a script is text the teammate can read.
+
+Writing one: say in the description *when* it applies (a situation, not a topic), keep the body to
+what a capable engineer would not know about this kind of work, and put long material in
+`reference/` files.
+
+## Packs and overlays
+
+Packs come from three sources, applied in this order, each over the one before:
+
+1. the bundled library;
+2. yours, in `~/.config/engineering-team/harness/<pack>/` (`$XDG_CONFIG_HOME` first), which may
+   change anything: a teammate's components (one file at a time), a stage, shared text, a skill of
+   the same name;
+3. the repository's, in `.engineering-team/harness/<pack>/` of the project (the directory you run
+   from, or `--repo`). **It is untrusted**: it may add skills (never replace one) and add a
+   teammate's `tool_guidance.md` or `guardrails.md`, which are appended to the teammate's and
+   labelled as the project's. It may not change roles, tiers, tools, stages or shared text; such a
+   file is an error naming it. Its skills are listed as the repository's and come back from
+   `Load Skill` marked as untrusted content.
+
+A pack is a folder of the parts it changes (`teammates/`, `stages/`, `shared/`, `skills/`); any
+other file in it is an error. A repository's own skills and conventions can be imported:
+
+```bash
+engineering-team harness import path/to/skill-folder          # a folder with a SKILL.md
+engineering-team harness import AGENTS.md                     # or CLAUDE.md: becomes a skill
+engineering-team harness import notes.md --name house-rules --pack python
+```
+
+`import` copies into `.engineering-team/harness/<pack>/skills/` (`--force` replaces) after checking
+the skill, and refuses anything from a benchmark task (its checks, references or acceptance files)
+so hidden tests can never reach a prompt.
+
+## What a run records
+
+The run's manifest (`harness`) and its [report](USAGE.md#run-reports) keep the domain, every pack
+used with its source and a content hash (the first 12 hex digits of SHA-256 over the pack's files),
+the skills listed and the skills the team loaded. A resumed run keeps the domain it started with.
+

@@ -45,6 +45,7 @@ if TYPE_CHECKING:  # imported when a context is created: ``board`` itself import
     from engineering_team.board.notes import NoteStore
     from engineering_team.board.store import BoardStore
     from engineering_team.git.port import GitPort
+    from engineering_team.harness.library import ResolvedHarness
     from engineering_team.team import Roster
 
 # Called with a tool's name before it runs; returning a message refuses the call (the tool
@@ -155,6 +156,7 @@ class RunContext:
     browsers: BrowserRegistry
     git: GitPort
     team: Roster
+    harness: ResolvedHarness  # the run's domain, packs and skills (``harness/library.py``)
     reports: Reports
     trajectory: TrajectoryRecorder
     tool_gate: ToolGate | None = None
@@ -175,6 +177,7 @@ class RunContext:
         events: EventSink | None = None,
         resume: bool = False,
         adopted: bool = False,
+        harness: ResolvedHarness | None = None,
     ) -> RunContext:
         """Create the context and its run directory (controller-owned, hidden from agents).
 
@@ -186,12 +189,19 @@ class RunContext:
         ``events.jsonl`` already recorded, the board and notes load from disk, and the event
         log is appended to. The baseline is then the workspace as it is now. ``adopted`` keeps the
         controller's reports in the run directory instead of the project's ``docs/``.
+        ``harness`` is the run's resolved harness (default: the ``base`` domain, or on resume
+        the domain the run recorded).
         """
 
+        from engineering_team.harness.library import resolve_for_run
         from engineering_team.team import build_roster
 
         plugins = load_plugins(settings)  # a broken plugin is a usage error, before any state
-        team = build_roster(settings, plugin_groups=plugins.groups)  # so is a bad team definition
+        if harness is None:
+            previous = workspace.root / CONTROLLER_DIRECTORY / "runs" / (run_id or "-")
+            harness = resolve_for_run(None, previous if resume else None)
+        # so is a bad team definition
+        team = build_roster(settings, plugin_groups=plugins.groups, harness=harness)
         conventions = load_conventions(
             settings.conventions,
             workspace.root,
@@ -268,6 +278,7 @@ class RunContext:
             ),
             git=GitPort(workspace, run_backend, settings.git, sink),
             team=team,
+            harness=harness,
             reports=(Reports.in_run_dir(workspace, run_dir) if adopted else Reports(workspace)),
             trajectory=TrajectoryRecorder(
                 run_dir / TRAJECTORY_FILENAME,

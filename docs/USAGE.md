@@ -18,6 +18,7 @@ uv run engineering-team <command> --help # its options
 | `fix --repo PATH --request ...` | Fix a bug in an existing project: reproduce it (red), fix it, prove it gone (green) ([Fixing a bug](#fixing-a-bug)). |
 | `maintain --task T --repo PATH` | Maintain an existing project: `add-tests`, `refactor`, `upgrade-deps`, `docs`, `security-audit`, `custom`, or a recipe of your own ([Maintaining a project](#maintaining-a-project)). |
 | `review [--base BRANCH]` | A read-only review of a branch or your working diff; `findings.json` for CI, exit 3 on a serious finding ([Reviewing a change](#reviewing-a-change)). |
+| `harness show [--domain bugfix/python]` / `harness import PATH` | Which packs and skills a kind of work gets, and importing a repository's skills or `AGENTS.md` as skills ([HARNESS.md](HARNESS.md#domains)). |
 | `recipes list` / `recipes show NAME` / `recipes compose --intent I ...` | Which recipes exist (bundled, yours) and what each stage does; `compose` previews the recipe composed for a task profile, with each stage's cost and why ([Your own recipes](#your-own-recipes)). |
 | `diff [RUN] [--stat]` / `export-patch [RUN] --out FILE` | What a `feature` or `fix` run changed, and that change as a patch for `git apply`. |
 | `analyze [--repo PATH] [--deep]` | Look at an existing project without changing it: languages, detected commands, tests, CI, Git state; `--deep` also writes a codebase map ([Adopting an existing project](#adopting-an-existing-project)). |

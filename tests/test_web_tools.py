@@ -86,7 +86,7 @@ def test_disabled_web_registers_no_network_tool_but_search_docs_remains(
 
     tools = {tool.name for tool in build_tools(ctx, groups=["web", "knowledge"], lazy=False)}
 
-    assert tools == {"Search Docs"}
+    assert tools == {"Search Docs", "Load Skill"}  # the offline knowledge tools
 
 
 # -- Fetch URL -----------------------------------------------------------------------------

@@ -93,6 +93,7 @@ class RunRecorder:
                 strategy=strategy,
                 recipe=recipe,
                 stage_reasons=dict(stage_reasons or {}),
+                harness=ctx.harness.record(),
             )
         )
         return cls(ctx, store)
@@ -291,6 +292,7 @@ class RunRecorder:
         def record(manifest: RunManifest) -> None:
             manifest.summary = summary
             manifest.status = outcome
+            manifest.harness = ctx.harness.record()  # now with the skills the run loaded
 
         self.store.update(ctx.run_id, record)
         self.hooks.on_finish(outcome, error, summary)  # never raises; its events are in the report

@@ -22,8 +22,10 @@ import yaml
 from pydantic import ValidationError
 
 from engineering_team.extensions.plugin_loader import load_plugins
-from engineering_team.harness import HarnessError, always_on_chars, builtin_teammates
+from engineering_team.harness import HarnessError, always_on_chars
 from engineering_team.harness import teammate_fields as harness_fields
+from engineering_team.harness.domains import Domain
+from engineering_team.harness.library import ResolvedHarness, resolve, sources
 from engineering_team.harness.loader import compose_backstory
 from engineering_team.intake.templates import MODES
 from engineering_team.settings import TEAM_KEY, Settings, TeamOverride
@@ -170,11 +172,8 @@ class Roster:
 # -- building ----------------------------------------------------------------------------------
 
 
-def _builtin_layer() -> dict[str, dict[str, Any]]:
-    return {
-        key: {name: value for name, value in fields.items() if name != "backstory"}
-        for key, fields in builtin_teammates().items()
-    }
+def _builtin_layer(harness: ResolvedHarness) -> dict[str, dict[str, Any]]:
+    return {key: dict(fields) for key, fields in sorted(harness.teammates.items())}
 
 
 def _read_team_file(path: Path) -> dict[str, dict[str, Any]]:
@@ -256,10 +255,11 @@ def _check(
     custom: bool,
     origin: str,
     valid_groups: Sequence[str] = VALID_GROUPS,
+    index: str = "",
 ) -> Teammate:
-    backstory = compose_backstory(fields)
+    backstory = compose_backstory(fields, index)
     if custom:
-        given = {**fields, "backstory": backstory}
+        given = {**fields, "backstory": compose_backstory(fields)}
         missing = [name for name in REQUIRED_FOR_NEW if not str(given.get(name, "")).strip()]
         if missing:
             raise TeamError(
@@ -307,6 +307,7 @@ def _assemble(
     layers: list[tuple[str, Mapping[str, Mapping[str, Any]]]],
     valid_groups: Sequence[str] = VALID_GROUPS,
     base: Path | None = None,
+    harness: ResolvedHarness | None = None,
 ) -> Roster:
     merged: dict[str, dict[str, Any]] = {}
     touched: dict[str, list[str]] = {}
@@ -325,16 +326,20 @@ def _assemble(
         origin = (
             " + ".join(["built-in", *sources]) if builtin else f"custom ({' + '.join(sources)})"
         )
+        groups = fields.get("tool_groups", DEFAULT_TOOL_GROUPS)
+        index = harness.skill_index(key) if harness and "knowledge" in groups else ""
         members[key] = _check(
-            key, fields, custom=not builtin, origin=origin, valid_groups=valid_groups
+            key, fields, custom=not builtin, origin=origin, valid_groups=valid_groups, index=index
         )
     return Roster(members)
 
 
 def builtin_roster() -> Roster:
-    """Only the built-in teammates (no settings, no project files)."""
+    """Only the built-in teammates of the bundled ``base`` harness (no settings, no project
+    files)."""
 
-    return _assemble([("built-in", _builtin_layer())])
+    harness = resolve(Domain())
+    return _assemble([("built-in", _builtin_layer(harness))], harness=harness)
 
 
 def valid_groups_for(settings: Settings, plugin_groups: Iterable[str] = ()) -> tuple[str, ...]:
@@ -347,17 +352,30 @@ def valid_groups_for(settings: Settings, plugin_groups: Iterable[str] = ()) -> t
 
 
 def build_roster(
-    settings: Settings, *, cwd: Path | None = None, plugin_groups: Iterable[str] | None = None
+    settings: Settings,
+    *,
+    cwd: Path | None = None,
+    plugin_groups: Iterable[str] | None = None,
+    harness: ResolvedHarness | None = None,
 ) -> Roster:
-    """The team for ``settings``: built-ins, then the team file, then ``[team.*]``.
+    """The team for ``settings``: the harness's teammates (``harness``: a run's own; default:
+    the ``base`` domain with the user's and ``cwd``'s overlays), then the team file, then
+    ``[team.*]``.
 
     ``plugin_groups`` are the groups plugin tools declare (default: discovered from ``settings``
     and ``cwd``). Raises :class:`TeamError` (a ``ValueError``, so a usage error) for anything
-    invalid.
+    invalid, a harness that does not load included.
     """
 
-    layers: list[tuple[str, Mapping[str, Mapping[str, Any]]]] = [("built-in", _builtin_layer())]
     base = cwd or Path.cwd()
+    if harness is None:
+        try:
+            harness = resolve(Domain(), sources(base))
+        except HarnessError as exc:
+            raise TeamError(str(exc)) from exc
+    layers: list[tuple[str, Mapping[str, Mapping[str, Any]]]] = [
+        ("built-in", _builtin_layer(harness))
+    ]
     configured = settings.team_file
     path = (base / configured) if configured else base / DEFAULT_TEAM_FILE
     if path.is_file():
@@ -378,7 +396,7 @@ def build_roster(
         groups = plugin_groups if plugin_groups is not None else load_plugins(settings, base).groups
     except ValueError as exc:  # PluginError: say it here, where the team is being defined
         raise TeamError(str(exc)) from exc
-    roster = _assemble(layers, valid_groups_for(settings, groups), base)
+    roster = _assemble(layers, valid_groups_for(settings, groups), base, harness)
     for name, server in settings.mcp.items():
         missing = [role for role in server.roles if role not in roster.members]
         if missing:

@@ -7,6 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from engineering_team.contracts import TaskProfile
+from engineering_team.harness.domains import domain_for
+from engineering_team.harness.library import resolve_for_run
 from engineering_team.intake import ContextScan, install_context
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
 from engineering_team.pipeline.recipes import Recipe, pin_recipe
@@ -202,6 +205,8 @@ def _open_run(
     workspace: ProjectWorkspace | None = None,
     run_id: str | None = None,
     recipe: Recipe | None = None,
+    profile: TaskProfile | None = None,
+    project_root: Path | None = None,
 ) -> PreparedRun:
     """Prepare the workspace, take its write lock, and build the run context and inputs.
 
@@ -210,7 +215,10 @@ def _open_run(
     the branch) and its ``recipe``: the run then uses the configured strategy when it runs a
     recipe (``auto``, ``team``, which derive their rungs or the lead's recipe from it, or
     ``pipeline``) and the pipeline strategy otherwise, and the
-    controller's reports go to the run directory instead of the project's ``docs/``.
+    controller's reports go to the run directory instead of the project's ``docs/``. The run's
+    harness is resolved for its domain (``harness/domains.py``: the triage ``profile`` when there
+    is one, else the recipe or mode, and the project's stack), with the overlays of the user and
+    of ``project_root`` (default: the current directory).
 
     Also creates the run's manifest (``pending``); the caller wraps the work in
     ``recorder.running()`` and releases the lock (``_execute`` does) once the run is over. A
@@ -221,6 +229,8 @@ def _open_run(
     adopted = workspace is not None
     if workspace is None:
         workspace = _prepare_workspace(settings, reset=reset, force_reset=force_reset, adopt=adopt)
+    domain = domain_for(profile, mode=mode, recipe=recipe, root=project_root or workspace.root)
+    harness = resolve_for_run(domain, repo_root=project_root)  # a broken pack: a usage error
     run_id = run_id or new_run_id()
     lock = WorkspaceLock(workspace.root).acquire(run_id)
     strategy_name = settings.strategy
@@ -229,7 +239,9 @@ def _open_run(
     try:
         if context is not None:
             install_context(workspace.root, context)
-        ctx = RunContext.create(settings, workspace, run_id=run_id, adopted=adopted)
+        ctx = RunContext.create(
+            settings, workspace, run_id=run_id, adopted=adopted, harness=harness
+        )
         pin = _pin_checks(settings, ctx, mode, strategy_name)
         if recipe is not None and recipe.source != "bundled":
             pin_recipe(ctx.run_dir, recipe)

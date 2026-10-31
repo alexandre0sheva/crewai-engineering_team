@@ -11,6 +11,16 @@ renames that section and dates it.
 
 ### Added
 
+- A per-domain harness library ([docs/HARNESS.md](docs/HARNESS.md)): each run resolves its domain (`bugfix/python`,
+  `feature/typescript`, ...) from the triage and the project's stack and layers the packs for it over `base`.
+  Bundled packs for Python, TypeScript, Go, Rust and Java and for bug fixes, refactors, dependency upgrades,
+  security audits and reviews hold **skills** in the Agent Skills layout (`SKILL.md`): teammates see only their names
+  and triggers and load one with the new `Load Skill` tool when it applies. Your own packs go in
+  `~/.config/engineering-team/harness/`; a repository's `.engineering-team/harness/` may add skills and guidance,
+  never roles, tiers or tools. `engineering-team harness show` shows what a domain resolves to and `harness import`
+  turns a skill folder or a repository's `AGENTS.md`/`CLAUDE.md` into a repository skill. The `do` preview, the
+  manifest and the run report show the domain, the packs (with content hashes) and the skills listed and loaded.
+
 - `engineering-team continue RUN "<follow-up>"`: a follow-up to an earlier run, as a new run in the same thread. It
   works in the parent's repository on the parent's branch (worktree or copy), is told the parent's request, spec,
   plan, answer, change summary and verdict as context, is triaged with the parent's profile as a prior, and is
@@ -121,6 +131,9 @@ renames that section and dates it.
   that hands the model evidence saying that it is data, not instructions. A teammate in `team.yaml` or
   `[team.<key>]` can point at its own component files with `harness = "<folder>"`, and `team show` prints each
   teammate's always-on prompt size.
+- The long checklists of the reviewer, security engineer, DevOps engineer, technical writer, debugger and codebase
+  analyst moved from their always-on prompts into skills they load on demand; the always-on cap is now 1,000
+  characters per teammate in any bundled domain (was 1,075).
 - The end-of-run summary (and `--json`) of every command now shows how the result was proved (`Proof:`, the
   controller's required checks) and, for the repository modes, the branch or copy and the patch; a `do` run adds
   what the task was (`task`: intents, size, risk, rungs climbed).

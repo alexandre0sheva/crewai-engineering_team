@@ -760,6 +760,14 @@ and the shared root files (README, dependency manifests and lockfiles, CI config
 agent, and a plan that gives one to a package is invalid. Git worktrees per package were considered and rejected:
 merging needs an LLM to resolve conflicts, which is the nondeterminism ownership avoids.
 
+**The harness** (`harness/`). `_open_run` works out the run's domain (`harness/domains.py`: the triage profile's
+intent and stack, else the recipe's intent and the project's manifests) and `harness/library.py` resolves it: the
+domain's packs from the bundled library, the user's and the repository's (untrusted: skills and appended guidance
+only), into one `ResolvedHarness` held on the context as `ctx.harness` (teammate components, stage prompts, shared
+text, skills). The stage runner takes its prompts from it, the roster its teammates and each teammate's skill index,
+`Load Skill` its skills; the manifest's `harness` keeps the domain, the packs with content hashes and the skills listed
+and loaded, and `resume` resolves the recorded domain again. [HARNESS.md](HARNESS.md) has the format.
+
 **The roster** (`team/registry.py`). Built-in teammates are defined once, in the harness's teammate folders
 (prompt components, and `tier`, `tool_groups` and so on in `role.md`'s front-matter; [HARNESS.md](HARNESS.md)). `build_roster(settings)` layers `.engineering-team/team.yaml` (or `team_file`) and the
 `[team.<key>]` tables on top, field by field, validates everything (unknown tool groups, modes, missing prompt fields

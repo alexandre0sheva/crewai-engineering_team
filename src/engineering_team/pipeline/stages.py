@@ -248,7 +248,7 @@ class CrewStageRunner:
 
     def run(self, request: StageRequest) -> StageOutput:
         ctx, stage = request.ctx, request.stage
-        known = prompts()
+        known = ctx.harness.stages
         key = prompt_key(stage, synthesis=bool(request.synthesis), findings=bool(request.findings))
         if key not in known:
             raise StageError(

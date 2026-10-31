@@ -1,4 +1,4 @@
-"""Developer tools: test and lint runners, code intelligence, Git reads, knowledge."""
+"""Developer tools: test and lint runners, code intelligence, Git reads, knowledge, skills."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from engineering_team.tools.codeintel_tools import make_codeintel_tools
 from engineering_team.tools.dev_tools import make_dev_tools
 from engineering_team.tools.git_tools import make_git_tools
 from engineering_team.tools.knowledge_tools import make_knowledge_tools
+from engineering_team.tools.skill_tools import make_skill_tools
 from engineering_team.tools.spec import ToolSpec, _spec
 
 DEV_SPECS: tuple[ToolSpec, ...] = (
@@ -180,6 +181,13 @@ DEV_SPECS: tuple[ToolSpec, ...] = (
         "knowledge",
         make_knowledge_tools,
         "BM25 search over project docs, context directories, and pages fetched this run.",
+        read_only=True,
+    ),
+    _spec(
+        "Load Skill",
+        "knowledge",
+        make_skill_tools,
+        "A harness skill's instructions (or one of its files) on demand; nothing in it runs.",
         read_only=True,
     ),
 )

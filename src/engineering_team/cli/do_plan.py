@@ -15,6 +15,8 @@ from typing import Any, Literal
 
 from engineering_team.bench.estimate import per_run_cost
 from engineering_team.contracts import TaskProfile
+from engineering_team.harness.domains import domain_for
+from engineering_team.harness.library import ResolvedHarness, describe, resolve_for_run
 from engineering_team.intake.signals import Signals, collect
 from engineering_team.intake.triage import (
     TriageResult,
@@ -262,6 +264,7 @@ def render_plan(plan: DoPlan) -> list[str]:
     lines += [f"  you said: {c}" for c in profile.clarifications]
     lines += [f"  rule: {o}" for o in profile.overrides]
     lines += [f"Note: {note}" for note in plan.notes]
+    lines.append(f"Harness: {describe(harness_of(plan))}")
     lines.append(_route_line(plan))
     for index, stage in enumerate(plan.stages, 1):
         cost = f", {stage.cost}" if stage.cost else ""
@@ -310,6 +313,14 @@ def _cost_line(plan: DoPlan) -> str:
     return f"Estimated cost: {span} (a rough prior, within 0.5x-2x){budget}."
 
 
+def harness_of(plan: DoPlan) -> ResolvedHarness:
+    """The harness a run of ``plan`` resolves (``harness/domains.py``); a pack that does not
+    load raises ``HarnessError`` (a usage error)."""
+
+    domain = domain_for(plan.profile, recipe=plan.recipe, root=plan.root)
+    return resolve_for_run(domain, repo_root=plan.root)
+
+
 def plan_document(plan: DoPlan) -> dict[str, Any]:
     """The plan as JSON-ready data."""
 
@@ -323,6 +334,7 @@ def plan_document(plan: DoPlan) -> dict[str, Any]:
         "signals": signal_lines(plan.triage.signals),
         "strategy": plan.strategy,
         "recipe": plan.recipe.name if plan.recipe else None,
+        "harness": harness_of(plan).record(),
         "stages": [
             {"name": s.name, "kind": s.kind, "why": s.why, "cost": s.cost} for s in plan.stages
         ],

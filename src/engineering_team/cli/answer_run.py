@@ -21,6 +21,8 @@ from engineering_team.cli import do_plan
 from engineering_team.cli.context import Globals, print_json
 from engineering_team.cli.repo_mode import project_name_of
 from engineering_team.cli.run_commands import present_run
+from engineering_team.harness.domains import domain_for
+from engineering_team.harness.library import resolve_for_run
 from engineering_team.intake.bundle import RequestBundle
 from engineering_team.modes.answer_contracts import ANSWER_FILE, PLAN_FILE
 from engineering_team.modes.repo_analyzer import standalone_git
@@ -57,7 +59,12 @@ def open_answer(settings: Settings, root: Path, plan: do_plan.DoPlan, request: s
     run_id = new_run_id()
     lock = WorkspaceLock(workspace.root).acquire(run_id)
     try:
-        context = RunContext.create(settings, workspace, run_id=run_id, adopted=True)
+        harness = resolve_for_run(
+            domain_for(plan.profile, recipe=recipe, root=root), repo_root=root
+        )
+        context = RunContext.create(
+            settings, workspace, run_id=run_id, adopted=True, harness=harness
+        )
         if recipe.source != "bundled":
             pin_recipe(context.run_dir, recipe)
         recorder = RunRecorder.begin(
@@ -111,7 +118,11 @@ def run_answer_route(
         settings.check_ready(require_credentials=True)
         if plan.root is None:
             prepared = engine._open_run(
-                settings, mode="answer", requirements=bundle.text, recipe=plan.recipe
+                settings,
+                mode="answer",
+                requirements=bundle.text,
+                recipe=plan.recipe,
+                profile=plan.profile,
             )
         else:
             register_workspace(settings.workspace_root, plan.root, label or plan.root.name)
