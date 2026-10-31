@@ -12,6 +12,7 @@ from collections.abc import Sequence
 
 from engineering_team.report.fmt import clock, money, size, tail, time_of_day, when
 from engineering_team.report.model import RunReport
+from engineering_team.report.thread import shown
 from engineering_team.runtime.profile_text import SESSION_HEAD
 
 SYMBOL = {"good": "✅", "warn": "⚠️", "bad": "❌", "info": "ℹ️"}
@@ -49,6 +50,7 @@ def render_markdown(report: RunReport) -> str:
     lines += _timeline(report)
     lines += _board(report)
     lines += _agents(report)
+    lines += _thread(report)
     lines += _escalation(report)
     lines += _answer(report)
     lines += _delegations(report)
@@ -286,6 +288,23 @@ def _escalation(report: RunReport) -> list[str]:
     lines += ["", *table(["Rung", "Status", "Why", "Outcome", "Failing checks", "Cost"], rows)]
     if ladder.stopped:
         lines += ["", f"Stopped: {cell(ladder.stopped)}"]
+    return lines
+
+
+def _thread(report: RunReport) -> list[str]:
+    """The run it follows and the follow-ups it got (``continue``)."""
+
+    thread = report.thread
+    if thread is None:
+        return []
+    lines = ["", "## Thread", "", f"Thread `{cell(thread.thread_id)}`.", ""]
+    if thread.parent is not None:
+        lines.append(f"- Follows run `{cell(thread.parent.run_id)}` ({cell(shown(thread.parent))})")
+    for child in thread.children:
+        lines.append(
+            f"- Followed up by run `{cell(child.run_id)}` ({cell(shown(child))}): "
+            f"{cell(child.request)}"
+        )
     return lines
 
 

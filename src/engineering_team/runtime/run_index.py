@@ -32,6 +32,16 @@ class RunRef:
         return self.manifest.run_id
 
     @property
+    def thread_id(self) -> str:
+        """The thread the run belongs to: its own id unless it is a follow-up."""
+
+        return self.manifest.thread_id or self.manifest.run_id
+
+    @property
+    def parent_run(self) -> str | None:
+        return self.manifest.parent_run
+
+    @property
     def store(self) -> RunStore:
         return RunStore(self.workspace)
 
@@ -133,3 +143,15 @@ def locate_run(
         ids = ", ".join(ref.run_id for ref in matches[:5])
         raise RunNotFound(f"{run_id!r} matches several runs ({ids}); give more of the id.")
     return matches[0]
+
+
+def thread_of(runs: list[RunRef], ref: RunRef) -> list[RunRef]:
+    """The runs of ``ref``'s thread among ``runs``, oldest first (``ref`` included)."""
+
+    return [other for other in runs if other.thread_id == ref.thread_id]
+
+
+def children_of(runs: list[RunRef], ref: RunRef) -> list[RunRef]:
+    """The follow-ups started directly from ``ref``, oldest first."""
+
+    return [other for other in runs if other.parent_run == ref.run_id]

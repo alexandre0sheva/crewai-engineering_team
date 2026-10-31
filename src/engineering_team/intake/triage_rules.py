@@ -43,6 +43,8 @@ MODE_INTENTS: dict[str, Intent] = {
     "docs": "docs",
     "security-audit": "security_audit",
 }
+# Requests whose runs only read, so a follow-up is not assumed to change code too.
+READ_ONLY_INTENTS: frozenset[str] = frozenset({"question", "research", "review", "plan_only"})
 # Work that changes or judges code that must already exist.
 EXISTING_ONLY: frozenset[str] = frozenset(
     {"bugfix", "refactor", "review", "upgrade_deps", "security_audit", "performance"}
@@ -191,9 +193,39 @@ def guess_intent(signals: Signals) -> Intent:
     return "feature" if signals.existing_code else "new_project"
 
 
-def heuristic(signals: Signals) -> TriageAnswer:
+def _says_nothing(signals: Signals) -> bool:
+    return not (
+        signals.keywords or signals.question or signals.stack_trace or signals.failing_tests
+        or signals.diff_ref
+    )  # fmt: skip
+
+
+def from_prior(prior: TaskProfile, signals: Signals) -> TriageAnswer | None:
+    """The earlier request's profile as the guess for a follow-up the signals say nothing about
+    ("also handle empty input"). Only work that changes code carries over: after a question,
+    a plan or a review the follow-up is not assumed to be one too."""
+
+    if prior.primary in READ_ONLY_INTENTS or not signals.existing_code:
+        return None
+    return TriageAnswer(
+        intents=list(prior.intents)[:MAX_INTENTS],
+        size=prior.size,
+        risk=prior.risk,
+        verify_by=list(prior.verify_by),
+        focus_paths=[],
+        needs_clarification=False,
+        questions=[],
+        assumptions=[],
+        confidence="low",
+        rationale="A follow-up the signals say nothing about: the earlier request's profile.",
+    )
+
+
+def heuristic(signals: Signals, prior: TaskProfile | None = None) -> TriageAnswer:
     """A complete answer from the signals alone, with low confidence."""
 
+    if prior is not None and _says_nothing(signals) and (inherited := from_prior(prior, signals)):
+        return inherited
     primary = guess_intent(signals)
     secondary = [i for i in _SECONDARY if i in signals.keywords and i != primary]
     words = signals.words

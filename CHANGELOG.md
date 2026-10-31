@@ -11,6 +11,12 @@ renames that section and dates it.
 
 ### Added
 
+- `engineering-team continue RUN "<follow-up>"`: a follow-up to an earlier run, as a new run in the same thread. It
+  works in the parent's repository on the parent's branch (worktree or copy), is told the parent's request, spec,
+  plan, answer, change summary and verdict as context, is triaged with the parent's profile as a prior, and is
+  verified again on its own revision (nothing of the parent's evidence is reused). `continue RUN --implement`
+  implements the plan a plan-only run stored. Runs have a `thread_id` and a `parent_run`; `runs --thread RUN` lists
+  a thread and the run report links the parent and the follow-ups.
 - Questions, research and plans: `do "How does X work?"` (or "why does Y fail", "plan Z, don't change any code")
   changes nothing. A read-only teammate answers with citations (a file, its lines and a quote, or a page the
   run fetched), the controller checks each one against the project and the run's own tool calls, a citation that

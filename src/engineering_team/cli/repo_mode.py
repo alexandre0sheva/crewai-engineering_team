@@ -24,6 +24,7 @@ from engineering_team.intake.bundle import RequestBundle
 from engineering_team.modes.change_report import PATCH_FILE, SUMMARY_FILE
 from engineering_team.modes.isolation import Isolation, isolate
 from engineering_team.modes.run_options import write_run_options
+from engineering_team.modes.threads import continue_isolation
 from engineering_team.pipeline.recipes import Recipe, load_recipe
 from engineering_team.pipeline.strategies import RECIPE_STRATEGIES
 from engineering_team.runtime.context import new_run_id
@@ -80,6 +81,9 @@ class RepoRun:
     # Checked after the recipe is loaded; raise ``ValueError`` for a usage error.
     check: Callable[[Settings], None] | None = None
     slug_fallback: str = "change"
+    # A follow-up (``continue``): the parent's isolation, whose branch, worktree or copy the run
+    # works in again instead of getting a new one.
+    continued: Isolation | None = None
     # Called once the run is open (its directory exists), before it starts.
     opened: Callable[[Any], None] | None = None
     # Called with the summary data after the run; may add to it (what ``--json`` prints).
@@ -118,16 +122,19 @@ def run_repository_mode(g: Globals, run: RepoRun) -> None:
             run.recipe or run.mode, run.root, teammates=build_roster(settings).members
         )
         run_id = new_run_id()
-        isolation = isolate(
-            run.root,
-            run_id=run_id,
-            slug=slug_of(bundle.text, run.slug_fallback),
-            mode="worktree" if run.worktree else "auto",
-            allow_dirty=run.allow_dirty,
-            init_git=True,  # a copy becomes a repository: the work is diffed against the import
-            workspace_root=settings.workspace_root,
-            name=run.project_name,
-        )
+        if run.continued is not None:
+            isolation = continue_isolation(run.continued, allow_dirty=run.allow_dirty)
+        else:
+            isolation = isolate(
+                run.root,
+                run_id=run_id,
+                slug=slug_of(bundle.text, run.slug_fallback),
+                mode="worktree" if run.worktree else "auto",
+                allow_dirty=run.allow_dirty,
+                init_git=True,  # a copy becomes a repository: diffed against the import
+                workspace_root=settings.workspace_root,
+                name=run.project_name,
+            )
         made.append(isolation)
         register_workspace(settings.workspace_root, isolation.workspace, label)
         workspace = ProjectWorkspace.create(

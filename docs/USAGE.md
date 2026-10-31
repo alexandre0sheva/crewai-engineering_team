@@ -21,6 +21,7 @@ uv run engineering-team <command> --help # its options
 | `recipes list` / `recipes show NAME` / `recipes compose --intent I ...` | Which recipes exist (bundled, yours) and what each stage does; `compose` previews the recipe composed for a task profile, with each stage's cost and why ([Your own recipes](#your-own-recipes)). |
 | `diff [RUN] [--stat]` / `export-patch [RUN] --out FILE` | What a `feature` or `fix` run changed, and that change as a patch for `git apply`. |
 | `analyze [--repo PATH] [--deep]` | Look at an existing project without changing it: languages, detected commands, tests, CI, Git state; `--deep` also writes a codebase map ([Adopting an existing project](#adopting-an-existing-project)). |
+| `continue RUN "FOLLOW-UP"` | A follow-up to an earlier run, in the same repository and on the same branch, verified again ([Follow-ups](#follow-ups-and-threads-continue)). `--implement` carries out the plan a plan-only run stored. |
 | `resume RUN` | Continue a cancelled, interrupted, or failed run without redoing finished stages. |
 | `report [RUN] [--format html|md] [--open]` | Write the run report: summary, timeline, board, checks, cost, changes ([Run reports](#run-reports)). |
 | `profile [RUN] [--format text|json]` | Where a run's time and money went: sessions by cost and time, prompt parts, critical path, re-read files, tool failures ([Profiling a run](#profiling-a-run-profile)). |
@@ -28,7 +29,7 @@ uv run engineering-team <command> --help # its options
 | `ui [--host H] [--port P] [--demo]` | Serve the web UI and its API on localhost ([Web UI](#web-ui)). Needs `uv sync --extra ui`. |
 | `bench list` / `bench run` / `bench report` / `bench spend` / `bench triage` | Run the benchmark suite against the team (filtered by split, intent, language, size, difficulty) and report pass rates with confidence intervals and cost per success; `bench spend` shows the release's live spend per allocation; `bench triage` scores how requests are classified (`--fake` validates the harness offline; `--agent` runs Claude Code, Codex, OpenCode or Aider on the same tasks and checks; source checkout only). See [BENCHMARKS.md](BENCHMARKS.md). |
 | `status [RUN]` | Where a run stands: stages, progress, cost, blocked cards. |
-| `runs` | List runs (of every project, or one with `--project-name`), newest last. |
+| `runs [--thread RUN]` | List runs (of every project, or one with `--project-name`), newest last; `--thread` lists only the thread a run is in. |
 | `board [RUN] [--watch]` | The task board as a kanban; `--watch` keeps it live until the run ends. |
 | `cancel [RUN]` | Ask a run in another process to stop at its next safe point. |
 | `note RUN "text" [--card K-004]` | Steer a run: the team reads your note at its next step. |
@@ -521,6 +522,39 @@ nothing is changed: there is no branch, worktree or copy, and the project is rea
   if the project changed. Nothing is implemented or run.
 - Without a project, the question runs in a workspace of its own (`answers` by default); only web citations
   can hold there, so pass `--allow-web`.
+
+### Follow-ups and threads (`continue`)
+
+Real work comes in steps: "now also handle empty input", "rename that flag". `continue` starts the next step as a
+new run in the **thread** of the run it follows:
+
+```bash
+uv run engineering-team do "Add a search function" --repo ../my-service      # run 20261031-101500-ab12cd
+uv run engineering-team continue 20261031-101500-ab12cd "Also handle an empty search string"
+uv run engineering-team runs --thread 20261031-101500-ab12cd                  # the thread, oldest first
+```
+
+- **Same place.** The follow-up works in the parent's repository on the parent's branch, worktree or copy. A
+  branch in your own checkout is checked out again if you have moved to another branch (and the tree is clean;
+  otherwise it stops and says why, and uncommitted changes on the branch itself need `--allow-dirty`). A
+  worktree is used as it is. The follow-up's patch and summary show what *it* changed, not the whole thread.
+- **Told what happened.** The team gets the parent's request, spec, plan, answer, the controller's change summary
+  and its verdict as context, marked as data and not instructions. The triage of the follow-up (on its own words)
+  starts from the parent's profile as a prior, and when the follow-up says nothing about the kind of work
+  ("also handle empty input") and no model can be asked, it is the same kind of work as the parent.
+- **Checked again.** Nothing of the parent's evidence is carried over: its checks, test runs, citations and
+  verdict are history. The follow-up's own verification runs on the revision it produces, and its verdict is its
+  own. A run that is still going cannot be followed up; a failed one can (use `resume` to finish it instead).
+- **Plan, then build.** `continue RUN --implement` implements the plan a plan-only run stored (`PLAN.md`): the plan
+  is handed to the team, the text, if any, adds to it ("Skip the command-line part."), and the work is a feature
+  (or the secondary intent the plan was triaged with).
+- **Finding the thread.** Every run has a `thread_id` (its own id, unless it is a follow-up) and, for a
+  follow-up, a `parent_run`; both are in `runs --json` and the manifest. The run report links the parent and the
+  follow-ups, and `runs --thread` lists the thread across projects. A run made before 0.3.0 is the first of its
+  own thread and can be followed up like any other.
+
+`continue` takes the options of `do` that apply (`--yes`, `--dry-run`, `--allow-dirty`, `--squash`, `--provider`,
+`--profile`, `--strategy`, `--allow-web`, `--checks`, `--sandbox`, `--interactive`, `--config`).
 
 ### Reviewing a change
 

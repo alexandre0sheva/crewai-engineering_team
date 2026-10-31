@@ -116,6 +116,25 @@ class TraceInfo:
     notices: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class RunLink:
+    """A run of the same thread, as the report names it."""
+
+    run_id: str
+    status: str
+    verdict: str | None
+    request: str  # the head of what it was asked
+
+
+@dataclass(frozen=True)
+class ThreadInfo:
+    """The run it follows and the follow-ups it got (``continue``)."""
+
+    thread_id: str
+    parent: RunLink | None = None
+    children: list[RunLink] = field(default_factory=list)
+
+
 @dataclass
 class RunReport:
     run_id: str
@@ -157,3 +176,4 @@ class RunReport:
     ladder: LadderRecord | None = None  # the rungs an ``auto`` run climbed
     answer: Answer | None = None  # the answer path's answer and the check of its citations
     answer_check: AnswerCheck | None = None
+    thread: ThreadInfo | None = None  # the run it follows and its follow-ups

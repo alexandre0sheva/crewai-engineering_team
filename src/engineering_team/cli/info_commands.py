@@ -22,7 +22,7 @@ from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
 from engineering_team.runtime.budget import Budget
 from engineering_team.runtime.inbox import post_command
 from engineering_team.runtime.locks import workspace_in_use
-from engineering_team.runtime.run_index import RunRef, find_runs, locate_run
+from engineering_team.runtime.run_index import RunRef, find_runs, locate_run, thread_of
 from engineering_team.settings import Settings, load_settings
 
 RunArg = Annotated[
@@ -120,13 +120,20 @@ def runs(
     ctx: typer.Context,
     project_name: ProjectOpt = None,
     limit: Annotated[int, typer.Option(min=1, help="How many of the newest runs to show.")] = 20,
+    thread: Annotated[
+        str | None,
+        typer.Option(help="Only the runs of the thread this run is in (see `continue`)."),
+    ] = None,
     config: ConfigOpt = None,
 ) -> None:
     """List runs, newest last."""
 
     g = get_globals(ctx)
     settings = load(g, config)
-    found = find_runs(settings.workspace_root, project_name)[-limit:]
+    found = find_runs(settings.workspace_root, project_name)
+    if thread is not None:
+        found = thread_of(found, locate_run(settings.workspace_root, thread, project_name))
+    found = found[-limit:]
     if g.json:
         print_json([_run_data(ref) for ref in found])
         return
@@ -134,7 +141,8 @@ def runs(
         g.console().print("No runs yet. Start one with: engineering-team new --example tiny-notes")
         return
     table = Table(box=box.SIMPLE_HEAD, pad_edge=False)
-    for name in ("Run", "Project", "Status", "Started", "Took", "Cost"):
+    follow_ups = any(ref.parent_run for ref in found)
+    for name in ("Run", "Project", "Status", "Started", "Took", "Cost", *(["After"] * follow_ups)):
         table.add_column(name, no_wrap=name == "Run")
     for ref in found:
         manifest, summary = ref.manifest, ref.manifest.summary
@@ -152,6 +160,7 @@ def runs(
             manifest.created.astimezone().strftime("%m-%d %H:%M"),
             clock(summary.duration_seconds) if summary else "-",
             cost,
+            *([ref.parent_run or "-"] * follow_ups),
         )
     g.console().print(table)
 
@@ -166,6 +175,8 @@ def _run_data(ref: RunRef) -> dict[str, Any]:
         "status": manifest.status,
         "verdict": manifest.verdict,
         "created": manifest.created.isoformat(),
+        "thread_id": ref.thread_id,
+        "parent_run": ref.parent_run,
         "duration_seconds": summary.duration_seconds if summary else None,
         "tokens": summary.usage.total_tokens if summary else None,
         "estimated_cost_usd": summary.estimated_cost_usd if summary else None,

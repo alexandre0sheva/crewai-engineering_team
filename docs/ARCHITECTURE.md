@@ -189,7 +189,7 @@ from reading `commands/` logs. This is the single description of its layout:
 
 | Path | Written by | Contents |
 |------|-----------|----------|
-| `manifest.json` | `RunStore` | `RunManifest`: run id, mode, project, request and settings hashes, versions (engineering-team, CrewAI, Python), strategy, recipe, status, stage records, created/finished, and a `summary` (usage, estimated cost or `null`, budget status) once the run ends |
+| `manifest.json` | `RunStore` | `RunManifest`: run id, mode, project, request and settings hashes, versions (engineering-team, CrewAI, Python), strategy, recipe, status, stage records, created/finished, `thread_id` and `parent_run` (a follow-up made with `continue`; both absent on a run that is not one and on runs from before 0.3.0), and a `summary` (usage, estimated cost or `null`, budget status) once the run ends |
 | `events.jsonl` | `JsonlSink` | One `Event` per line: `seq`, `ts`, `run_id`, `type`, optional `stage`/`agent`/`lane`, `data` |
 | `trajectory.jsonl` | `TrajectoryRecorder` (`runtime/trajectory.py`) | What the agents saw: one line per tool call (`seq`, `ts`, `stage`, `teammate`, `lane`, `tool`, redacted `args`, redacted and capped `output`, `ok`, `ms`) or model message (`role` = `assistant` reply or `final` answer), plus `notice` lines when the size budget bites. `seq` is the line number; each `tool.call` event carries it as `trajectory_seq`. Secret values are scrubbed before the cut; output is capped per call (`trajectory.max_output_chars`) and per file (`trajectory.max_mb`, past which outputs are cut harder). Read it with `engineering-team trace`, the UI card drawer, or the report's Trace section. Runs from before 0.3.0 have no such file |
 | `request.md` | `RunRecorder` | The request exactly as given |
@@ -312,7 +312,8 @@ message of `run.finished`), `board.json`, `pipeline.json` (checks, criteria cove
 noise), `usage.json`, `changes.patch`, and `screenshots/` into a `RunReport`; `render_html` and
 `render_md` render it. Every file except the manifest is optional, so a failed, cancelled, still
 running, or half-written run still gets a report. It reads files only (no `RunContext`), so the
-`report` command works on a run from another process.
+`report` command works on a run from another process. A run in a thread (`continue`) also shows the run it
+follows and its follow-ups, read from the manifests of the same workspace (`report/thread.py`).
 
 - **Written by the controller, quoting agents.** Statuses, the banner and its reasons, warnings
   (budget, unavailable required checks, unproven criteria, unreproduced bugs, out-of-scope changes)

@@ -12,6 +12,7 @@ presets that force the intent and skip the preview; ``cli/do_plan.py`` is the pl
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Annotated, Any
@@ -22,13 +23,15 @@ from engineering_team.cli import do_plan, do_run
 from engineering_team.cli.context import Globals, fail, one_of, print_json
 from engineering_team.cli.context import get as get_globals
 from engineering_team.cli.do_plan import with_notes  # noqa: F401  (re-exported)
-from engineering_team.cli.do_run import PROFILE_FILE  # noqa: F401  (re-exported)
 from engineering_team.cli.run_commands import wants_questions
 from engineering_team.contracts import TaskProfile
 from engineering_team.intake.bundle import STDIN, RequestBundle
 from engineering_team.intake.clarify import settle
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
 from engineering_team.modes.needs_info import NeedsInfo
+from engineering_team.modes.threads import (
+    PROFILE_FILE,  # noqa: F401  (re-exported)
+)
 from engineering_team.outcome import EXIT_INTERRUPTED, EXIT_PARTIAL
 from engineering_team.pipeline.strategies import STRATEGY_NAMES
 from engineering_team.runtime.interaction import HumanChannel
@@ -179,10 +182,46 @@ def do(
         sandbox=sandbox, no_git=no_git, verbose=g.verbose, workspace_root=g.workspace_root,
         project_name=project_name,
     )  # fmt: skip
-    try:
+    ask = wants_questions(interactive, stdin_used=STDIN in files)
+
+    def make_plan() -> do_plan.DoPlan:
         settings, bundle, root = _intake(options, config, inline, files, context_dir, example, repo)
-        ask = wants_questions(interactive, stdin_used=STDIN in files)
-        plan = _plan(settings, bundle, root, mode, recipe, ask, dry_run, explicit=repo is not None)
+        return _plan(settings, bundle, root, mode, recipe, ask, dry_run, explicit=repo is not None)
+
+    plan_and_run(
+        ctx, g, make_plan,
+        options=options, config=config, ask=ask, context_dir=context_dir, yes=yes,
+        dry_run=dry_run, interactive=interactive, stdin_used=STDIN in files, worktree=worktree,
+        allow_dirty=allow_dirty, squash=squash, reset=reset or force_reset,
+        force_reset=force_reset, fix=fix,
+    )  # fmt: skip
+
+
+def plan_and_run(
+    ctx: typer.Context,
+    g: Globals,
+    make_plan: Callable[[], do_plan.DoPlan],
+    *,
+    options: SimpleNamespace,
+    config: str | None,
+    ask: bool,
+    context_dir: str | None,
+    yes: bool,
+    dry_run: bool,
+    interactive: bool | None,
+    stdin_used: bool,
+    worktree: bool = False,
+    allow_dirty: bool = False,
+    squash: bool = False,
+    reset: bool = False,
+    force_reset: bool = False,
+    fix: bool = False,
+) -> None:
+    """What ``do`` and ``continue`` share: plan (a usage error or a question nobody can answer
+    stops here), show the plan, ask to proceed, run it."""
+
+    try:
+        plan = make_plan()
     except NeedsInfo as exc:
         sys.stderr.write(f"Error: {exc}\n")
         for number, question in enumerate(exc.questions, 1):
@@ -202,7 +241,7 @@ def do(
         if g.json:
             print_json({"status": "planned", "exit_code": 0, "plan": do_plan.plan_document(plan)})
         raise typer.Exit(0)
-    if not _proceed(g, yes=yes, interactive=interactive, stdin_used=STDIN in files):
+    if not _proceed(g, yes=yes, interactive=interactive, stdin_used=stdin_used):
         sys.stderr.write("Not started: nothing was changed.\n")
         raise typer.Exit(1)
     do_run.execute(
@@ -216,10 +255,10 @@ def do(
         worktree=worktree,
         allow_dirty=allow_dirty,
         squash=squash,
-        reset=reset or force_reset,
+        reset=reset,
         force_reset=force_reset,
         fix=fix,
-        stdin_used=STDIN in files,
+        stdin_used=stdin_used,
     )
 
 
@@ -255,6 +294,7 @@ def _plan(
     dry_run: bool,
     *,
     explicit: bool,
+    prior: TaskProfile | None = None,
 ) -> do_plan.DoPlan:
     """Triage and plan. A preview needs no credentials (the signals decide without them); a run
     that cannot start is refused before the triage call spends anything."""
@@ -267,7 +307,7 @@ def _plan(
         return settle(result.profile, channel)
 
     plan = do_plan.plan_request(
-        bundle.text, root, settings, mode=mode, recipe_name=recipe, answers=answers
+        bundle.text, root, settings, mode=mode, recipe_name=recipe, answers=answers, prior=prior
     )
     if explicit and plan.root is None:
         raise ValueError(

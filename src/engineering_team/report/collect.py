@@ -37,6 +37,7 @@ from engineering_team.report.model import (
     StageRow,
     TraceInfo,
 )
+from engineering_team.report.thread import build_thread
 from engineering_team.runtime.events import read_events
 from engineering_team.runtime.profile import Profile, build_profile
 from engineering_team.runtime.run_store import (
@@ -103,6 +104,7 @@ def build_report(run_dir: Path) -> RunReport:
         ladder=LadderRecord.load(run_dir),
         answer=state.answer if state else None,
         answer_check=state.answer_check if state else None,
+        thread=build_thread(run_dir, manifest),
         environment=_environment(run_dir, manifest),
     )
     report.stages = _stages(manifest, end)

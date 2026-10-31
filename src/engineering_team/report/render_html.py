@@ -5,12 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from engineering_team.report import html_sections as s
+from engineering_team.report import thread
 from engineering_team.report.html_style import CSP, CSS, JS
 from engineering_team.report.model import RunReport
 
 NAV = (
     ("summary", "Summary"), ("warnings", "Warnings"), ("timeline", "Timeline"),
-    ("board", "Board"), ("agents", "Teammates"), ("escalation", "Escalation"),
+    ("thread", "Thread"), ("board", "Board"), ("agents", "Teammates"), ("escalation", "Escalation"),
     ("answer", "Answer"), ("delegations", "Delegations"),
     ("screenshots", "Screenshots"),
     ("usage", "Cost"), ("profile", "Time and money"), ("checks", "Checks"),
@@ -28,6 +29,7 @@ def render_html(report: RunReport, run_dir: Path | None = None) -> str:
         "summary": s.summary(report),
         "warnings": s.warnings(report),
         "timeline": s.timeline(report),
+        "thread": thread.html(report.thread),
         "board": s.board(report),
         "agents": s.agents(report),
         "escalation": s.escalation(report),

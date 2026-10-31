@@ -23,6 +23,7 @@ from engineering_team.intake.triage import (
     triage,
 )
 from engineering_team.intake.triage_rules import MODE_INTENTS
+from engineering_team.modes.threads import ThreadLink
 from engineering_team.pipeline.compose import compose
 from engineering_team.pipeline.compose_rules import ComposeError
 from engineering_team.pipeline.ladder import RUNGS, SIZE_SCALE, estimate_usd, money, plan_ladder
@@ -68,6 +69,8 @@ class DoPlan:
     worst_usd: float | None = None
     budget_usd: float | None = None
     notes: list[str] = field(default_factory=list)
+    context: str = ""  # a follow-up's earlier work (``modes/threads.py``), told to the team
+    thread: ThreadLink | None = None  # set for a follow-up (``continue``)
 
     @property
     def profile(self) -> TaskProfile:
@@ -114,7 +117,13 @@ def route_of(profile: TaskProfile, mode: str | None = None) -> Route:
 
 
 def run_triage(
-    request: str, signals: Signals, settings: Settings, mode: str | None, *, use_model: bool
+    request: str,
+    signals: Signals,
+    settings: Settings,
+    mode: str | None,
+    *,
+    use_model: bool,
+    prior: TaskProfile | None = None,
 ) -> tuple[TriageResult, list[str]]:
     """The triage of ``request``: one cheap model call, or the signals alone when ``use_model``
     is false or no model can be called (the second value says why)."""
@@ -130,7 +139,7 @@ def run_triage(
                 llm = build_triage_llm(settings)
             except Exception as exc:  # a provider setup problem must not stop a preview
                 notes.append(f"no model call for triage ({exc}); the signals decided.")
-    return triage(request, signals, llm=llm, mode=mode, settings=settings), notes
+    return triage(request, signals, llm=llm, mode=mode, settings=settings, prior=prior), notes
 
 
 def plan_request(
@@ -142,9 +151,11 @@ def plan_request(
     recipe_name: str | None = None,
     use_model: bool = True,
     answers: Any = None,
+    prior: TaskProfile | None = None,
 ) -> DoPlan:
     """Triage ``request`` and plan its run. ``answers`` is a callable ``(TriageResult) ->
-    TaskProfile`` that settles the questions of a profile that needs clarification.
+    TaskProfile`` that settles the questions of a profile that needs clarification; ``prior``
+    is the profile of the request this one follows up (``continue``).
 
     Raises ``ValueError`` (a usage error) when no plan can run: a forced mode that does not fit,
     a recipe that does not exist or no stage that fits the request.
@@ -152,7 +163,7 @@ def plan_request(
 
     signals = collect(request, root)
     check_mode(mode, signals)
-    result, notes = run_triage(request, signals, settings, mode, use_model=use_model)
+    result, notes = run_triage(request, signals, settings, mode, use_model=use_model, prior=prior)
     if answers is not None and result.profile.needs_clarification:
         result = TriageResult(answers(result), result.signals, result.usage, result.error)
     profile = result.profile

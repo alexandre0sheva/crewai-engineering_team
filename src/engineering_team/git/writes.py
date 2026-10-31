@@ -52,6 +52,24 @@ class GitWrites(GitReads):
         else:
             self._run("branch", name)
 
+    def branch_exists(self, name: str) -> bool:
+        self._require_repo()
+        if not BRANCH.fullmatch(name or "") or ".." in name:
+            return False
+        try:
+            self._run("rev-parse", "--verify", "-q", f"refs/heads/{name}")
+        except GitError:
+            return False
+        return True
+
+    def switch_branch(self, name: str) -> None:
+        """Check out an existing local branch (the caller has checked the tree is clean)."""
+
+        self._require_repo()
+        if not self.branch_exists(name):
+            raise GitError(f"There is no branch {name!r} in this repository.")
+        self._run("checkout", name)
+
     def worktree_add(self, path: Path, branch: str, base: str = "HEAD") -> None:
         """A new worktree at ``path`` on a new ``branch`` started from ``base``."""
 

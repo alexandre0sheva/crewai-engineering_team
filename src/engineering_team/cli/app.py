@@ -18,6 +18,7 @@ import typer
 from engineering_team.cli import (
     analyze_command,
     bench_command,
+    continue_command,
     do_command,
     feature_command,
     fix_command,
@@ -39,10 +40,10 @@ from engineering_team.cli.team_commands import team_app
 from engineering_team.runtime.context import reserve_run_id
 
 COMMANDS = (
-    "do", "new", "resume", "status", "runs", "board", "cancel", "note", "pause", "unpause",
-    "config", "doctor", "init", "examples", "team", "analyze", "feature", "fix", "maintain",
-    "review", "recipes", "diff", "export-patch", "report", "trace", "profile", "ui", "bench",
-    "plugins",
+    "do", "new", "resume", "continue", "status", "runs", "board", "cancel", "note", "pause",
+    "unpause", "config", "doctor", "init", "examples", "team", "analyze", "feature", "fix",
+    "maintain", "review", "recipes", "diff", "export-patch", "report", "trace", "profile", "ui",
+    "bench", "plugins",
 )  # fmt: skip
 HELP_FLAGS = ("-h", "--help")
 FLAGS = ("--json", "--quiet", "-q", "--verbose", "-v", "--no-color", "--answers-via-inbox")
@@ -125,6 +126,7 @@ def global_options(
 app.command()(do_command.do)
 app.command()(run_commands.new)
 app.command()(run_commands.resume)
+app.command("continue")(continue_command.continue_run)
 app.command()(analyze_command.analyze)
 app.command()(feature_command.feature)
 app.command()(fix_command.fix)

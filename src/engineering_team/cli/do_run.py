@@ -19,11 +19,11 @@ from engineering_team.cli.context import Globals, print_json
 from engineering_team.cli.repo_mode import RepoRun, project_name_of, run_repository_mode
 from engineering_team.cli.run_commands import present_run
 from engineering_team.intake.bundle import RequestBundle
+from engineering_team.modes.threads import PROFILE_FILE, link_thread, with_thread
 from engineering_team.pipeline.ladder_contracts import LadderRecord
 from engineering_team.pipeline.strategies import RECIPE_STRATEGIES
 from engineering_team.settings import Settings, load_settings
 
-PROFILE_FILE = "task_profile.json"
 MAX_FOCUS_CHARS = 2_000
 
 
@@ -57,15 +57,22 @@ def execute(
 
     def request_bundle(settings: Settings) -> RequestBundle:
         return RequestBundle.from_sources(
-            text=do_plan.with_notes(plan.request, plan.profile),
+            text=with_thread(do_plan.with_notes(plan.request, plan.profile), plan.context),
             context_dir=context_dir,
             limits=settings.intake,
         )
 
+    thread = plan.thread
+
+    def opened(prepared: Any) -> None:
+        _record(prepared, plan)
+        if thread is not None:
+            link_thread(prepared, thread.parent.ref)
+
     if plan.route == "answer":
         run_answer_route(
             g, plan, options, config, request_bundle, ask,
-            opened=lambda prepared: _record(prepared, plan),
+            opened=opened,
             extra=lambda prepared, data: _describe(g, prepared, data, plan),
         )  # fmt: skip
         return
@@ -77,10 +84,13 @@ def execute(
             argv = ["analyze", *common, "--deep"]
         raise typer.Exit(main(argv))
     if plan.route == "new":
-        run_new(g, plan, options, config, request_bundle, reset, force_reset, ask)
+        run_new(g, plan, options, config, request_bundle, reset, force_reset, ask, opened)
         return
     root = plan.root
     assert root is not None  # the other routes have a project
+    continued = thread.isolation if thread is not None else None
+    if continued is not None:
+        root = continued.source  # the user's directory; the branch is in the parent's workspace
     options.project_name = project_name_of(root, options.project_name)
     task = do_plan.TASK_OF.get(plan.profile.primary)
     run_repository_mode(
@@ -99,8 +109,9 @@ def execute(
             project_name=options.project_name,
             config=config,
             slug_fallback=plan.profile.primary.replace("_", "-"),
+            continued=continued,
             run_options={"task": task, "fix_findings": fix} if task else {},
-            opened=lambda prepared: _record(prepared, plan),
+            opened=opened,
             extra=lambda prepared, data: _describe(g, prepared, data, plan),
         ),
     )
@@ -115,10 +126,12 @@ def run_new(
     reset: bool,
     force_reset: bool,
     ask: bool,
+    opened: Any = None,
 ) -> None:
     from engineering_team import main as engine
 
     printed: list[bool] = []
+    opened = opened or (lambda prepared: _record(prepared, plan))
 
     def prepare() -> Any:
         settings = load_settings(overrides=engine._cli_overrides(options), config_file=config)
@@ -134,7 +147,7 @@ def run_new(
             force_reset=force_reset,
             recipe=plan.recipe if settings.strategy in RECIPE_STRATEGIES else None,
         )
-        _record(prepared, plan)
+        opened(prepared)
         return prepared
 
     def work(prepared: Any) -> int:

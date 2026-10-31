@@ -420,6 +420,10 @@ class RunManifest(Contract):
     status: RunStatus = "pending"
     verdict: RunVerdict | None = None  # set by runs that verify; all but ``verified`` end the run
     resumes: int = 0  # how many times `resume` continued this run
+    # `continue`: the run that was followed up and the thread it belongs to. A run that is not
+    # a follow-up (and every run of 0.2.0) has neither: it is the first of its own thread.
+    thread_id: str | None = None
+    parent_run: str | None = None
     stages: list[StageRecord] = Field(default_factory=list)
     created: datetime = Field(default_factory=utc_now)
     finished: datetime | None = None

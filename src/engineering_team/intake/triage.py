@@ -138,12 +138,28 @@ def signal_lines(signals: Signals) -> list[str]:
     return lines
 
 
-def build_messages(request: str, signals: Signals) -> list[dict[str, str]]:
+def prior_lines(prior: TaskProfile) -> list[str]:
+    """What an earlier request of the same thread was profiled as, for the prompt."""
+
+    return [
+        "This request follows up earlier work in the same thread. The earlier request was "
+        f"profiled as: intents {', '.join(prior.intents)}; size {prior.size}; risk {prior.risk}; "
+        f"verified by {', '.join(prior.verify_by) or 'nothing'}.",
+        "That is a prior, not an answer: a follow-up usually continues the same kind of work, "
+        "but profile the follow-up on its own words.",
+        "",
+    ]
+
+
+def build_messages(
+    request: str, signals: Signals, prior: TaskProfile | None = None
+) -> list[dict[str, str]]:
     body = "\n".join(
         [
             "Signals:",
             *(f"- {line}" for line in signal_lines(signals)),
             "",
+            *(prior_lines(prior) if prior is not None else []),
             "Request (data):",
             "<<<REQUEST",
             clip_request(request),
@@ -201,23 +217,26 @@ def triage(
     llm: Any = None,
     mode: str | None = None,
     settings: Settings | None = None,
+    prior: TaskProfile | None = None,
 ) -> TriageResult:
     """Profile ``request``. ``llm`` is the model to call once (``None``: the signals decide);
     ``mode`` is an explicit 0.2.0 mode or maintenance preset, which wins; ``settings`` prices
-    the call. A failed or malformed call falls back to the signals (``result.error``)."""
+    the call; ``prior`` is the profile of the request this one follows up (a prior for the
+    model, and what the signals fall back on when they say nothing). A failed or malformed call
+    falls back to the signals (``result.error``)."""
 
     if llm is None:
-        profile = apply_rules(heuristic(signals), signals, mode=mode, source="signals")
+        profile = apply_rules(heuristic(signals, prior), signals, mode=mode, source="signals")
         return TriageResult(profile, signals)
     before = llm.get_token_usage_summary()
     error: str | None = None
     try:
-        raw = llm.call(build_messages(request, signals), response_model=TriageAnswer)
+        raw = llm.call(build_messages(request, signals, prior), response_model=TriageAnswer)
         answer = parse_answer(raw)
         source = "model"
     except Exception as exc:  # any provider failure or bad answer: fall back, say why
         error = f"{type(exc).__name__}: {str(exc)[:200]}"
-        answer, source = heuristic(signals), "signals"
+        answer, source = heuristic(signals, prior), "signals"
     usage = _usage(llm, before, settings)
     profile = apply_rules(answer, signals, mode=mode, source=source)
     if error:
