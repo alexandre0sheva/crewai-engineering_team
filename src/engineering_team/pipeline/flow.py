@@ -88,6 +88,7 @@ class PipelineFlow(Flow[PipelineState]):
                 setattr(state, name, getattr(given, name))
         state.recipe, state.recipe_digest, state.request_hash = recipe.name, digest, requested
         state.stopped_by = state.stopped_at = ""
+        state.request_head = self._bundle.requirements[:600]
         state.options = read_run_options(ctx.run_dir)
         if state.lean is None:  # sized once, before any model is called; a resume keeps it
             state.lean = assess(self._bundle.requirements, ctx.settings, count_files(ctx.workspace))

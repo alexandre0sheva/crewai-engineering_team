@@ -441,11 +441,32 @@ request (the signals alone when no model can be called, so `--dry-run` needs no 
 questions, composes the recipe from the profile (`pipeline/compose.py`, or the recipe you name) and
 shows the plan with the ladder's starting rung and a cost estimate. The route follows the profile:
 a new project goes through the `new` path, a change through `cli/repo_mode.py` (a branch, worktree or
-copy) with the composed recipe, a review through `review` and a question about a project through
-`analyze --deep`. The controller still sizes the run itself (`pipeline/lean.py`) and picks the rung
+copy) with the composed recipe, a review through `review`, and a question, research or plan-only request through the answer
+paths ([below](#questions-research-and-plans)). The controller still sizes the run itself (`pipeline/lean.py`) and picks the rung
 from that size; the triage size decides which stages the composed recipe has. The plan is written to
 `runs/<id>/task_profile.json`. `new`, `feature`, `fix`, `maintain`, `review` and `analyze` are the
 same routes with the intent fixed and no preview.
+
+## Questions, research and plans
+
+A `question`, `research` or `plan_only` request changes nothing, so it runs where the project is
+(`cli/answer_run.py`: no branch, worktree or copy; the controller's records go to the run directory)
+or, with no project, in a workspace that only holds the run's records. The composed recipes are
+`profile`, `answer` (existing project), `answer` alone (no project), and `design` + `plan_report`
+(plan only; `design` has the write scope `nothing`).
+
+The `answer` stage (kind `answer`, `modes/answer_stage.py`) gives its teammate `readonly_tools` (the
+read-only tools of its groups, and a write tool that can reach one scratch path only) and takes an
+`Answer` back (`modes/answer_contracts.py`: summary, sections, citations, confidence, open questions).
+The controller then checks every citation (`modes/citations.py`): a path must be a file of the project (not
+outside it, not the controller's state), the lines must exist and contain the quote after whitespace is
+normalised, and a URL must appear in a successful `Fetch URL` call of the run's `trajectory.jsonl`
+(as asked or as redirected to). Citations that fail go back to the agent once
+(`ANSWER_REPAIRS`). `ANSWER.md` is written either way with failed citations marked; the verdict is
+`verified` (all hold), `partial` (some hold, or there is none) or `failed` (none hold, or a file of the
+project changed during the run, found by comparing the run's start snapshot), and a verdict below
+`verified` ends the run through the same `VerificationError` path as a failed check. The agent's text is
+never evidence: only the controller's check is.
 
 ## Pipeline, recipes, and resume
 

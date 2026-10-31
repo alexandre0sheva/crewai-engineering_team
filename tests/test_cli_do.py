@@ -512,11 +512,12 @@ def test_json_output_names_the_task_the_branch_and_the_patch(
 
 @pytest.mark.git
 @pytest.mark.parametrize(
-    ("intent", "command", "extra"),
-    [("review", "review", "--focus"), ("question", "analyze", "--deep")],
+    ("intent", "mode", "command", "extra"),
+    [("review", None, "review", "--focus"), ("question", "analyze", "analyze", "--deep")],
 )
-def test_a_review_and_a_question_use_the_commands_that_already_do_them(
+def test_a_review_and_a_map_use_the_commands_that_already_do_them(
     intent: str,
+    mode: str | None,
     command: str,
     extra: str,
     legacy: Path,
@@ -532,7 +533,8 @@ def test_a_review_and_a_question_use_the_commands_that_already_do_them(
 
     monkeypatch.setattr(cli_app, "main", main_)
 
-    code = do("Look at the change on this branch.", "--repo", str(legacy), "--yes")
+    forced = ["--mode", mode] if mode else []
+    code = do("Look at the change on this branch.", "--repo", str(legacy), "--yes", *forced)
 
     assert code == 0
     argv = calls[1]

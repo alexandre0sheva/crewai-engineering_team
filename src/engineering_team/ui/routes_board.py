@@ -42,6 +42,8 @@ ARTIFACT_FILES = (
     ("report.html", "report"),
     ("report.md", "report"),
     ("CHANGE_SUMMARY.md", "report"),
+    ("ANSWER.md", "report"),
+    ("PLAN.md", "report"),
     ("changes.patch", "patch"),
     ("findings.md", "report"),
     ("findings.json", "data"),

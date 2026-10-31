@@ -30,8 +30,10 @@ CANONICAL: dict[str, tuple[list[str], str]] = {
     "security-audit": (["security_audit"], "existing"),
     "custom": (["performance"], "existing"),
     "review": (["review"], "existing"),
-    "adopt": (["question"], "existing"),
 }
+# `analyze --deep` maps a project and has no profile of its own: a question is answered now
+# (profile, answer), so the bundled `adopt` recipe is not composed (Decision log, T15).
+NOT_COMPOSED = {"adopt"}
 
 
 def profile(*intents: str, target: str = "existing", **fields: Any) -> TaskProfile:
@@ -67,7 +69,7 @@ def test_every_bundled_recipe_is_composed_from_its_canonical_profile(name: str) 
 def test_every_bundled_recipe_has_a_canonical_profile() -> None:
     from engineering_team.pipeline.recipes import bundled_recipes
 
-    assert set(bundled_recipes()) == set(CANONICAL)
+    assert set(bundled_recipes()) == set(CANONICAL) | NOT_COMPOSED
 
 
 def test_the_why_field_does_not_change_a_bundled_recipes_digest() -> None:
@@ -131,9 +133,21 @@ def test_a_new_project_that_asks_for_docs_and_devops_always_runs_them() -> None:
     assert recipe.mode == "new"
 
 
-def test_a_question_without_a_project_has_no_recipe_yet() -> None:
-    with pytest.raises(ComposeError, match="No stage applies to a question request on a new"):
-        compose(profile("question", target="new"))
+def test_questions_are_answered_and_plans_are_only_plans() -> None:
+    assert names("question") == ["profile", "answer"]
+    assert names("research") == ["profile", "answer"]
+    assert names("plan_only") == ["profile", "design", "plan_report"]
+    assert names("question", target="new") == ["answer"]
+    assert names("plan_only", target="new") == ["design", "plan_report"]
+    answer = compose(profile("question")).recipe.stage("answer")
+    assert (answer.kind, answer.teammates, answer.outputs) == (
+        "answer", ["codebase_analyst"], ["answer"]
+    )  # fmt: skip
+    assert compose(profile("plan_only")).recipe.stage("design").write_scope == "nothing"
+
+
+def test_a_question_does_not_run_the_projects_checks() -> None:
+    assert "baseline" not in names("question", size="large", risk="high")
 
 
 # -- explanations ----------------------------------------------------------------------------

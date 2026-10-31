@@ -13,6 +13,7 @@ from engineering_team.contracts import (
     Spec,
     WorkPackage,
 )
+from engineering_team.modes.answer_contracts import Answer
 from engineering_team.modes.codebase_map import ChunkAnalysis, CodebaseMap, ModuleNote
 from engineering_team.modes.fix_contracts import FixNote, Hypothesis, Repro, Triage
 from engineering_team.modes.maintain_contracts import UpgradePlan
@@ -129,6 +130,7 @@ class FakeRunner:
         repros: list[Repro] | None = None,
         fix_note: FixNote | None = None,
         upgrade_plan: UpgradePlan | None = None,
+        answers: list[Answer] | None = None,
     ) -> None:
         # Fix mode: what the triage, reproduce (one per attempt; the last repeats) and fix stages
         # return.
@@ -138,6 +140,7 @@ class FakeRunner:
         )
         self.repros = list(repros or [Repro()])
         self.upgrade_plan = upgrade_plan or UpgradePlan()  # what ``plan_upgrades`` returns
+        self.answers = list(answers or [])  # what successive ``answer`` calls return (last repeats)
         self.fix_note = fix_note or FixNote(root_cause="The cause.", change="The fix.", risk="Low.")
         self.codebase_map = codebase_map or CODEBASE_MAP  # what an ``analyze`` synthesis returns
         self.plan = PLAN if plan is None else plan
@@ -175,6 +178,8 @@ class FakeRunner:
                     modules=[ModuleNote(name="core", path="src", purpose="The core.")],
                 )
             )
+        elif request.stage.kind == "answer":
+            contracts["answer"] = self.answers.pop(0) if len(self.answers) > 1 else self.answers[0]
         elif stage == "spec":
             contracts["spec"] = self.specs.pop(0) if len(self.specs) > 1 else self.specs[0]
         elif stage == "design":  # the lean recipes' spec and plan in one session

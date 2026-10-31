@@ -44,6 +44,7 @@ SCOPES: dict[str, tuple[str, ...]] = {
     ),
     "docs": ("docs", "doc", *(f"*{s}" for s in DOC_SUFFIXES), "README*", "CHANGELOG*"),
     "manifests": (*MANIFEST_FILES, *MANIFEST_PATTERNS),
+    "nothing": (),  # a read-only stage: it may change no project file
 }  # fmt: skip
 
 

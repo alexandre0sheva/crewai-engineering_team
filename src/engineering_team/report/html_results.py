@@ -92,6 +92,28 @@ def escalation(report: RunReport) -> str:
     return section("escalation", "Escalation", lead + table(head, rows, (5,)) + stopped)
 
 
+def answer(report: RunReport) -> str:
+    """The answer path: the answer's summary and which citations the controller verified."""
+
+    found, check = report.answer, report.answer_check
+    if found is None or check is None:
+        return ""
+    rows = [
+        [
+            esc(str(r.number)),
+            code(r.target),
+            badge("verified" if r.ok else r.status, "ok" if r.ok else "bad"),
+            esc(r.detail or "-"),
+        ]
+        for r in check.results
+    ]
+    lead = (
+        f"<p>{esc(found.summary)}</p><p>{check.verified} of {len(check.results)} citation(s) "
+        f"verified by the controller (confidence stated by the agent: {esc(found.confidence)}).</p>"
+    )
+    return section("answer", "Answer", lead + table(["#", "Source", "Status", "Note"], rows))
+
+
 def delegations(report: RunReport) -> str:
     """Who the lead called, why, and what it cost (the team strategy)."""
 

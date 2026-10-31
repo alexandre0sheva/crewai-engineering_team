@@ -63,6 +63,18 @@ library:
     requires: [profile]
     stage: {name: map, kind: analyze, teammates: [codebase_analyst], skip_if: [small_task]}
 
+  # -- questions and plans (no change to the project) -------------------------------------
+  - id: answer
+    cost: session
+    summary: A read-only agent answers with citations; the controller checks every one.
+    requires: [profile]
+    stage: {name: answer, kind: answer, teammates: [codebase_analyst], outputs: [answer]}
+
+  - id: answer_open
+    cost: session
+    summary: A read-only agent answers from the web with citations; the controller checks every one.
+    stage: {name: answer, kind: answer, teammates: [codebase_analyst], outputs: [answer]}
+
   - id: coverage_before
     cost: free
     summary: Measures coverage with the project's own tool before the change.
@@ -132,6 +144,32 @@ library:
       outputs: [plan, "file:docs/architecture.md"]
       skip_if: [not_large_task]
       verification_policy: artifacts
+      retry: 1
+
+  - id: plan_design_change
+    cost: session
+    summary: One read-only session writes the criteria, the impact plan and the risks; nothing is built.
+    requires: [profile]
+    stage:
+      name: design
+      kind: agent
+      teammates: [solution_architect]
+      inputs: [request]
+      outputs: [spec, plan]
+      prompt: design_change
+      write_scope: nothing
+      retry: 1
+
+  - id: plan_design_new
+    cost: session
+    summary: One read-only session writes the spec, the plan and the risks; nothing is built.
+    stage:
+      name: design
+      kind: agent
+      teammates: [solution_architect]
+      inputs: [request]
+      outputs: [spec, plan]
+      write_scope: nothing
       retry: 1
 
   - id: impact
@@ -563,6 +601,11 @@ library:
     requires: [profile]
     stage: {name: summary, kind: controller, action: change_summary, skip_if: [fixes_not_requested]}
 
+  - id: plan_report
+    cost: free
+    summary: PLAN.md in the run directory; the run fails if the project changed.
+    stage: {name: plan_report, kind: controller, action: plan_report}
+
 rules:
   # -- a new project -----------------------------------------------------------------------
   - when: {target: new, intent: [docs]}
@@ -630,9 +673,21 @@ rules:
     add: [target, review_diff, review_gate]
     why: A review reads the change read-only and gates on serious findings.
 
-  - when: {target: existing, primary: [question, research, plan_only]}
-    add: [map]
-    why: Until the answer path exists (T15), a question about the project gets its profile, baseline and codebase map.
+  - when: {target: existing, primary: [question, research]}
+    add: [answer]
+    why: A question about the project is answered read-only, every claim cited and checked by the controller.
+
+  - when: {target: existing, primary: [plan_only]}
+    add: [plan_design_change, plan_report]
+    why: A plan is the criteria, the smallest change as work packages and the risks, written read-only; nothing is implemented.
+
+  - when: {target: new, primary: [question, research]}
+    add: [answer_open]
+    why: A question with no project is answered from the web (--allow-web), every claim cited and checked.
+
+  - when: {target: new, primary: [plan_only]}
+    add: [plan_design_new, plan_report]
+    why: A plan for a new project is its spec, work packages and risks, written read-only; nothing is built.
 
   - when: {target: existing, primary: [performance, devops]}
     add: [work, verify_plain, review_maintain, summary]
@@ -665,7 +720,7 @@ rules:
     why: The request also asks for documentation.
 
   # -- an existing project: always ---------------------------------------------------------
-  - when: {target: existing, primary_not: [review]}
+  - when: {target: existing, primary_not: [review, question, research, plan_only]}
     add: [profile, baseline]
     why: An existing project is profiled and its checks recorded before anything changes.
 

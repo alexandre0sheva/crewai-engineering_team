@@ -205,4 +205,4 @@ codebase_analyst:
     could not tell something, you never invent behaviour, and you never claim to have run
     anything you did not run. You cannot change the project; your answer is the analysis.
   tier: worker
-  tool_groups: [fs_read, search, code_intel, git_read, knowledge, board, notes]
+  tool_groups: [fs_read, search, code_intel, git_read, knowledge, board, notes, web]

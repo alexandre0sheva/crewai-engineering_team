@@ -35,7 +35,7 @@ from engineering_team.team import build_roster
 
 # Where the work goes: a new project, a change to an existing one, a read-only review of a
 # branch, or the codebase map (the answer to a question about a project, for now).
-Route = Literal["new", "repository", "review", "analyze"]
+Route = Literal["new", "repository", "review", "analyze", "answer"]
 MODES = tuple(MODE_INTENTS)
 # The maintenance presets (``maintain --task``) a profile's primary intent stands for.
 TASK_OF: dict[str, str] = {
@@ -101,13 +101,15 @@ def check_mode(mode: str | None, signals: Signals) -> None:
         )
 
 
-def route_of(profile: TaskProfile) -> Route:
+def route_of(profile: TaskProfile, mode: str | None = None) -> Route:
+    if profile.primary in ("question", "research", "plan_only") and mode != "analyze":
+        return "answer"  # read-only, whether or not there is a project
     if profile.target.kind == "new":
         return "new"
+    if mode == "analyze":
+        return "analyze"
     if profile.primary == "review":
         return "review"
-    if profile.primary in ("question", "research", "plan_only"):
-        return "analyze"
     return "repository"
 
 
@@ -154,7 +156,7 @@ def plan_request(
     if answers is not None and result.profile.needs_clarification:
         result = TriageResult(answers(result), result.signals, result.usage, result.error)
     profile = result.profile
-    route = route_of(profile)
+    route = route_of(profile, mode)
     plan = DoPlan(
         request=request,
         root=root if profile.target.kind == "existing" else None,
@@ -166,8 +168,8 @@ def plan_request(
     )
     teammates = set(build_roster(settings).members)
     try:
-        if recipe_name:
-            recipe = load_recipe(recipe_name, plan.root, teammates=teammates)
+        if recipe_name or route == "analyze":  # --mode analyze is the bundled map recipe
+            recipe = load_recipe(recipe_name or "adopt", plan.root, teammates=teammates)
             plan.recipe = recipe
             plan.stages = [
                 PlanStage(s.name, s.kind, s.why or "From your recipe.") for s in recipe.stages
@@ -181,11 +183,6 @@ def plan_request(
             ]
     except ComposeError as exc:
         raise ValueError(str(exc)) from exc
-    if route == "analyze":
-        plan.notes.append(
-            "A question about a project gets its profile and codebase map for now; answers with "
-            "citations are planned."
-        )
     if route in ("new", "repository"):
         _estimate(plan, settings)
     return plan
@@ -273,6 +270,11 @@ def _route_line(plan: DoPlan) -> str:
         return "Plan: a read-only review of your change (nothing is modified)."
     if plan.route == "analyze":
         return "Plan: profile the project and write its codebase map (the project is not changed)."
+    if plan.route == "answer":
+        read = "" if plan.root else " from the web (needs --allow-web)"
+        if plan.profile.primary == "plan_only":
+            return "Plan: write a plan, read-only; nothing is implemented. Stages:"
+        return f"Plan: answer read-only{read}; the controller checks every citation. Stages:"
     ladder = plan.ladder
     if ladder is not None:
         climb = "" if ladder.max_rung == ladder.start else f", climbing to {ladder.max_rung}"
@@ -285,7 +287,7 @@ def _route_line(plan: DoPlan) -> str:
 
 
 def _cost_line(plan: DoPlan) -> str:
-    if plan.route in ("review", "analyze"):
+    if plan.route in ("review", "analyze", "answer"):
         return "Cost: not estimated (read-only)."
     first, worst = money(plan.first_usd), money(plan.worst_usd)
     span = f"about {first}" if first == worst else f"about {first}, up to {worst} if it climbs"

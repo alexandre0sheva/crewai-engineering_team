@@ -19,6 +19,7 @@ from engineering_team.contracts import (
     Finding,
     UsageReport,
 )
+from engineering_team.modes.answer_contracts import Answer, AnswerCheck
 from engineering_team.pipeline.ladder_contracts import LadderRecord
 from engineering_team.pipeline.lead_contracts import DelegationRecord
 from engineering_team.runtime.profile import Profile
@@ -154,3 +155,5 @@ class RunReport:
     summaries: dict[str, str] = field(default_factory=dict)  # stage -> what its agent said
     delegations: list[DelegationRecord] = field(default_factory=list)  # the lead's (team strategy)
     ladder: LadderRecord | None = None  # the rungs an ``auto`` run climbed
+    answer: Answer | None = None  # the answer path's answer and the check of its citations
+    answer_check: AnswerCheck | None = None

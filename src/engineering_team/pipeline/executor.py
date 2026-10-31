@@ -17,6 +17,7 @@ from engineering_team.contracts import (
 from engineering_team.modes import adopt as adopt  # noqa: F401  (registers the adopt actions)
 from engineering_team.modes import maintain as maintain  # noqa: F401  (registers the actions)
 from engineering_team.modes import review_mode as review_mode  # noqa: F401  (registers them too)
+from engineering_team.modes.answer_stage import SCRATCH, run_answer
 from engineering_team.modes.change_report import ChangeError, measure_change, render_noise
 from engineering_team.modes.fix_contracts import Repro
 from engineering_team.modes.fix_repro import run_reproduction
@@ -29,6 +30,7 @@ from engineering_team.pipeline.executor_base import MAX_NOTE_ERROR, MAX_SUMMARY
 from engineering_team.pipeline.lead_exec import LeadExecutor
 from engineering_team.pipeline.lean import reviewers
 from engineering_team.pipeline.no_retry import NoRetry
+from engineering_team.pipeline.parallel import ReadOnlyJob, readonly_tools
 from engineering_team.pipeline.recipes import StageSpec
 from engineering_team.pipeline.resume import RESUME_NOTE, StagePlan
 from engineering_team.pipeline.review import repair_brief
@@ -116,6 +118,8 @@ class StageExecutor(LeadExecutor):
             self._analyze(stage)
         elif stage.kind == "reproduce":
             self._reproduce(stage)
+        elif stage.kind == "answer":
+            self._answer(stage)
         elif stage.kind == "upgrade":
             self._upgrade(stage)
         elif stage.kind == "lead":
@@ -150,6 +154,19 @@ class StageExecutor(LeadExecutor):
 
         summary = run_map(self.ctx, self.state, teammate, call)
         self.state.summaries[stage.name] = summary[:MAX_SUMMARY]
+
+    def _answer(self, stage: StageSpec) -> None:
+        """A read-only agent answers with citations; the controller checks them."""
+
+        teammate = lead_teammate(self.ctx, stage)
+        job = ReadOnlyJob("answer", teammate, SCRATCH)
+
+        def ask(note: str) -> StageOutput:
+            tools = tuple(readonly_tools(self.ctx, job))
+            return self._call(stage, teammate, note, tools=tools)
+
+        self.state.summaries[stage.name] = run_answer(self.ctx, self.state, ask)[:MAX_SUMMARY]
+        self._save()
 
     def _reproduce(self, stage: StageSpec) -> None:
         """The debugger writes a failing reproduction; the controller runs it and requires red."""

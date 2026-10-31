@@ -11,6 +11,16 @@ renames that section and dates it.
 
 ### Added
 
+- Questions, research and plans: `do "How does X work?"` (or "why does Y fail", "plan Z, don't change any code")
+  changes nothing. A read-only teammate answers with citations (a file, its lines and a quote, or a page the
+  run fetched), the controller checks each one against the project and the run's own tool calls, a citation that
+  does not hold gets the agent one more turn, and the answer is written to `ANSWER.md` in the run directory with
+  failed citations marked. The run is `verified` only when every citation holds (`partial`, exit 4, when some do
+  not or there are none; `failed`, exit 3, when none do or the project changed). It is printed as Markdown, has an
+  *Answer* section in the run report and shows on the UI's results page. A plan-only request gets the criteria,
+  the work packages and the risks as `PLAN.md`, written without permission to change any file, and no
+  implementation. Without a project the question runs in a workspace of its own (`answers`; add `--allow-web`).
+  The `codebase_analyst` now has the `web` tool group (only present when `web.enabled` is set).
 - `engineering-team do "<request>"`, one entry point for every kind of request (and `engineering-team
   "<request>"`, which is the same when it is a sentence): it triages the request, composes the plan, shows what it
   understood, the stages with the reason for each, the rung the run starts on and an estimated cost, asks before

@@ -27,6 +27,7 @@ from engineering_team.contracts import (
     VerificationRecord,
 )
 from engineering_team.intake.bundle import request_hash as request_hash  # re-exported
+from engineering_team.modes.answer_contracts import Answer, AnswerCheck
 from engineering_team.modes.baseline_report import BaselineReport
 from engineering_team.modes.diff_noise import DiffNoise
 from engineering_team.modes.fix_contracts import FixNote, FixRecord, Repro, Triage
@@ -92,6 +93,11 @@ class PipelineState(Contract):
     upgrade_outcomes: list[UpgradeOutcome] = Field(default_factory=list)
     audit: list[AuditNote] = Field(default_factory=list)
     audit_findings: list[Finding] = Field(default_factory=list)  # from the dependency audit
+    # The answer path (``modes/answer_stage.py``): the agent's answer and the controller's check of
+    # its citations; the head of the request, for the documents written from the state.
+    answer: Answer | None = None
+    answer_check: AnswerCheck | None = None
+    request_head: str = ""
     # The ``team`` strategy: the lead's record and every job it gave a teammate, in order.
     lead: LeadRecord | None = None
     delegations: list[DelegationRecord] = Field(default_factory=list)

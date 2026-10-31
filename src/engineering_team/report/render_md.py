@@ -50,6 +50,7 @@ def render_markdown(report: RunReport) -> str:
     lines += _board(report)
     lines += _agents(report)
     lines += _escalation(report)
+    lines += _answer(report)
     lines += _delegations(report)
     lines += _screenshots(report)
     lines += _usage(report)
@@ -286,6 +287,24 @@ def _escalation(report: RunReport) -> list[str]:
     if ladder.stopped:
         lines += ["", f"Stopped: {cell(ladder.stopped)}"]
     return lines
+
+
+def _answer(report: RunReport) -> list[str]:
+    """The answer path: what was asked, the answer, and which citations the controller verified."""
+
+    answer, check = report.answer, report.answer_check
+    if answer is None or check is None:
+        return []
+    lines = ["", "## Answer", "", cell(answer.summary), ""]
+    lines.append(
+        f"{check.verified} of {len(check.results)} citation(s) verified by the controller "
+        f"(confidence stated by the agent: {answer.confidence})."
+    )
+    rows = [
+        (r.number, r.target, "verified" if r.ok else f"{r.status} ⚠ not proven", r.detail or "-")
+        for r in check.results
+    ]
+    return lines + ["", *table(["#", "Source", "Status", "Note"], rows)]
 
 
 def _delegations(report: RunReport) -> list[str]:

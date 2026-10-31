@@ -163,7 +163,7 @@ def render_plain(data: dict[str, Any], console: Console) -> None:
     lines = [f"Run {data['run_id']}: {shown}", f"Duration: {_clock(data['duration_seconds'])}"]
     if data.get("task"):
         lines.append(f"Task: {task_line(data['task'])}")
-    if (proof := proof_line(data["checks"])) is not None:
+    if (proof := data.get("proof") or proof_line(data["checks"])) is not None:
         lines.append(f"Proof: {proof}")
     lines += data["usage_text"] or [f"Estimated cost: {money(data['usage']['estimated_cost_usd'])}"]
     files = data["files_changed"]
@@ -205,7 +205,7 @@ def render(data: dict[str, Any], console: Console) -> None:
     facts.add_row("Duration", _clock(data["duration_seconds"]))
     if data.get("task"):
         facts.add_row("Task", Text(task_line(data["task"]), overflow="fold"))
-    if (proof := proof_line(data["checks"])) is not None:
+    if (proof := data.get("proof") or proof_line(data["checks"])) is not None:
         facts.add_row("Proof", Text(proof, overflow="fold"))
     lines = data["usage_text"] or [
         f"Usage: {usage['tokens']:,} tokens in {usage['model_calls']} model call(s) and "

@@ -22,6 +22,7 @@ from engineering_team.report.html_common import (
 from engineering_team.report.html_overview import banner, summary, timeline, warnings
 from engineering_team.report.html_profile import profile
 from engineering_team.report.html_results import (
+    answer,
     checks,
     criteria,
     delegations,
@@ -31,12 +32,14 @@ from engineering_team.report.html_results import (
 )
 
 __all__ = [
+    "answer",
     "COLUMN_TITLES",
     "MAX_COMMENTS",
     "MAX_EMBED_BYTES",
     "MAX_EMBED_EACH",
     "STATUS_TONE",
     "agents",
+    "answer",
     "badge",
     "banner",
     "board",

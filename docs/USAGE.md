@@ -92,8 +92,8 @@ Then, before anything is changed:
 The work then runs as the older commands do. A change to an existing project goes to a branch, worktree or copy
 and never into your checkout blindly ([Feature mode](#feature-mode); `--worktree`, `--allow-dirty`, `--squash`);
 a new project is built in the workspace; a review is read-only ([Reviewing a change](#reviewing-a-change)); a
-question about a project gets its profile and codebase map, for now, and your project is not changed. The
-plan is kept as `task_profile.json` in the run directory. The summary at the end says what the task was
+question, research or plan is answered read-only ([Questions, research and plans](#questions-research-and-plans)),
+and `--mode analyze` maps the project (`analyze --deep`). The plan is kept as `task_profile.json` in the run directory. The summary at the end says what the task was
 (intents, size, rungs climbed), how it was proved (the controller's required checks), and where the work
 is: the branch, the patch, the report; `--json` adds `task`, `isolation`, `patch`. Exit codes are the ones
 [below](#exit-codes).
@@ -493,6 +493,34 @@ the agent's own file tools refuse a path outside its lane.
 | `docs` | The technical writer documents the legacy code | documentation files only (`docs_only`: Markdown, reStructuredText, `docs/`, README, CHANGELOG; not even comments) | |
 | `security-audit` | The controller runs the ecosystem's dependency audit (pip-audit, npm audit, cargo-audit; needs `tools.dev.allow_network`), the security engineer reads the code, the controller merges both | nothing, unless `--fix`: then the debugger fixes the findings at `review.fail_on` or above and the controller verifies against the baseline | `findings.json` and `findings.md` in the run directory; without `--fix` the run exits 3 when a finding reaches `review.fail_on`. |
 | `custom` | Whatever `--goal` (or `--goal-file`) says, with the smallest change, verified against the baseline | anything | The recipe to copy for your own ([below](#your-own-recipes)). |
+
+### Questions, research and plans
+
+```bash
+uv run engineering-team do "How does the notes store add a note?" --repo ../my-service
+uv run engineering-team do "Why does the cart total ignore discounts?" --repo ../my-service --json
+uv run engineering-team do "Which Python web framework suits this?" --allow-web      # no project
+uv run engineering-team do "Plan a search feature; don't change any code" --repo ../my-service
+```
+
+A request that asks for an explanation (`question`), for research, or for a plan only is not a change, so
+nothing is changed: there is no branch, worktree or copy, and the project is read in place.
+
+- **Answer.** A read-only teammate (the `codebase_analyst`; with `--allow-web`, also the web tools) reads the
+  code and writes an answer: a summary, sections, and **citations**. A code citation is a path, the lines and a
+  quote of them; a web citation is the URL of a page the run fetched. The controller checks each one itself:
+  the file exists in the project, the lines are in it and hold the quote (whitespace aside), and a
+  `Fetch URL` call of the run read the page. A citation that does not hold gets the agent one more turn with
+  the reasons; one that still fails is marked `NOT VERIFIED` in `ANSWER.md` (in the run directory) and lowers the
+  verdict: `verified` when every citation holds, `partial` (exit 4) when some do or the answer cites nothing,
+  `failed` (exit 3) when none do or the project changed during the run. The answer is printed as Markdown, is in
+  the run report (an *Answer* section) and on the UI's results page; with `--json` it is `answer` and
+  `report`.
+- **Plan only.** The architect writes the criteria, the smallest change as work packages with their paths, and
+  the risks, with no permission to write any file; the controller writes `PLAN.md` from it and fails the run
+  if the project changed. Nothing is implemented or run.
+- Without a project, the question runs in a workspace of its own (`answers` by default); only web citations
+  can hold there, so pass `--allow-web`.
 
 ### Reviewing a change
 

@@ -101,6 +101,8 @@ def build_report(run_dir: Path) -> RunReport:
         summaries=dict(state.summaries) if state else {},
         delegations=list(state.delegations) if state else [],
         ladder=LadderRecord.load(run_dir),
+        answer=state.answer if state else None,
+        answer_check=state.answer_check if state else None,
         environment=_environment(run_dir, manifest),
     )
     report.stages = _stages(manifest, end)

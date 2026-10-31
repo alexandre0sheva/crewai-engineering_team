@@ -27,15 +27,16 @@ if TYPE_CHECKING:
     from engineering_team.settings import Settings
 
 StageKind = Literal[
-    "agent", "controller", "parallel", "verify", "review", "analyze", "reproduce", "upgrade", "lead"
-]
+    "agent", "controller", "parallel", "verify", "review", "analyze", "reproduce", "upgrade",
+    "lead", "answer",
+]  # fmt: skip
 # Named sets of paths an ``agent`` stage may write (``modes/policies.py`` has what they hold).
-WriteScopeName = Literal["tests", "docs", "manifests"]
+WriteScopeName = Literal["tests", "docs", "manifests", "nothing"]
 VerificationPolicy = Literal["none", "artifacts"]
 
 # Contracts a stage can read or write; anything else must be ``file:<path>`` (outputs only) or
 # ``request`` (inputs only).
-CONTRACTS = ("spec", "plan", "triage", "repro", "fix_note", "upgrades")
+CONTRACTS = ("spec", "plan", "triage", "repro", "fix_note", "upgrades", "answer")
 FILE_PREFIX = "file:"
 NAME_PATTERN = re.compile(r"[a-z][a-z0-9_]*")
 
@@ -82,6 +83,8 @@ class StageSpec(BaseModel):
     findings into ``docs/review.md`` and sends serious ones to repair (``review.fail_on``).
     ``analyze`` splits an existing codebase into chunks and has its first teammate's read-only
     analysts study them side by side; the controller writes the codebase map.
+    ``answer`` has its first teammate answer read-only, with citations the controller checks
+    (``modes/answer_stage.py``) and writes ``ANSWER.md``; ``verified`` only when all hold.
     ``reproduce`` (fix mode) has its first teammate write a failing test or script, runs it as the
     controller and accepts it only if it fails for a real reason; ``fix.max_repro_attempts`` is
     its retry budget and when it is spent the run stops with questions (``needs-info``).
@@ -147,7 +150,8 @@ class StageSpec(BaseModel):
     @model_validator(mode="after")
     def _consistent(self) -> StageSpec:
         needs_team = (
-            "agent", "parallel", "verify", "review", "analyze", "reproduce", "upgrade", "lead"
+            "agent", "parallel", "verify", "review", "analyze", "reproduce", "upgrade", "lead",
+            "answer",
         )  # fmt: skip
         if self.kind in needs_team and not self.teammates:
             raise ValueError(f"stage {self.name!r} ({self.kind}) needs at least one teammate")
@@ -164,6 +168,13 @@ class StageSpec(BaseModel):
             raise ValueError(
                 f"analyze stage {self.name!r} writes the codebase map itself: it takes no "
                 "outputs and no verification_policy"
+            )
+        if self.kind == "answer" and (
+            self.retry or self.outputs != ["answer"] or self.verification_policy != "none"
+        ):
+            raise ValueError(
+                f"answer stage {self.name!r} must output exactly 'answer' and takes no retry: "
+                "the controller gives the agent one more turn when citations do not hold"
             )
         if self.kind == "reproduce" and (self.retry or self.outputs != ["repro"]):
             raise ValueError(

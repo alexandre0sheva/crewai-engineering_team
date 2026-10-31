@@ -14,6 +14,7 @@ import typer
 
 from engineering_team.atomic_io import atomic_write_json
 from engineering_team.cli import do_plan
+from engineering_team.cli.answer_run import describe_document, run_answer_route
 from engineering_team.cli.context import Globals, print_json
 from engineering_team.cli.repo_mode import RepoRun, project_name_of, run_repository_mode
 from engineering_team.cli.run_commands import present_run
@@ -61,6 +62,13 @@ def execute(
             limits=settings.intake,
         )
 
+    if plan.route == "answer":
+        run_answer_route(
+            g, plan, options, config, request_bundle, ask,
+            opened=lambda prepared: _record(prepared, plan),
+            extra=lambda prepared, data: _describe(g, prepared, data, plan),
+        )  # fmt: skip
+        return
     if plan.route in ("review", "analyze") and plan.root is not None:
         common = [*_forward_globals(ctx), "--repo", str(plan.root), *forwarded(options, config)]
         if plan.route == "review":
@@ -93,7 +101,7 @@ def execute(
             slug_fallback=plan.profile.primary.replace("_", "-"),
             run_options={"task": task, "fix_findings": fix} if task else {},
             opened=lambda prepared: _record(prepared, plan),
-            extra=lambda prepared, data: _describe(prepared, data, plan),
+            extra=lambda prepared, data: _describe(g, prepared, data, plan),
         ),
     )
 
@@ -130,7 +138,7 @@ def run_new(
         return prepared
 
     def work(prepared: Any) -> int:
-        code = present_run(prepared, g, ask=ask, extra=lambda d: _describe(prepared, d, plan))
+        code = present_run(prepared, g, ask=ask, extra=lambda d: _describe(g, prepared, d, plan))
         printed.append(True)
         return code
 
@@ -146,7 +154,7 @@ def _record(prepared: Any, plan: do_plan.DoPlan) -> None:
     atomic_write_json(prepared.ctx.run_dir / PROFILE_FILE, do_plan.plan_document(plan))
 
 
-def _describe(prepared: Any, data: dict[str, Any], plan: do_plan.DoPlan) -> None:
+def _describe(g: Globals, prepared: Any, data: dict[str, Any], plan: do_plan.DoPlan) -> None:
     """What the run was, for the summary: the intent, size, route and the rungs it climbed."""
 
     profile = plan.profile
@@ -159,3 +167,4 @@ def _describe(prepared: Any, data: dict[str, Any], plan: do_plan.DoPlan) -> None
         "recipe": plan.recipe.name if plan.recipe else None,
         "rungs": [r.rung for r in ladder.rungs] if ladder else [],
     }
+    describe_document(g, prepared.ctx.run_dir, data)
