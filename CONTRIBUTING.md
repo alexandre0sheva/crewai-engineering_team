@@ -113,6 +113,7 @@ One home per fact: update the canonical file and link to it from elsewhere inste
 | Tool catalogue: every agent tool, its group, limits, safety notes, which teammates get it | `docs/TOOLS.md` (every new tool adds its row) | Single home for tool facts; TEAM.md only references groups. |
 | Execution boundary, Docker sandbox, threat model | `docs/SAFETY.md` | `SECURITY.md` = vulnerability reporting only. |
 | Teammates and how to add one; default tool groups per teammate | `docs/TEAM.md` | |
+| Harness: prompt components, composition order, overrides; later skills, memory and lessons | `docs/HARNESS.md` | TEAM.md links to it for prompt files. |
 | Task board / dashboard behaviour and card lifecycle | `docs/ARCHITECTURE.md` (board section) + `docs/USAGE.md` (viewing progress) | |
 | Runnable examples and their sample run reports | `examples/` | Reports are regenerated offline by `scripts/make_example_reports.py`. |
 | Benchmark method + results | `docs/BENCHMARKS.md` | README links only. |

@@ -314,14 +314,15 @@ lets the team ask those questions; see [Usage](USAGE.md#writing-a-strong-request
 
 ### Team (`[team]` and `team_file`)
 
-Teammates come from `config/agents.yaml`; these settings change them or add new ones. See
+Teammates come from the [harness](HARNESS.md); these settings change them or add new ones. See
 [TEAM.md](TEAM.md) for the model, the roster, and a tutorial. Both files are optional and are checked
 before a run starts (a mistake is a usage error naming the teammate and the field).
 
 | Key (TOML) | Default | Meaning |
 |---|---|---|
 | `team_file` | – | A YAML file of teammates (key → fields). Unset: `.engineering-team/team.yaml` in the current directory, if it exists. A named file that does not exist is an error. |
-| `team.<key>.role`, `team.<key>.goal`, `team.<key>.backstory` | built-in | The prompt; all three are required for a new key |
+| `team.<key>.role`, `team.<key>.goal`, `team.<key>.backstory` | built-in | The prompt; all three are required for a new key (or a `harness` folder that has them) |
+| `team.<key>.harness` | – | A folder of harness component files for this teammate, relative to the project ([HARNESS.md](HARNESS.md#overriding-a-teammates-components)) |
 | `team.<key>.tier` | `worker` | `lead`, `worker`, `cheap`, or `reviewer` (model tier under the `standard` profile) |
 | `team.<key>.tool_groups` | built-in; new: read-only | Tool groups, plus `mcp:docs` and `mcp:<name>` for each [`[mcp.<name>]`](#mcp-servers-mcpname) server, plus the groups [plugin tools](#plugin-tools-plugins-and-allow_project_plugins) declare |
 | `team.<key>.allow_delegation` | built-in | Accepted and ignored (a stage runs one agent) |

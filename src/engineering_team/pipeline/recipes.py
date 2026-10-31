@@ -92,9 +92,9 @@ class StageSpec(BaseModel):
     planned, grouped, runs the controller's checks after each group and bisects a failing one, so
     what could not be upgraded is reported with the check that said so.
     ``instructions`` is a task written in the recipe itself (the ``custom`` prompt wraps it), for
-    a recipe that adds no prompt to ``config/stages.yaml``; ``write_scope`` limits an ``agent``,
-    ``verify`` (its repair agent) or ``upgrade`` stage to one named set of paths; ``repair: false``
-    keeps a ``review`` stage's findings from being sent to the verify stage's repair agent.
+    a recipe that adds no stage prompt to the harness (docs/HARNESS.md); ``write_scope`` limits an
+    ``agent``, ``verify`` (its repair agent) or ``upgrade`` stage to one named set of paths;
+    ``repair: false`` keeps a ``review`` stage's findings from the verify stage's repair agent.
     ``optional`` stages are skipped when none of their teammates is enabled.
     ``lead`` (the ``team`` strategy, ``pipeline/lead.py``) runs one long session of its first
     teammate with the full toolbelt plus the ``team`` tools, through which it calls teammates for
@@ -114,8 +114,8 @@ class StageSpec(BaseModel):
     optional: bool = False
     action: str | None = None
     description: str = ""
-    # The task prompt in config/stages.yaml to use instead of the one the stage's kind or name
-    # picks (a repository mode's ``implement`` is told to keep the diff small).
+    # The task prompt (a harness stage, docs/HARNESS.md) to use instead of the one the stage's kind
+    # or name picks (a repository mode's ``implement`` is told to keep the diff small).
     prompt: str | None = None
     # A ``parallel`` stage only: its packages may own the project's shared root files (manifests,
     # README, CI). A project built from nothing keeps those for foundation and integrate; a

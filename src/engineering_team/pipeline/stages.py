@@ -1,5 +1,5 @@
-"""Running one stage: a small crew (one agent, one task) built from ``agents.yaml`` and
-``stages.yaml``.
+"""Running one stage: a small crew (one agent, one task) built from the harness: the teammate's
+role, goal and backstory and the stage's task prompt (``harness/``, docs/HARNESS.md).
 
 The pipeline talks to a :class:`StageRunner`; :class:`CrewStageRunner` is the real one (tests use
 ``ScriptedLLM`` through its ``llm_factory``, or a fake runner). A stage that must hand a
@@ -9,21 +9,19 @@ agent's answer is not a valid contract.
 
 from __future__ import annotations
 
-import functools
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
-from importlib import resources
 from typing import Any, Protocol, cast
 
-import yaml
 from crewai import Agent, Crew, CrewOutput, Process, Task
 from crewai.tools import BaseTool
 from pydantic import BaseModel
 
 from engineering_team.contracts import Contract, Design, Plan, ReviewReport, Spec, WorkPackage
 from engineering_team.extensions.agents import agent_extensions
+from engineering_team.harness import StagePrompt, stage_prompts
 from engineering_team.intake.context_docs import context_note
 from engineering_team.llm import build_llm
 from engineering_team.model_routing import facts_for
@@ -123,21 +121,14 @@ def stage_groups(ctx: RunContext, teammate: str) -> tuple[str, ...]:
     return tuple(g for g in ctx.team.get(teammate).groups if g != TEAM_GROUP)
 
 
-@functools.cache
-def _yaml(name: str) -> dict[str, Any]:
-    text = (resources.files("engineering_team") / "config" / name).read_text(encoding="utf-8")
-    data = yaml.safe_load(text)
-    return data if isinstance(data, dict) else {}
+def prompts() -> dict[str, StagePrompt]:
+    """The stage prompts of the harness (``harness/data/base/stages/``) by key."""
 
-
-def prompts() -> dict[str, Any]:
-    """The task prompts of ``config/stages.yaml`` by key."""
-
-    return _yaml("stages.yaml")
+    return stage_prompts()
 
 
 def prompt_key(stage: StageSpec, *, synthesis: bool = False, findings: bool = False) -> str:
-    """The key in ``stages.yaml`` of the task prompt ``stage`` runs: its own ``prompt``, a recipe's
+    """The harness key of the task prompt ``stage`` runs: its own ``prompt``, a recipe's
     ``instructions`` (the ``custom`` prompt), or what its kind or name picks. An analyze stage's
     last step and a verify stage's repair of review findings have prompts of their own."""
 
@@ -261,8 +252,8 @@ class CrewStageRunner:
         key = prompt_key(stage, synthesis=bool(request.synthesis), findings=bool(request.findings))
         if key not in known:
             raise StageError(
-                f"No prompt for stage '{stage.name}' in config/stages.yaml (known: "
-                f"{', '.join(known)}). Add one with that name."
+                f"No prompt for stage '{stage.name}' in the harness (known: {', '.join(known)}). "
+                f"Add harness/data/base/stages/{key}.md (docs/HARNESS.md)."
             )
         prompt = known[key]
         agent = self._agent(request)
@@ -281,8 +272,8 @@ class CrewStageRunner:
                 "an agent stage can return one."
             )
         task = Task(
-            description=prompt["description"],
-            expected_output=prompt["expected_output"],
+            description=prompt.description,
+            expected_output=prompt.expected_output,
             agent=agent,
             output_pydantic=next(iter(wanted.values()), None),
         )

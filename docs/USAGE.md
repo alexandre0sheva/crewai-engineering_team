@@ -598,7 +598,7 @@ stages:
   - name: sweep
     kind: agent
     teammates: [backend_engineer]
-    instructions: >                # the task, in your words (or `prompt:` to use one from config/stages.yaml)
+    instructions: >                # the task, in your words (or `prompt:` to use a harness stage prompt)
       Remove code nothing calls (check with the reference tool) and change nothing else.
     write_scope: tests             # optional: the paths this agent's file tools may write
     retry: 1
@@ -614,7 +614,7 @@ The catalogue a recipe is validated against (an error names the file, the stage,
 | `action` | `repo_profile`, `baseline`, `change_summary`, `coverage_before`, `coverage_after`, `refactor_precondition`, `dependency_audit`, `security_report`, `security_gate`, `review_target`, `review_gate` |
 | `mode` (recipe) | `new`, `feature`, `fix` or `maintain`: the mode a teammate's `modes` filter is matched against ([TEAM.md](TEAM.md)); unset means every teammate may work it |
 | `teammates` | Keys from `team list` (including your own teammates) |
-| `prompt` / `instructions` | A prompt key of `config/stages.yaml`, or your own text for the stage (not both) |
+| `prompt` / `instructions` | A stage prompt of the harness (a file name in `harness/data/base/stages/`, [HARNESS.md](HARNESS.md)), or your own text for the stage (not both) |
 | `policies` (recipe) | `tests_only`, `docs_only`, `manifests_only`, `tests_untouched`, `manifests_untouched`, `diff_size`; they need a `verify` stage |
 | `write_scope` | `tests`, `docs`, `manifests` (agent, verify and upgrade stages) |
 | `skip_if` | `no_work_packages`, `minimal_team`, `fixes_requested`, `fixes_not_requested`, `no_findings`, `nothing_to_review` |

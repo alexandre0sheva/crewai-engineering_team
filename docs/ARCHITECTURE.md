@@ -496,7 +496,7 @@ board's stage cards, and (when resuming) decides which stages are finished; one 
 (`advance`) runs the next unfinished stage and returns `next_stage`, `finished`, `failed`, or
 `cancelled`, and listeners record the end. One router walking the recipe, rather than a hard-coded
 method per stage, keeps recipes data. Each stage builds its own **small crew** (`pipeline/stages.py`:
-one agent from `agents.yaml`, one task from `config/stages.yaml`, `output_pydantic` where a
+one agent and one task composed from the [harness](HARNESS.md), `output_pydantic` where a
 contract is expected, the default tool groups, the stage's card id and any steering notes in the
 prompt) and `StageExecutor` (`pipeline/executor.py`, over `executor_base.py` and `package_exec.py`) runs it: board moves, retries (the previous
 error goes into the next attempt's prompt), the artifact check, and work packages in dependency
@@ -660,7 +660,7 @@ full toolbelt and works itself, and the controller caps how much it may delegate
   generalist) also writes a fix's reproduction and repairs failing checks, so no teammate works
   unless the lead called it. The lead's prompt (`{lead}`) carries what the skeleton established
   (the baseline, the reproduction seen failing, any criteria), the teammates it can call, and when
-  to call them: guidance kept as data in `config/lead.yaml` (tunable in T21).
+  to call them: guidance kept as harness text (`shared/lead_guidance.md`, tunable in T21).
 - **Delegation tools** (group `team`, the lead only; [TOOLS.md](TOOLS.md#team-tools)): `Delegate`
   (a teammate, a brief, owned paths, criteria, a step budget), `Delegate Parallel` (independent
   briefs with disjoint owned paths), `Ask Reviewer` / `Ask Security Review` (the current change),
@@ -760,8 +760,8 @@ and the shared root files (README, dependency manifests and lockfiles, CI config
 agent, and a plan that gives one to a package is invalid. Git worktrees per package were considered and rejected:
 merging needs an LLM to resolve conflicts, which is the nondeterminism ownership avoids.
 
-**The roster** (`team/registry.py`). Built-in teammates are defined once, in `config/agents.yaml` (prompt,
-`tier`, `tool_groups`, and so on). `build_roster(settings)` layers `.engineering-team/team.yaml` (or `team_file`) and the
+**The roster** (`team/registry.py`). Built-in teammates are defined once, in the harness's teammate folders
+(prompt components, and `tier`, `tool_groups` and so on in `role.md`'s front-matter; [HARNESS.md](HARNESS.md)). `build_roster(settings)` layers `.engineering-team/team.yaml` (or `team_file`) and the
 `[team.<key>]` tables on top, field by field, validates everything (unknown tool groups, modes, missing prompt fields
 for a new teammate) and returns a `Roster`, held on the `RunContext` as `ctx.team`; `check_ready` and `doctor` build it too, so
 a bad definition is a usage error before any state is created. The pipeline builds its agents programmatically from it
@@ -982,7 +982,7 @@ modes will inline or reuse the three stages; a recipe cannot include another yet
 `modes/recipes/feature.yaml` is the `adopt` stages followed by `spec` (prompt `spec_change`), `impact` (the architect;
 output `plan`), `implement` (a `parallel` stage with prompt `implement_change` and `allow_shared`), `tests`, `verify`,
 `review` (prompt `review_change`), and `summary` (the controller action `change_summary`). Two stage options exist for
-it: `prompt` names the task prompt in `config/stages.yaml` instead of the one the kind or name picks, and `allow_shared`
+it: `prompt` names a harness stage prompt instead of the one the kind or name picks, and `allow_shared`
 lets a parallel stage's packages own shared root files (`plan_problems(allow_shared=)` and the write scope's `deny`
 follow it).
 
@@ -1235,12 +1235,12 @@ code at load time; the tools import the runtime context only for type checking).
 |-------|---------|----------------|
 | Entry | `main.py`, `run_prep.py`, `request_sources.py`, `outcome.py`, `api.py`, `__main__.py`, `cli/` | The Typer commands, the live Rich views, `doctor`, and the `run_crew` entry point `crewai run` uses; run preparation, request sources, exit codes, `resume` |
 | Web UI | `ui/` | FastAPI app over the run directories, SSE events, the static single-page app, `ui --demo` |
-| Orchestration | `pipeline/`, `modes/`, `team/`, `llm.py` | Recipes, the Flow pipeline, parallel work packages, resume, strategies; the mode recipes and their actions; the roster; model construction |
+| Orchestration | `pipeline/`, `modes/`, `team/`, `harness/`, `llm.py` | Recipes, the Flow pipeline, parallel work packages, resume, strategies; the mode recipes and their actions; the roster; the prompt components and their composition ([HARNESS.md](HARNESS.md)); model construction |
 | Control | `verification/`, `board/`, `git/`, `report/`, `intake/` | Controller-run checks and bounded repair, the task board and notes, `GitPort` and checkpoints, the run report, requirements intake and triage |
 | Run state | `runtime/`, `contracts.py`, `artifacts.py`, `atomic_io.py`, `workspaces.py` | `RunContext`, events, budget, usage, processes, the run store, locks, cancellation; the typed contracts; crash-safe file writes; project directories |
 | Agent tools | `tools/`, `devtools/`, `codeintel/`, `webtools/`, `browsertools/` | Every tool an agent can call ([TOOLS.md](TOOLS.md)) and the engines behind them |
 | Execution | `execution/` | `ExecutionBackend`: the local backend and the Docker sandbox; no tool spawns a process any other way |
-| Configuration | `settings/`, `model_routing.py`, `pricing.py`, `config/`, `data/`, `extensions/`, `plugins.py` | Layered settings, model presets and routing, prices, the built-in teammates and prompts, MCP / conventions / plugins / hooks |
+| Configuration | `settings/`, `model_routing.py`, `pricing.py`, `config/`, `data/`, `extensions/`, `plugins.py` | Layered settings, model presets and routing, prices, the lead's security signals, MCP / conventions / plugins / hooks |
 | Evaluation | `bench/`, `testing/` | The benchmark harness; `ScriptedLLM` and the offline test helpers (shipped in the wheel) |
 
 Modules stay under 450 lines (`tests/test_module_size.py` fails otherwise); a module that grows past it

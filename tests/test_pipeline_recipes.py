@@ -54,13 +54,13 @@ def test_the_new_recipe_has_its_stages_in_order() -> None:
     assert "new" in bundled_recipes()
 
 
-def test_every_teammate_of_the_new_recipe_exists_in_agents_yaml() -> None:
-    from engineering_team.pipeline.stages import _yaml
+def test_every_teammate_of_the_new_recipe_exists_in_the_harness() -> None:
+    from engineering_team.harness import builtin_teammates, stage_prompts
 
-    known = set(_yaml("agents.yaml"))
+    known = set(builtin_teammates())
     for stage in load_recipe("new").stages:
         assert set(stage.teammates) <= known, stage.name
-    prompts = set(_yaml("stages.yaml"))
+    prompts = set(stage_prompts())
     assert {
         "spec",
         "plan",

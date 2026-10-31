@@ -56,7 +56,8 @@ simply does not run. See [CONFIGURATION.md](CONFIGURATION.md#review-review-and-t
 
 With `--strategy team` nobody works on a fixed schedule: the generalist leads, does the work itself,
 and calls a teammate only for a bounded job, through the [team tools](TOOLS.md#team-tools). Which
-teammate does what is then the lead's choice, guided by `config/lead.yaml`:
+teammate does what is then the lead's choice, guided by the harness's lead guidance
+([HARNESS.md](HARNESS.md#components)):
 
 | The lead calls | When | With |
 |---|---|---|
@@ -89,8 +90,9 @@ teammate an MCP server without rewriting its `tool_groups`.
 
 ## Changing a teammate, or adding one
 
-Teammates are defined in `config/agents.yaml` (the single source of the built-in prompts). Your
-changes are layered on top of it, field by field, in this order; the last one wins:
+Teammates are defined in the [harness](HARNESS.md) (`harness/data/base/teammates/<key>/`, the single
+source of the built-in prompts). Your changes are layered on top of it, field by field, in this order;
+the last one wins:
 
 1. the built-in definition,
 2. `.engineering-team/team.yaml` in the directory you run the command from (or the file named by
@@ -102,7 +104,8 @@ A key that is not built in adds a new teammate. `team show KEY` says which layer
 
 | Field | Meaning |
 |---|---|
-| `role`, `goal`, `backstory` | The prompt. `{project_name}` is filled in per run. A new teammate needs all three. |
+| `role`, `goal`, `backstory` | The prompt. `{project_name}` is filled in per run. A new teammate needs all three. `backstory` replaces the whole built-in backstory (identity, tool guidance and guardrails). |
+| `harness` | A folder of [harness component files](HARNESS.md#overriding-a-teammates-components) (`role.md`, `tool_guidance.md`, `guardrails.md`), relative to the project: they replace the components they define, and `role.md`'s front-matter can set the fields below. A new teammate can be defined by a folder alone. |
 | `tier` | `lead`, `worker` (default), `cheap`, or `reviewer`: which model tier it uses under the `standard` profile. `smoke` and `max-quality` fix the models of their two slots, so a cheap run stays cheap. To pin an exact model use `[models.roles.<key>]` (see [CONFIGURATION.md](CONFIGURATION.md#models)). |
 | `tool_groups` | The groups above, plus `mcp:<name>` and plugin groups. Default for a new teammate: read-only (`fs_read`, `search`, `code_intel`, `git_read`, `knowledge`, `board`, `notes`, `human`). |
 | `allow_delegation` | Accepted so existing team files keep loading, and ignored: a stage runs one agent, so nobody can be delegated to. |

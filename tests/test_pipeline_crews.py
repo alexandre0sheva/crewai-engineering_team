@@ -141,7 +141,7 @@ def test_each_stage_agent_sees_its_task_the_contracts_and_its_card(
     implement_prompt = next(call.prompt for call in backend if "Your work package" in call.prompt)
     assert "WP-1" in implement_prompt and "src/storage/**" in implement_prompt
     assert '"role":"backend"' in implement_prompt  # contracts go in as compact JSON
-    # Role text comes from agents.yaml, not from the stage prompts.
+    # Role text comes from the teammate's harness folder, not from the stage prompts.
     assert "Backend and platform engineer for demo" in backend[0].messages[0]["content"]
 
 

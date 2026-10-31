@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from engineering_team.pipeline.state import PipelineState
     from engineering_team.runtime.context import RunContext
 
-# Who a typed ask goes to, and the prompt (config/stages.yaml) each kind of job runs.
+# Who a typed ask goes to, and the prompt (a harness stage) each kind of job runs.
 ASKED: dict[str, str] = {
     "review": "code_reviewer",
     "security_review": "security_engineer",

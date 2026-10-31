@@ -12,7 +12,8 @@ the lead has tools and works itself, and how much it may delegate is capped.
 reproduce stages before verification stay, every stage that does the work (design, packages,
 tests, reviews, the map) becomes the one ``lead`` stage, verification and the controller's write-up
 stages stay, and a security review runs after verification only when a deterministic signal fired
-(``config/lead.yaml``) and no security review read the final change.
+(``config/lead.yaml``) and no security review read the final change. When the lead calls a
+teammate is harness text (``shared/lead_guidance.md``, docs/HARNESS.md).
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+from engineering_team.harness import lead_guidance
 from engineering_team.pipeline.recipes import Recipe, RecipeError, StageSpec
 from engineering_team.team.registry import GENERALIST
 
@@ -178,7 +180,7 @@ def lead_brief(ctx: RunContext, state: PipelineState, lead: str, cap: int) -> st
         *team,
         "",
         "When to call a teammate:",
-        *(f"- {line}" for line in lead_config().get("guidance") or []),
+        *(f"- {line}" for line in lead_guidance()),
         "",
         "The controller runs the project's checks after every job that changed files and after "
         "you hand back; you never mark anything done. A teammate's summary is its own account, "

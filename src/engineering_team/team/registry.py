@@ -1,11 +1,13 @@
 """The roster: who can work, with which prompt, tools, and model tier.
 
-Built-in teammates are defined in ``config/agents.yaml`` (the one place their prompts live). On top
-of them, in this order, come ``.engineering-team/team.yaml`` (or ``team_file``) and the
-``[team.<key>]`` tables of the configuration: each changes the fields it sets, field by field,
-and a key that is not built in adds a new teammate. The result is validated once, with errors that
-name the teammate, the field, and where the value came from, so a mistake is a usage error at the
-start of a run and never a surprise in the middle of one.
+Built-in teammates are the harness's ``teammates/<key>/`` folders (``harness/data/base/``, the one
+place their prompts live; docs/HARNESS.md). On top of them, in this order, come
+``.engineering-team/team.yaml`` (or ``team_file``) and the ``[team.<key>]`` tables of the
+configuration: each changes the fields it sets, field by field, and a key that is not built in adds
+a new teammate. ``harness`` points a teammate at a folder of component files, read before the
+entry's other fields; ``backstory`` replaces all of identity, tool guidance and guardrails. The
+result is validated once, with errors that name the teammate, the field, and where the value came
+from, so a mistake is a usage error at the start of a run and never a surprise in the middle of one.
 """
 
 from __future__ import annotations
@@ -13,7 +15,6 @@ from __future__ import annotations
 import threading
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,9 @@ import yaml
 from pydantic import ValidationError
 
 from engineering_team.extensions.plugin_loader import load_plugins
+from engineering_team.harness import HarnessError, always_on_chars, builtin_teammates
+from engineering_team.harness import teammate_fields as harness_fields
+from engineering_team.harness.loader import compose_backstory
 from engineering_team.intake.templates import MODES
 from engineering_team.settings import TEAM_KEY, Settings, TeamOverride
 from engineering_team.tools import GROUPS
@@ -78,6 +82,12 @@ class Teammate:
 
     def works_in(self, mode: str | None) -> bool:
         return not self.modes or mode is None or mode in self.modes
+
+    @property
+    def always_on_chars(self) -> int:
+        """Role, goal and backstory: the text sent with every one of its model calls."""
+
+        return always_on_chars(self.role, self.goal, self.backstory)
 
 
 @dataclass
@@ -161,11 +171,10 @@ class Roster:
 
 
 def _builtin_layer() -> dict[str, dict[str, Any]]:
-    text = (resources.files("engineering_team") / "config" / "agents.yaml").read_text(
-        encoding="utf-8"
-    )
-    data = yaml.safe_load(text)
-    return data if isinstance(data, dict) else {}
+    return {
+        key: {name: value for name, value in fields.items() if name != "backstory"}
+        for key, fields in builtin_teammates().items()
+    }
 
 
 def _read_team_file(path: Path) -> dict[str, dict[str, Any]]:
@@ -206,6 +215,40 @@ def _validated(key: str, values: Mapping[str, Any], source: str) -> dict[str, An
     return parsed.model_dump(exclude_unset=True, exclude_none=True)
 
 
+def _prompt_fields(
+    key: str, fields: dict[str, Any], source: str, base: Path | None
+) -> dict[str, Any]:
+    """``fields`` with ``harness`` read (its folder first, so the entry's own fields win) and a
+    ``backstory`` turned into the identity, replacing the tool guidance and guardrails."""
+
+    fields = dict(fields)
+    folder = fields.pop("harness", None)
+    out: dict[str, Any] = {}
+    if folder:
+        out.update(_harness_folder(key, str(folder), source, base))
+    if "backstory" in fields:
+        fields.update(identity=fields.pop("backstory"), tool_guidance="", guardrails="")
+    out.update(fields)
+    return out
+
+
+def _harness_folder(key: str, folder: str, source: str, base: Path | None) -> dict[str, Any]:
+    root = (base or Path.cwd()).resolve()
+    path = (root / Path(folder).expanduser()).resolve()
+    if source != "config" and not path.is_relative_to(root):
+        raise TeamError(
+            f"Teammate '{key}' ({source}), harness: {folder} is outside the project; a team file "
+            "may only point at folders inside it."
+        )
+    try:
+        fields = harness_fields(path, str(path), complete=False)
+    except HarnessError as exc:
+        raise TeamError(
+            "\n".join(f"Teammate '{key}' ({source}), harness: {line}" for line in exc.problems)
+        ) from exc
+    return fields
+
+
 def _check(
     key: str,
     fields: dict[str, Any],
@@ -214,13 +257,15 @@ def _check(
     origin: str,
     valid_groups: Sequence[str] = VALID_GROUPS,
 ) -> Teammate:
+    backstory = compose_backstory(fields)
     if custom:
-        missing = [name for name in REQUIRED_FOR_NEW if not str(fields.get(name, "")).strip()]
+        given = {**fields, "backstory": backstory}
+        missing = [name for name in REQUIRED_FOR_NEW if not str(given.get(name, "")).strip()]
         if missing:
             raise TeamError(
-                f"Teammate '{key}' is new ({origin}), so it needs {', '.join(REQUIRED_FOR_NEW)}; "
-                f"missing: {', '.join(missing)}. To change a built-in instead, check the key "
-                "against `engineering-team team list`."
+                f"Teammate '{key}' is new ({origin}), so it needs {', '.join(REQUIRED_FOR_NEW)} "
+                f"(or a harness folder whose role.md has them); missing: {', '.join(missing)}. To "
+                "change a built-in instead, check the key against `engineering-team team list`."
             )
     groups = fields.get("tool_groups", DEFAULT_TOOL_GROUPS)
     unknown = [g for g in groups if g not in valid_groups]
@@ -246,7 +291,7 @@ def _check(
         key=key,
         role=" ".join(str(fields["role"]).split()),
         goal=" ".join(str(fields["goal"]).split()),
-        backstory=" ".join(str(fields["backstory"]).split()),
+        backstory=backstory,
         tier=fields.get("tier", "worker"),
         tool_groups=tuple(dict.fromkeys(groups)),
         allow_delegation=bool(fields.get("allow_delegation", False)),
@@ -261,15 +306,18 @@ def _check(
 def _assemble(
     layers: list[tuple[str, Mapping[str, Mapping[str, Any]]]],
     valid_groups: Sequence[str] = VALID_GROUPS,
+    base: Path | None = None,
 ) -> Roster:
     merged: dict[str, dict[str, Any]] = {}
     touched: dict[str, list[str]] = {}
     for source, layer in layers:
         for key, values in layer.items():
-            fields = _validated(key, values, source) if source != "built-in" else dict(values)
-            merged.setdefault(key, {}).update(fields)
-            if source != "built-in":
+            if source == "built-in":
+                fields = dict(values)
+            else:
+                fields = _prompt_fields(key, _validated(key, values, source), source, base)
                 touched.setdefault(key, []).append(source)
+            merged.setdefault(key, {}).update(fields)
     members: dict[str, Teammate] = {}
     for key, fields in merged.items():
         builtin = key in layers[0][1]
@@ -330,7 +378,7 @@ def build_roster(
         groups = plugin_groups if plugin_groups is not None else load_plugins(settings, base).groups
     except ValueError as exc:  # PluginError: say it here, where the team is being defined
         raise TeamError(str(exc)) from exc
-    roster = _assemble(layers, valid_groups_for(settings, groups))
+    roster = _assemble(layers, valid_groups_for(settings, groups), base)
     for name, server in settings.mcp.items():
         missing = [role for role in server.roles if role not in roster.members]
         if missing:

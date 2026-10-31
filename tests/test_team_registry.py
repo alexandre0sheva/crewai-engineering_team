@@ -67,7 +67,7 @@ def team_file(text: str, name: str = ".engineering-team/team.yaml") -> Path:
 # -- the built-ins ------------------------------------------------------------------------------
 
 
-def test_the_built_in_teammates_are_valid_and_come_from_agents_yaml() -> None:
+def test_the_built_in_teammates_are_valid_and_come_from_the_harness() -> None:
     roster = builtin_roster()
 
     assert set(roster.members) == BUILTINS

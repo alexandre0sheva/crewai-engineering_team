@@ -166,7 +166,7 @@ def test_a_three_package_plan_is_medium_and_is_not_collapsed(
 
 def test_changing_parts_come_last_in_every_prompt() -> None:
     for key, prompt in prompts().items():
-        text = prompt["description"]
+        text = prompt.description
         stable = [m.end() for m in re.finditer(r"\{[a-z_]+\}", text) if m.group() not in VOLATILE]
         volatile = [text.index(name) for name in VOLATILE if name in text]
         if stable and volatile:

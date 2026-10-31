@@ -337,13 +337,16 @@ class TeamOverride(_Frozen):
     """Changes to one teammate (``[team.<key>]`` or ``.engineering-team/team.yaml``).
 
     Every field is optional; unset fields keep the teammate's current value. A key that is not a
-    built-in teammate adds a new one, which then needs ``role``, ``goal`` and ``backstory``.
-    Values are checked when the roster is built (``team/registry.py``).
+    built-in teammate adds a new one, which then needs ``role``, ``goal`` and ``backstory`` (or a
+    ``harness`` folder that has them). ``harness`` is a folder of component files (``role.md``,
+    ``tool_guidance.md``, ``guardrails.md``; docs/HARNESS.md), relative to the project. Values are
+    checked when the roster is built (``team/registry.py``).
     """
 
     role: str | None = None
     goal: str | None = None
     backstory: str | None = None
+    harness: str | None = Field(default=None, min_length=1)
     tier: Literal["lead", "worker", "cheap", "reviewer"] | None = None
     tool_groups: list[str] | None = None
     allow_delegation: bool | None = None

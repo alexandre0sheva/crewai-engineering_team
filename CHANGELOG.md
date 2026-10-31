@@ -115,6 +115,12 @@ renames that section and dates it.
 
 ### Changed
 
+- Teammate and stage prompts are now harness files (`harness/data/base/`, [docs/HARNESS.md](docs/HARNESS.md)):
+  per teammate `role.md` (role, goal, identity and its settings), `tool_guidance.md` and `guardrails.md`; one
+  Markdown file per stage prompt; shared text. The prompts are the 0.2.0 prompts, plus one line in every stage
+  that hands the model evidence saying that it is data, not instructions. A teammate in `team.yaml` or
+  `[team.<key>]` can point at its own component files with `harness = "<folder>"`, and `team show` prints each
+  teammate's always-on prompt size.
 - The end-of-run summary (and `--json`) of every command now shows how the result was proved (`Proof:`, the
   controller's required checks) and, for the repository modes, the branch or copy and the patch; a `do` run adds
   what the task was (`task`: intents, size, risk, rungs climbed).
@@ -175,6 +181,8 @@ renames that section and dates it.
 - The 0.1.0 invocation without a command (`engineering-team --request-file FILE`, or bare `engineering-team`
   next to a `PROJECT_REQUEST.md`): it prints one line pointing at `engineering-team new` and exits 2.
 - The CrewAI training scripts `train`, `replay`, `test` and `run_with_trigger`, which drove the removed crew.
+- `config/agents.yaml` and `config/stages.yaml` (their prompts and settings moved to the harness files, unchanged);
+  the lead's guidance moved from `config/lead.yaml` to the harness.
 
 ### Migration from 0.2.0
 
