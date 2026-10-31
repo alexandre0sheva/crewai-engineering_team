@@ -23,6 +23,7 @@ from engineering_team.contracts import (
 )
 from engineering_team.execution.backend import close_backend
 from engineering_team.extensions.hooks import HookRunner
+from engineering_team.memory.observe import finish_run
 from engineering_team.runtime.bridge import bind_run, flush_bridge
 from engineering_team.runtime.cancel import RunCancelled
 from engineering_team.runtime.context import RunContext
@@ -281,6 +282,7 @@ class RunRecorder:
         ctx.browsers.close_all("the run ended")
         close_backend(ctx.backend, "the run ended")  # containers the run still has
         ctx.board.flush()  # board.json and board.md as the run ended
+        finish_run(ctx)  # repo memory: proposals confirmed or dropped, facts gone stale
         report = ctx.usage.report(ctx.prices)
         report.sessions = self._sessions()
         atomic_write_json(ctx.run_dir / "usage.json", report.model_dump(mode="json"))

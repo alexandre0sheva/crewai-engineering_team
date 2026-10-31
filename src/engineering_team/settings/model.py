@@ -61,6 +61,7 @@ from engineering_team.settings.sections import (
     LadderSettings,
     LeanSettings,
     MaintainSettings,
+    MemorySettings,
     ModelOverride,
     ModelsSettings,
     NetworkSettings,
@@ -104,6 +105,7 @@ class Settings(_Frozen):
     tools: ToolsSettings = ToolsSettings()
     runtime: RuntimeSettings = RuntimeSettings()
     trajectory: TrajectorySettings = TrajectorySettings()
+    memory: MemorySettings = MemorySettings()
     network: NetworkSettings = NetworkSettings()
     web: WebSettings = WebSettings()
     knowledge: KnowledgeSettings = KnowledgeSettings()

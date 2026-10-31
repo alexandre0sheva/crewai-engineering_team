@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from engineering_team.contracts import CheckResult, CheckSpec
+from engineering_team.memory.observe import record_verification
 from engineering_team.modes.fix_repro import fix_checks, record_green, tampered
 from engineering_team.modes.policy_checks import POLICY_PREFIX, policy_results
 from engineering_team.runtime.budget import BudgetExceeded
@@ -275,6 +276,13 @@ class VerificationLoop:
         record.problems = judgement.problems
         record_green(ctx, self.state, results)
         record.coverage = map_criteria(ctx.workspace, self.state.spec, checks, results)
+        record_verification(
+            ctx,
+            {check.id: check.cwd for check in checks},
+            results,
+            verified=judgement.verdict == "verified",
+            profile=self.state.profile,
+        )
         text = render_report(
             record,
             results,

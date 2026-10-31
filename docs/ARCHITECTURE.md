@@ -768,6 +768,15 @@ text, skills). The stage runner takes its prompts from it, the roster its teamma
 `Load Skill` its skills; the manifest's `harness` keeps the domain, the packs with content hashes and the skills listed
 and loaded, and `resume` resolves the recorded domain again. [HARNESS.md](HARNESS.md) has the format.
 
+**Repo memory** (`memory/`). `ctx.memory` is the repository's `MemoryStore`: `facts.jsonl` under
+`.engineering-team/memory/`, rewritten atomically, with the lifecycle (proposed, verified, stale, removed) in
+`store.py`. The controller writes through `memory/observe.py`: `modes/baseline.py` and the verification loop
+(`_conclude`) hand it the checks they ran, `RunSession._finish` hands it the trajectory so it can record installs and
+keep or drop the agents' proposals (`Remember Fact`, `tools/memory_tools.py`). `pipeline/handoff.py` asks
+`memory/inject.py` for the facts to show a stage. [HARNESS.md](HARNESS.md#repo-memory) has the rules; events:
+`memory.recorded`, `.replaced`, `.removed`, `.stale`, `.dropped`, `.trimmed`, `.cleared`, `.injected`, `.unreadable`,
+`.error`.
+
 **The roster** (`team/registry.py`). Built-in teammates are defined once, in the harness's teammate folders
 (prompt components, and `tier`, `tool_groups` and so on in `role.md`'s front-matter; [HARNESS.md](HARNESS.md)). `build_roster(settings)` layers `.engineering-team/team.yaml` (or `team_file`) and the
 `[team.<key>]` tables on top, field by field, validates everything (unknown tool groups, modes, missing prompt fields

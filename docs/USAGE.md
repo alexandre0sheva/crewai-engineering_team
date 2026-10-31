@@ -19,6 +19,7 @@ uv run engineering-team <command> --help # its options
 | `maintain --task T --repo PATH` | Maintain an existing project: `add-tests`, `refactor`, `upgrade-deps`, `docs`, `security-audit`, `custom`, or a recipe of your own ([Maintaining a project](#maintaining-a-project)). |
 | `review [--base BRANCH]` | A read-only review of a branch or your working diff; `findings.json` for CI, exit 3 on a serious finding ([Reviewing a change](#reviewing-a-change)). |
 | `harness show [--domain bugfix/python]` / `harness import PATH` | Which packs and skills a kind of work gets, and importing a repository's skills or `AGENTS.md` as skills ([HARNESS.md](HARNESS.md#domains)). |
+| `memory list` / `show ID` / `forget ID` / `clear` | The verified facts the team remembers about a repository (the test command, setup steps, flaky tests) and why ([HARNESS.md](HARNESS.md#repo-memory)). |
 | `recipes list` / `recipes show NAME` / `recipes compose --intent I ...` | Which recipes exist (bundled, yours) and what each stage does; `compose` previews the recipe composed for a task profile, with each stage's cost and why ([Your own recipes](#your-own-recipes)). |
 | `diff [RUN] [--stat]` / `export-patch [RUN] --out FILE` | What a `feature` or `fix` run changed, and that change as a patch for `git apply`. |
 | `analyze [--repo PATH] [--deep]` | Look at an existing project without changing it: languages, detected commands, tests, CI, Git state; `--deep` also writes a codebase map ([Adopting an existing project](#adopting-an-existing-project)). |
@@ -233,6 +234,21 @@ uv run engineering-team trace --format json        # entries as data (also: --js
 (`(final)` marks an agent's answer); the continuation lines of a multi-line text are indented. A run made before
 0.3.0 prints that its trajectory was not recorded. The run report links the trace, and the card drawer of the web
 UI shows a call's output with its **Output** button.
+
+### Repo memory (`memory`)
+
+The team writes down what it verified about a repository (how its tests run, a setup step that worked, a test that
+flips on its own) and tells the next run, so it does not look again. See what it remembers:
+
+```bash
+engineering-team memory list                 # id, kind, status, text; --status stale shows what went out of date
+engineering-team memory show command-1a2b3c4d   # the run and checks that back it, the files it rests on
+engineering-team memory forget command-1a2b3c4d # a fact you do not trust
+```
+
+A fact goes `stale` when a file it rests on changes, and is not shown again until a later run restates it. The facts
+live in `.engineering-team/memory/` of the repository (readable as `FACTS.md`); `memory clear` deletes them all.
+How they are recorded, checked and shown: [HARNESS.md](HARNESS.md#repo-memory).
 
 ### Profiling a run (`profile`)
 

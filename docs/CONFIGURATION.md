@@ -175,6 +175,26 @@ max_output_chars = 20000
 max_mb = 20
 ```
 
+### Repo memory (`[memory]`, config file only)
+
+Verified facts about a repository (the command that runs its tests, a setup step that worked, a test
+that flips on its own) are kept in `.engineering-team/memory/` and shown to later runs
+([HARNESS.md](HARNESS.md#repo-memory)); read and edit them with `engineering-team memory`
+([USAGE.md](USAGE.md#repo-memory-memory)). The defaults are provisional until the 0.3.0 evaluation.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `memory.enabled` | `true` | `false` stops reading, recording and showing facts, and the `Remember Fact` tool refuses; files already there are left alone |
+| `memory.max_facts` | `200` | Facts kept per repository (10-2000); past it stale facts go first, then proposals, then the least recently used |
+| `memory.inject_facts` | `8` | Facts one prompt shows at most (0 shows none) |
+| `memory.inject_chars` | `1200` | Characters one prompt's facts take at most |
+
+```toml
+[memory]
+enabled = true
+inject_facts = 5
+```
+
 ### Web tools (`[web]` and `[knowledge]`)
 
 Applies to `Web Search`, `Fetch URL`, `Package Info`, and `Search Docs` ([TOOLS.md](TOOLS.md#web-and-knowledge-tools)).

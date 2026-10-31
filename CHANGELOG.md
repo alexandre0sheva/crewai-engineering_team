@@ -11,6 +11,13 @@ renames that section and dates it.
 
 ### Added
 
+- Repo memory ([docs/HARNESS.md](docs/HARNESS.md#repo-memory)): the team remembers verified facts about each
+  repository in `.engineering-team/memory/` (the command that runs its tests, a dependency install that worked, a
+  test that flips on an unchanged tree, conventions and gotchas) and tells later runs, so they skip rediscovery.
+  The controller records what it observed; agents may propose a fact with the new `Remember Fact` tool, which is
+  kept only if the controller's own records back it. A fact whose source file changes goes stale and is not shown;
+  one a later run contradicts is removed; secrets are never stored. `engineering-team memory list|show|forget|clear`
+  reads and edits it; `[memory]` in the configuration switches it off or sizes it.
 - A per-domain harness library ([docs/HARNESS.md](docs/HARNESS.md)): each run resolves its domain (`bugfix/python`,
   `feature/typescript`, ...) from the triage and the project's stack and layers the packs for it over `base`.
   Bundled packs for Python, TypeScript, Go, Rust and Java and for bug fixes, refactors, dependency upgrades,

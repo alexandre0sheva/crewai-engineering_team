@@ -11,6 +11,7 @@ question to ask of a change to code that was already broken.
 from __future__ import annotations
 
 from engineering_team.contracts import CheckResult
+from engineering_team.memory.observe import record_baseline
 from engineering_team.modes.baseline_report import (
     BaselineCheck,
     BaselineReport,
@@ -60,6 +61,7 @@ def run_baseline(ctx: RunContext, profile: RepoProfile) -> BaselineReport:
                 f"No tests were found in {row.directory}, so there is no test baseline."
             )
     save_baseline(ctx.workspace.root, report)
+    record_baseline(ctx, report, profile)
     ctx.events.emit(
         "baseline.recorded",
         checks={row.id: row.status for row in rows},

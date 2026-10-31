@@ -12,8 +12,10 @@ controller's record; the agents' own summaries are quoted as theirs.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from engineering_team.memory.inject import memory_section
 from engineering_team.tools.ignore import iter_files
 
 if TYPE_CHECKING:
@@ -59,11 +61,17 @@ def file_lines(ctx: RunContext) -> list[str]:
     return lines
 
 
-def handoff_pack(ctx: RunContext, state: PipelineState, stage: StageSpec) -> str:
-    """The pack for a session of ``stage`` (empty when there is nothing to hand over)."""
+def handoff_pack(
+    ctx: RunContext, state: PipelineState, stage: StageSpec, paths: Sequence[str] = ()
+) -> str:
+    """The pack for a session of ``stage`` (empty when there is nothing to hand over); ``paths``
+    are the work package's, which bring the repository facts about those files first."""
 
     files = file_lines(ctx)
     parts = [state.escalation, ""] if state.escalation else []
+    facts, _ = memory_section(ctx, stage.prompt or stage.name, paths)
+    if facts:
+        parts += [facts, ""]
     if files:
         parts += [
             "Files in the workspace now (path, size, sha256 prefix; the most recently changed, "

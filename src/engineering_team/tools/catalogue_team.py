@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from engineering_team.tools.board_tools import make_board_tools
 from engineering_team.tools.human_tools import make_human_tools
+from engineering_team.tools.memory_tools import make_memory_tools
 from engineering_team.tools.notes_tools import make_notes_tools
 from engineering_team.tools.spec import ToolSpec, _spec
 from engineering_team.tools.team_tools import make_team_tools
@@ -92,6 +93,13 @@ TEAM_SPECS: tuple[ToolSpec, ...] = (
         "notes",
         make_notes_tools,
         "Append a dated decision to the project's append-only decision log.",
+        read_only=True,
+    ),
+    _spec(
+        "Remember Fact",
+        "notes",
+        make_memory_tools,
+        "Propose a fact about the repository for later runs; kept only if the controller backs it.",
         read_only=True,
     ),
     _spec(

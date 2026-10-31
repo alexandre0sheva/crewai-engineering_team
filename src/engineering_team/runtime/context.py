@@ -46,6 +46,7 @@ if TYPE_CHECKING:  # imported when a context is created: ``board`` itself import
     from engineering_team.board.store import BoardStore
     from engineering_team.git.port import GitPort
     from engineering_team.harness.library import ResolvedHarness
+    from engineering_team.memory import MemoryStore
     from engineering_team.team import Roster
 
 # Called with a tool's name before it runs; returning a message refuses the call (the tool
@@ -110,6 +111,45 @@ def _announce_extensions(
         )
 
 
+def _seed_from_source(root: Path, store: MemoryStore) -> None:
+    """A team working in a separate worktree or copy starts from the memory of the directory it
+    was made from (which it never writes to); a branch in the checkout shares the checkout's."""
+
+    from engineering_team.memory.store import FACTS_FILE, MEMORY_DIRECTORY
+    from engineering_team.modes.isolation import read_isolation
+
+    isolation = read_isolation(root)
+    if isolation is None or isolation.mode == "branch" or store.path.exists():
+        return
+    source = isolation.source / MEMORY_DIRECTORY / FACTS_FILE
+    if source.is_file() and store.enabled:
+        store.directory.mkdir(parents=True, exist_ok=True)
+        store.path.write_bytes(source.read_bytes())
+        store.facts()  # a damaged file is reported by the caller, as for any other
+
+
+def _open_memory(settings: Settings, root: Path, run_id: str, events: EventSink) -> MemoryStore:
+    """The repository's memory, with facts whose source files changed marked stale. A damaged
+    file switches memory off for this run (and is reported); it is never overwritten."""
+
+    from engineering_team.memory import MemoryFileError, MemoryStore
+
+    store = MemoryStore(
+        root,
+        enabled=settings.memory.enabled,
+        max_facts=settings.memory.max_facts,
+        emit=events.emit,
+        run_id=run_id,
+    )
+    try:
+        _seed_from_source(root, store)
+        store.refresh()
+    except MemoryFileError as exc:
+        store.enabled = False
+        events.emit("memory.unreadable", problems=str(exc).splitlines())
+    return store
+
+
 @dataclass(frozen=True, eq=False)
 class RunContext:
     """Everything one run needs: settings, workspace, state directory, and shared controls.
@@ -157,6 +197,7 @@ class RunContext:
     git: GitPort
     team: Roster
     harness: ResolvedHarness  # the run's domain, packs and skills (``harness/library.py``)
+    memory: MemoryStore  # verified facts about the repository (``memory/``)
     reports: Reports
     trajectory: TrajectoryRecorder
     tool_gate: ToolGate | None = None
@@ -239,6 +280,7 @@ class RunContext:
         )
         guard.attach(sink)
         _announce_extensions(sink, settings, team, plugins, conventions)
+        memory = _open_memory(settings, workspace.root, run_id, sink)
         controller_dir = workspace.root / CONTROLLER_DIRECTORY
         processes = ProcessRegistry(
             run_backend,
@@ -279,6 +321,7 @@ class RunContext:
             git=GitPort(workspace, run_backend, settings.git, sink),
             team=team,
             harness=harness,
+            memory=memory,
             reports=(Reports.in_run_dir(workspace, run_dir) if adopted else Reports(workspace)),
             trajectory=TrajectoryRecorder(
                 run_dir / TRAJECTORY_FILENAME,

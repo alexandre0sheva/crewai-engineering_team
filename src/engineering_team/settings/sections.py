@@ -143,6 +143,16 @@ class TrajectorySettings(_Frozen):
     max_mb: int = Field(default=50, ge=1)
 
 
+class MemorySettings(_Frozen):
+    """Repo memory: verified facts about the repository, kept in ``.engineering-team/memory/``
+    (``docs/CONFIGURATION.md``). Provisional defaults until the 0.3.0 evaluation."""
+
+    enabled: bool = True
+    max_facts: int = Field(default=200, ge=10, le=2000)
+    inject_facts: int = Field(default=8, ge=0, le=50)
+    inject_chars: int = Field(default=1200, ge=0, le=10_000)
+
+
 class RuntimeSettings(_Frozen):
     """Background processes and the HTTP tool. Times are in seconds."""
 

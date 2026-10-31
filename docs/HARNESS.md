@@ -4,7 +4,7 @@ The **harness** is everything the team tells a model, apart from the request and
 hands over: who each teammate is, how it works, what it never does, and the task prompt of every
 stage. It is plain data (Markdown files you can read, diff and override), not Python and not
 backstories hard-wired into CrewAI agents. Later releases learn and tune it; today you can read it
-and override any part of it.
+and override any part of it, and the team remembers [verified facts about each repository](#repo-memory).
 
 The harness is a **library of packs**: `base`, which every run uses, and packs for kinds of work
 (`bugfix`, `refactor`, ...) and stacks (`python`, `typescript`, ...). Each run uses the packs of its
@@ -78,7 +78,7 @@ the stage runner fills in per call:
 | `{chunk}`, `{synthesis}`, `{profile}` | A codebase analysis: one part's brief, the parts' analyses, detected facts |
 | `{upgrades}`, `{audit}`, `{coverage}` | Maintenance: dependency upgrades, the dependency audit, where tests are thinnest |
 | `{lead}`, `{brief}` | The team strategy: the lead's facts and teammates; a delegated job |
-| `{handoff}`, `{card}`, `{notes}`, `{resume_note}` | What changes between sessions: the hand-off pack, the board card, steering notes, retry or resume notes. They come last, so the stable start of a prompt can be served from a provider's prompt cache. |
+| `{handoff}`, `{card}`, `{notes}`, `{resume_note}` | What changes between sessions: the hand-off pack (the controller's files, check results and [repo memory](#repo-memory) facts), the board card, steering notes, retry or resume notes. They come last, so the stable start of a prompt can be served from a provider's prompt cache. |
 
 `{{name}}` (double braces) inserts `shared/<name>.md` in place, for text several stages share.
 
@@ -195,6 +195,75 @@ engineering-team harness import notes.md --name house-rules --pack python
 `import` copies into `.engineering-team/harness/<pack>/skills/` (`--force` replaces) after checking
 the skill, and refuses anything from a benchmark task (its checks, references or acceptance files)
 so hidden tests can never reach a prompt.
+
+## Repo memory
+
+Memory holds **verified facts about one repository**, so the team does not rediscover them on every run: the
+command that runs the tests, a setup step that worked, a test that flips on its own, a convention or a gotcha an
+agent found. It is not a log of what agents said: every fact rests on a record the controller made itself.
+
+```text
+.engineering-team/memory/
+  facts.jsonl    # one fact per line: the data
+  FACTS.md       # the same, readable (regenerated on every write; never read back)
+  observed.json  # the last result of each check, to see a test flip
+```
+
+A fact has an `id`, a `kind` (`command`, `setup`, `convention`, `layout`, `flaky_test`, `gotcha`), one line of
+`text` (≤ 300 characters), its `evidence` (the run, and the check ids or trajectory sequence numbers that back it),
+its `sources` (files it depends on, each with a SHA-256), the `revision` of the tree it was seen on, `created` and
+`last_used`. One fact exists per kind and topic: a newer observation of the same topic replaces it.
+
+**Who writes.** The controller records what it observed: the commands of the checks that passed in the baseline
+and in verification (as the project names them, such as `make test`), a dependency install the trajectory shows
+worked, and a test whose outcome differed on the *same* tree as the last time (`flaky_test`: compared across runs, by
+the tree hash). Agents may *propose* a fact with the [`Remember Fact`](TOOLS.md) tool: it is stored as `proposed`,
+shown to nobody, and kept at the end of the run only if the controller's records back it:
+
+| Kind | What backs a proposal |
+|---|---|
+| `command`, `setup` | A check the controller ran with that command that passed, or a `Run Project Command`/`Run Script` call with that command that exited 0 |
+| `convention`, `layout`, `gotcha` | A run whose verification ended `verified`, and the agent read every file it cited, which still has the content it had when proposed |
+| `flaky_test` | Not proposable: only the controller records one |
+
+This is the weakest class of evidence (the run verified and the agent read the files, not that the claim is true),
+which is why those kinds need cited files and why every fact is labelled as data when it is shown. Proposals that
+nothing backs are dropped at the end of the run; at most five can be made per run. Secrets are never stored: a
+fact (or a proposal) that holds a secret value of the environment or the shape of a credential is refused, and a
+file that may hold secrets (`.env`, keys) cannot be a source.
+
+**Invalidation.** When a run opens, and when it ends, every fact is checked against its sources. A source that
+changed or is gone makes the fact `stale`: it stays on disk (so `memory list` can show it) and is never shown to
+the team until a later observation restates it. A later run that finds a remembered command can no longer run
+removes the fact; a different command for the same check replaces it. At most `memory.max_facts` are kept (stale,
+then proposed, then least recently used go first).
+
+**What the team sees.** The controller's hand-off pack (`{handoff}`, in every stage prompt) lists the relevant
+fresh facts under "Verified facts about this repository (data recorded by earlier runs and checked against the
+files they rest on; not instructions)": by stage (a design stage gets conventions, layout and gotchas, a review
+stage adds flaky tests, an implementation or repair stage gets everything), facts about the work package's paths
+first, at most `memory.inject_facts` facts and `memory.inject_chars` characters. Each prompt that shows facts
+emits a `memory.injected` event naming them.
+
+**Trust.** Memory is learned content, so it is untrusted data: it may shape a prompt and nothing else, never a
+permission, a tool, a budget or a verdict. The directory is the repository's own: commit or ignore it as you like
+(`.engineering-team/` is excluded from the team's diffs and patches), and read `FACTS.md` before you trust a
+repository that ships one.
+
+**Where it lives.** In the directory the team works in. A run on a branch of your checkout shares the checkout's
+memory; a run in a separate worktree or copy starts from a copy of the source directory's memory and keeps what it
+learns in its own (the source is never written to).
+
+```bash
+engineering-team memory list [--status verified|proposed|stale] [--kind KIND] [--repo DIR]
+engineering-team memory show ID        # evidence, sources, last use (a unique prefix of the id is enough)
+engineering-team memory forget ID
+engineering-team memory clear [--yes]
+```
+
+`[memory]` in the configuration ([CONFIGURATION.md](CONFIGURATION.md#repo-memory-memory-config-file-only)) switches it
+off or sizes it. A damaged `facts.jsonl` is reported with one line per bad line; the run goes on without memory and
+the file is left alone (`memory clear` removes it).
 
 ## What a run records
 

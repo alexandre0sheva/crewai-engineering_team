@@ -210,7 +210,9 @@ class ExecutorBase:
             upgrades=upgrades,
             audit=audit or self._audit_text(),
             tier=tier_for(self._lean, stage.kind, stage.contract_outputs),
-            handoff=handoff_pack(self.ctx, self.state, stage),
+            handoff=handoff_pack(
+                self.ctx, self.state, stage, package.owned_paths if package else ()
+            ),
             brief=brief,
             lead=lead,
             max_iter=max_iter,
