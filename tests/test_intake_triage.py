@@ -266,3 +266,15 @@ def test_a_long_request_is_clipped_in_the_middle() -> None:
     assert body.count("x") < MAX_REQUEST_CHARS
     assert "start" in body and "end" in body and "characters left out" in body
     assert build_messages("Hi", Signals())[0]["content"] == SYSTEM_PROMPT
+
+
+def test_a_pasted_trace_with_no_directory_is_a_question_not_a_new_project() -> None:
+    request = (
+        "Traceback (most recent call last):\n  File \"app.py\", line 3, in <module>\nKeyError: 'x'"
+    )
+    signals = collect(request)
+
+    profile = apply_rules(answer(intents=["bugfix"]), signals)
+
+    assert signals.stack_trace and profile.intents == ["question"]
+    assert any("primary intent is question" in line for line in profile.overrides)

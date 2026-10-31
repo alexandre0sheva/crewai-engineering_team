@@ -18,6 +18,7 @@ import typer
 from engineering_team.cli import (
     analyze_command,
     bench_command,
+    do_command,
     feature_command,
     fix_command,
     init_command,
@@ -38,7 +39,7 @@ from engineering_team.cli.team_commands import team_app
 from engineering_team.runtime.context import reserve_run_id
 
 COMMANDS = (
-    "new", "resume", "status", "runs", "board", "cancel", "note", "pause", "unpause",
+    "do", "new", "resume", "status", "runs", "board", "cancel", "note", "pause", "unpause",
     "config", "doctor", "init", "examples", "team", "analyze", "feature", "fix", "maintain",
     "review", "recipes", "diff", "export-patch", "report", "trace", "profile", "ui", "bench",
     "plugins",
@@ -47,8 +48,9 @@ HELP_FLAGS = ("-h", "--help")
 FLAGS = ("--json", "--quiet", "-q", "--verbose", "-v", "--no-color", "--answers-via-inbox")
 VALUE_OPTIONS = ("--workspace-root", "--run-id")
 NO_COMMAND = (
-    "Error: `engineering-team` needs a command; the 0.1.0 form without one was removed in 0.3.0. "
-    "Use `engineering-team new --request-file FILE` (see `engineering-team --help`)."
+    "Error: `engineering-team` needs a command or a request; the 0.1.0 form without one was "
+    'removed in 0.3.0. Use `engineering-team do "what you want"` or `engineering-team new '
+    "--request-file FILE` (see `engineering-team --help`)."
 )
 
 app = typer.Typer(
@@ -120,6 +122,7 @@ def global_options(
     )
 
 
+app.command()(do_command.do)
 app.command()(run_commands.new)
 app.command()(run_commands.resume)
 app.command()(analyze_command.analyze)
@@ -233,11 +236,34 @@ def _only_globals(arguments: Sequence[str]) -> bool:
     return True
 
 
+def request_at(arguments: Sequence[str]) -> int | None:
+    """Where a bare request starts (``engineering-team "fix the login bug"``): the first word
+    that is not an option and is a sentence, not a command. One word is more likely a typo of a
+    command than a request, so it is not one (use ``do`` for it)."""
+
+    index = 0
+    while index < len(arguments):
+        item = arguments[index]
+        if item in FLAGS:
+            index += 1
+        elif item in VALUE_OPTIONS:
+            index += 2
+        elif item.split("=", 1)[0] in VALUE_OPTIONS and "=" in item:
+            index += 1
+        else:
+            return index if not item.startswith("-") and len(item.split()) > 1 else None
+    return None
+
+
 def main(argv: Sequence[str]) -> int:
     """Run the command line ``argv`` (without the program name); returns the exit code."""
 
     arguments = hoist_globals(argv)
     wants_help = any(item in HELP_FLAGS or item == "--version" for item in arguments)
+    if command_in(arguments) is None and not wants_help:
+        start = request_at(arguments)
+        if start is not None:  # `engineering-team "<request>"` is `engineering-team do "<request>"`
+            arguments = [*arguments[:start], "do", *arguments[start:]]
     if command_in(arguments) is None and not wants_help:
         if not _only_globals(arguments) or _has_default_request():
             sys.stderr.write(NO_COMMAND + "\n")

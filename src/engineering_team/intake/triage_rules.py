@@ -117,7 +117,7 @@ def apply_rules(
             intents = [i for i in intents if i not in EXISTING_ONLY]
             overrides.append(f"no existing code: dropped {', '.join(dropped)} (needs a repository)")
         if not intents:
-            intents = ["question" if signals.question else "new_project"]
+            intents = [guess_intent(signals)]  # a pasted trace with no code is a question
             overrides.append(f"no existing code: primary intent is {intents[0]}")
     if not intents:
         intents = [guess_intent(signals)]

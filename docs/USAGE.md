@@ -12,7 +12,8 @@ uv run engineering-team <command> --help # its options
 
 | Command | What it does |
 |---------|--------------|
-| `new` | Build a new project from a request (`--request`, `--request-file`, stdin, or `--example`). |
+| `do "REQUEST"` (or just `"REQUEST"`) | The one entry point: triage the request, show the plan, ask to proceed, then build, change, fix or review ([Doing a request](#doing-a-request-do)). |
+| `new` | Build a new project from a request (`--request`, `--request-file`, stdin, or `--example`); a preset of `do`. |
 | `feature --repo PATH --request ...` | Add a feature to an existing project on a branch, worktree, or copy, verified against its baseline ([Feature mode](#feature-mode)). |
 | `fix --repo PATH --request ...` | Fix a bug in an existing project: reproduce it (red), fix it, prove it gone (green) ([Fixing a bug](#fixing-a-bug)). |
 | `maintain --task T --repo PATH` | Maintain an existing project: `add-tests`, `refactor`, `upgrade-deps`, `docs`, `security-audit`, `custom`, or a recipe of your own ([Maintaining a project](#maintaining-a-project)). |
@@ -55,6 +56,57 @@ search.
   (It overrides the `verbose` setting; with the CLI you control it with the flag.)
 - `NO_COLOR` is honoured as well as `--no-color`.
 
+## Doing a request (`do`)
+
+```bash
+uv run engineering-team do "Add a /search endpoint that finds notes by text."   # in a Git repository
+uv run engineering-team "Build a CLI that stores and lists notes."              # the same: `do` is the default
+uv run engineering-team do --request-file brief.md --project-name notes         # a new project
+cat bug-report.md | uv run engineering-team do - --repo ../my-service --yes     # request on stdin
+uv run engineering-team do "Why is the cart total wrong?" --dry-run             # only the plan
+```
+
+`do` takes the request as the argument, `--request`, `--request-file` (repeat to merge; `-` is stdin) or
+`--example`, like every command ([Request sources](#request-sources-and-reference-documents)). Where it works:
+
+- `--repo PATH` names the project;
+- without it, the current directory when it is a Git repository;
+- otherwise a **new project** in the workspace root (`--project-name`, default `mvp-app`).
+
+Then, before anything is changed:
+
+1. **Triage** works out what the request is (one cheap model call plus what code can read from the
+   repository: [What kind of work it is](#what-kind-of-work-it-is-triage)). `--mode feature|fix|new|review|analyze|add-tests|refactor|upgrade-deps|docs|security-audit`
+   forces the intent instead; a mode that needs a project refuses to run without one, and `--mode new`
+   refuses a directory that has code. Questions the triage cannot do without are asked at the terminal with
+   `--interactive`; otherwise it records its assumptions, and a request it could not classify at all ends
+   with exit 4 and its questions (nothing is changed).
+2. **The plan** is composed from the triage (the stages the intent needs, each with the reason it is there;
+   `--recipe NAME` runs a recipe of yours instead): the understood intent, size and risk, the rung of the
+   escalation ladder the run starts on and how high it may climb, the stages, and an estimate of the cost
+   (a rough prior, within half to twice the figure; compare it with `budget.max_cost_usd`).
+3. **You are asked** "Start this?" when a person can answer: a terminal, no `--yes`, no `--non-interactive`, no
+   `--json`/`--quiet`. Piped, scripted and `--yes` runs start at once. `--dry-run` stops after the plan and
+   changes nothing (it needs no API key: without one the signals alone classify the request).
+
+The work then runs as the older commands do. A change to an existing project goes to a branch, worktree or copy
+and never into your checkout blindly ([Feature mode](#feature-mode); `--worktree`, `--allow-dirty`, `--squash`);
+a new project is built in the workspace; a review is read-only ([Reviewing a change](#reviewing-a-change)); a
+question about a project gets its profile and codebase map, for now, and your project is not changed. The
+plan is kept as `task_profile.json` in the run directory. The summary at the end says what the task was
+(intents, size, rungs climbed), how it was proved (the controller's required checks), and where the work
+is: the branch, the patch, the report; `--json` adds `task`, `isolation`, `patch`. Exit codes are the ones
+[below](#exit-codes).
+
+`engineering-team "REQUEST"` with no command is `do "REQUEST"` when the first argument is a sentence (two
+words or more); a single word that is not a command is refused, so a typo of `status` does not start a paid
+run.
+
+`new`, `feature`, `fix`, `maintain`, `review` and `analyze` are the presets of `do`: each forces its intent,
+takes the options of its mode (`fix --trace-file`, `maintain --task`, `review --base`), starts without the
+preview and keeps its exit codes and outputs. Use `do` when you would rather say what you want than pick the
+mode.
+
 ## Starting a run
 
 ```bash
@@ -70,8 +122,8 @@ stdin), or `--example`; with none of them it falls back to `ENGINEERING_PROJECT_
 `--allow-web`, `--no-git`, `--reset`, `--adopt` ([below](#adopting-an-existing-project)), and `--prepare-only` (validate and set up the workspace without a
 model call).
 
-**The 0.1.0 form is gone.** `engineering-team --request-file FILE` (no command) prints one line pointing at
-`engineering-team new --request-file FILE` and exits 2. `crewai run` still works: it runs `new` with the
+**The 0.1.0 form is gone.** `engineering-team --request-file FILE` (no command, no sentence) prints one line
+pointing at `engineering-team do` and `engineering-team new --request-file FILE` and exits 2. `crewai run` still works: it runs `new` with the
 options you pass. `crewai train|replay|test` and `run_with_trigger` drove the removed 0.1.0 crew and no longer exist.
 
 ### What a new project looks like

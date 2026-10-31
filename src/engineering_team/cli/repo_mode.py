@@ -24,7 +24,7 @@ from engineering_team.intake.bundle import RequestBundle
 from engineering_team.modes.change_report import PATCH_FILE, SUMMARY_FILE
 from engineering_team.modes.isolation import Isolation, isolate
 from engineering_team.modes.run_options import write_run_options
-from engineering_team.pipeline.recipes import load_recipe
+from engineering_team.pipeline.recipes import Recipe, load_recipe
 from engineering_team.pipeline.strategies import RECIPE_STRATEGIES
 from engineering_team.runtime.context import new_run_id
 from engineering_team.runtime.run_index import register_workspace
@@ -64,6 +64,9 @@ class RepoRun:
     load: LoadRequest
     options: SimpleNamespace  # the engine's CLI options (provider, profile, allow_web, ...)
     recipe: str = ""  # the recipe's name (default: the mode's own)
+    composed: Recipe | None = (
+        None  # a recipe composed for the request (``do``); wins over ``recipe``
+    )
     worktree: bool = False
     allow_dirty: bool = False
     squash: bool = False
@@ -111,7 +114,7 @@ def run_repository_mode(g: Globals, run: RepoRun) -> None:
         settings = settings.for_request(bundle.text)
         settings.check_ready(require_credentials=True)
         # A recipe that cannot run is refused before the team gets a branch, worktree, or copy.
-        recipe = load_recipe(
+        recipe = run.composed or load_recipe(
             run.recipe or run.mode, run.root, teammates=build_roster(settings).members
         )
         run_id = new_run_id()

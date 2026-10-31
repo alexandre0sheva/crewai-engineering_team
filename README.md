@@ -15,6 +15,10 @@ recording of a live run is not committed yet; see [Try it without a key](#try-it
 
 ## What it does
 
+Say what you want: `engineering-team do "Add a /search endpoint"`. The team works out what kind of work it
+is, shows the plan, the stages and an estimated cost, asks before it starts, and then builds, changes, fixes
+or reviews, on a branch, never in your checkout blindly. Each kind of work is also a command of its own:
+
 | Mode | Command | Result |
 |------|---------|--------|
 | **new** | `engineering-team new` | A project from a request, in a Git repository of its own: spec, architecture, code, tests, docs |
@@ -47,10 +51,14 @@ that CrewAI does not support yet, and the tool then fails on start. Once the pac
 ```bash
 export OPENAI_API_KEY=...                          # or put it in a .env file
 engineering-team doctor                            # is this machine ready?
-engineering-team new --example tiny-notes          # a cheap bundled example (the smoke profile)
-engineering-team new --request-file my-idea.md --project-name my-idea
+engineering-team do --example tiny-notes           # a cheap bundled example (the smoke profile)
+engineering-team do --request-file my-idea.md --project-name my-idea
+engineering-team do "Fix the crash when the note list is empty" --repo ../my-service   # an existing project
+engineering-team do "Add dark mode" --dry-run      # only the plan: what it is, the stages, the cost
 ```
 
+`do` shows what it understood and what it will do, and asks before it starts (`--yes` skips the question).
+`new`, `feature`, `fix`, `maintain`, `review` and `analyze` are the same thing with the kind of work fixed.
 In a terminal you get a live view: progress, the task board as a kanban, parallel lanes and cost against
 your budget. The project appears in `./workspace/my-idea/`. Steer a run from another terminal with
 `board --watch`, `note`, `pause` and `cancel`; continue an interrupted one with `resume`.

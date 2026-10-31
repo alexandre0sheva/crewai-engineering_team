@@ -111,6 +111,40 @@ def build(ctx: RunContext, result: RunResult, exit_code: int, *, resumable: bool
     }
 
 
+def task_line(task: dict[str, Any]) -> str:
+    """What a ``do`` run was: the intents, size, risk and the rungs of the ladder it climbed."""
+
+    rungs = f", rungs {' -> '.join(task['rungs'])}" if task.get("rungs") else ""
+    return (
+        f"{' + '.join(task['intents'])}: {task['size']} task, {task['risk']} risk{rungs} "
+        f"(recipe {task['recipe'] or 'single agent'})"
+    )
+
+
+def delivery(data: dict[str, Any]) -> list[tuple[str, str]]:
+    """Where a repository run left its work: the branch (or copy) and the patch."""
+
+    found: list[tuple[str, str]] = []
+    isolation = data.get("isolation") or {}
+    if isolation.get("branch"):
+        found.append(("Branch", f"{isolation['branch']} ({isolation['workspace']})"))
+    elif isolation:
+        found.append(("Copy", str(isolation["workspace"])))
+    if data.get("patch"):
+        found.append(("Patch", str(data["patch"])))
+    return found
+
+
+def proof_line(checks: list[dict[str, Any]]) -> str | None:
+    """How the result was proved: the controller's required checks that passed."""
+
+    required = [c for c in checks if c["required"]]
+    if not required:
+        return None
+    passed = sum(1 for c in required if c["status"] == "passed")
+    return f"{passed} of {len(required)} required checks passed (run by the controller)"
+
+
 def _duration(ctx: RunContext) -> float:
     """Seconds from the run's creation to its end (or to now), from its manifest."""
 
@@ -127,12 +161,17 @@ def render_plain(data: dict[str, Any], console: Console) -> None:
 
     shown = data["verdict"] or data["status"]
     lines = [f"Run {data['run_id']}: {shown}", f"Duration: {_clock(data['duration_seconds'])}"]
+    if data.get("task"):
+        lines.append(f"Task: {task_line(data['task'])}")
+    if (proof := proof_line(data["checks"])) is not None:
+        lines.append(f"Proof: {proof}")
     lines += data["usage_text"] or [f"Estimated cost: {money(data['usage']['estimated_cost_usd'])}"]
     files = data["files_changed"]
     lines.append(
         f"Files: {files['added']} added, {files['modified']} modified, {files['deleted']} deleted"
     )
     lines.append(f"Workspace: {data['workspace']}")
+    lines.extend(f"{label}: {value}" for label, value in delivery(data))
     if data["report"]:
         lines.append(f"Report: {data['report']}")
     if data["run_report"]:
@@ -164,6 +203,10 @@ def render(data: dict[str, Any], console: Console) -> None:
     facts.add_column(style="dim")
     facts.add_column()
     facts.add_row("Duration", _clock(data["duration_seconds"]))
+    if data.get("task"):
+        facts.add_row("Task", Text(task_line(data["task"]), overflow="fold"))
+    if (proof := proof_line(data["checks"])) is not None:
+        facts.add_row("Proof", Text(proof, overflow="fold"))
     lines = data["usage_text"] or [
         f"Usage: {usage['tokens']:,} tokens in {usage['model_calls']} model call(s) and "
         f"{usage['tool_calls']} tool call(s)",
@@ -175,6 +218,8 @@ def render(data: dict[str, Any], console: Console) -> None:
         f"{files['added']} added · {files['modified']} modified · {files['deleted']} deleted",
     )
     facts.add_row("Workspace", Text(data["workspace"], overflow="fold"))
+    for label, value in delivery(data):
+        facts.add_row(label, Text(value, overflow="fold"))
     if data["report"]:
         facts.add_row("Report", Text(data["report"], overflow="fold"))
     if data["run_report"]:

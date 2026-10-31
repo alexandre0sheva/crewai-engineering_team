@@ -11,6 +11,15 @@ renames that section and dates it.
 
 ### Added
 
+- `engineering-team do "<request>"`, one entry point for every kind of request (and `engineering-team
+  "<request>"`, which is the same when it is a sentence): it triages the request, composes the plan, shows what it
+  understood, the stages with the reason for each, the rung the run starts on and an estimated cost, asks before
+  it starts (not with `--yes`, `--non-interactive`, `--json` or when piped) and then builds a new project,
+  changes the repository (`--repo`, or the current directory when it is a Git repository) on a branch, worktree
+  or copy, reviews a change, or maps a project. `--mode` forces the intent, `--recipe` runs a recipe of yours,
+  `--dry-run` stops after the plan and needs no API key. The plan is kept as `task_profile.json` in the run, and
+  the final summary (and `--json`) says what the task was, how it was proved and where the branch, patch and
+  report are. `new`, `feature`, `fix`, `maintain`, `review` and `analyze` stay as the presets of `do`.
 - The `auto` strategy, an escalation ladder: a run starts on the cheapest rung its size and risk allow (`solo`,
   one lead agent working alone; `team`, the lead with teammates on demand; `pipeline`, every stage of the
   recipe) and, when the controller's checks still fail after the rung's repair rounds or the agent is stuck,
@@ -90,6 +99,9 @@ renames that section and dates it.
 
 ### Changed
 
+- The end-of-run summary (and `--json`) of every command now shows how the result was proved (`Proof:`, the
+  controller's required checks) and, for the repository modes, the branch or copy and the patch; a `do` run adds
+  what the task was (`task`: intents, size, risk, rungs climbed).
 - The default strategy is `auto` (it was `pipeline`), for `new` and for the repository modes; `--strategy
   pipeline`, `team` or `single` still forces one. The starting rungs are provisional until the 0.3.0 live
   evaluation.
@@ -132,6 +144,8 @@ renames that section and dates it.
 
 ### Fixed
 
+- Triage no longer calls a pasted stack trace or failing test a new project when there is no directory to run it
+  in: it is a question.
 - A zero price override (`[pricing."ollama/*"]`) reported an unknown cost for local models: a model call made
   without an agent was logged under its bare name; it now carries its provider, so the cost reads `$0.00`.
 - `Roster.assign` never saw the run's mode, so `modes = [...]` on a teammate was ignored in real runs.

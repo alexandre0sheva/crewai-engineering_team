@@ -435,6 +435,18 @@ profile goes on with its questions recorded as assumptions.
 `bench triage` measures all of this on `benchmarks/triage/cases.yaml`
 ([BENCHMARKS.md](BENCHMARKS.md#triage-bench-triage)).
 
+**`do`** (`cli/do_command.py`, `cli/do_plan.py`) is where triage meets a run. It finds the project
+(`--repo`, else the current directory when it is a Git repository, else a new project), classifies the
+request (the signals alone when no model can be called, so `--dry-run` needs no key), settles the
+questions, composes the recipe from the profile (`pipeline/compose.py`, or the recipe you name) and
+shows the plan with the ladder's starting rung and a cost estimate. The route follows the profile:
+a new project goes through the `new` path, a change through `cli/repo_mode.py` (a branch, worktree or
+copy) with the composed recipe, a review through `review` and a question about a project through
+`analyze --deep`. The controller still sizes the run itself (`pipeline/lean.py`) and picks the rung
+from that size; the triage size decides which stages the composed recipe has. The plan is written to
+`runs/<id>/task_profile.json`. `new`, `feature`, `fix`, `maintain`, `review` and `analyze` are the
+same routes with the intent fixed and no preview.
+
 ## Pipeline, recipes, and resume
 
 The `pipeline` strategy replaces the fixed six-task crew with a controller that is resumable,
