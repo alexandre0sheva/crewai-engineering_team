@@ -7,7 +7,8 @@ The rungs, cheapest first:
 * ``team``: the lead with delegation enabled, its cap set by the task's size;
 * ``pipeline``: the mode's full recipe (parallel packages, reviewers), mainly for large new
   projects;
-* ``attempts``: best-of-N attempts, which T23 adds.
+* ``attempts``: best-of-N attempts of the ``team`` rung (``pipeline/attempts.py``), only when
+  ``ladder.max_rung = "attempts"`` asks for it.
 
 The starting rung comes from the task's size and risk (``ladder.*``; the size is the lean
 profile's, decided before any model is called). When a rung's verification still fails after its
@@ -43,9 +44,15 @@ if TYPE_CHECKING:
     from engineering_team.settings import Settings
 
 RUNGS_DIR = "rungs"  # each rung's final pipeline.json, as rungs/<rung>.json
-RUNGS: tuple[RungName, ...] = ("solo", "team", "pipeline")  # T23 adds "attempts" on top
-# The token priors (``bench/estimate.py``) a rung is estimated with, and the task scale per size.
-ESTIMATE_AS: dict[str, str] = {"solo": "single", "team": "team", "pipeline": "pipeline"}
+RUNGS: tuple[RungName, ...] = ("solo", "team", "pipeline", "attempts")
+# The token priors (``bench/estimate.py``) a rung is estimated with, and the task scale per size
+# (the ``attempts`` rung: ``attempts.ladder_count`` walks of the ``team`` prior, and the judge).
+ESTIMATE_AS: dict[str, str] = {
+    "solo": "single",
+    "team": "team",
+    "pipeline": "pipeline",
+    "attempts": "team",
+}
 SIZE_SCALE: dict[str, float] = {"small": 1.0, "medium": 1.5, "large": 2.5}  # provisional (T33)
 # The stop causes (``PipelineState.stopped_by``) that escalate: anything else (a budget stop, a
 # cancel, a bug the team could not reproduce, a setup problem) ends the run where it is.
@@ -113,9 +120,12 @@ def next_rung(rung: str, top: str) -> RungName | None:
 
 
 def rung_recipe(base: Recipe, rung: str, *, escalated: bool) -> Recipe:
-    """The recipe a rung walks; an escalated rung's has no skeleton (deterministic, so a resumed
-    rung gets the same digest)."""
+    """The recipe a rung walks (the ``attempts`` rung: what each attempt walks, the ``team``
+    rung's); an escalated rung's has no skeleton (deterministic, so a resumed rung gets the same
+    digest)."""
 
+    if rung == "attempts":
+        rung = "pipeline" if lead_problem(base) else "team"
     recipe = base if rung == "pipeline" else lead_recipe(base, alone=rung == "solo")
     return without_skeleton(recipe) if escalated else recipe
 
@@ -170,6 +180,11 @@ def carried_from(state: PipelineState) -> dict[str, Any]:
 def estimate_usd(settings: Settings, rung: str, size: str) -> float | None:
     """What one walk of ``rung`` is estimated to cost (``None``: a model has no price)."""
 
+    if rung == "attempts":
+        from engineering_team.pipeline.attempts import estimate_attempts  # it imports this module
+
+        count = settings.attempts.ladder_count
+        return estimate_attempts(settings, ESTIMATE_AS[rung], size, count)
     cost, _ = per_run_cost(settings, ESTIMATE_AS[rung], SIZE_SCALE.get(size, 1.0))
     return cost
 

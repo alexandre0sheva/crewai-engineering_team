@@ -307,21 +307,33 @@ class DelegationSettings(_Frozen):
         return value
 
 
-RungName = Literal["solo", "team", "pipeline"]
+StartRung = Literal["solo", "team", "pipeline"]
+RungName = Literal["solo", "team", "pipeline", "attempts"]
 
 
 class LadderSettings(_Frozen):
     """The ``auto`` strategy's escalation ladder (``pipeline/ladder.py``).
 
     The rung a task starts on comes from its size, raised to ``start_high_risk`` for a high-risk
-    one; a rung whose verification still fails escalates to the next, up to ``max_rung``. The
-    defaults are provisional until the 0.3.0 live evaluation (T33) measures them."""
+    one; a rung whose verification still fails escalates to the next, up to ``max_rung``
+    (``attempts``, best-of-N, only when asked for). The defaults are provisional until the 0.3.0
+    live evaluation (T33) measures them."""
 
-    start_small: RungName = "solo"
-    start_medium: RungName = "team"
-    start_large: RungName = "pipeline"
-    start_high_risk: RungName = "team"  # the lowest rung a high-risk task starts on
+    start_small: StartRung = "solo"
+    start_medium: StartRung = "team"
+    start_large: StartRung = "pipeline"
+    start_high_risk: StartRung = "team"  # the lowest rung a high-risk task starts on
     max_rung: RungName = "pipeline"  # the highest rung escalation may reach
+
+
+class AttemptsSettings(_Frozen):
+    """Best-of-N attempts (``pipeline/attempts.py``): ``count`` attempts of every run (1: off;
+    ``--attempts N``), ``ladder_count`` on the ladder's ``attempts`` rung, and what differs
+    between attempts. Provisional until T33."""
+
+    count: int = Field(default=1, ge=1, le=8)
+    ladder_count: int = Field(default=3, ge=2, le=8)
+    vary: Literal["seed", "model", "harness"] = "seed"
 
 
 class FixSettings(_Frozen):

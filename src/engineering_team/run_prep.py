@@ -103,6 +103,12 @@ def _run_parser() -> argparse.ArgumentParser:
         "docs/ARCHITECTURE.md.",
     )
     parser.add_argument(
+        "--attempts",
+        type=int,
+        help="Best-of-N: run N independent attempts, verify each, and keep the one a blind "
+        "judge chooses among those that passed (1 to 8; default 1). See docs/USAGE.md.",
+    )
+    parser.add_argument(
         "--allow-web",
         action="store_true",
         help="Let the team use the web tools (search, fetch, package info). Off by default; "
@@ -146,6 +152,7 @@ def _cli_overrides(args: Any) -> dict[str, Any]:
         "provider": getattr(args, "provider", None),
         "profile": getattr(args, "profile", None),
         "strategy": getattr(args, "strategy", None),
+        "attempts.count": getattr(args, "attempts", None),
         "verify.checks_file": _absolute(getattr(args, "checks", None)),
         "git.enabled": False if getattr(args, "no_git", False) else None,
         "execution.backend": getattr(args, "sandbox", None),

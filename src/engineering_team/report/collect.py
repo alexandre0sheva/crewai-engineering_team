@@ -23,6 +23,7 @@ from engineering_team.contracts import (
     RunManifest,
     UsageReport,
 )
+from engineering_team.pipeline.attempts_contracts import AttemptsRecord
 from engineering_team.pipeline.ladder_contracts import LadderRecord
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.pricing import PriceTable, default_prices
@@ -104,6 +105,7 @@ def build_report(run_dir: Path) -> RunReport:
         summaries=dict(state.summaries) if state else {},
         delegations=list(state.delegations) if state else [],
         ladder=LadderRecord.load(run_dir),
+        attempts=AttemptsRecord.load(run_dir),
         answer=state.answer if state else None,
         answer_check=state.answer_check if state else None,
         thread=build_thread(run_dir, manifest),

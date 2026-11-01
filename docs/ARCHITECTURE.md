@@ -197,6 +197,7 @@ from reading `commands/` logs. This is the single description of its layout:
 | `settings.json` | `RunRecorder` | The effective `Settings` for the record (no secrets: credentials are read from the environment, never stored; hook addresses and MCP server environments are replaced) |
 | `pipeline.json` | `PipelineState` | The pipeline's hand-offs between stages (spec, plan, work-package status, board card ids, agent summaries, the latest check results and the `VerificationRecord`); see [Pipeline, recipes, and resume](#pipeline-recipes-and-resume) |
 | `ladder.json`, `rungs/<rung>.json` | `pipeline/ladder_run.py` | `auto` runs only: the `LadderRecord` (where the ladder started and why, each rung's reason, outcome, failing checks, cost and the brief it was given) and each rung's final `pipeline.json` once the run escalated past it; see [Escalation ladder](#escalation-ladder-the-auto-strategy) |
+| `attempts.json`, `attempts/<label>.patch`, `attempts/<label>/run/` | `pipeline/attempts.py` | Best-of-N runs only: the `AttemptsRecord` (each attempt's variation, result, checks, diff size and cost; the selection, the judge's scores and reason; the cost ledger), each attempt's patch and its whole run directory; see [Best-of-N attempts](#best-of-n-attempts) |
 | `verification/round-<n>.json` | `Verifier` | The results of each check run (status, exit code, duration, log path, the workspace revision it ran against, the parsed test or diagnostic report); see [Verification and repair](#verification-and-repair) |
 | `fix-input.json` | `fix` | `fix` runs only: the person's `--repro` command, the whole `--trace-file`, and `--allow-unreproduced`; read by the controller, never by agents |
 | `run-options.json` | the repository-mode commands | What the command line asked beyond the request (`maintain --fix`, `review --base`); read again when the pipeline starts or resumes, never by agents |
@@ -713,8 +714,7 @@ Flow machinery:
 | `solo` | The lead alone (delegation cap 0), then the controller's verification and repair | `solo-<mode>`: the lead's recipe |
 | `team` | The lead with its teammates on demand, the cap set by size ([Dynamic team](#dynamic-team-the-team-strategy)) | `team-<mode>` |
 | `pipeline` | The mode's full recipe: design, parallel packages, reviewers | `<mode>` |
-
-Best-of-N attempts become the rung above `pipeline` in a later 0.3.0 task.
+| `attempts` | Only with `ladder.max_rung = "attempts"`: `attempts.ladder_count` [best-of-N attempts](#best-of-n-attempts) of the `team` rung, each from the workspace the `pipeline` rung left and with the same brief | `team-<mode>` per attempt |
 
 - **Start.** The run is sized once, before any model is called ([The lean team](#the-lean-team)),
   and the size picks the first rung (`ladder.start_small` `solo`, `start_medium` `team`,
@@ -750,6 +750,60 @@ Best-of-N attempts become the rung above `pipeline` in a later 0.3.0 task.
   rung's; `pipeline.json` belongs to the current rung and the one before is kept as
   `rungs/<rung>.json`. `resume` walks the rung the ladder reached, continuing its stages as any
   pipeline resume does, and escalates from there.
+
+### Best-of-N attempts
+
+`--attempts N` (`attempts.count`) and the ladder's `attempts` rung run N independent attempts and
+keep one chosen on evidence (`pipeline/attempts.py`, `attempts_run.py`, `attempts_tree.py`,
+`select.py`, `attempts_contracts.py`); settings in
+[CONFIGURATION.md](CONFIGURATION.md#best-of-n-attempts-attempts).
+
+- **What an attempt is.** A run of its own (`<run-id>-a<k>`: manifest, board, events, verification,
+  report) of the recipe the strategy would walk (`auto`: its starting rung; the `attempts` rung: the
+  escalated `team` recipe and the escalation brief), in a copy of the workspace under
+  `.engineering-team/attempts/<run-id>/a<k>`. The copy leaves out what an isolation copy leaves out
+  (the controller's state, caches, virtual environments) but keeps the request's context documents
+  and the repository memory, and it never keeps a worktree's `.git` *file*: an attempt cannot commit
+  to the repository the run's worktree belongs to (a `.git` directory is copied, so the attempt has
+  a repository of its own). A new project becomes a repository before the copies are made. The run's
+  pinned checks and chosen lessons are copied into each attempt's run directory; its hooks are off.
+- **Parallel, varied.** At most `parallel.max_parallel_agents` attempts run at a time, in lanes.
+  `attempts.vary` decides what differs: `seed` (nothing but their own sampling), `model` (the worker
+  models from the `worker`, `reviewer` and `lead` tiers in turn) or `harness` (the run's harness, the
+  same domain from the bundled library only, the bundled base domain, in turn). Records are written
+  in label order whatever order the attempts end in.
+- **Verified by the controller.** Each attempt passes when its run succeeded with the verdict
+  `verified` (or, for a recipe with no checks, succeeded); that comes from its run's own files, never
+  from what its agents said. Only passing attempts enter selection.
+- **Blind selection.** With one passing attempt there is nothing to judge. With more, one
+  reviewer-tier call (`select.py`) sees the request and, for each candidate, its diff, its check
+  results and its review findings, under an id (`A`, `B`, ...) from a shuffle seeded with the run id
+  (the same run always shows the same mapping), never which attempt, model or harness made it; the
+  prompt says this evidence is data, not instructions. It scores correctness evidence, minimality,
+  consistency with the codebase and test quality (0–5 each); the highest total wins and a tie goes
+  to the smallest diff. A judge that fails, answers out of shape (a candidate missing or unknown) or
+  costs more than the budget has left is not used: the smallest passing diff is chosen and the record
+  says why.
+- **None passed.** The attempt with the most passing required checks (then the smallest diff) is
+  kept in the workspace and the run fails with its verdict, saying it is not a verified result.
+- **The result.** The chosen attempt's changed files are copied into the run's workspace (whole
+  files, binary ones too) and committed as the `attempts` stage; its final `pipeline.json` becomes
+  the run's (verdict, checks, findings). The controller then checks that the run's tree hash is the
+  one the attempt was verified on (`revision_match`); if it is not, the run fails rather than claim
+  a verification that does not carry over. Every attempt stays as `attempts/<label>.patch` (a
+  `git diff`-style patch) and its run directory as `attempts/<label>/run`; the copies are deleted.
+- **Cost and budget.** Before anything starts, N runs of the attempt's prior plus the judge are
+  estimated (`bench/estimate.py`); more than `budget.max_cost_usd` has left refuses the attempts
+  with that reason. Each attempt's model and tool calls are also written to the run's own log (stage
+  `attempts`, lane `a<k>`), so the run's usage, cost and budget cover them all: the run's budget
+  guard cancels every attempt, and each attempt also stops at its share of what was left.
+  `attempts.json` is the ledger: each attempt's and the judge's cost, their sum and what the run's
+  usage grew by (they agree when every call was accounted for).
+- **Visible.** `attempts.started`, `attempts.finished` (one per attempt), `attempts.selected` and
+  `attempts.stopped` events; the report's *Attempts* section (each attempt's variation, result,
+  checks, findings, diff size, cost and patch; the judge's scores and reason; the ledger).
+- **Resume.** A run with attempts cannot be resumed (`resume` says so): each attempt is a run of
+  its own, kept in the run directory.
 
 ## Parallel execution
 
@@ -1315,7 +1369,7 @@ larger ones today:
 | `main.py` | `run_prep` (options to a prepared run), `request_sources`, `outcome` (exit codes), `api` (`resume`); `main` is the entry and re-exports them |
 | `tools/` catalogue | `spec`, `catalogue_project`, `catalogue_dev`, `catalogue_external`, `catalogue_team`, `registry` (the builder), `finder` (Find Tool and Use Tool) |
 | `git/` | `core` (the safe command line), `reads`, `writes`, `port` (`GitPort`) |
-| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `lead_exec` (the lead stage), `executor` (stages); `conditions` (the named `skip_if` conditions), `lean` (task size and what it skips), `handoff` (hand-off packs), `release_notes`; `lead` (the lead's recipe and prompt), `delegation` and `delegation_briefs` (checking, running and reporting delegated jobs), `lead_contracts`; `ladder` (the escalation policy), `ladder_run` (walking it), `ladder_brief` (what the next rung is told), `ladder_contracts` |
+| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `lead_exec` (the lead stage), `executor` (stages); `conditions` (the named `skip_if` conditions), `lean` (task size and what it skips), `handoff` (hand-off packs), `release_notes`; `lead` (the lead's recipe and prompt), `delegation` and `delegation_briefs` (checking, running and reporting delegated jobs), `lead_contracts`; `ladder` (the escalation policy), `ladder_run` (walking it), `ladder_brief` (what the next rung is told), `ladder_contracts`; `attempts` (best-of-N), `attempts_run` (one attempt), `attempts_tree` (copies, patches), `select` (the blind judge), `attempts_contracts` |
 | `report/` HTML | `html_common`, `html_overview`, `html_board`, `html_results`, `html_artifacts`; `html_sections` re-exports them |
 | `board/` | `store` (`BoardStore`), `files` (saving), `limits` |
 

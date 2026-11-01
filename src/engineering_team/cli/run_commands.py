@@ -17,6 +17,7 @@ from engineering_team.cli.context import Globals, fail, one_of, print_json
 from engineering_team.cli.context import get as get_globals
 from engineering_team.intake.bundle import STDIN
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
+from engineering_team.pipeline.attempts_contracts import ATTEMPTS_FILENAME
 from engineering_team.pipeline.runner import execute_run
 from engineering_team.pipeline.strategies import STRATEGY_NAMES
 from engineering_team.runtime.budget import Budget
@@ -63,7 +64,9 @@ def present_run(
             ctx, prepared.bundle, strategy=prepared.strategy, recipe=prepared.recipe
         )
     code = engine.exit_code_for(result)
-    data = summary.build(ctx, result, code, resumable=prepared.strategy.resumable)
+    # A best-of-N run cannot be resumed: each attempt is a run of its own.
+    resumable = prepared.strategy.resumable and not (ctx.run_dir / ATTEMPTS_FILENAME).is_file()
+    data = summary.build(ctx, result, code, resumable=resumable)
     if extra is not None:
         extra(data)
     if g.json:
@@ -72,7 +75,7 @@ def present_run(
         summary.render(data, console)
     else:
         summary.render_plain(data, console)
-    line = engine.failure_line(result, resumable=prepared.strategy.resumable)
+    line = engine.failure_line(result, resumable=resumable)
     if line is not None:  # the panel is for people; this line is for logs and scripts
         print(line, file=sys.stderr)
     return code
@@ -144,6 +147,10 @@ def new(
         str | None,
         typer.Option(callback=one_of(list(STRATEGY_NAMES)), help="How the team is orchestrated."),
     ] = None,
+    attempts: Annotated[
+        int | None,
+        typer.Option(min=1, max=8, help="Best-of-N: N verified attempts, one chosen blind."),
+    ] = None,
     allow_web: Annotated[bool, typer.Option(help="Let the team use the web tools.")] = False,
     checks: Annotated[
         str | None, typer.Option(help="YAML file of your own checks (not with --strategy single).")
@@ -180,6 +187,7 @@ def new(
         profile=profile,
         provider=provider,
         strategy=strategy,
+        attempts=attempts,
         allow_web=allow_web,
         checks=checks,
         no_git=no_git,

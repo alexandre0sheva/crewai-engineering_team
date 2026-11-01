@@ -363,6 +363,30 @@ not create is never modified (pass `--adopt` to let the team work in one, [below
 `--force-reset` overrides the ownership check, but your home directory, the current
 directory and its parents, the filesystem root, symlinks, and the installation itself are always refused.
 
+### Best of N attempts
+
+When one try is not enough, `--attempts N` (`new`, `do`, `continue`; 2 to 8) runs N independent
+attempts of the task side by side, each in its own copy of the project and each checked by the
+controller. Only attempts whose checks pass are candidates; a judge that sees them under anonymous
+ids (`A`, `B`, ...) and never knows which attempt, model or harness made them picks the one with the
+best evidence, the smallest change and the most fitting code and tests (a tie goes to the smaller
+diff), and that attempt's changes become the run's. `--attempts 3` costs about three runs plus one
+judge call; the plan preview shows the estimate, and a run whose budget cannot pay for it is refused
+before anything starts.
+
+```bash
+engineering-team do "Add a search command that finds notes by text" --attempts 3
+```
+
+The run report's *Attempts* section lists every attempt (what varied, whether its checks passed,
+its diff size and cost, its patch), the judge's scores and its reason. Each attempt's patch is kept
+as `attempts/a<k>.patch` in the run directory, so you can apply another one yourself
+(`git apply`). If no attempt passed, the one that came closest is left in the workspace and the run
+fails, saying it is not verified. `attempts.vary` makes the attempts differ by model or harness
+instead of only by chance, and `ladder.max_rung = "attempts"` lets the default strategy climb to
+best-of-N on its own ([CONFIGURATION.md](CONFIGURATION.md#best-of-n-attempts-attempts)). A run with
+attempts cannot be resumed; start a new one.
+
 ## Adopting an existing project
 
 Everything above builds a project from nothing. For a project that already exists the team first has to

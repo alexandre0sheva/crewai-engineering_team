@@ -66,7 +66,10 @@ a profile.
 | `delegation.max_iter` | – | `20` | The most model calls one delegated job may make (2–60); the lead may ask for fewer, never more |
 | `ladder.start_small`, `ladder.start_medium`, `ladder.start_large` | – | `solo`, `team`, `pipeline` | The rung an `auto` run starts on for a small, medium or large task (`solo`, `team` or `pipeline`). See [Escalation ladder](#escalation-ladder-ladder) |
 | `ladder.start_high_risk` | – | `team` | The lowest rung a high-risk request (auth, secrets, payments, uploads, ...) starts on |
-| `ladder.max_rung` | `ENGINEERING_LADDER_MAX_RUNG` | `pipeline` | The highest rung an `auto` run may start on or escalate to; `solo` never escalates |
+| `ladder.max_rung` | `ENGINEERING_LADDER_MAX_RUNG` | `pipeline` | The highest rung an `auto` run may start on or escalate to; `solo` never escalates, `attempts` adds best-of-N above `pipeline` |
+| `attempts.count` | `ENGINEERING_ATTEMPTS` | `1` | Best-of-N: run every run as this many verified attempts and keep one (1–8; 1 is off). `--attempts N` (`new`, `do`, `continue`) overrides it. See [Best-of-N attempts](#best-of-n-attempts-attempts) |
+| `attempts.ladder_count` | – | `3` | How many attempts the ladder's `attempts` rung runs (2–8) |
+| `attempts.vary` | `ENGINEERING_ATTEMPTS_VARY` | `seed` | What differs between attempts: `seed` (only their own sampling), `model` (the worker models, from the `worker`, `reviewer` and `lead` tiers in turn) or `harness` (the run's harness, the bundled library only, the base domain) |
 | `learning.reflect` | `ENGINEERING_LEARNING_REFLECT` | `true` | The end-of-run `reflect` stage that learns a lesson from a verified run; see [Lessons](#lessons-learning) |
 | `learning.review` | `ENGINEERING_LEARNING_REVIEW` | `auto` | `auto` stores a vetted lesson at once; `manual` keeps it in `pending/` until `engineering-team lessons approve ID` |
 | `tools.lazy` | `ENGINEERING_LAZY_TOOLS` | `true` | Hold rarely used tools back behind Find Tool and Use Tool, so every model call sends fewer tool schemas ([TOOLS.md](TOOLS.md#held-back-tools-find-tool-and-use-tool)); `false` gives every agent all its tools |
@@ -634,6 +637,30 @@ max_rung = "pipeline"      # "team" never runs the full pipeline; "solo" never e
 ```
 
 `--strategy single`, `team` or `pipeline` (or `strategy = ...`) runs one of them without the ladder.
+
+### Best-of-N attempts (`[attempts]`)
+
+`--attempts N` (or `attempts.count = N`) runs N independent attempts of what the strategy would run
+(`auto`: the rung it would start on, without escalating), each in a copy of the workspace and each
+verified by the controller; a blind judge on the `reviewer` tier (`models.roles.attempts_judge`
+overrides its model) picks among those that passed, and the chosen attempt's changes become the
+run's ([how it works](ARCHITECTURE.md#best-of-n-attempts)). `ladder.max_rung = "attempts"` adds the
+same as the ladder's last rung: `ladder_count` attempts of the `team` rung after the `pipeline`
+rung's checks still fail. Attempts cost about N runs plus the judge: the run is refused before any
+attempt starts when that estimate is more than [`budget.max_cost_usd`](#budgets) has left, each
+attempt gets an equal share of what is left, and the run's own budget stops them all. The values
+are provisional until the 0.3.0 live evaluation measures them; a run with attempts cannot be
+resumed.
+
+```toml
+[attempts]
+count = 3            # every run is best-of-3 (1: off)
+ladder_count = 3     # the attempts rung, when ladder.max_rung = "attempts"
+vary = "model"       # seed, model or harness
+
+[ladder]
+max_rung = "attempts"
+```
 
 ### Review (`[review]` and `team_profile`)
 

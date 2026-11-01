@@ -11,6 +11,16 @@ renames that section and dates it.
 
 ### Added
 
+- Best-of-N attempts ([docs/USAGE.md](docs/USAGE.md#best-of-n-attempts)): `--attempts N` (`new`, `do`, `continue`;
+  `attempts.count`) runs N independent attempts side by side, each in its own copy of the project and each verified
+  by the controller. A blind judge on the reviewer tier, which sees the passing ones under anonymous ids and never
+  knows which attempt, model or harness made them, picks one on correctness evidence, minimality, consistency and
+  tests (a tie, or a judge that fails, goes to the smallest diff), and its changes become the run's; when none
+  passes, the closest is kept and the run fails as unverified. Attempts can differ by chance, model or harness
+  (`attempts.vary`); the run is refused before it starts when the budget cannot pay for them. The report's
+  *Attempts* section shows every attempt with its checks, diff, cost and patch, the judge's scores and reason, and the
+  cost ledger; every attempt is kept as a patch and a run of its own. `ladder.max_rung = "attempts"` adds the same as
+  the escalation ladder's last rung.
 - Acceptance tests first ([docs/USAGE.md](docs/USAGE.md#feature-mode)): before anyone implements a feature, the
   quality engineer writes tests for its criteria in new test files, and the controller keeps only those it sees fail
   on the project as it is for the right reason (a wrong result or the missing symbol, not a syntax error, a missing

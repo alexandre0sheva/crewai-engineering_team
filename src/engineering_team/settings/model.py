@@ -51,6 +51,7 @@ from engineering_team.settings.sections import (
     WEB_KEY_ENV,
     AcceptanceSettings,
     AnalysisSettings,
+    AttemptsSettings,
     BrowserSettings,
     BudgetSettings,
     DelegationSettings,
@@ -121,6 +122,7 @@ class Settings(_Frozen):
     lean: LeanSettings = LeanSettings()
     delegation: DelegationSettings = DelegationSettings()
     ladder: LadderSettings = LadderSettings()
+    attempts: AttemptsSettings = AttemptsSettings()
     fix: FixSettings = FixSettings()
     acceptance: AcceptanceSettings = AcceptanceSettings()
     maintain: MaintainSettings = MaintainSettings()

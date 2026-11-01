@@ -26,8 +26,10 @@ from engineering_team.intake.triage import (
 )
 from engineering_team.intake.triage_rules import MODE_INTENTS
 from engineering_team.modes.threads import ThreadLink
+from engineering_team.pipeline.attempts import estimate_attempts
 from engineering_team.pipeline.compose import compose
 from engineering_team.pipeline.compose_rules import ComposeError
+from engineering_team.pipeline.ladder import ESTIMATE_AS as RUNG_ESTIMATE
 from engineering_team.pipeline.ladder import RUNGS, SIZE_SCALE, estimate_usd, money, plan_ladder
 from engineering_team.pipeline.ladder_contracts import LadderRecord
 from engineering_team.pipeline.lean import assess
@@ -66,6 +68,8 @@ class DoPlan:
     recipe: Recipe | None = None  # None: the single-agent baseline, or a route with its own flow
     stages: list[PlanStage] = field(default_factory=list)
     ladder: LadderRecord | None = None
+    attempts: int = 1  # best-of-N (``attempts.count``)
+    vary: str = "seed"
     size: str = "small"  # the size the controller sizes the run with (``lean``)
     first_usd: float | None = None
     worst_usd: float | None = None
@@ -176,6 +180,8 @@ def plan_request(
         triage=result,
         route=route,
         strategy=settings.strategy,
+        attempts=settings.attempts.count,
+        vary=settings.attempts.vary,
         budget_usd=settings.budget.max_cost_usd,
         notes=notes,
     )
@@ -212,6 +218,13 @@ def _estimate(plan: DoPlan, settings: Settings) -> None:
         plan.stages = [
             PlanStage("build", "agent", f"One agent with every tool (--strategy {plan.strategy}).")
         ]
+    if plan.attempts > 1:  # best-of-N of what the strategy would run first; no escalation
+        start = plan_ladder(settings, lean, plan.recipe).start if plan.recipe else ""
+        kind = RUNG_ESTIMATE[start] if plan.strategy == "auto" and start else None
+        kind = kind or ESTIMATE_AS.get(plan.strategy, "pipeline")
+        cost = estimate_attempts(settings, kind, lean.size, plan.attempts)
+        plan.first_usd = plan.worst_usd = cost
+        return
     if plan.strategy == "auto" and plan.recipe is not None:
         plan.ladder = plan_ladder(settings, lean, plan.recipe)
         rungs = RUNGS[RUNGS.index(plan.ladder.start) : RUNGS.index(plan.ladder.max_rung) + 1]
@@ -289,6 +302,13 @@ def _route_line(plan: DoPlan) -> str:
         if plan.profile.primary == "plan_only":
             return "Plan: write a plan, read-only; nothing is implemented. Stages:"
         return f"Plan: answer read-only{read}; the controller checks every citation. Stages:"
+    if plan.attempts > 1:
+        name = plan.recipe.name if plan.recipe is not None else "one agent"
+        return (
+            f"Plan: best of {plan.attempts} attempts (strategy {plan.strategy}, varied by "
+            f"{plan.vary}), each verified, one chosen by a blind judge; recipe {name} "
+            f"({plan.size} task); stages of each attempt:"
+        )
     ladder = plan.ladder
     if ladder is not None:
         climb = "" if ladder.max_rung == ladder.start else f", climbing to {ladder.max_rung}"
@@ -341,6 +361,7 @@ def plan_document(plan: DoPlan) -> dict[str, Any]:
         "ladder": {"start": ladder.start, "max": ladder.max_rung, "reasons": ladder.reasons}
         if ladder
         else None,
+        "attempts": {"count": plan.attempts, "vary": plan.vary},
         "size": plan.size,
         "estimate_usd": {"first": plan.first_usd, "worst": plan.worst_usd},
         "budget_usd": plan.budget_usd,

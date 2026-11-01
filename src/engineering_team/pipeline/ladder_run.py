@@ -5,7 +5,9 @@ and after a walk that failed on the evidence (verification still failing, or a w
 could not deliver) escalates to the next rung on the same workspace: it keeps the rung's state as
 ``rungs/<rung>.json``, writes the next rung's brief, notes the move on the board card where the
 rung stopped, and records ``ladder.escalated``. A rung is never started when its estimated cost is
-more than the budget has left; the run then stops and says so.
+more than the budget has left; the run then stops and says so. The ``attempts`` rung (the top,
+when ``ladder.max_rung`` allows it) is not a walk but best-of-N (``attempts.py``): each attempt
+starts from the workspace the ``pipeline`` rung left, with the same brief.
 """
 
 from __future__ import annotations
@@ -17,9 +19,11 @@ from dataclasses import replace
 from engineering_team.board.models import CONTROLLER
 from engineering_team.board.store import BoardError
 from engineering_team.contracts import RunManifest, RunStatus, utc_now
+from engineering_team.pipeline.attempts import RunnerFactory, run_attempts
 from engineering_team.pipeline.flow import run_flow
 from engineering_team.pipeline.ladder import (
     ESCALATE_ON,
+    ESTIMATE_AS,
     RUNGS,
     RUNGS_DIR,
     affordable,
@@ -36,7 +40,6 @@ from engineering_team.pipeline.ladder_brief import escalation_brief, failing_che
 from engineering_team.pipeline.ladder_contracts import LadderRecord, RungRecord
 from engineering_team.pipeline.lean import assess, count_files
 from engineering_team.pipeline.recipes import Recipe
-from engineering_team.pipeline.stages import StageRunner
 from engineering_team.pipeline.state import STATE_FILENAME, PipelineState, RunBundle, RungSeed
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.run_store import RunStore
@@ -45,10 +48,11 @@ MAX_REASON = 300
 
 
 def run_ladder(
-    ctx: RunContext, base: Recipe, bundle: RunBundle, runner: StageRunner
+    ctx: RunContext, base: Recipe, bundle: RunBundle, runner_factory: RunnerFactory
 ) -> tuple[RunStatus, str]:
     """Climb the ladder for ``base`` (the mode's recipe) until a rung succeeds or it must stop."""
 
+    runner = runner_factory()
     record = LadderRecord.load(ctx.run_dir) if bundle.resume else None
     if record is None or record.current is None:  # also a run no rung fitted the budget of
         record = _plan(ctx, base, bundle)
@@ -85,7 +89,14 @@ def run_ladder(
             checks_digest=bundle.checks_digest or pinned.get("checks_digest", ""),
             script_digests=bundle.script_digests or pinned.get("script_digests", {}),
         )
-        status, error = run_flow(ctx, recipe, walk, runner)
+        if rung.rung == "attempts":
+            status, error = run_attempts(
+                ctx, recipe, walk, runner_factory,
+                count=ctx.settings.attempts.ladder_count, kind=ESTIMATE_AS[rung.rung],
+                strategy="auto", source="ladder",
+            )  # fmt: skip
+        else:
+            status, error = run_flow(ctx, recipe, walk, runner)
         state = PipelineState.load(ctx.run_dir) or PipelineState()
         _close(ctx, rung, status, state, error)
         if status == "succeeded":

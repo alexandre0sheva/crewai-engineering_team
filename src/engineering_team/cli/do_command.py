@@ -164,6 +164,10 @@ def do(
         str | None,
         typer.Option(callback=one_of(list(STRATEGY_NAMES)), help="How the team is orchestrated."),
     ] = None,
+    attempts: Annotated[
+        int | None,
+        typer.Option(min=1, max=8, help="Best-of-N: N verified attempts, one chosen blind."),
+    ] = None,
     allow_web: Annotated[bool, typer.Option(help="Let the team use the web tools.")] = False,
     checks: Annotated[
         str | None, typer.Option(help="YAML file of your own checks (kept outside the project).")
@@ -185,7 +189,8 @@ def do(
     if inline == STDIN:
         inline, files = None, [STDIN, *files]
     options = SimpleNamespace(
-        provider=provider, profile=profile, strategy=strategy, allow_web=allow_web, checks=checks,
+        provider=provider, profile=profile, strategy=strategy, attempts=attempts,
+        allow_web=allow_web, checks=checks,
         sandbox=sandbox, no_git=no_git, verbose=g.verbose, workspace_root=g.workspace_root,
         project_name=project_name, no_acceptance=no_acceptance,
     )  # fmt: skip

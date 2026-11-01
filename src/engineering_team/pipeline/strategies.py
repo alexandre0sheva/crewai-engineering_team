@@ -13,6 +13,10 @@
   rung the task's size and risk call for (a lead alone, a lead with teammates, or the full
   pipeline) and escalates on the same workspace while verification fails.
 
+With ``attempts.count`` above 1 (``--attempts N``) every strategy runs best-of-N instead
+(``pipeline/attempts.py``): N attempts of the recipe it would walk (``auto``: the rung it would
+start on), each verified, one chosen blind.
+
 A strategy runs *inside* ``recorder.running()`` (``pipeline/runner.py``) and returns how its work
 ended; an exception means the run failed.
 """
@@ -20,17 +24,21 @@ ended; an exception means the run failed.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import Protocol
 
-from engineering_team.contracts import RunVerdict
+from engineering_team.contracts import RunStatus, RunVerdict
+from engineering_team.pipeline.attempts import run_attempts, wants_attempts
 from engineering_team.pipeline.flow import run_flow
+from engineering_team.pipeline.ladder import ESTIMATE_AS, plan_ladder, rung_recipe
 from engineering_team.pipeline.ladder_contracts import LadderRecord
 from engineering_team.pipeline.ladder_run import current_recipe, run_ladder
 from engineering_team.pipeline.lead import lead_recipe
+from engineering_team.pipeline.lean import assess, count_files
 from engineering_team.pipeline.recipes import Recipe, StageSpec, load_recipe
 from engineering_team.pipeline.stages import CrewStageRunner, StageRunner
-from engineering_team.pipeline.state import PipelineState, RunBundle, RunResult
+from engineering_team.pipeline.state import PipelineState, RunBundle, RungSeed, RunResult
 from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.run_store import RunStore
 
@@ -97,6 +105,7 @@ def _result(ctx: RunContext, status: str, error: str = "", *, verdict: bool = Fa
 class PipelineStrategy:
     name = "pipeline"
     resumable = True
+    estimate_as = "pipeline"  # the token prior of one walk (``bench/estimate.py``)
 
     def __init__(self, runner_factory: RunnerFactory = CrewStageRunner) -> None:
         self._runner_factory = runner_factory
@@ -110,12 +119,29 @@ class PipelineStrategy:
         return self.recipe_for(recipe)
 
     def run(self, ctx: RunContext, recipe: Recipe | None, bundle: RunBundle) -> RunResult:
-        status, error = run_flow(ctx, self.recipe_for(recipe), bundle, self._runner_factory())
+        if wants_attempts(ctx.settings):
+            status, error = self._attempts(ctx, self.recipe_for(recipe), bundle, self.estimate_as)
+        else:
+            status, error = run_flow(ctx, self.recipe_for(recipe), bundle, self._runner_factory())
         return _result(ctx, status, error, verdict=True)
+
+    def _attempts(
+        self, ctx: RunContext, recipe: Recipe, bundle: RunBundle, kind: str
+    ) -> tuple[RunStatus, str]:
+        return run_attempts(
+            ctx,
+            recipe,
+            bundle,
+            self._runner_factory,
+            count=ctx.settings.attempts.count,
+            kind=kind,
+            strategy=self.name,
+        )
 
 
 class SingleAgentStrategy(PipelineStrategy):
     name = "single"
+    estimate_as = "single"
 
     def recipe_for(self, recipe: Recipe | None) -> Recipe:
         return SINGLE_RECIPE
@@ -123,6 +149,7 @@ class SingleAgentStrategy(PipelineStrategy):
 
 class TeamStrategy(PipelineStrategy):
     name = "team"
+    estimate_as = "team"
 
     def recipe_for(self, recipe: Recipe | None) -> Recipe:
         return lead_recipe(recipe or load_recipe(DEFAULT_RECIPE))
@@ -137,7 +164,19 @@ class AutoStrategy(PipelineStrategy):
         return base if record is None or record.current is None else current_recipe(record, base)
 
     def run(self, ctx: RunContext, recipe: Recipe | None, bundle: RunBundle) -> RunResult:
-        status, error = run_ladder(ctx, self.recipe_for(recipe), bundle, self._runner_factory())
+        base = self.recipe_for(recipe)
+        if wants_attempts(ctx.settings):  # N attempts of the rung the ladder would start on
+            lean = assess(bundle.requirements, ctx.settings, count_files(ctx.workspace))
+            start = plan_ladder(ctx.settings, lean, base).start
+            seed = RungSeed(rung=start, carried={"lean": lean.model_dump(mode="json")})
+            status, error = self._attempts(
+                ctx,
+                rung_recipe(base, start, escalated=False),
+                replace(bundle, rung=seed),
+                ESTIMATE_AS[start],
+            )
+        else:
+            status, error = run_ladder(ctx, base, bundle, self._runner_factory)
         return _result(ctx, status, error, verdict=True)
 
 

@@ -13,6 +13,7 @@ from pathlib import Path
 
 from engineering_team.contracts import RunManifest
 from engineering_team.learning.reflect import reflect_run
+from engineering_team.pipeline.attempts_contracts import ATTEMPTS_FILENAME
 from engineering_team.pipeline.recipes import Recipe, load_recipe, pinned_recipe
 from engineering_team.pipeline.resume import ResumeError
 from engineering_team.pipeline.state import (
@@ -137,6 +138,11 @@ def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = No
         raise ResumeError(
             f"Run {run_id} used the '{manifest.strategy}' strategy, which was removed in 0.3.0, "
             "so it cannot be resumed. Start a new run (the pipeline strategy can be resumed)."
+        )
+    if (store.run_dir(run_id) / ATTEMPTS_FILENAME).is_file():
+        raise ResumeError(
+            f"Run {run_id} ran best-of-N attempts, which cannot be resumed: each attempt is a run "
+            "of its own (kept under attempts/ in the run directory). Start a new run."
         )
     strategy = get_strategy(manifest.strategy)
     # The single-agent strategy supplies its own one-stage recipe; the pipeline loads its own,
