@@ -58,9 +58,10 @@ def select(
 
 
 def memory_section(
-    ctx: RunContext, stage_prompt: str, paths: Sequence[str] = ()
+    ctx: RunContext, stage_prompt: str, paths: Sequence[str] = (), *, max_chars: int | None = None
 ) -> tuple[str, list[Fact]]:
-    """The labelled section for a stage's prompt ("" when nothing applies) and the facts in it."""
+    """The labelled section for a stage's prompt ("" when nothing applies) and the facts in it;
+    ``max_chars`` lowers ``memory.inject_chars`` (a small context pack)."""
 
     store, settings = ctx.memory, ctx.settings.memory
     if not store.enabled or not settings.enabled:
@@ -69,12 +70,13 @@ def memory_section(
         chosen = select(store.usable(), stage_prompt, paths, settings.inject_facts)
     except Exception:  # a damaged memory file must not stop a stage (the run warned already)
         return "", []
+    cap = settings.inject_chars if max_chars is None else min(settings.inject_chars, max_chars)
     lines: list[str] = []
     shown: list[Fact] = []
     used = len(LABEL)
     for fact in chosen:
         line = f"- [{fact.kind}] {one_line(fact.text)}"
-        if used + len(line) + 1 > settings.inject_chars:
+        if used + len(line) + 1 > cap:
             break
         lines.append(line)
         shown.append(fact)

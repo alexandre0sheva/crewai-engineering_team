@@ -38,6 +38,7 @@ from engineering_team.modes.maintain import coverage_brief
 from engineering_team.modes.maintain_contracts import UpgradePlan
 from engineering_team.pipeline.no_retry import NoRetry
 from engineering_team.pipeline.recipes import StageSpec
+from engineering_team.pipeline.stage_size import announce_size
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.context import RunContext
 from engineering_team.team import Roster, TeamError
@@ -294,7 +295,9 @@ class CrewStageRunner:
             output_log_file=str(ctx.run_dir / f"crew-log-{request.label}.json"),
         )
         calls_before = ctx.usage.tool_calls
-        result = crew.kickoff(inputs=self._inputs(request))
+        inputs = self._inputs(request)
+        announce_size(request, agent, prompt.description, inputs)
+        result = crew.kickoff(inputs=inputs)
         if not isinstance(result, CrewOutput):  # a streaming crew; this one never streams
             raise StageError(f"Stage '{stage.name}' produced no output.")
         self._require_tool_calls(request, agent, calls_before)

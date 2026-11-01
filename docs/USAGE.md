@@ -286,7 +286,10 @@ tokens); the **critical path** (the longest chain of sessions that ran one after
 several sessions in sequence, which are candidates for parallel lanes; the tool-schema tokens each agent
 sends with every call; the files read more than once; and the tool failures with their messages. The run
 report has the same facts in "Where the time and money went", and `bench report` averages sessions, calls,
-prompt size and cached share per strategy. A run from before 0.3.0 has no prompt sizes; its profile says so.
+prompt size and cached share per strategy. A run from before 0.3.0 has no prompt sizes; its profile says so. The
+report's *Prompt sizes* section lists what each session started with (always-on text, the controller's pack, the task,
+tool schemas) and the most history it carried, against its model's context window, and warns above 60 % of it
+([ARCHITECTURE.md](ARCHITECTURE.md#context-packs-and-prompt-sizes)).
 
 ### Steering a run
 

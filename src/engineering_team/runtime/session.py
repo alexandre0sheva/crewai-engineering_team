@@ -8,6 +8,7 @@ import json
 import platform
 from collections.abc import Iterator
 from importlib import metadata
+from typing import Any
 
 import crewai
 
@@ -27,8 +28,9 @@ from engineering_team.memory.observe import finish_run
 from engineering_team.runtime.bridge import bind_run, flush_bridge
 from engineering_team.runtime.cancel import RunCancelled
 from engineering_team.runtime.context import RunContext
-from engineering_team.runtime.events import stage_scope
-from engineering_team.runtime.run_store import RunStore
+from engineering_team.runtime.events import read_events, stage_scope
+from engineering_team.runtime.prompt_sizes import prompt_rows
+from engineering_team.runtime.run_store import EVENTS_FILENAME, RunStore
 from engineering_team.runtime.sessions import run_sessions
 from engineering_team.runtime.snapshot import workspace_revision
 from engineering_team.settings import redacted_dump
@@ -276,6 +278,14 @@ class RunRecorder:
         except Exception:
             return []
 
+    def _prompt_rows(self) -> list[dict[str, Any]]:
+        """The sizes the run's sessions started with, from its event log (never fails a run)."""
+
+        try:
+            return prompt_rows(read_events(self.ctx.run_dir / EVENTS_FILENAME))
+        except Exception:
+            return []
+
     def _finish(self, outcome: RunStatus, error: str | None) -> None:
         ctx = self.ctx
         ctx.processes.stop_all("the run ended")  # nothing the run started may keep running
@@ -291,10 +301,13 @@ class RunRecorder:
         data = {"status": outcome, "summary": summary.model_dump(mode="json")}
         ctx.events.emit("run.finished", **data, **({"error": error} if error else {}))
 
+        prompts = self._prompt_rows()
+
         def record(manifest: RunManifest) -> None:
             manifest.summary = summary
             manifest.status = outcome
             manifest.harness = ctx.harness.record()  # now with the skills the run loaded
+            manifest.prompts = prompts
 
         self.store.update(ctx.run_id, record)
         self.hooks.on_finish(outcome, error, summary)  # never raises; its events are in the report

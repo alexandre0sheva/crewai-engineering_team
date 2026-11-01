@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from engineering_team.board.models import BoardProgress, Card
 from engineering_team.contracts import (
@@ -180,3 +180,4 @@ class RunReport:
     answer_check: AnswerCheck | None = None
     thread: ThreadInfo | None = None  # the run it follows and its follow-ups
     harness: str = ""  # the domain, its packs and the skills loaded (``harness_line``)
+    prompts: list[dict[str, Any]] = field(default_factory=list)  # prompt sizes per session

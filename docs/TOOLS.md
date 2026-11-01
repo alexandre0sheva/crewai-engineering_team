@@ -47,7 +47,7 @@ once never share them. The default groups for the 0.1 crew are the four project 
 | `Search Project Files` | `search` | yes | no | no | Literal or regex search with include/exclude globs, 0–5 context lines, smart/sensitive/insensitive case, ≤ 200 results; skips binaries and files over 1 MB. |
 | `Find Files` | `search` | yes | no | no | Glob search sorted by name or recency, ≤ 500 results. |
 | `Project Outline` | `search` | yes | no | no | Top-level symbols per file for Python (`ast`), JS/TS, Go, Java/Kotlin, Rust (regex); ≤ 200 files. |
-| `Repo Map` | `search` | yes | no | no | Token-budgeted overview: files ranked by how many other files reference the identifiers they define. Size 400–12,000 tokens (default 1,500). |
+| `Repo Map` | `search` | yes | no | no | Token-budgeted overview: files ranked by how many other files reference the identifiers they define. Size 400–12,000 tokens (default 1,500). With `for_request` (the task, an error or a stack trace) the files are ranked for it instead: files it names, definitions it mentions, files whose words match, and the code around them in the import graph, lifted by Git recency ([Context packs](ARCHITECTURE.md#context-packs-and-prompt-sizes)); each file says why it ranks. |
 | `Write Project File` | `fs_write` | no | no | no | Create or overwrite a text file, ≤ 1 MB; parents are created. |
 | `Replace In Project File` | `fs_write` | no | no | no | Exact-text replacement that fails unless the occurrence count matches. |
 | `Delete Project Path` | `fs_write` | no | no | no | Delete a file or directory; the root and `.git` are protected. A directory delete needs every file in it in write scope. |

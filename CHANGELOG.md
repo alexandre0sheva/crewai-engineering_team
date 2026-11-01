@@ -11,6 +11,14 @@ renames that section and dates it.
 
 ### Added
 
+- Context packs ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#context-packs-and-prompt-sizes)): every stage session starts
+  with the files that matter for the request. A personalised PageRank over the import graph, seeded by the request,
+  a stack trace, the triage focus paths and the reproduction and lifted by Git recency, ranks the repository; a
+  ranked excerpt of the repo map, the repository's facts and the run's lessons go into the stage's pack, held to
+  `context.stage_tokens` (`[context]`, [docs/CONFIGURATION.md](docs/CONFIGURATION.md#context-packs-context)). The
+  `Repo Map` tool takes `for_request` to rank for a task or an error. The manifest and the report list each session's
+  prompt size (always-on text, pack, task, tools and the history it carried) against the model's context window,
+  and warn when a session starts above 60 % of it.
 - Best-of-N attempts ([docs/USAGE.md](docs/USAGE.md#best-of-n-attempts)): `--attempts N` (`new`, `do`, `continue`;
   `attempts.count`) runs N independent attempts side by side, each in its own copy of the project and each verified
   by the controller. A blind judge on the reviewer tier, which sees the passing ones under anonymous ids and never

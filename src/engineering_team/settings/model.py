@@ -45,6 +45,7 @@ from engineering_team.settings.common import (
     SMOKE_PROFILE_MARKER,
     SettingsError,
 )
+from engineering_team.settings.context_pack import ContextSettings
 from engineering_team.settings.masking import _flatten, mask_value
 from engineering_team.settings.sections import (
     TEAM_KEY,
@@ -110,6 +111,7 @@ class Settings(_Frozen):
     trajectory: TrajectorySettings = TrajectorySettings()
     memory: MemorySettings = MemorySettings()
     learning: LearningSettings = LearningSettings()
+    context: ContextSettings = ContextSettings()
     network: NetworkSettings = NetworkSettings()
     web: WebSettings = WebSettings()
     knowledge: KnowledgeSettings = KnowledgeSettings()

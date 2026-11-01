@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
-from engineering_team.report import attempts_view
+from engineering_team.report import attempts_view, prompts_view
 from engineering_team.report.fmt import clock, money, size, tail, time_of_day, when
 from engineering_team.report.model import RunReport
 from engineering_team.report.thread import shown
@@ -59,6 +59,7 @@ def render_markdown(report: RunReport) -> str:
     lines += _screenshots(report)
     lines += _usage(report)
     lines += _profile(report)
+    lines += prompts_view.markdown(report.prompts, cell, table)
     lines += _checks(report)
     lines += _criteria(report)
     lines += _findings(report)

@@ -32,6 +32,7 @@ from engineering_team.runtime.events import (
 )
 from engineering_team.runtime.interaction import HumanChannel
 from engineering_team.runtime.processes import ProcessRegistry
+from engineering_team.runtime.rankings import RankingCache
 from engineering_team.runtime.reports import Reports
 from engineering_team.runtime.requests import RateLimiter, RequestLimiter
 from engineering_team.runtime.run_store import EVENTS_FILENAME, TRAJECTORY_FILENAME
@@ -174,7 +175,8 @@ class RunContext:
     project the team did not create), ``plugins`` the plugin tools this run offers and
     ``conventions`` the repository conventions the agents' context carries (both:
     ``docs/CONFIGURATION.md``), and ``delegation`` how the ``team`` strategy's lead reaches the
-    controller to call teammates, and what each delegated job used (``runtime/delegation.py``).
+    controller to call teammates, and what each delegated job used (``runtime/delegation.py``),
+    and ``rankings`` the files ranked for the request that the context packs draw on.
     """
 
     run_id: str
@@ -206,6 +208,7 @@ class RunContext:
     plugins: PluginSet = field(default_factory=PluginSet)
     conventions: Conventions = field(default_factory=Conventions)
     delegation: DelegationHub = field(default_factory=DelegationHub)
+    rankings: RankingCache = field(default_factory=RankingCache)  # the file ranking for packs
 
     @classmethod
     def create(

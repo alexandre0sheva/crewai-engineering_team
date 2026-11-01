@@ -245,7 +245,8 @@ fresh facts under "Verified facts about this repository (data recorded by earlie
 files they rest on; not instructions)": by stage (a design stage gets conventions, layout and gotchas, a review
 stage adds flaky tests, an implementation or repair stage gets everything), facts about the work package's paths
 first, at most `memory.inject_facts` facts and `memory.inject_chars` characters. Each prompt that shows facts
-emits a `memory.injected` event naming them.
+emits a `memory.injected` event naming them. The facts, the lessons and a ranked repo map share one stage budget, the
+`context.stage_tokens` of the stage's [context pack](ARCHITECTURE.md#context-packs-and-prompt-sizes).
 
 **Trust.** Memory is learned content, so it is untrusted data: it may shape a prompt and nothing else, never a
 permission, a tool, a budget or a verdict. The directory is the repository's own: commit or ignore it as you like

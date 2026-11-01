@@ -26,6 +26,7 @@ from engineering_team.settings.common import (
     Effort,
     SettingsError,
 )
+from engineering_team.settings.context_pack import ContextSettings
 from engineering_team.settings.env import CONFIG_FILE_ENV, ENV_SETTINGS, OVERRIDES_ENV
 from engineering_team.settings.loading import (
     SECRET_ENV_NAME,
@@ -90,6 +91,7 @@ __all__ = [
     "WEB_KEY_ENV",
     "AcceptanceSettings",
     "AnalysisSettings",
+    "ContextSettings",
     "DelegationSettings",
     "LeanSettings",
     "BrowserSettings",

@@ -88,7 +88,8 @@ Python, indentation for Ruby, declaration regexes plus brace counting for the re
 `dependencies.py` parses manifests and lockfiles; `git.py` reads `git log`/`git blame` through
 `ctx.backend` (fixed argv, no pager or external programs) for `hotspots.py` and `todos.py`, and
 raises `GitUnavailable` when there is no history so the tools degrade to a plain answer;
-`render.py` writes the compact text. The agent tools in `tools/codeintel_tools.py` are thin
+`render.py` writes the compact text; `seeds.py`, `lexical.py`, `rank.py` and `repomap.py` rank the files for a request
+([Context packs and prompt sizes](#context-packs-and-prompt-sizes)). The agent tools in `tools/codeintel_tools.py` are thin
 wrappers; the repository analyzer calls these modules directly. `codeintel/__init__.py`
 imports `engineering_team.tools` first so the two packages, which import each other's modules,
 load in a fixed order whichever one is imported first.
@@ -317,7 +318,8 @@ running, or half-written run still gets a report. It reads files only (no `RunCo
 follows and its follow-ups, read from the manifests of the same workspace (`report/thread.py`).
 
 - **Written by the controller, quoting agents.** Statuses, the banner and its reasons, warnings
-  (budget, unavailable required checks, unproven criteria, unreproduced bugs, out-of-scope changes)
+  (budget, unavailable required checks, unproven criteria, unreproduced bugs, out-of-scope changes,
+  a session that started above 60 % of its model's context window)
   come from the manifest and check results; card notes and agent summaries are only quoted and
   labelled agent-reported.
 - **Self-contained and inert.** Inline CSS and one inline script (the theme toggle), no CDN, a
@@ -632,7 +634,8 @@ is called and the `new`, `feature` and `fix` recipes skip what that size does no
   tier; `lean.reviewers` event). A request touching authentication, secrets, payments, uploads,
   SQL and the like is high-risk: the security reviewer and the architect's tier stay.
 - **Hand-off packs** (`pipeline/handoff.py`). Every session's prompt carries the controller's
-  record: up to 60 files (the most recently changed, each with its size and a SHA-256 prefix), the
+  record: the stage's context pack ([below](#context-packs-and-prompt-sizes)), up to 60 files (the most recently
+  changed, each with its size and a SHA-256 prefix), the
   latest check results, and one line per earlier stage (quoted as the agent's words, not
   evidence), so a session does not list and re-read the tree to find out where things stand.
 - **Fewer re-sent tokens per call.** Lazy tools sit behind `Find Tool`/`Use Tool`
@@ -644,6 +647,42 @@ is called and the `new`, `feature` and `fix` recipes skip what that size does no
   contracts and the project context, and the tool list never changes during a session, so a
   provider's automatic prefix caching can serve the start of each call; `profile` reports the
   cached share. (Explicit cache control for Anthropic is T26.)
+
+### Context packs and prompt sizes
+
+Larger repositories exhaust context and money, so a session starts with the right files rather than
+with a listing. The controller builds each stage session a **context pack**
+(`pipeline/context_pack.py`, part of the hand-off pack) of at most `context.stage_tokens`
+([CONFIGURATION.md](CONFIGURATION.md#context-packs-context)): the repository's verified facts
+(`memory/inject.py`), the run's lessons (`learning/retrieve.py`) and an excerpt of the **ranked repo map**.
+Facts and lessons take at most a quarter of the pack each; the map gets the rest. The skill list is not
+repeated in the pack: it is part of the teammate's always-on text (`harness/skills.py`) and a copy would be
+paid for twice. The pack is data, labelled as the controller's guide and not evidence; a ranking that fails is
+reported (`context.error`) and the stage goes on without a map. Stages that read the whole codebase in
+parts (`analyze`) get no map.
+
+*Ranking* (`codeintel/rank.py`) is a personalised PageRank over the import graph. The restart distribution
+splits its mass between three kinds of evidence, so a long stack trace cannot drown out what the person
+wrote: files named in the request, the triage focus paths (`task_profile.json`) or the reproduction (a stack
+trace's frames count most the closer they are to where it was raised, and a path from another checkout
+resolves by its tail); definitions the request mentions when it writes them like code (`snake_case`,
+`CamelCase`, backticks), not English words that happen to be function names; and rare words of the request's
+prose that the code uses (`seeds.py`, `lexical.py`: comments and docstrings are left out, words in names count
+three times, `rabobank` finds `rabo`). Probability flows along imports in both directions (more to what a
+file imports than to what imports it), a file's score is divided by its general importance to the power
+0.5 so that hubs do not top every request, and files changed in the last `context.recency_days` days are
+lifted by up to a quarter (`git log` through `GitPort`). Ranking reads every source file, so a run does it
+once per request and set of source files (`RunContext.rankings`). `Repo Map` with `for_request` returns the
+same ranking to an agent ([TOOLS.md](TOOLS.md)). Namespace packages without `__init__.py` are not resolved by
+the import graph, so their files rank by words and symbols only.
+
+*Prompt sizes* (`runtime/prompt_sizes.py`). Before a session's first model call the controller measures what
+it will send, in estimated tokens (four characters each): the teammate's always-on text, the pack (the
+hand-off and the project context), the rest of the task prompt and the tool schemas. It records a
+`context.sized` event with the model's context window (its facts, a setting, or what CrewAI reports), and a
+`context.warning` when the start is above `context.warn_fraction` (60 %) of the window. When the run ends,
+`manifest.json`'s `prompts` holds one row per session, joined with the most history and tool output any of
+its calls carried (`llm.request`), and the report shows them under *Prompt sizes*, with the warnings.
 
 ### Dynamic team: the `team` strategy
 
@@ -1369,7 +1408,7 @@ larger ones today:
 | `main.py` | `run_prep` (options to a prepared run), `request_sources`, `outcome` (exit codes), `api` (`resume`); `main` is the entry and re-exports them |
 | `tools/` catalogue | `spec`, `catalogue_project`, `catalogue_dev`, `catalogue_external`, `catalogue_team`, `registry` (the builder), `finder` (Find Tool and Use Tool) |
 | `git/` | `core` (the safe command line), `reads`, `writes`, `port` (`GitPort`) |
-| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `lead_exec` (the lead stage), `executor` (stages); `conditions` (the named `skip_if` conditions), `lean` (task size and what it skips), `handoff` (hand-off packs), `release_notes`; `lead` (the lead's recipe and prompt), `delegation` and `delegation_briefs` (checking, running and reporting delegated jobs), `lead_contracts`; `ladder` (the escalation policy), `ladder_run` (walking it), `ladder_brief` (what the next rung is told), `ladder_contracts`; `attempts` (best-of-N), `attempts_run` (one attempt), `attempts_tree` (copies, patches), `select` (the blind judge), `attempts_contracts` |
+| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `lead_exec` (the lead stage), `executor` (stages); `conditions` (the named `skip_if` conditions), `lean` (task size and what it skips), `handoff` (hand-off packs), `context_pack` (their ranked map, facts and lessons within `context.stage_tokens`), `stage_size` (the prompt size of a session), `release_notes`; `lead` (the lead's recipe and prompt), `delegation` and `delegation_briefs` (checking, running and reporting delegated jobs), `lead_contracts`; `ladder` (the escalation policy), `ladder_run` (walking it), `ladder_brief` (what the next rung is told), `ladder_contracts`; `attempts` (best-of-N), `attempts_run` (one attempt), `attempts_tree` (copies, patches), `select` (the blind judge), `attempts_contracts` |
 | `report/` HTML | `html_common`, `html_overview`, `html_board`, `html_results`, `html_artifacts`; `html_sections` re-exports them |
 | `board/` | `store` (`BoardStore`), `files` (saving), `limits` |
 

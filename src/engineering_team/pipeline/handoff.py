@@ -4,10 +4,11 @@ Every agent session used to start cold: list the tree, read the same files, ask 
 said. The controller already knows those facts, so each session's prompt carries a compact pack
 built from the workspace and the run's state: the files (most recently changed first, with a
 content hash so an agent can tell whether a file changed since it last saw it), the latest
-check results, the acceptance tests the controller saw fail on the baseline, the repository's
-verified facts, the lessons chosen for the run (``learning/retrieve.py``) and one line per
-earlier stage; on a rung the escalation ladder
-escalated to, first the controller's account of the rung before (``ladder_brief.py``).
+check results, the acceptance tests the controller saw fail on the baseline, the stage's context
+pack (the repository's verified facts, the lessons chosen for the run and a ranked map of the
+files that matter for the request, within ``context.stage_tokens``: ``context_pack.py``) and one
+line per earlier stage; on a rung the escalation ladder escalated to, first the controller's
+account of the rung before (``ladder_brief.py``).
 Everything in it is the controller's record (or labelled data); the agents' own summaries are
 quoted as theirs.
 """
@@ -18,8 +19,7 @@ import hashlib
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from engineering_team.learning.retrieve import lessons_section
-from engineering_team.memory.inject import memory_section
+from engineering_team.pipeline.context_pack import build_pack
 from engineering_team.tools.ignore import iter_files
 
 if TYPE_CHECKING:
@@ -73,12 +73,9 @@ def handoff_pack(
 
     files = file_lines(ctx)
     parts = [state.escalation, ""] if state.escalation else []
-    facts, _ = memory_section(ctx, stage.prompt or stage.name, paths)
-    if facts:
-        parts += [facts, ""]
-    lessons = lessons_section(ctx)
-    if lessons:
-        parts += [lessons, ""]
+    pack = build_pack(ctx, state, stage, paths)
+    if pack.text:
+        parts += [pack.text, ""]
     if files:
         parts += [
             "Files in the workspace now (path, size, sha256 prefix; the most recently changed, "

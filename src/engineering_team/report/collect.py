@@ -27,7 +27,7 @@ from engineering_team.pipeline.attempts_contracts import AttemptsRecord
 from engineering_team.pipeline.ladder_contracts import LadderRecord
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.pricing import PriceTable, default_prices
-from engineering_team.report import analysis
+from engineering_team.report import analysis, prompts_view
 from engineering_team.report.diffs import parse_patch
 from engineering_team.report.digest import EventDigest, digest_events
 from engineering_team.report.model import (
@@ -83,6 +83,7 @@ def build_report(run_dir: Path) -> RunReport:
         strategy=manifest.strategy,
         recipe=manifest.recipe,
         harness=harness_line(manifest.harness),
+        prompts=list(manifest.prompts),
         status=manifest.status,
         verdict=manifest.verdict,
         created=manifest.created,
@@ -121,6 +122,7 @@ def build_report(run_dir: Path) -> RunReport:
     report.warnings = analysis.make_notices(
         manifest, state, checks, coverage, findings, digest, budget, usage.unpriced_models
     )
+    report.warnings += prompts_view.notices(report.prompts)
     return report
 
 

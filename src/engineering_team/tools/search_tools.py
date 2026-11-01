@@ -89,18 +89,27 @@ def make_search_tools(env: ToolEnv) -> dict[str, BaseTool]:
         )
 
     @tool("Repo Map")
-    def repo_map_tool(path: str = ".", size: int = 1500) -> str:
+    def repo_map_tool(path: str = ".", size: int = 1500, for_request: str = "") -> str:
         """Overview of the most important source files and their key symbols (size = token budget).
 
         Files are ranked by how often other files reference what they define, so the core
-        modules come first. Call it once when starting on an existing codebase, then use
-        Search Project Files and Read File Range for details.
+        modules come first. Pass for_request (the task, an error message or a stack trace) to
+        rank for it instead: files it names, defines it mentions or whose words match, and
+        the code around them in the import graph, come first. Call it once when starting on
+        an existing codebase, then use Search Project Files and Read File Range for details.
         """
+
+        def work() -> str:
+            if for_request.strip():
+                from engineering_team.codeintel.repomap import ranked_repo_map
+
+                return bounded(ranked_repo_map(env.ctx, for_request, path, size), hint="lower size")
+            return repo_map(workspace, path, size)
 
         return env.run(
             "Repo Map",
-            lambda: repo_map(workspace, path, size),
-            arguments={"path": path, "size": size},
+            work,
+            arguments={"path": path, "size": size, "for_request": for_request[:200]},
         )
 
     return {

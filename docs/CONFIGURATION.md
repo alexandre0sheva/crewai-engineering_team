@@ -227,6 +227,30 @@ review = "manual"
 inject_lessons = 2
 ```
 
+### Context packs (`[context]`)
+
+Every stage session is told, up front, a **context pack**: the repository's verified facts, the lessons chosen for
+the run and a ranked excerpt of the repo map (the files most likely to matter for the request;
+[ARCHITECTURE.md](ARCHITECTURE.md#context-packs-and-prompt-sizes)). `context.stage_tokens` is the most the pack
+may take; facts and lessons take at most a quarter each (and also stay within `memory.inject_chars` and
+`learning.inject_chars`), the map gets the rest. The report lists each session's prompt size and warns when one
+starts above `context.warn_fraction` of its model's context window. The defaults are provisional until the 0.3.0
+evaluation.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `context.enabled` | `true` | `false` leaves the ranked map out of the packs (facts and lessons stay) |
+| `context.stage_tokens` | `2500` | Size of a stage's pack in estimated tokens (200-100000; four characters each) |
+| `context.stages` | `{}` | A stage's own size by its prompt name, e.g. `{ review = 1200, implement = 4000 }` |
+| `context.recency_days` | `90` | Git history that lifts recently changed files in the ranking; `0` ignores history |
+| `context.warn_fraction` | `0.6` | A session that starts above this share of its model's context window is a warning (0-1) |
+
+```toml
+[context]
+stage_tokens = 4000
+stages = { review = 1200 }
+```
+
 ### Web tools (`[web]` and `[knowledge]`)
 
 Applies to `Web Search`, `Fetch URL`, `Package Info`, and `Search Docs` ([TOOLS.md](TOOLS.md#web-and-knowledge-tools)).

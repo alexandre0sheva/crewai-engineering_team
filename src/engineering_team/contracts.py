@@ -418,6 +418,8 @@ class RunManifest(Contract):
     recipe: str | None = None
     stage_reasons: dict[str, str] = Field(default_factory=dict)  # a composed recipe's "why"
     harness: dict[str, Any] = Field(default_factory=dict)  # domain, packs, skills (harness/)
+    # What each stage session started with, against its model's window (``prompt_sizes.py``).
+    prompts: list[dict[str, Any]] = Field(default_factory=list)
     status: RunStatus = "pending"
     verdict: RunVerdict | None = None  # set by runs that verify; all but ``verified`` end the run
     resumes: int = 0  # how many times `resume` continued this run
