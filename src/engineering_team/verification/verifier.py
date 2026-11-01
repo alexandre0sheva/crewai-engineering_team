@@ -14,7 +14,7 @@ import hashlib
 import re
 import shutil
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from pathlib import Path
 
 from engineering_team.atomic_io import atomic_write_json
@@ -70,28 +70,42 @@ class Verifier:
     # -- running ---------------------------------------------------------------------------
 
     def run(
-        self, checks: Sequence[CheckSpec], *, round: int = 0, label: str | None = None
+        self,
+        checks: Sequence[CheckSpec],
+        *,
+        round: int = 0,
+        label: str | None = None,
+        first: Collection[str] = (),
     ) -> list[CheckResult]:
         """Run ``checks`` in order and return one result each, all stamped with the revision of
         the workspace they left (a check that writes into the project moves it, so it is taken
         after the last one). The batch is also written to ``verification/round-<round>.json``
-        (or ``verification/<label>.json`` for a batch that is not a verification round)."""
+        (or ``verification/<label>.json`` for a batch that is not a verification round).
 
-        results: list[CheckResult] = []
+        ``first`` (the checks a repair round set out to fix) run before the others, after the
+        setup checks; while one of them still fails the others are not run (``skipped``, saying
+        why): a round whose failures stand is not worth the whole suite."""
+
+        ahead = [c for c in checks if not first or c.kind == "setup" or c.id in first]
+        done: dict[str, CheckResult] = {}
         blocked_by: CheckSpec | None = None
-        for check in checks:
+        for check in [*ahead, *(c for c in checks if c not in ahead)]:
             check_cancelled(self.ctx)
             if blocked_by is not None and check.kind != "setup":
-                results.append(self._skipped(check, blocked_by))
+                done[check.id] = self._skipped(check, blocked_by)
+                continue
+            if check not in ahead and (failing := self._still_failing(ahead, done, first)):
+                done[check.id] = self._not_rerun(check, failing)
                 continue
             result = self._one(check)
-            results.append(result)
+            done[check.id] = result
             if (
                 check.kind == "setup"
                 and check.required
                 and result.status in ("failed", "unavailable")
             ):
                 blocked_by = check
+        results = [done[check.id] for check in checks]
         revision = verification_revision(self.ctx.workspace)
         results = [result.model_copy(update={"revision": revision}) for result in results]
         atomic_write_json(
@@ -137,12 +151,31 @@ class Verifier:
         return result
 
     def _skipped(self, check: CheckSpec, blocked_by: CheckSpec) -> CheckResult:
+        return self._not_run(
+            check,
+            f"Not run because the required {blocked_by.kind} check '{blocked_by.id}' did not "
+            "pass; fix that first.",
+        )
+
+    @staticmethod
+    def _still_failing(
+        ahead: Sequence[CheckSpec], done: Mapping[str, CheckResult], first: Collection[str]
+    ) -> CheckSpec | None:
+        return next(
+            (c for c in ahead if c.id in first and c.required and done[c.id].status == "failed"),
+            None,
+        )
+
+    def _not_rerun(self, check: CheckSpec, failing: CheckSpec) -> CheckResult:
+        return self._not_run(
+            check,
+            f"Not run again this round: '{failing.id}', which the repair set out to fix, still "
+            "fails; every check runs once it passes.",
+        )
+
+    def _not_run(self, check: CheckSpec, hint: str) -> CheckResult:
         result = self._result(check, "skipped").model_copy(
-            update={
-                "summary": "not run",
-                "hint": f"Not run because the required {blocked_by.kind} check "
-                f"'{blocked_by.id}' did not pass; fix that first.",
-            }
+            update={"summary": "not run", "hint": hint}
         )
         if self.cards is not None:
             self.cards.start(check)

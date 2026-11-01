@@ -174,12 +174,10 @@ def judge_model(settings: Settings) -> ResolvedModel:
 
 
 def build_judge_llm(settings: Settings) -> Any:
-    from engineering_team.llm import build_llm
+    from engineering_team.llm import build_llm, cap_output
 
     llm = build_llm(judge_model(settings), settings)
-    if hasattr(llm, "max_tokens"):
-        object.__setattr__(llm, "max_tokens", JUDGE_COMPLETION_TOKENS)
-    return llm
+    return cap_output(llm, JUDGE_COMPLETION_TOKENS)
 
 
 def judge_estimate(settings: Settings, prompt_chars: int) -> float | None:

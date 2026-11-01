@@ -68,9 +68,14 @@ DEFAULT_VERIFY: dict[str, list[VerifyBy]] = {
     "devops": ["build"],
 }
 # The signals-only guess: the first keyword group present decides, in this order.
+# A bug named in the request outranks the tests or docs that come with its fix, and "research"
+# comes last: a word like "compare" or "research" is weak evidence when the request is not even a
+# question (the bundled tiny-notes spec says "no web research"). With the rule in ``guess_intent``
+# that tests, docs and CI are never the primary intent of a new project: 88 % primary intent on
+# ``benchmarks/triage/cases.yaml``, against 84 % before (research and those three first).
 _PRECEDENCE: tuple[Intent, ...] = (
-    "plan_only", "security_audit", "upgrade_deps", "refactor", "performance", "research",
-    "tests", "docs", "devops", "bugfix", "new_project", "feature",
+    "plan_only", "security_audit", "upgrade_deps", "refactor", "performance",
+    "bugfix", "tests", "docs", "devops", "new_project", "feature", "research",
 )  # fmt: skip
 _SECONDARY: tuple[Intent, ...] = ("tests", "docs", "devops")
 
@@ -124,13 +129,15 @@ def apply_rules(
     if not intents:
         intents = [guess_intent(signals)]
         overrides.append(f"the model gave no intent: {intents[0]} from the signals")
+    verify = list(dict.fromkeys(answer.verify_by))
     if mode is not None and mode in MODE_INTENTS:
         wanted = MODE_INTENTS[mode]
         if intents[0] != wanted:
             overrides.append(f"--mode {mode}: primary intent {wanted} (model: {intents[0]})")
             intents = [wanted, *(i for i in intents if i != wanted)][:MAX_INTENTS]
+            verify = []  # the model's proof was for the work it saw, not the forced one
 
-    verify = list(dict.fromkeys(answer.verify_by)) or list(DEFAULT_VERIFY[intents[0]])
+    verify = verify or list(DEFAULT_VERIFY[intents[0]])
     if not signals.existing_code and NEEDS_PROJECT & set(verify):
         verify = [v for v in verify if v not in NEEDS_PROJECT] or ["acceptance_tests"]
         overrides.append("no existing code: no reproduction or project tests to verify with")
@@ -184,7 +191,10 @@ def guess_intent(signals: Signals) -> Intent:
     if signals.stack_trace or signals.failing_tests:
         return "bugfix" if signals.existing_code else "question"
     for intent in _PRECEDENCE:
-        if intent in hits and (signals.existing_code or intent not in EXISTING_ONLY):
+        # With no code yet, tests, docs and CI come with the new project; they are not the work.
+        if intent in hits and (
+            signals.existing_code or intent not in (*EXISTING_ONLY, *_SECONDARY)
+        ):
             if intent == "feature" and not signals.existing_code:
                 return "new_project"
             return intent

@@ -25,6 +25,7 @@ from engineering_team.harness.domains import domain_for
 from engineering_team.harness.library import resolve_for_run
 from engineering_team.intake.bundle import RequestBundle
 from engineering_team.modes.answer_contracts import ANSWER_FILE, PLAN_FILE
+from engineering_team.modes.isolation import exclude_workspace_root
 from engineering_team.modes.repo_analyzer import standalone_git
 from engineering_team.pipeline.recipes import pin_recipe
 from engineering_team.pipeline.state import PipelineState, RunBundle
@@ -35,6 +36,7 @@ from engineering_team.runtime.run_index import register_workspace
 from engineering_team.runtime.session import RunRecorder
 from engineering_team.settings import Settings, load_settings
 from engineering_team.tools.workspace import ProjectWorkspace
+from engineering_team.workspaces import resolve_workspace_root
 
 DEFAULT_NAME = "answers"
 Hook = Callable[[Any], None]
@@ -125,6 +127,7 @@ def run_answer_route(
                 profile=plan.profile,
             )
         else:
+            exclude_workspace_root(plan.root, resolve_workspace_root(settings.workspace_root))
             register_workspace(settings.workspace_root, plan.root, label or plan.root.name)
             prepared = open_answer(settings, plan.root, plan, bundle.text)
         opened(prepared)

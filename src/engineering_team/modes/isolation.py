@@ -56,6 +56,20 @@ COPY_SKIP = frozenset(
 )
 
 
+def exclude_workspace_root(root: Path, workspace_root: Path) -> None:
+    """Keep the workspace root out of Git's view of the repository ``root`` when it lies inside
+    it: a command run in your own checkout keeps ``./workspace`` (the run registry, copies) there,
+    and the team's commits and patch must not pick it up, nor may it make the tree look dirty or
+    vanish with the branch the team worked on."""
+
+    root, workspace_root = root.resolve(), workspace_root.resolve()
+    if workspace_root == root or root not in workspace_root.parents:
+        return
+    with standalone_git(root) as git:
+        if git.is_repo():
+            git.exclude_controller_state(workspace_root.relative_to(root).as_posix())
+
+
 class IsolationError(ValueError):
     """Isolation that cannot be set up (a usage error); the message says how to fix the call."""
 

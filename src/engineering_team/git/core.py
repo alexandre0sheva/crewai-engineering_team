@@ -203,12 +203,13 @@ class GitCore:
             raise GitError("The commit was not created.")
         return sha
 
-    def exclude_controller_state(self) -> None:
-        """Keep the controller's state and heavy directories out of the repository's view
-        (``.git/info/exclude``; the project's own ``.gitignore`` is never edited)."""
+    def exclude_controller_state(self, *extra: str) -> None:
+        """Keep the controller's state and heavy directories (and ``extra`` directories, given
+        relative to the repository's top) out of the repository's view (``.git/info/exclude``;
+        the project's own ``.gitignore`` is never edited)."""
 
         self._require_repo()
-        self._write_exclude()
+        self._write_exclude(extra)
 
     def git_dir(self) -> Path:
         """This working tree's own git directory: ``.git``, or for a linked worktree the
@@ -232,12 +233,13 @@ class GitCore:
             return (git_dir / pointer.read_text(encoding="utf-8").strip()).resolve()
         return git_dir
 
-    def _write_exclude(self) -> None:
+    def _write_exclude(self, extra: tuple[str, ...] = ()) -> None:
         exclude = self.common_dir() / "info" / "exclude"
         exclude.parent.mkdir(parents=True, exist_ok=True)
         lines = [
             f"{CONTROLLER_DIRECTORY}/",
             *sorted(f"{name}/" for name in IGNORED_LIST_DIRECTORIES),
+            *(f"/{name.strip('/')}/" for name in extra),
         ]
         existing = exclude.read_text(encoding="utf-8") if exclude.is_file() else ""
         wanted = [line for line in lines if line not in existing.splitlines()]

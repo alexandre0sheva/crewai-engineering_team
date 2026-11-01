@@ -54,12 +54,10 @@ def tuning_model(settings: Settings) -> ResolvedModel:
 
 
 def build_tuning_llm(settings: Settings) -> Any:
-    from engineering_team.llm import build_llm
+    from engineering_team.llm import build_llm, cap_output
 
     llm = build_llm(tuning_model(settings), settings)
-    if hasattr(llm, "max_tokens"):
-        object.__setattr__(llm, "max_tokens", MAX_OUTPUT_TOKENS)
-    return llm
+    return cap_output(llm, MAX_OUTPUT_TOKENS)
 
 
 def worst_case_usd(settings: Settings, prompt_chars: int, model: str) -> float | None:

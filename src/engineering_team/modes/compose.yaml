@@ -619,11 +619,11 @@ library:
 
 rules:
   # -- a new project -----------------------------------------------------------------------
-  - when: {target: new, intent: [docs]}
+  - when: {target: new, intent: [docs], primary_not: [question, research, plan_only]}
     add: [docs_requested]
     why: The request asks for documentation, so the docs stage runs whatever its wording.
 
-  - when: {target: new, intent: [devops]}
+  - when: {target: new, intent: [devops], primary_not: [question, research, plan_only]}
     add: [devops_requested]
     why: The request asks for CI, containers or deployment, so the devops stage runs.
 

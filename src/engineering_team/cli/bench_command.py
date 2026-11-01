@@ -32,9 +32,11 @@ from engineering_team.bench.spend import SpendLedger
 from engineering_team.bench.tasks import BenchError, load_suite
 from engineering_team.cli.bench_agents import agent_names, agent_pairs, probe_agents
 from engineering_team.cli.bench_options import (
+    LibraryOption,
     OutOption,
     SuiteOption,
     TasksDirOption,
+    library_path,
     suite_path,
     tasks_dir_path,
 )
@@ -165,7 +167,7 @@ def run(
     ] = None,
     strategy: Annotated[
         list[str] | None,
-        typer.Option(help="pipeline or single; repeat or comma-separate."),
+        typer.Option(help="auto, pipeline, single or team; repeat or comma-separate."),
     ] = None,
     agent: Annotated[
         list[str] | None,
@@ -270,6 +272,7 @@ def run(
     suite: SuiteOption = None,
     tasks_dir: TasksDirOption = None,
     out: OutOption = None,
+    library: LibraryOption = None,
 ) -> None:
     """Run benchmark tasks through the team, judge each with hidden checks, and write a report."""
 
@@ -360,7 +363,7 @@ def run(
         agent_versions={n: i.version for n, i in infos.items() if i.version},
         acceptance_sandbox=acceptance_sandbox, node_modules=node_modules,
         repo_cache=Path(repo_cache).expanduser().resolve() if repo_cache
-        else suite_dir / ".cache" / "repos",
+        else suite_dir / ".cache" / "repos", library=library_path(library),
     )  # fmt: skip
     batch_dir.mkdir(parents=True, exist_ok=True)
     write_batch_manifest(

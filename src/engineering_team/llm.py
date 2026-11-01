@@ -33,3 +33,15 @@ def build_llm(resolved: ResolvedModel, settings: Settings) -> LLM:
         # unknown options on to the API, which rejects ``context_window_size`` in every call.
         object.__setattr__(llm, "get_context_window_size", lambda: window)
     return llm
+
+
+def cap_output(llm: Any, tokens: int) -> Any:
+    """Cap ``llm``'s answer at ``tokens``. OpenAI's (and Azure's) newer models refuse
+    ``max_tokens`` on Chat Completions, so a provider that has ``max_completion_tokens`` gets
+    that (the Responses API sends it as ``max_output_tokens``); the others get ``max_tokens``."""
+
+    for name in ("max_completion_tokens", "max_tokens"):
+        if hasattr(llm, name):
+            object.__setattr__(llm, name, tokens)
+            break
+    return llm

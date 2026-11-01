@@ -31,6 +31,15 @@ TIER_MIX: dict[str, dict[str, float]] = {
     "team": {"lead": 0.10, "reviewer": 0.10, "worker": 0.80},
 }
 LOW_FACTOR, HIGH_FACTOR = 0.5, 2.0
+# The prior each rung of the escalation ladder is estimated with (``pipeline/ladder.py``; the
+# ``attempts`` rung: ``attempts.ladder_count`` walks of the ``team`` prior, and the judge).
+RUNG_PRIORS: dict[str, str] = {
+    "solo": "single",
+    "team": "team",
+    "pipeline": "pipeline",
+    "attempts": "team",
+}
+LADDER_MODES = ("new", "feature", "fix")  # pipeline/lean.py LEAN_MODES: where the ladder climbs
 
 
 @dataclass
@@ -85,6 +94,22 @@ def per_run_cost(settings: Settings, strategy: str, scale: float) -> tuple[float
     return total, unpriced
 
 
+def priced_as(settings: Settings, strategy: str, mode: str, size: str) -> str:
+    """The prior a run of ``strategy`` is estimated with. ``auto`` is priced as the rung it starts
+    on for the task's ``size`` (``ladder.start_*``; a maintenance task or a review always runs on
+    the ``pipeline`` rung). An escalation is not priced: ``--run-budget-usd`` bounds it."""
+
+    if strategy != "auto":
+        return strategy
+    if mode not in LADDER_MODES:
+        return "pipeline"
+    ladder = settings.ladder
+    start = {"large": ladder.start_large, "medium": ladder.start_medium}.get(
+        size, ladder.start_small
+    )
+    return RUNG_PRIORS[min(start, ladder.max_rung, key=list(RUNG_PRIORS).index)]
+
+
 def unpriced_models(settings: Settings) -> list[str]:
     """Models any teammate could use under these settings that have no price.
 
@@ -104,14 +129,16 @@ def unpriced_models(settings: Settings) -> list[str]:
 def estimate_batch(specs: Sequence[RunSpec], settings: Settings) -> BatchEstimate:
     counts: dict[tuple[str, str], int] = defaultdict(int)
     scales: dict[tuple[str, str], float] = {}
+    priors: dict[tuple[str, str], str] = {}
     for spec in specs:
         key = (spec.task.id, spec.strategy)
         counts[key] += 1
         scales[key] = spec.task.scale
+        priors[key] = priced_as(settings, spec.strategy, spec.task.mode, spec.task.size)
     result = BatchEstimate()
     unpriced: set[str] = set()
     for (task, strategy), runs in sorted(counts.items()):
-        cost, missing = per_run_cost(settings, strategy, scales[(task, strategy)])
+        cost, missing = per_run_cost(settings, priors[(task, strategy)], scales[(task, strategy)])
         unpriced |= missing
         result.rows.append(EstimateRow(task, strategy, runs, cost))
     result.unpriced_models = sorted(unpriced)

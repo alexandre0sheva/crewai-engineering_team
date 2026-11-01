@@ -155,8 +155,12 @@ class VerificationLoop:
             return list(state.checks)
         return None
 
-    def _verify(self, checks: list[CheckSpec], number: int | None = None) -> list[CheckResult]:
-        results = self.verifier.run(checks, round=self._next_file() if number is None else number)
+    def _verify(
+        self, checks: list[CheckSpec], number: int | None = None, *, first: Sequence[str] = ()
+    ) -> list[CheckResult]:
+        results = self.verifier.run(
+            checks, round=self._next_file() if number is None else number, first=first
+        )
         results = [*results, *policy_results(self.ctx, self.state, self.policies)]
         if self.state.baseline is not None:
             results = apply_baseline(
@@ -199,7 +203,8 @@ class VerificationLoop:
         check_cancelled(ctx)
         self._note(number, summary, error)
         changed = verification_revision(ctx.workspace) != before
-        fresh = self._verify(checks) if changed else results
+        # The checks that failed run first; the rest only once those pass (docs/ARCHITECTURE.md).
+        fresh = self._verify(checks, first=failing) if changed else results
         still = [r.id for r in fresh if r.id in failing and r.status != "passed"]
         fixed = [i for i in failing if i not in still]
         self.cards.close_repair(card, fixed, still)

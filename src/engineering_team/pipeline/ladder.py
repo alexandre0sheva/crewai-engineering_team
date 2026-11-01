@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from engineering_team.bench.estimate import per_run_cost
+from engineering_team.bench.estimate import RUNG_PRIORS, per_run_cost
 from engineering_team.pipeline.ladder_contracts import LadderRecord
 from engineering_team.pipeline.lead import SKELETON_BEFORE, lead_recipe
 from engineering_team.pipeline.lean import LEAN_MODES, LeanProfile
@@ -47,12 +47,7 @@ RUNGS_DIR = "rungs"  # each rung's final pipeline.json, as rungs/<rung>.json
 RUNGS: tuple[RungName, ...] = ("solo", "team", "pipeline", "attempts")
 # The token priors (``bench/estimate.py``) a rung is estimated with, and the task scale per size
 # (the ``attempts`` rung: ``attempts.ladder_count`` walks of the ``team`` prior, and the judge).
-ESTIMATE_AS: dict[str, str] = {
-    "solo": "single",
-    "team": "team",
-    "pipeline": "pipeline",
-    "attempts": "team",
-}
+ESTIMATE_AS: dict[str, str] = RUNG_PRIORS
 SIZE_SCALE: dict[str, float] = {"small": 1.0, "medium": 1.5, "large": 2.5}  # provisional (T33)
 # The stop causes (``PipelineState.stopped_by``) that escalate: anything else (a budget stop, a
 # cancel, a bug the team could not reproduce, a setup problem) ends the run where it is.

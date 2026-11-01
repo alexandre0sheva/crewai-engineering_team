@@ -89,3 +89,28 @@ def test_a_demo_new_project_run_succeeds_whatever_strategy_was_asked(
     # A ``single`` run has no stages to verify, whatever it is shown as.
     assert results["verdict"] == ("verified" if strategy is None else None)
     assert results["merge"] is None
+
+
+def test_the_demo_takes_away_every_model_call_the_controller_makes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from engineering_team.cli import do_plan
+    from engineering_team.learning import reflect
+    from engineering_team.pipeline import select
+    from engineering_team.settings import Settings
+    from engineering_team.ui.demo import DemoNoModel, without_models
+
+    for module, name in (
+        (do_plan, "build_triage_llm"),
+        (select, "build_judge_llm"),
+        (reflect, "build_reflection_llm"),
+    ):
+        monkeypatch.setattr(module, name, getattr(module, name))  # restored after the test
+    settings = Settings()
+
+    without_models()
+
+    assert reflect.build_reflection_llm(settings) is None
+    for build in (do_plan.build_triage_llm, select.build_judge_llm):
+        with pytest.raises(DemoNoModel):
+            build(settings)

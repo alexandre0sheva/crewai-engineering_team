@@ -317,7 +317,35 @@ def main(argv: Sequence[str] | None = None) -> int:
         args = args[2:]
     patched: Any = strategies
     patched.CrewStageRunner = DemoRunner
+    without_models()
     return int(engine.run(args) or 0)
+
+
+class DemoNoModel(RuntimeError):
+    """What a controller-made model call meets in the demo."""
+
+
+def _no_model(settings: Any) -> Any:
+    raise DemoNoModel("the demo calls no model")
+
+
+def without_models() -> None:
+    """Take away the model calls the controller makes outside a stage runner (triage, the attempts'
+    judge, reflection), so a demo run spends nothing even with a real API key in the environment
+    and never writes a lesson from a scripted run into the person's library. Each one already
+    has its offline path: triage falls back to the signals, the judge to the smallest passing
+    diff, and reflection is skipped."""
+
+    from engineering_team.cli import do_plan
+    from engineering_team.learning import reflect
+    from engineering_team.pipeline import select
+
+    patched: Any = do_plan
+    patched.build_triage_llm = _no_model
+    patched = select
+    patched.build_judge_llm = _no_model
+    patched = reflect
+    patched.build_reflection_llm = lambda settings: None
 
 
 if __name__ == "__main__":

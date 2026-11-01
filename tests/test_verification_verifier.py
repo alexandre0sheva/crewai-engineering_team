@@ -160,6 +160,34 @@ def test_a_failed_required_setup_skips_the_checks_that_depend_on_it(
     assert "setup" in (results["tests"].hint or "")  # type: ignore[attr-defined]
 
 
+def test_a_repair_round_runs_the_checks_it_set_out_to_fix_first(make_context: MakeContext) -> None:
+    ctx = make_context()
+    ctx.workspace.write_file("bad.py", "raise SystemExit(1)\n")
+    ctx.workspace.write_file("ok.py", "print(1)\n")
+    checks = [
+        command("setup", "python", "ok.py", kind="setup"),
+        command("lint", "python", "ok.py", kind="lint"),
+        command("tests", "python", "bad.py", kind="test"),
+    ]
+
+    still = Verifier(ctx).run(checks, first=["tests"])
+    ctx.workspace.write_file("bad.py", "print(2)\n")
+    fixed = Verifier(ctx).run(checks, first=["tests"])
+
+    # Still failing: the rest is not run again, and says why (results keep the checks' order).
+    assert [(r.id, r.status) for r in still] == [
+        ("setup", "passed"), ("lint", "skipped"), ("tests", "failed")
+    ]  # fmt: skip
+    assert "'tests'" in (still[1].hint or "") and "still fails" in (still[1].hint or "")
+    # Fixed: everything runs, so the verdict rests on the whole suite.
+    assert [(r.id, r.status) for r in fixed] == [
+        ("setup", "passed"), ("lint", "passed"), ("tests", "passed")
+    ]  # fmt: skip
+    started = [e.data["check"] for e in read_events(ctx.run_dir / EVENTS_FILENAME)
+               if e.type == "check.started"]  # fmt: skip
+    assert started == ["setup", "tests", "setup", "tests", "lint"]
+
+
 def test_a_failed_optional_setup_does_not_stop_the_rest(make_context: MakeContext) -> None:
     ctx = make_context()
     ctx.workspace.write_file("bad.py", "raise SystemExit(1)\n")

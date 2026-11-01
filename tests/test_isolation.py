@@ -14,6 +14,7 @@ from engineering_team.modes.isolation import (
     WORKTREES,
     IsolationError,
     branch_name,
+    exclude_workspace_root,
     isolate,
     read_isolation,
 )
@@ -67,6 +68,25 @@ def test_the_state_directory_is_excluded_without_touching_gitignore(repo: Path) 
     assert ".engineering-team/" in exclude.splitlines()
     assert (repo / ".gitignore").read_bytes() == gitignore
     assert out(repo, "status", "--porcelain") == ""  # the state it wrote does not show up
+
+
+def test_a_workspace_root_inside_the_repository_is_kept_out_of_git(
+    repo: Path, tmp_path: Path
+) -> None:
+    # `do` in your own checkout keeps ./workspace (the run registry) there: it must never be
+    # committed by a stage, make the next run see a dirty tree, or vanish with the team's branch.
+    registry = repo / "workspace" / ".external-workspaces.json"
+    registry.parent.mkdir()
+    registry.write_text("{}\n")
+
+    exclude_workspace_root(repo, repo / "workspace")
+    exclude_workspace_root(repo, repo / "workspace")  # once is enough
+    exclude_workspace_root(repo, tmp_path / "elsewhere")  # outside the repository: nothing
+
+    assert out(repo, "status", "--porcelain", "--untracked-files=all") == ""
+    exclude = (repo / ".git" / "info" / "exclude").read_text().splitlines()
+    assert exclude.count("/workspace/") == 1 and not any("elsewhere" in x for x in exclude)
+    assert isolate(repo, run_id=RUN, slug="x").mode == "branch"  # still a clean tree
 
 
 def test_the_workspace_is_marked_adopted_and_the_isolation_is_recorded(repo: Path) -> None:

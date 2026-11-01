@@ -57,3 +57,35 @@ def test_build_llm_applies_the_context_window_without_sending_it_to_the_api() ->
     ollama_llm = build_llm(ollama_settings.resolve_model("backend_engineer"), ollama_settings)
     assert ollama_llm.get_context_window_size() == int(32_768 * 0.75)
     assert "context_window_size" not in getattr(ollama_llm, "additional_params", {})
+
+
+def test_an_output_cap_uses_the_parameter_newer_openai_models_accept(monkeypatch) -> None:
+    from crewai import LLM
+
+    from engineering_team.llm import cap_output
+
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    chat = cap_output(LLM(model="openai/gpt-5.6-terra", api="completions"), 1200)
+    responses = cap_output(LLM(model="openai/gpt-6-luna", api="responses"), 1200)
+    other = cap_output(SimpleNamespace(max_tokens=None), 1200)  # a provider with max_tokens only
+
+    # Chat Completions refuses ``max_tokens`` for OpenAI's reasoning models.
+    assert (
+        chat._prepare_completion_params(messages=[{"role": "user", "content": "x"}]).get(
+            "max_tokens"
+        )
+        is None
+    )
+    assert (
+        chat._prepare_completion_params(messages=[{"role": "user", "content": "x"}])[
+            "max_completion_tokens"
+        ]
+        == 1200
+    )
+    assert (
+        responses._prepare_responses_params(messages=[{"role": "user", "content": "x"}])[
+            "max_output_tokens"
+        ]
+        == 1200
+    )
+    assert other.max_tokens == 1200

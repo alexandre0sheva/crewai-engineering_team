@@ -135,6 +135,8 @@ def test_an_explicit_mode_wins_over_the_model(tmp_path: Path) -> None:
 
     assert profile.intents == ["review", "question", "docs"]
     assert profile.overrides == ["--mode review: primary intent review (model: question)"]
+    # The model's proof was for a question; a review is proved by a review.
+    assert profile.verify_by == ["review"]
 
 
 def test_focus_paths_are_kept_only_when_they_exist(tmp_path: Path) -> None:
@@ -181,6 +183,8 @@ def test_the_stack_comes_from_the_repository_not_the_model(tmp_path: Path) -> No
         ("Add a flag.", True, "feature"),
         ("Add a flag.", False, "new_project"),
         ("Write a plan only, without writing any code.", True, "plan_only"),
+        ("Fix the crash in app.py on empty input and add a test for it.", True, "bugfix"),
+        ("Compare SQLite and Postgres for this service.", True, "research"),
     ],
 )
 def test_the_signals_only_guess(text: str, existing: bool, intent: str) -> None:
@@ -278,3 +282,12 @@ def test_a_pasted_trace_with_no_directory_is_a_question_not_a_new_project() -> N
 
     assert signals.stack_trace and profile.intents == ["question"]
     assert any("primary intent is question" in line for line in profile.overrides)
+
+
+def test_the_bundled_example_is_a_new_project_without_a_model() -> None:
+    # Its spec mentions "no web research" and "deployment"; neither makes it a research question.
+    from engineering_team.request_sources import load_example
+
+    text = load_example("tiny-notes")
+
+    assert guess_intent(collect(text).model_copy(update={"existing_code": False})) == "new_project"

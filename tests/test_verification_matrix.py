@@ -436,11 +436,11 @@ def test_cancelling_during_verification_ends_the_run_cancelled_and_it_resumes(
     real = verifier_module.Verifier.run
     armed = [True]
 
-    def run_then_cancel(self, checks, *, round=0):  # type: ignore[no-untyped-def]
+    def run_then_cancel(self, checks, *, round=0, first=()):  # type: ignore[no-untyped-def]
         if armed[0]:
             armed[0] = False
             self.ctx.cancel_event.set()
-        return real(self, checks, round=round)
+        return real(self, checks, round=round, first=first)
 
     monkeypatch.setattr(verifier_module.Verifier, "run", run_then_cancel)
     use_runner(monkeypatch, FakeRunner(on_call=seed()))

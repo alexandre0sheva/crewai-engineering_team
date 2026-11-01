@@ -184,3 +184,22 @@ def test_old_results_with_subset_still_read_and_errored_criteria_are_shown() -> 
     assert old.failed_criteria == [] and old.errored_criteria == ["c"]
     text = render_markdown({"batch": "b"}, [old])
     assert "| t | pipeline | 1 | error | c |" in text
+
+
+def test_auto_is_priced_as_the_rung_it_starts_on() -> None:
+    suite = {t.id: t for t in load_suite(SUITE)}
+    settings = load_settings()
+    small_fix, review = suite["seeded-bug"], suite["review-seeded-defects"]
+    specs = [RunSpec(small_fix, "auto", 1), RunSpec(review, "auto", 1)]
+
+    found = {row.task: row.per_run_usd for row in estimate.estimate_batch(specs, settings).rows}
+
+    # A small fix starts on ``solo`` (the ``single`` prior); a review runs on ``pipeline``.
+    assert found["seeded-bug"] == estimate.per_run_cost(settings, "single", small_fix.scale)[0]
+    assert (
+        found["review-seeded-defects"]
+        == estimate.per_run_cost(settings, "pipeline", review.scale)[0]
+    )
+    medium = load_settings(overrides={"ladder.start_small": "team"})
+    assert estimate.priced_as(medium, "auto", "fix", "small") == "team"
+    assert estimate.priced_as(settings, "auto", "fix", "large") == "pipeline"

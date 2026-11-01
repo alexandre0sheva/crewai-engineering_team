@@ -988,8 +988,11 @@ What the agents say lives in `docs/qa-notes.md`, appended by the controller and 
 **Repair loop** (`verification/loop.py`). Verify; while a required check `failed` and
 `budget.may_repair(rounds)` and the run's other budgets allow, hand the failures (check id, command, summary,
 suspect files, the end of the log) to the stage's first teammate through the `repair` prompt, then run the
-checks **again**. The agent's reply is never read as evidence: if its round changed nothing in the project
-the recorded results are reused and the round still counts. Rounds (`budget.max_repair_rounds`, default 3) are
+checks **again**, incrementally: the checks the round set out to fix run first (after the setup checks), and
+the rest only once those pass; while one still fails the others are recorded `skipped` with the reason, so a
+round whose failures stand does not pay for the whole suite and no earlier pass is shown as current. A
+verdict therefore always rests on a full run. The agent's reply is never read as evidence: if its round
+changed nothing in the project the recorded results are reused and the round still counts. Rounds (`budget.max_repair_rounds`, default 3) are
 counted over the whole run; a crashed repair attempt uses a round; `unavailable` checks are not repaired
 (editing code cannot install a runtime). Each round is a `repair` card the controller closes: `done` with
 the now-passing check ids as evidence, or `failed`.

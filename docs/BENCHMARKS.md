@@ -195,16 +195,21 @@ A criterion took 2 to 13 seconds; an image is 1.0 to 1.3 GB to download.
 
 ## How a run works
 
-1. **Plan.** `--tasks` (ids, or `all`), the filters above, `--strategy` (`pipeline`,
-   `single`; repeat or comma-separate) and `--repeat N` give the list of runs, in the
-   order task, strategy, repeat. The repository modes (`feature`, `fix`, `maintain`) use the
-   pipeline only, so a brownfield task is not planned for the other strategies; the report lists the
-   pairs left out.
+1. **Plan.** `--tasks` (ids, or `all`), the filters above, `--strategy` (`auto`, `pipeline`,
+   `single`, `team`; repeat or comma-separate; default `pipeline`) and `--repeat N` give the list
+   of runs, in the order task, strategy, repeat. A new project takes every strategy; `feature` and
+   `fix` run a recipe (`auto`, `pipeline`, `team`); a maintenance task and a review run as written
+   (`auto` runs them on its `pipeline` rung). A pair that cannot run is not planned, and the report
+   lists the pairs left out. The repository modes have no `--strategy` option, so the run gets its
+   strategy as `ENGINEERING_STRATEGY`.
 2. **Prepare.** Each run gets its own directory `<out>/<batch>/<task>/<strategy>-<n>/` (default
    `<out>` is `benchmarks/.runs/`, git-ignored). A new project builds in `ws/app`; a brownfield task
    starts from `repo/`, a fresh Git repository on `main` with the fixture as its only commit. The
    request is copied to `request.md`; the task directory and its checks are not copied or named
-   anywhere in the run.
+   anywhere in the run. Each run also gets an empty configuration and experience library of its own
+   (`XDG_CONFIG_HOME`, `XDG_DATA_HOME` in the run directory): it reads none of your lessons, and none
+   an earlier run of the batch kept. `--library DIR` shares one on purpose (a learning on/off
+   comparison; use `--parallel 1`).
 3. **Run.** One subprocess per run, `python -m engineering_team --json ... new|feature|fix|maintain`,
    in its own process group, with `CREWAI_STORAGE_DIR` inside the run directory (no shared CrewAI
    memory between runs), a wall-clock limit from `task.yaml` (the team is asked to stop at 90 % of
@@ -269,8 +274,9 @@ counted. `bench spend` (or `--json`) prints allocated, spent and left per alloca
 `budget.toml`; going over one needs the user's explicit OK, never a flag.
 
 `--dry-run` prices the batch from the price table without running anything. The token counts behind
-it are **priors** (typical tokens per strategy and task `scale`), not measurements: read the figure
-as an order of magnitude and set `--budget-usd` as the real limit. `--resume --batch NAME` continues
+it are **priors** (typical tokens per strategy and task `scale`), not measurements; `auto` is priced
+as the rung it starts on for the task's `size` (`ladder.start_*`), and an escalation is bounded by
+`--run-budget-usd`, not priced. Read the figure as an order of magnitude and set `--budget-usd` as the real limit. `--resume --batch NAME` continues
 an interrupted batch, keeping runs that finished (passed, failed, or timed out) and repeating the
 rest; a Ctrl-C stops every team process and tells you the command.
 
@@ -487,6 +493,11 @@ recognises the question form, not a trace. Sizes are the weak part: the model ca
 audits and small greenfield requests `medium` where the labels say `small` (of 16 size misses, 12
 are one step larger, 1 two steps larger, 3 one step smaller). One run on 74 hand-labelled cases, so read the figures with that sample size in
 mind; the labels are the author's.
+
+The signals-only row is the code of that day. Since 2026-11-01 the fallback ranks a named bug above the
+tests or docs that come with its fix, a research word last (it is weak evidence outside a question), and
+never makes tests, docs or CI the primary intent of a new project: offline it scores **88 %** primary intent
+(65/74) with the same size, target and secondary figures (`bench triage`, no model).
 
 ## Harness tuning (`harness tune`)
 

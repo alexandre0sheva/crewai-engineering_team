@@ -69,6 +69,33 @@ def test_repository_tasks_are_not_planned_for_strategies_they_cannot_use(
     assert skipped == [("seeded-bug", "single")]
 
 
+def test_every_strategy_the_team_has_is_planned_where_its_mode_can_run_it(
+    tasks: dict[str, BenchTask],
+) -> None:
+    chosen = [tasks[t] for t in ("notes-cli", "seeded-bug", "add-tests", "review-seeded-defects")]
+
+    specs, skipped = plan_runs(chosen, ["auto", "pipeline", "single", "team"], 1)
+
+    planned = {(s.task.id, s.strategy) for s in specs}
+    assert {s for t, s in planned if t == "notes-cli"} == {"auto", "pipeline", "single", "team"}
+    assert {s for t, s in planned if t == "seeded-bug"} == {"auto", "pipeline", "team"}
+    for task in ("add-tests", "review-seeded-defects"):  # recipes that run as written
+        assert {s for t, s in planned if t == task} == {"auto", "pipeline"}
+    assert ("seeded-bug", "single") in skipped and ("add-tests", "team") in skipped
+
+
+@pytest.mark.parametrize("strategy", ["auto", "pipeline", "team"])
+def test_a_repository_run_gets_the_strategy_it_is_recorded_under(
+    tasks: dict[str, BenchTask], tmp_path: Path, strategy: str
+) -> None:
+    # feature, fix and maintain have no --strategy option, and since the ladder they follow the
+    # configured strategy (default auto): a "pipeline" row must not be an auto run.
+    prepared = prepare(RunSpec(tasks["seeded-bug"], strategy, 1), options(tmp_path), tmp_path / "r")
+
+    assert prepared.env["ENGINEERING_STRATEGY"] == strategy
+    assert "--strategy" not in prepared.argv
+
+
 # -- the budget ledger ----------------------------------------------------------------------------
 
 
@@ -297,9 +324,27 @@ def test_a_live_run_ignores_ambient_settings_and_keeps_the_keys(
         "learning.protected_paths": [str(task.root / "acceptance"), str(task.root / "reference")]
     }
     assert env["XDG_CONFIG_HOME"] == str(run / "xdg-config")  # not the user's config file
+    # Nor the person's lessons, or an earlier run's: each run has an empty library of its own.
+    assert env["XDG_DATA_HOME"] == str(run / "xdg-data")
     assert env["ENGINEERING_BUDGET_MAX_COST_USD"] == "2.0000"  # the harness's own settings stay
     assert env["OPENAI_API_KEY"] == "sk-keep-me"
     assert prepared.argv[prepared.argv.index("--config") + 1] == str(config)
+
+
+def test_a_batch_can_share_one_library_on_purpose(
+    tasks: dict[str, BenchTask], tmp_path: Path
+) -> None:
+    shared = tmp_path / "library-home"
+    specs = [RunSpec(tasks["notes-cli"], "auto", n) for n in (1, 2)]
+
+    homes = {
+        prepare(spec, options(tmp_path, library=shared), tmp_path / f"r{spec.repeat}").env[
+            "XDG_DATA_HOME"
+        ]
+        for spec in specs
+    }
+
+    assert homes == {str(shared)}
 
 
 def test_a_tuning_rollout_gets_its_candidate_harness_and_its_settings(

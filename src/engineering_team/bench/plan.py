@@ -11,7 +11,7 @@ from typing import Any
 from engineering_team.bench.agents import AGENT_NAMES
 from engineering_team.bench.tasks import BenchTask
 
-STRATEGIES = ("pipeline", "single")
+STRATEGIES = ("auto", "pipeline", "single", "team")  # pipeline/strategies.py STRATEGY_NAMES
 
 
 def is_agent(contender: str) -> bool:
@@ -64,6 +64,7 @@ class RunOptions:
     # settings it adds to the run's ``ENGINEERING_OVERRIDES`` (``learning.enabled = false``).
     harness_overlay: Path | None = None
     settings_overrides: Mapping[str, Any] = field(default_factory=dict)
+    library: Path | None = None  # a data home the runs share (its lessons); else an empty one each
 
     def cap_for(self, contender: str) -> float | None:
         """The most a run by ``contender`` may spend; ``None``: it spends no money (an offline

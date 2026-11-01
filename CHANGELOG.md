@@ -11,6 +11,10 @@ renames that section and dates it.
 
 ### Added
 
+- `bench run --strategy auto|team` ([docs/BENCHMARKS.md](docs/BENCHMARKS.md#how-a-run-works)): the escalation
+  ladder (the default of `do`) and the lead with teammates can be benchmarked; `auto` is estimated as the rung it
+  starts on for the task's size. `bench run --library DIR` lets a batch's runs share one experience library on
+  purpose (otherwise each run starts with an empty one).
 - Context packs ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#context-packs-and-prompt-sizes)): every stage session starts
   with the files that matter for the request. A personalised PageRank over the import graph, seeded by the request,
   a stack trace, the triage focus paths and the reproduction and lifted by Git recency, ranks the repository; a
@@ -174,6 +178,9 @@ renames that section and dates it.
 
 ### Changed
 
+- A repair round runs the checks it set out to fix first and the rest only once those pass
+  ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)); while one still fails, the others are recorded `skipped` with
+  the reason. A verdict still rests on a run of every check.
 - Teammate and stage prompts are now harness files (`harness/data/base/`, [docs/HARNESS.md](docs/HARNESS.md)):
   per teammate `role.md` (role, goal, identity and its settings), `tool_guidance.md` and `guardrails.md`; one
   Markdown file per stage prompt; shared text. The prompts are the 0.2.0 prompts, plus one line in every stage
@@ -233,12 +240,33 @@ renames that section and dates it.
 - A zero price override (`[pricing."ollama/*"]`) reported an unknown cost for local models: a model call made
   without an agent was logged under its bare name; it now carries its provider, so the cost reads `$0.00`.
 - `Roster.assign` never saw the run's mode, so `modes = [...]` on a teammate was ignored in real runs.
+- `do` in your own checkout (the default) kept its run registry in `./workspace/` inside the repository, where the
+  team's stage commits picked it up: the change and its patch carried `workspace/.external-workspaces.json`, and
+  switching back to your branch removed it, so `continue`, `status` and `runs` lost the run. A workspace root
+  inside the repository is now kept out of Git (`.git/info/exclude`).
+- A question or research request with no project whose wording also hit "docs" or "deploy" (the bundled
+  `tiny-notes` example) failed with "the composed recipe is invalid", and a plan-only request like that ran the
+  docs or devops stage, which made its own plan report fail. Read-only requests never get those stages now.
+- Without a model, triage called "fix the crash and add a test" a tests request and the `tiny-notes` example a
+  research question: a named bug now ranks above the tests or docs that come with its fix, a research word last,
+  and tests, docs or CI are never the main work of a new project (88 % on the triage cases, was 84 %).
+- `do --mode` showed the model's proof for the work it had seen ("proved by: acceptance_tests" for a forced fix);
+  it now shows the forced intent's.
+- Triage, reflection, the attempts' judge and harness tuning capped their answer with `max_tokens`, which OpenAI's
+  newer models refuse on the Chat Completions API (every such call failed, so triage fell back to the signals and
+  no lesson was kept); they now send `max_completion_tokens` where the provider has it.
+- `ui --demo` (no key, no model) made one real model call per run for reflection when a key was in the environment,
+  and could keep a lesson from a scripted run; the demo now calls no model at all.
+- `bench run` on a `feature`, `fix` or `maintain` task recorded as `pipeline` actually ran the default strategy
+  (`auto`, since the escalation ladder); each run now gets the strategy it is recorded under. Live runs also read
+  and wrote the person's experience library, so a held-out task could learn from a dev task of the same batch;
+  every run now has an empty library of its own.
 
 ### Removed
 
 - The `hierarchical` strategy (the 0.1.0 manager-led crew), its `engineering_lead` teammate and
   `config/tasks.yaml`. `--strategy hierarchical` and `strategy = "hierarchical"` are now usage errors that name
-  `pipeline` and `single`. Runs 0.2.0 recorded with it still show in `runs`, `report` and the UI; `resume` says they
+  the strategies there are. Runs 0.2.0 recorded with it still show in `runs`, `report` and the UI; `resume` says they
   cannot be resumed. The `ENGINEERING_LEAD_MODEL` setting still picks the lead tier's model.
 - The 0.1.0 invocation without a command (`engineering-team --request-file FILE`, or bare `engineering-team`
   next to a `PROJECT_REQUEST.md`): it prints one line pointing at `engineering-team new` and exits 2.

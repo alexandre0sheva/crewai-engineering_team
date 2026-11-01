@@ -83,12 +83,10 @@ def build_reflection_llm(settings: Settings) -> Any | None:
 
     if settings.missing_credentials():
         return None
-    from engineering_team.llm import build_llm
+    from engineering_team.llm import build_llm, cap_output
 
     llm = build_llm(reflection_model(settings), settings)
-    if hasattr(llm, "max_tokens"):
-        object.__setattr__(llm, "max_tokens", MAX_OUTPUT_TOKENS)
-    return llm
+    return cap_output(llm, MAX_OUTPUT_TOKENS)
 
 
 def build_messages(evidence: RunEvidence) -> list[dict[str, str]]:

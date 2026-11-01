@@ -20,6 +20,7 @@ from engineering_team.cli.context import get as get_globals
 from engineering_team.intake.errors import IntakeError
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
 from engineering_team.modes.findings_report import FINDINGS_JSON, FINDINGS_MD, read_findings
+from engineering_team.modes.isolation import exclude_workspace_root
 from engineering_team.modes.repo_analyzer import standalone_git
 from engineering_team.modes.run_options import write_run_options
 from engineering_team.pipeline.recipes import load_recipe
@@ -32,7 +33,7 @@ from engineering_team.runtime.session import RunRecorder
 from engineering_team.settings import Settings, load_settings
 from engineering_team.team import build_roster
 from engineering_team.tools.workspace import ProjectWorkspace
-from engineering_team.workspaces import slugify_project_name
+from engineering_team.workspaces import resolve_workspace_root, slugify_project_name
 
 DEFAULT_REQUEST = "Review the change."
 
@@ -131,6 +132,7 @@ def review(
         settings = load_settings(overrides=overrides, config_file=config)
         settings.check_ready(require_credentials=True)
         try:
+            exclude_workspace_root(root, resolve_workspace_root(settings.workspace_root))
             register_workspace(settings.workspace_root, root, label)  # `status` and `board` find it
             return open_review(settings, root, base, focus)
         except IntakeError as exc:

@@ -146,6 +146,34 @@ def test_questions_are_answered_and_plans_are_only_plans() -> None:
     assert compose(profile("plan_only")).recipe.stage("design").write_scope == "nothing"
 
 
+def test_a_read_only_request_with_no_project_never_writes_docs_or_ci() -> None:
+    # A question or plan whose wording also hit "docs" or "deploy" (the bundled tiny-notes
+    # example says "no remote documentation lookup ... deployment") stays read-only.
+    for primary in ("question", "research", "plan_only"):
+        for secondary in ("docs", "devops"):
+            stages = names(primary, secondary, target="new")
+            assert "docs" not in stages and "devops" not in stages, (primary, secondary)
+
+
+def test_every_profile_composes_a_valid_recipe_or_says_none_applies() -> None:
+    from typing import get_args
+
+    from engineering_team.contracts import Intent
+
+    intents = get_args(Intent)
+    for target in ("new", "existing"):
+        for primary in intents:
+            for secondary in (None, *intents):
+                if secondary == primary:
+                    continue
+                chosen = (primary, secondary) if secondary else (primary,)
+                for size in ("trivial", "medium", "large"):
+                    try:
+                        compose(profile(*chosen, target=target, size=size, risk="high"))
+                    except ComposeError as exc:
+                        assert str(exc).startswith("No stage applies"), (chosen, target, exc)
+
+
 def test_a_question_does_not_run_the_projects_checks() -> None:
     assert "baseline" not in names("question", size="large", risk="high")
 

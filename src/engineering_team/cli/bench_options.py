@@ -24,6 +24,18 @@ TasksDirOption = Annotated[
     ),
 ]
 
+LibraryOption = Annotated[
+    str | None,
+    typer.Option(
+        help="A data directory the batch's runs share as their experience library's home, so a "
+        "lesson one run keeps reaches the next (use --parallel 1). Default: an empty one per run."
+    ),
+]
+
+
+def library_path(library: str | None) -> Path | None:
+    return Path(library).expanduser().resolve() if library else None
+
 
 def tasks_dir_path(tasks_dir: str | None) -> Path | None:
     return Path(tasks_dir).expanduser().resolve() if tasks_dir else None

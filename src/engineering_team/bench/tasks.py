@@ -199,10 +199,16 @@ class BenchTask(_Strict):
         return self.root / self.request
 
     def applies_to(self, strategy: str) -> bool:
-        """Only a new project can be built with any strategy; the repository modes need the
-        ``pipeline`` (``cli/repo_mode.py`` forces it)."""
+        """A new project can be built with any strategy. ``feature`` and ``fix`` run a recipe, so
+        not ``single`` (``cli/repo_mode.py`` turns it into ``pipeline``); a maintenance task's
+        recipe and a review run as written, so only ``pipeline`` and ``auto`` (which runs them on
+        its ``pipeline`` rung) apply."""
 
-        return self.mode == "new" or strategy == "pipeline"
+        if self.mode == "new":
+            return True
+        if self.mode in ("feature", "fix"):
+            return strategy in ("auto", "pipeline", "team")
+        return strategy in ("auto", "pipeline")
 
     def validate_files(self) -> None:
         """Check the task directory holds what ``task.yaml`` promises."""

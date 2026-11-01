@@ -23,7 +23,7 @@ from engineering_team.cli.run_commands import present_run, wants_questions
 from engineering_team.contracts import TaskProfile
 from engineering_team.intake.bundle import RequestBundle
 from engineering_team.modes.change_report import PATCH_FILE, SUMMARY_FILE
-from engineering_team.modes.isolation import Isolation, isolate
+from engineering_team.modes.isolation import Isolation, exclude_workspace_root, isolate
 from engineering_team.modes.run_options import write_run_options
 from engineering_team.modes.threads import continue_isolation
 from engineering_team.pipeline.recipes import Recipe, load_recipe
@@ -33,7 +33,7 @@ from engineering_team.runtime.run_index import register_workspace
 from engineering_team.settings import Settings, load_settings
 from engineering_team.team import build_roster
 from engineering_team.tools.workspace import ProjectWorkspace
-from engineering_team.workspaces import slugify_project_name
+from engineering_team.workspaces import resolve_workspace_root, slugify_project_name
 
 HEADING = re.compile(r"^\s*(#+|[-=*]{3,})")
 
@@ -124,6 +124,7 @@ def run_repository_mode(g: Globals, run: RepoRun) -> None:
             run.recipe or run.mode, run.root, teammates=build_roster(settings).members
         )
         run_id = new_run_id()
+        exclude_workspace_root(run.root, resolve_workspace_root(settings.workspace_root))
         if run.continued is not None:
             isolation = continue_isolation(run.continued, allow_dirty=run.allow_dirty)
         else:

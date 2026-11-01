@@ -93,16 +93,22 @@ def neutral_settings_environment(run_dir: Path) -> dict[str, str]:
 
     Every ``ENGINEERING_*`` setting is set blank (a blank value counts as unset, and CrewAI's
     ``.env`` loading never overrides a variable that already exists, so neither the shell nor the
-    repository's ``.env`` can change the benchmark's conditions), and the user's config file
-    (``$XDG_CONFIG_HOME/engineering-team/``) is pointed at an empty directory. API keys are left
-    alone: the team finds them as it always does.
+    repository's ``.env`` can change the benchmark's conditions), the user's config file
+    (``$XDG_CONFIG_HOME/engineering-team/``) is pointed at an empty directory, and so is the
+    experience library (``$XDG_DATA_HOME``): a run neither reads the person's lessons nor lessons an
+    earlier run of the batch wrote (a held-out task must not learn from a dev task), and leaves
+    none behind. API keys are left alone: the team finds them as it always does.
     """
 
     from engineering_team.settings import CONFIG_FILE_ENV, ENV_SETTINGS, OVERRIDES_ENV
 
     names = {*ENV_SETTINGS, CONFIG_FILE_ENV, OVERRIDES_ENV}
     names |= {name for name in os.environ if name.startswith("ENGINEERING_")}
-    return {**dict.fromkeys(sorted(names), ""), "XDG_CONFIG_HOME": str(run_dir / "xdg-config")}
+    return {
+        **dict.fromkeys(sorted(names), ""),
+        "XDG_CONFIG_HOME": str(run_dir / "xdg-config"),
+        "XDG_DATA_HOME": str(run_dir / "xdg-data"),
+    }
 
 
 def visible_credentials() -> dict[str, str]:
@@ -134,6 +140,8 @@ def _live_environment(options: RunOptions, run_dir: Path, task: BenchTask) -> di
     )
     if options.run_budget_usd is not None:
         env["ENGINEERING_BUDGET_MAX_COST_USD"] = f"{options.run_budget_usd:.4f}"
+    if options.library is not None:  # lessons shared on purpose (a learning on/off comparison)
+        env["XDG_DATA_HOME"] = str(options.library)
     overrides = {**options.settings_overrides, "learning.protected_paths": protected_paths(task)}
     env[OVERRIDES_ENV] = json.dumps(overrides)
     return env
@@ -212,4 +220,7 @@ def prepare(spec: RunSpec, options: RunOptions, run_dir: Path) -> Prepared:
     if task.mode != "review":
         argv.append("--non-interactive")
     install_overlay(options.harness_overlay, run_dir / "xdg-config")
-    return Prepared(run_dir, workspace, argv, _live_environment(options, run_dir, task), run_id)
+    env = _live_environment(options, run_dir, task)
+    if task.mode not in ("new", "review"):  # feature, fix, maintain: no --strategy option
+        env["ENGINEERING_STRATEGY"] = spec.strategy
+    return Prepared(run_dir, workspace, argv, env, run_id)
