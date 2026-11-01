@@ -11,6 +11,15 @@ renames that section and dates it.
 
 ### Added
 
+- Lessons from verified runs ([docs/HARNESS.md](docs/HARNESS.md#lessons)): after a run that ends `verified` (or
+  `failed` with checks), a new `reflect` stage makes one cheap-tier call that reads the controller's record (checks,
+  repairs, escalations, a trajectory summary) and proposes behaviour rows and at most one lesson for that kind of work.
+  The controller keeps a lesson only if the checks and rows it cites are real and saw an effect, it names a harness
+  component, and it holds no secret and no text of a benchmark's hidden checks. Lessons are kept per domain in
+  `~/.local/share/engineering-team/library/` (or the repository's `.engineering-team/library/`), one `EXPERIENCE.md`
+  each, and later runs of the same domain are shown the ones that fit their request, as data. `engineering-team
+  lessons list|show|approve|forget` reads and reviews them; `[learning]` in the configuration switches reflection off,
+  makes new lessons wait for approval (`review = "manual"`) or sizes it. The stage is skipped under a very low budget.
 - Repo memory ([docs/HARNESS.md](docs/HARNESS.md#repo-memory)): the team remembers verified facts about each
   repository in `.engineering-team/memory/` (the command that runs its tests, a dependency install that worked, a
   test that flips on an unchanged tree, conventions and gotchas) and tells later runs, so they skip rediscovery.

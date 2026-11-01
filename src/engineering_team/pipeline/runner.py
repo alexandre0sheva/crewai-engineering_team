@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from engineering_team.contracts import RunManifest
+from engineering_team.learning.reflect import reflect_run
 from engineering_team.pipeline.recipes import Recipe, load_recipe, pinned_recipe
 from engineering_team.pipeline.resume import ResumeError
 from engineering_team.pipeline.state import (
@@ -49,7 +50,8 @@ def execute_run(
 
     The caller owns the workspace lock and has created (or reopened) the manifest. A strategy
     that fails without raising ends the run ``failed``; one that raises ends it ``failed``
-    (``interrupted`` for Ctrl-C) and the exception propagates.
+    (``interrupted`` for Ctrl-C) and the exception propagates. A run that ends with a verdict
+    then reflects on itself (``learning/reflect.py``), which never changes how it ended.
     """
 
     recorder = RunRecorder.attach(ctx)
@@ -59,6 +61,7 @@ def execute_run(
             recorder.set_verdict(result.verdict)
         if result.status == "failed":
             recorder.fail(result.error or "The run failed.")
+        reflect_run(ctx, recorder, result.verdict)  # the ``reflect`` stage, when it applies
     manifest = recorder.manifest
     error = (result.error if manifest.status == "failed" else "") or ""
     return RunResult(

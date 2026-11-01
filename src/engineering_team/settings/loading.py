@@ -159,6 +159,18 @@ def user_config_directory() -> Path | None:
         return None
 
 
+def user_data_directory() -> Path | None:
+    """``~/.local/share/engineering-team`` (``$XDG_DATA_HOME`` first); ``None`` with no home: where
+    the experience library lives (``learning/library.py``)."""
+
+    data_home = os.environ.get("XDG_DATA_HOME")
+    try:
+        base = Path(data_home) if data_home else Path.home() / ".local" / "share"
+    except RuntimeError:
+        return None
+    return base / "engineering-team"
+
+
 def user_config_path(env: Mapping[str, str], home: Path) -> Path:
     config_home = env.get("XDG_CONFIG_HOME")
     base = Path(config_home) if config_home else home / ".config"

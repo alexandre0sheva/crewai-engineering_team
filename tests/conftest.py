@@ -194,6 +194,19 @@ def no_external_network(request: pytest.FixtureRequest, monkeypatch: pytest.Monk
     monkeypatch.setattr(socket.socket, "connect", guarded_connect)
 
 
+@pytest.fixture(autouse=True)
+def no_reflection_model(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A run that ends with a verdict reflects with one model call (``learning/reflect.py``).
+    Tests script that call when they are about it; everywhere else no model can be called, so
+    the stage is skipped (``live`` tests are exempt)."""
+
+    if request.node.get_closest_marker("live"):
+        return
+    from engineering_team.learning import reflect
+
+    monkeypatch.setattr(reflect, "build_reflection_llm", lambda settings: None)
+
+
 @pytest.fixture
 def full_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
     """Every stage of the pipeline, as for a large task with all ceremony asked for. A module of

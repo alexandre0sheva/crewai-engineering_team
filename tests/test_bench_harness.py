@@ -279,6 +279,7 @@ def test_a_live_run_ignores_ambient_settings_and_keeps_the_keys(
     monkeypatch.setenv("ENGINEERING_LEAD_MODEL", "openai/not-the-benchmark-model")
     monkeypatch.setenv("ENGINEERING_STRATEGY", "single")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-keep-me")
+    monkeypatch.setenv("ENGINEERING_OVERRIDES", '{"learning.enabled": false}')
     config = tmp_path / "bench.toml"
     config.write_text("[budget]\nmax_repair_rounds = 1\n")
 
@@ -290,7 +291,11 @@ def test_a_live_run_ignores_ambient_settings_and_keeps_the_keys(
 
     env, run = prepared.env, tmp_path / "t" / "r"
     assert env["ENGINEERING_LEAD_MODEL"] == "" and env["ENGINEERING_STRATEGY"] == ""
-    assert env["ENGINEERING_CONFIG_FILE"] == "" and env["ENGINEERING_OVERRIDES"] == ""
+    assert env["ENGINEERING_CONFIG_FILE"] == ""
+    task = tasks["notes-cli"]  # the only override is what no lesson may quote (T20's leak guard)
+    assert json.loads(env["ENGINEERING_OVERRIDES"]) == {
+        "learning.protected_paths": [str(task.root / "acceptance"), str(task.root / "reference")]
+    }
     assert env["XDG_CONFIG_HOME"] == str(run / "xdg-config")  # not the user's config file
     assert env["ENGINEERING_BUDGET_MAX_COST_USD"] == "2.0000"  # the harness's own settings stay
     assert env["OPENAI_API_KEY"] == "sk-keep-me"

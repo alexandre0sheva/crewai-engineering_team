@@ -8,6 +8,7 @@ fetch a task's repository into the cache the first time, :mod:`engineering_team.
 
 from __future__ import annotations
 
+import json
 import os
 import secrets
 import shutil
@@ -20,6 +21,7 @@ from engineering_team.bench.acceptance import clean_environment, source_root
 from engineering_team.bench.plan import RunOptions, RunSpec
 from engineering_team.bench.repos import RepositoryError, checkout
 from engineering_team.bench.tasks import BenchError, BenchTask, copy_tree
+from engineering_team.settings import OVERRIDES_ENV
 
 PROJECT = "app"  # the directory name of a new project and the project name of a repository run
 REVIEW_BRANCH = "change"  # review tasks: the branch with the change, on top of ``main``
@@ -132,7 +134,15 @@ def _live_environment(options: RunOptions, run_dir: Path, task: BenchTask) -> di
     )
     if options.run_budget_usd is not None:
         env["ENGINEERING_BUDGET_MAX_COST_USD"] = f"{options.run_budget_usd:.4f}"
+    env[OVERRIDES_ENV] = json.dumps({"learning.protected_paths": protected_paths(task)})
     return env
+
+
+def protected_paths(task: BenchTask) -> list[str]:
+    """What no lesson the team learns may quote: the task's hidden checks and its reference
+    (the team only compares a lesson against them; it never reads them into a prompt)."""
+
+    return [str(task.checks_file.parent), str(task.reference_dir)]
 
 
 def prepare(spec: RunSpec, options: RunOptions, run_dir: Path) -> Prepared:

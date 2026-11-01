@@ -11,6 +11,7 @@ from engineering_team.contracts import TaskProfile
 from engineering_team.harness.domains import domain_for
 from engineering_team.harness.library import resolve_for_run
 from engineering_team.intake import ContextScan, install_context
+from engineering_team.learning.retrieve import choose_lessons
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
 from engineering_team.pipeline.recipes import Recipe, pin_recipe
 from engineering_team.pipeline.state import RunBundle
@@ -253,6 +254,7 @@ def _open_run(
             recipe=recipe.name if recipe is not None else recipe_name_for(strategy_name),
             stage_reasons={s.name: s.why for s in recipe.stages if s.why} if recipe else None,
         )
+        choose_lessons(ctx, requirements or "", profile)  # the experience library, as data
         inputs = (
             build_inputs(
                 project_name=settings.project_name,

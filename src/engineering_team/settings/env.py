@@ -78,6 +78,8 @@ def _build_env_table() -> dict[str, tuple[str, Callable[[str], Any]]]:
         "ENGINEERING_MAX_DELEGATIONS": ("delegation.max_delegations", _auto_or_int),
         "ENGINEERING_LADDER_MAX_RUNG": ("ladder.max_rung", _text),
         "ENGINEERING_LAZY_TOOLS": ("tools.lazy", _bool),
+        "ENGINEERING_LEARNING_REFLECT": ("learning.reflect", _bool),
+        "ENGINEERING_LEARNING_REVIEW": ("learning.review", _text),
     }
     # 0.1.0 model variables: the standard names only affect the standard profile and the
     # ENGINEERING_SMOKE_* names only the smoke profile.

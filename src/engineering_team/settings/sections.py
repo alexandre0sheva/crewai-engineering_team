@@ -153,6 +153,22 @@ class MemorySettings(_Frozen):
     inject_chars: int = Field(default=1200, ge=0, le=10_000)
 
 
+class LearningSettings(_Frozen):
+    """Reflection and the experience library (``docs/CONFIGURATION.md``). Provisional defaults
+    until the 0.3.0 evaluation."""
+
+    enabled: bool = True  # read lessons into prompts and keep new ones
+    reflect: bool = True  # the end-of-run ``reflect`` stage (one cheap-tier call)
+    review: Literal["auto", "manual"] = "auto"  # manual: new lessons wait in pending/
+    library: Literal["user", "repo"] = "user"  # where new lessons are written
+    inject_lessons: int = Field(default=3, ge=0, le=20)
+    inject_chars: int = Field(default=1200, ge=0, le=10_000)
+    max_lessons: int = Field(default=100, ge=10, le=1000)  # per domain and library
+    min_budget_usd: float = Field(default=0.25, ge=0)  # no reflection under a smaller cost cap
+    trace_chars: int = Field(default=8000, ge=2000, le=50_000)
+    protected_paths: list[str] = []  # files no lesson may quote (a benchmark's hidden checks)
+
+
 class RuntimeSettings(_Frozen):
     """Background processes and the HTTP tool. Times are in seconds."""
 

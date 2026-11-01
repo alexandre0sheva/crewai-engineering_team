@@ -67,6 +67,8 @@ a profile.
 | `ladder.start_small`, `ladder.start_medium`, `ladder.start_large` | – | `solo`, `team`, `pipeline` | The rung an `auto` run starts on for a small, medium or large task (`solo`, `team` or `pipeline`). See [Escalation ladder](#escalation-ladder-ladder) |
 | `ladder.start_high_risk` | – | `team` | The lowest rung a high-risk request (auth, secrets, payments, uploads, ...) starts on |
 | `ladder.max_rung` | `ENGINEERING_LADDER_MAX_RUNG` | `pipeline` | The highest rung an `auto` run may start on or escalate to; `solo` never escalates |
+| `learning.reflect` | `ENGINEERING_LEARNING_REFLECT` | `true` | The end-of-run `reflect` stage that learns a lesson from a verified run; see [Lessons](#lessons-learning) |
+| `learning.review` | `ENGINEERING_LEARNING_REVIEW` | `auto` | `auto` stores a vetted lesson at once; `manual` keeps it in `pending/` until `engineering-team lessons approve ID` |
 | `tools.lazy` | `ENGINEERING_LAZY_TOOLS` | `true` | Hold rarely used tools back behind Find Tool and Use Tool, so every model call sends fewer tool schemas ([TOOLS.md](TOOLS.md#held-back-tools-find-tool-and-use-tool)); `false` gives every agent all its tools |
 | `budget.max_repair_rounds` | `ENGINEERING_BUDGET_MAX_REPAIR_ROUNDS` | `3` | Fix-and-verify rounds the whole run (each rung of an `auto` run) may spend repairing checks the controller found failing (see [Verification](#verification-verify-and---checks)); `0` never calls a repair agent |
 
@@ -193,6 +195,33 @@ that flips on its own) are kept in `.engineering-team/memory/` and shown to late
 [memory]
 enabled = true
 inject_facts = 5
+```
+
+### Lessons (`[learning]`)
+
+After a run that ends with a verdict, a `reflect` stage makes one call to the `cheap` tier (the role
+`reflect`; `[models.roles.reflect]` sets its own model) and may keep one lesson in the experience
+library; later runs of the same kind of work are shown the lessons that fit their request
+([HARNESS.md](HARNESS.md#lessons)); read and review them with `engineering-team lessons`
+([USAGE.md](USAGE.md#lessons-lessons)). `learning.reflect` and `learning.review` are in the
+[settings reference](#settings-reference) (they have environment variables); `learning.reflect = false` still shows
+the lessons there are. The defaults are provisional until the 0.3.0 evaluation.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `learning.enabled` | `true` | `false` neither shows lessons nor reflects; the library is left alone |
+| `learning.library` | `user` | Where new lessons go: `user` (`$XDG_DATA_HOME/engineering-team/library/`, default `~/.local/share/...`) or `repo` (`.engineering-team/library/` of the project). Runs read both |
+| `learning.inject_lessons` | `3` | Lessons one run is shown at most (0-20; 0 shows none) |
+| `learning.inject_chars` | `1200` | Characters the run's lessons take at most in a prompt |
+| `learning.max_lessons` | `100` | Lessons kept per domain and library (10-1000); past it the oldest go first |
+| `learning.min_budget_usd` | `0.25` | A run whose `budget.max_cost_usd` is lower never reflects; with any cap, the call's worst case must fit what is left |
+| `learning.trace_chars` | `8000` | How much of the trajectory summary the reflection reads (2000-50000; the middle of a longer run is left out) |
+| `learning.protected_paths` | `[]` | Files or folders no lesson may quote; `bench` sets the task's hidden checks and reference here |
+
+```toml
+[learning]
+review = "manual"
+inject_lessons = 2
 ```
 
 ### Web tools (`[web]` and `[knowledge]`)
@@ -668,7 +697,7 @@ Tiers are `max`, `lead`, `reviewer`, `worker`, `cheap`. Profiles pick them:
 
 Triage, which classifies a request before anything is planned, is the role `triage` on the `cheap` tier
 under `standard` (the worker slot under `smoke` and `max-quality`); `[models.roles.triage]` sets its own
-model.
+model. Reflection after a run is the role `reflect`, chosen the same way ([Lessons](#lessons-learning)).
 
 ### Provider presets
 

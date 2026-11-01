@@ -777,6 +777,15 @@ keep or drop the agents' proposals (`Remember Fact`, `tools/memory_tools.py`). `
 `memory.recorded`, `.replaced`, `.removed`, `.stale`, `.dropped`, `.trimmed`, `.cleared`, `.injected`, `.unreadable`,
 `.error`.
 
+**Reflection and lessons** (`learning/`). `_open_run` asks `learning/retrieve.py` to choose the run's lessons from the
+experience library (`learning/library.py`: the user's and the repository's) and keeps them in `lessons.json`;
+`pipeline/handoff.py` shows them in every stage's hand-off pack. When the strategy returns, `execute_run` calls
+`learning/reflect.py` inside `recorder.running()`: for a run with a verdict it gathers the controller's records
+(`learning/evidence.py`: state, `check.finished` events, ladder, trajectory), makes one cheap-tier call as the
+`reflect` stage, has `learning/vet.py` apply the discard rules and the guards (`learning/guard.py`), and stores the
+lesson. [HARNESS.md](HARNESS.md#lessons) has the rules; events: `reflect.skipped`, `.rows`, `.failed`,
+`lessons.stored`, `.pending`, `.discarded`, `.injected`, `.unreadable`, `.error`.
+
 **The roster** (`team/registry.py`). Built-in teammates are defined once, in the harness's teammate folders
 (prompt components, and `tier`, `tool_groups` and so on in `role.md`'s front-matter; [HARNESS.md](HARNESS.md)). `build_roster(settings)` layers `.engineering-team/team.yaml` (or `team_file`) and the
 `[team.<key>]` tables on top, field by field, validates everything (unknown tool groups, modes, missing prompt fields
