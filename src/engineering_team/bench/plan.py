@@ -6,6 +6,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from engineering_team.bench.agents import AGENT_NAMES
 from engineering_team.bench.tasks import BenchTask
@@ -59,6 +60,10 @@ class RunOptions:
     )  # agent -> the model it is pinned to
     agent_billing: Mapping[str, str] = field(default_factory=dict)  # agent -> api or subscription
     agent_versions: Mapping[str, str] = field(default_factory=dict)
+    # ``harness tune``: a harness overlay (pack folders) the team gets as its user harness, and
+    # settings it adds to the run's ``ENGINEERING_OVERRIDES`` (``learning.enabled = false``).
+    harness_overlay: Path | None = None
+    settings_overrides: Mapping[str, Any] = field(default_factory=dict)
 
     def cap_for(self, contender: str) -> float | None:
         """The most a run by ``contender`` may spend; ``None``: it spends no money (an offline

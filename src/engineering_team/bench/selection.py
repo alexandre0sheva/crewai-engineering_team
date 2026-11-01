@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import get_args
 
 from engineering_team.bench.tasks import INTENTS, BenchError, BenchTask, Difficulty, Size
+from engineering_team.harness.domains import ANY, Domain, normal_stack
 
 SPLITS = ("all", "dev", "heldout")
 
@@ -71,3 +72,16 @@ def select_tasks(
     if not chosen:
         raise BenchError("No task matches that selection.")
     return sorted(chosen, key=lambda task: task.id)
+
+
+def task_domain(task: BenchTask) -> Domain:
+    """The harness domain a task's run resolves: its intent and its first known stack."""
+
+    return Domain(task.intent, normal_stack(task.languages))
+
+
+def in_domain(task: BenchTask, domain: Domain) -> bool:
+    """``task`` is work of ``domain`` (a ``*`` part matches anything)."""
+
+    own = task_domain(task)
+    return domain.intent in (ANY, own.intent) and domain.stack in (ANY, own.stack)

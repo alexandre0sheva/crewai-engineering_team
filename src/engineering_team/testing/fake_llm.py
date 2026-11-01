@@ -18,6 +18,7 @@ from typing import Any, cast
 
 from crewai import BaseLLM
 from crewai.events.types.llm_events import LLMCallType
+from crewai.llms.base_llm import llm_call_context
 from pydantic import PrivateAttr
 
 
@@ -142,6 +143,20 @@ class ScriptedLLM(BaseLLM):
         from_task: Any = None,
         from_agent: Any = None,
         response_model: Any = None,
+    ) -> Any:
+        with llm_call_context():  # as CrewAI's own providers do: one call id for its events
+            return self._call(
+                messages, tools, callbacks, available_functions, from_task, from_agent
+            )
+
+    def _call(
+        self,
+        messages: Any,
+        tools: list[Any] | None,
+        callbacks: list[Any] | None,
+        available_functions: dict[str, Any] | None,
+        from_task: Any,
+        from_agent: Any,
     ) -> Any:
         formatted = list(self._format_messages(messages))
         self._emit_call_started_event(

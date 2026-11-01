@@ -697,7 +697,8 @@ Tiers are `max`, `lead`, `reviewer`, `worker`, `cheap`. Profiles pick them:
 
 Triage, which classifies a request before anything is planned, is the role `triage` on the `cheap` tier
 under `standard` (the worker slot under `smoke` and `max-quality`); `[models.roles.triage]` sets its own
-model. Reflection after a run is the role `reflect`, chosen the same way ([Lessons](#lessons-learning)).
+model. Reflection after a run is the role `reflect`, chosen the same way ([Lessons](#lessons-learning)); `harness tune`'s
+proposers and composer are the role `tune` on the `lead` tier ([HARNESS.md](HARNESS.md#tuning)).
 
 ### Provider presets
 

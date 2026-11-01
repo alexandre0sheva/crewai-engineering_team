@@ -302,6 +302,29 @@ def test_a_live_run_ignores_ambient_settings_and_keeps_the_keys(
     assert prepared.argv[prepared.argv.index("--config") + 1] == str(config)
 
 
+def test_a_tuning_rollout_gets_its_candidate_harness_and_its_settings(
+    tasks: dict[str, BenchTask], tmp_path: Path
+) -> None:
+    overlay = tmp_path / "overlay"
+    skill = overlay / "bugfix+python" / "skills" / "repro-loop" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("---\nname: repro-loop\ndescription: x\n---\nRun it.\n")
+    task = tasks["seeded-bug"]
+    tuned = options(
+        tmp_path, harness_overlay=overlay, settings_overrides={"learning.enabled": False}
+    )
+
+    live = prepare(RunSpec(task, "pipeline", 1), tuned, tmp_path / "live")
+    fake = prepare(RunSpec(task, "pipeline", 1), options(tmp_path, harness_overlay=overlay,
+                   fake=True), tmp_path / "fake")  # fmt: skip
+
+    user = Path(live.env["XDG_CONFIG_HOME"]) / "engineering-team" / "harness"
+    assert (user / "bugfix+python" / "skills" / "repro-loop" / "SKILL.md").is_file()
+    assert json.loads(live.env["ENGINEERING_OVERRIDES"])["learning.enabled"] is False
+    fake_user = Path(fake.env["HOME"]) / ".config" / "engineering-team" / "harness"
+    assert (fake_user / "bugfix+python" / "skills" / "repro-loop" / "SKILL.md").is_file()
+
+
 def test_the_team_really_ignores_an_ambient_model_override(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

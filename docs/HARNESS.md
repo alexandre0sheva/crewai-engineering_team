@@ -3,9 +3,10 @@
 The **harness** is everything the team tells a model, apart from the request and the evidence it
 hands over: who each teammate is, how it works, what it never does, and the task prompt of every
 stage. It is plain data (Markdown files you can read, diff and override), not Python and not
-backstories hard-wired into CrewAI agents. Later releases learn and tune it; today you can read it
-and override any part of it, the team remembers [verified facts about each repository](#repo-memory), and it keeps
-[lessons](#lessons) from runs the controller verified for later runs of the same kind of work.
+backstories hard-wired into CrewAI agents. You can read it and override any part of it, the team
+remembers [verified facts about each repository](#repo-memory), it keeps [lessons](#lessons) from runs the
+controller verified for later runs of the same kind of work, and a domain's harness can be [tuned](#tuning) on the
+benchmark, with hidden checks as the judge.
 
 The harness is a **library of packs**: `base`, which every run uses, and packs for kinds of work
 (`bugfix`, `refactor`, ...) and stacks (`python`, `typescript`, ...). Each run uses the packs of its
@@ -345,6 +346,49 @@ engineering-team lessons forget ID
 ```
 
 `[learning]` in the configuration ([CONFIGURATION.md](CONFIGURATION.md#lessons-learning)) switches it off or sizes it.
+
+## Tuning
+
+`harness tune` improves one domain's harness on the benchmark: it changes harness files, measures the change with
+the hidden checks of real team runs, and writes a diff you review and adopt. Lessons change what a run is *shown*;
+tuning changes the harness itself, and only when the checks say it helps. The method, its cost and how it is
+accepted are in [BENCHMARKS.md](BENCHMARKS.md#harness-tuning-harness-tune).
+
+```bash
+engineering-team harness tune --domain bugfix/python --split dev --k 1 --fake      # offline: no model, no spend
+engineering-team harness tune --domain bugfix/python --k 1 --dry-run               # the plan and its estimate
+engineering-team harness tune --domain bugfix/python --k 1 --budget-usd 1.50       # live (charged to T33)
+engineering-team harness adopt benchmarks/tuning/2026-11-01/bugfix/python          # into your user harness
+engineering-team harness adopt DIR --to bundled                                    # into harness/data/ (a checkout)
+```
+
+**What may change.** Two proposers read a base run (its outcome and a summary of its trajectory, as data) and each
+writes whole files into the domain's most specific pack (`bugfix+python` for `bugfix/python`):
+
+- the **INV** proposer changes *procedure*: a teammate's `tool_guidance.md` or `guardrails.md`, and
+  `shared/completion.md`;
+- the **DOM** proposer changes *knowledge*: `skills/<name>/SKILL.md`, a new skill or a better one.
+
+A **composer** then merges the two, keeps one, or keeps the base, with one notes line per decision citing the
+trajectory moment (`#seq`) or the pass counts. Roles, goals, tiers, tools and stage prompts are never tuned.
+
+**Validation.** A proposal is used only when the harness still loads with it (the schema of this page), each file is
+within its cap (1,500 characters for a component, 6,000 for a skill, at most 4 files) and every teammate's
+always-on text stays under the cap the tests enforce, each skill's description is a trigger no other skill has and it
+names only teammates that exist, and no file holds a secret or text of a benchmark's hidden checks or references
+(the leak guard of [Lessons](#lessons)). An invalid proposal gets one retry with the validator's lines; a second
+invalid one leaves that proposer's candidate empty, so it inherits the base.
+
+**What a proposer never sees.** The tasks' hidden checks and reference solutions: every line of a trajectory that
+quotes one is withheld before a prompt is built (the request is shown, as the team saw it).
+
+**The tuning directory** (`benchmarks/tuning/<date>/<intent>/<stack>/`) holds `decision.json` (adopt or
+`KEEP_BASE`, the pass rates, the notes, the content hashes of the base packs, the cost), `notes.md`,
+`diff.patch` and `harness/<pack>/...` (the composed harness), `candidates/<label>/diff.patch` (every proposal) and
+`ledger.jsonl` (every rollout and session with its cost). `harness adopt` copies `harness/` into
+`~/.config/engineering-team/harness/` (or, with `--to bundled`, into this checkout's library to commit) and loads the
+result to check it; it refuses a `KEEP_BASE` result, or a base whose packs changed since the tuning, unless
+`--force`.
 
 ## What a run records
 

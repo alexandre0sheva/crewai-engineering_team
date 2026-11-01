@@ -47,6 +47,14 @@ class Protected:
                 self.lines.add(normal)
         self.shingles |= _shingles(text)
 
+    def allow(self, text: str) -> None:
+        """Stop protecting what ``text`` says: text the team is given anyway (a task's request),
+        which may share a line with its hidden checks without leaking them."""
+
+        normal = _normal(text)
+        self.lines = {line for line in self.lines if line not in normal}
+        self.shingles -= _shingles(text)
+
     def __bool__(self) -> bool:
         return bool(self.lines or self.shingles)
 

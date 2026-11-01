@@ -80,6 +80,20 @@ def _quiet_dotenv() -> None:
     dotenv.load_dotenv = lambda *args, **kwargs: False
 
 
+def resolved_harness(task: BenchTask, workspace: Path) -> dict[str, Any]:
+    """The harness a run of ``task`` gets (bundled, the user's overlay, the repository's)."""
+
+    from engineering_team.bench.selection import task_domain
+    from engineering_team.harness import HarnessError
+    from engineering_team.harness.library import describe, resolve_for_run
+
+    try:
+        harness = resolve_for_run(task_domain(task), repo_root=workspace)
+    except HarnessError as exc:
+        return {"error": str(exc)}
+    return {**harness.record(), "describe": describe(harness)}
+
+
 def replay(files: dict[str, str], workspace: Path, run_id: str) -> dict[str, Any]:
     """Write ``files`` into ``workspace`` with an agent on a scripted model; returns a summary."""
 
@@ -154,12 +168,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--solution", choices=SOLUTIONS, default="reference")
     args = parser.parse_args(argv)
     try:
-        files = reference_files(load_task(args.task_dir), args.solution, args.workspace)
+        task = load_task(args.task_dir)
+        files = reference_files(task, args.solution, args.workspace)
     except BenchError as exc:
         summary_out.write(json.dumps({"status": "error", "error": str(exc), "exit_code": 2}) + "\n")
         summary_out.flush()
         return 2
     summary = replay(files, args.workspace, args.run_id)
+    summary["harness"] = resolved_harness(task, args.workspace)
     summary_out.write("\n" + json.dumps(summary) + "\n")
     summary_out.flush()
     return int(summary["exit_code"])

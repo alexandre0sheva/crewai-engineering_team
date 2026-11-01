@@ -11,6 +11,14 @@ renames that section and dates it.
 
 ### Added
 
+- Harness tuning ([docs/HARNESS.md](docs/HARNESS.md#tuning)): `engineering-team harness tune --domain bugfix/python`
+  improves a domain's harness on the benchmark's dev tasks. A procedure proposer (teammate guidance, what "done"
+  means) and a knowledge proposer (skills) read a team run as data and propose changes; each is tried on the same
+  task, a composer merges or picks them, and the result is adopted only if hidden checks show a higher dev pass rate
+  and no lower held-out one. Every proposal is validated (schema, size caps, skill triggers, no secrets or text of
+  hidden checks); every run and model session is recorded with its cost; `--dry-run` estimates and `--fake` runs it
+  offline. The result is a reviewable diff under `benchmarks/tuning/`, and `engineering-team harness adopt DIR` copies
+  an accepted one into your harness.
 - Lessons from verified runs ([docs/HARNESS.md](docs/HARNESS.md#lessons)): after a run that ends `verified` (or
   `failed` with checks), a new `reflect` stage makes one cheap-tier call that reads the controller's record (checks,
   repairs, escalations, a trajectory summary) and proposes behaviour rows and at most one lesson for that kind of work.

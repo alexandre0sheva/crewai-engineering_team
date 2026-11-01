@@ -488,6 +488,47 @@ audits and small greenfield requests `medium` where the labels say `small` (of 1
 are one step larger, 1 two steps larger, 3 one step smaller). One run on 74 hand-labelled cases, so read the figures with that sample size in
 mind; the labels are the author's.
 
+## Harness tuning (`harness tune`)
+
+The benchmark also drives an improvement loop: `harness tune` (Propose–Probe–Compose) changes a domain's
+[harness](HARNESS.md#tuning) on the **dev** tasks of that domain and accepts the result only if the **held-out**
+tasks do not get worse. Hidden checks judge every step; no model grades a model.
+
+For each dev task and each of `--k` repeats:
+
+1. **Base rollout.** The team runs the task with the bundled harness (as `bench run` does: its own process, an
+   isolated workspace, the hidden checks after it). Lessons are off in every rollout (`learning.enabled = false`), so
+   the harness alone is measured.
+2. **Propose.** The INV (procedure) and DOM (knowledge) proposers each read that rollout's outcome and trajectory
+   summary and propose a candidate. `--mode parallel` (the default): both read the base rollout. `--mode sequential`:
+   DOM works on top of INV's candidate (when INV's probe did not do worse) and also reads INV's probe.
+3. **Probe.** Each candidate is rolled out on the same task, installed as the team's user harness.
+4. **Compose.** The composer merges, keeps one, or keeps the base. The controller overrules a decision the probes do
+   not support (a candidate whose probe did worse than the base is never kept). In parallel mode the composed
+   harness is probed too.
+
+The controller then composes one harness from the slots' choices that gained on their own probe, best first, and
+**evaluates** it: on every dev task (`k` runs), and base and composed on every held-out task (`k` runs each). It is
+**adopted only if its dev pass rate is higher than the base's and its held-out pass rate is not lower**; anything else,
+including a domain with no held-out task, is `KEEP_BASE`. When no slot gained, nothing is evaluated.
+
+**Ledger and identity.** `ledger.jsonl` in the tuning directory has one line per rollout (`rollout:<role>:<task>:<n>`),
+proposer or composer session (`session:<role>:<task>:<n>`) and evaluation run (`eval:<base|final>:<task>:<n>`), with
+its cost. A label recorded twice stops the loop. A finished loop checks the identity per tuned task: **4k rollouts
+and 3k sessions** in parallel mode, 3k and 3k in sequential mode (its composer picks among probed variants); a loop
+whose counts differ is `KEEP_BASE` and exits 3.
+
+**Cost.** `--dry-run` prints the plan (up to `dev·k·(4+1) + 2·held-out·k` rollouts and `3·dev·k` sessions in parallel
+mode) and its estimate; a live tuning needs `--budget-usd`, is charged to `--allocation` (default `T33`, which holds
+the 0.3.0 tuning share) and is refused by the [spend ledger](#live-spend-cap) like a live batch. Each rollout gets an
+equal share of the budget after the sessions' worst case; when the budget cannot pay for the next rollout or session
+the loop stops, keeps the base and exits 3. Proposers and the composer use the `lead` tier (the role `tune`).
+
+**Offline.** `harness tune --fake` runs the whole loop with the fake team and proposers that change nothing (so it
+keeps the base): it validates the loop, the ledger and the outputs, never the team. The tests drive the same loop with
+scripted proposers whose skill the fake team "needs" (`tests/test_harness_tuning_runs.py`). Rollouts run under
+`<suite>/.runs/tune-*` (not committed); the tuning directory under `benchmarks/tuning/` is the reviewable record.
+
 ## Reading a report
 
 `bench report [BATCH]` (a directory, or a name under `--out`; default the latest) prints Markdown
@@ -701,5 +742,6 @@ runs and every acceptance check get a scrubbed environment with no keys.
 | Path | Role |
 |------|------|
 | `src/engineering_team/bench/` | the harness (in the wheel): `tasks` (schema, loading), `selection` (filters), `plan` and `prepare` (what runs and how), `execution` (one run, and `judge`, the hidden-check verdict both kinds share), `agents/` and `agent_run` (external agents, [above](#external-agent-baselines---agent)), `compare` and `export` (paired comparison, `results.json`), `batch` (parallel, budget, resume), `acceptance`, `checklib` and `reviewlib` (the hidden checks' runner and helpers), `metrics` and `results` (what a run records), `report` and `stats`, `estimate` (`--dry-run`), `spend` (the release ledger), `fake_team` (offline mode), `swe`, `repos`, `swe_check` and `swe_runner` (SWE-bench import, repository cache, and its checks), `triage_eval` (the triage cases and their scores) |
+| `src/engineering_team/learning/tuning/`, `learning/ledger.py`, `cli/harness_tune_command.py` | `harness tune` and `harness adopt`: candidate trees and their validation (`tree`), rollouts through this harness (`rollouts`), the proposer and composer prompts and sessions (`prompts`, `sessions`), the loop (`loop`), the controller's composing and acceptance rules (`compose`), the tuning directory and adoption (`output`), the ledger and its identity (`ledger`) |
 | `src/engineering_team/cli/bench_*.py` | `bench list` and `bench run` (`bench_command`), `bench report` and `--dry-run` (`bench_report_command`), `bench spend` (`bench_spend_command`), `bench import-swe` (`bench_swe_command`), `bench triage` (`bench_triage_command`), `--agent` options (`bench_agents`) |
-| `benchmarks/` | the suite (repository only): `tasks/`, `triage/cases.yaml` (labelled requests for `bench triage`), `images/` (Docker images for the Node and Go checks), `budget.toml` and `spend.jsonl` (the release's live spend), `configs/` (settings files for the measured variants), `results/` (committed results), `swe-starter.txt` (SWE-bench instances to import), and `.runs/`, `.cache/` and `tasks-swe/` (working results, fetched repositories and imported tasks, git-ignored) |
+| `benchmarks/` | the suite (repository only): `tasks/`, `triage/cases.yaml` (labelled requests for `bench triage`), `images/` (Docker images for the Node and Go checks), `budget.toml` and `spend.jsonl` (the release's live spend), `tuning/` ([harness tuning](#harness-tuning-harness-tune) results to review), `configs/` (settings files for the measured variants), `results/` (committed results), `swe-starter.txt` (SWE-bench instances to import), and `.runs/`, `.cache/` and `tasks-swe/` (working results, fetched repositories and imported tasks, git-ignored) |

@@ -134,8 +134,17 @@ def _live_environment(options: RunOptions, run_dir: Path, task: BenchTask) -> di
     )
     if options.run_budget_usd is not None:
         env["ENGINEERING_BUDGET_MAX_COST_USD"] = f"{options.run_budget_usd:.4f}"
-    env[OVERRIDES_ENV] = json.dumps({"learning.protected_paths": protected_paths(task)})
+    overrides = {**options.settings_overrides, "learning.protected_paths": protected_paths(task)}
+    env[OVERRIDES_ENV] = json.dumps(overrides)
     return env
+
+
+def install_overlay(overlay: Path | None, config_home: Path) -> None:
+    """Copy a harness overlay (``harness tune``'s candidate) into the team's user harness,
+    ``<config_home>/engineering-team/harness/``: the team resolves it over the bundled library."""
+
+    if overlay is not None:
+        shutil.copytree(overlay, config_home / "engineering-team" / "harness", dirs_exist_ok=True)
 
 
 def protected_paths(task: BenchTask) -> list[str]:
@@ -164,6 +173,7 @@ def prepare(spec: RunSpec, options: RunOptions, run_dir: Path) -> Prepared:
     if options.fake:
         home = run_dir / "home"
         home.mkdir()
+        install_overlay(options.harness_overlay, home / ".config")
         argv = [
             options.python, "-m", "engineering_team.bench.fake_team",
             "--task-dir", str(task.root), "--workspace", str(workspace),
@@ -201,4 +211,5 @@ def prepare(spec: RunSpec, options: RunOptions, run_dir: Path) -> Prepared:
             argv += [flag, value]
     if task.mode != "review":
         argv.append("--non-interactive")
+    install_overlay(options.harness_overlay, run_dir / "xdg-config")
     return Prepared(run_dir, workspace, argv, _live_environment(options, run_dir, task), run_id)

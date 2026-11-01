@@ -36,6 +36,7 @@ from engineering_team.cli import doctor as doctor_module
 from engineering_team.cli import info_commands as info
 from engineering_team.cli.context import Globals
 from engineering_team.cli.harness_command import harness_app
+from engineering_team.cli.harness_tune_command import adopt_command, tune
 from engineering_team.cli.lessons_command import lessons_app
 from engineering_team.cli.memory_command import memory_app
 from engineering_team.cli.plugins_command import plugins_app
@@ -71,6 +72,8 @@ app.add_typer(config_app, name="config")
 app.add_typer(examples_app, name="examples")
 app.add_typer(team_app, name="team")
 app.add_typer(plugins_app, name="plugins")
+harness_app.command("tune")(tune)
+harness_app.command("adopt")(adopt_command)
 app.add_typer(harness_app, name="harness")
 app.add_typer(memory_app, name="memory")
 app.add_typer(lessons_app, name="lessons")
