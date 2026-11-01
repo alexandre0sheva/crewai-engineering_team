@@ -17,6 +17,12 @@ from typing import TYPE_CHECKING
 
 from engineering_team.contracts import CheckResult, CheckSpec
 from engineering_team.memory.observe import record_verification
+from engineering_team.modes.acceptance import (
+    acceptance_checks,
+    acceptance_tampered,
+    annotate,
+    record_acceptance_green,
+)
 from engineering_team.modes.fix_repro import fix_checks, record_green, tampered
 from engineering_team.modes.policy_checks import POLICY_PREFIX, policy_results
 from engineering_team.runtime.budget import BudgetExceeded
@@ -109,7 +115,7 @@ class VerificationLoop:
             ctx,
             None if self.state.baseline else self.state.plan,
             user,
-            extra=fix_checks(ctx, self.state),
+            extra=[*fix_checks(ctx, self.state), *acceptance_checks(ctx, self.state)],
         )
         record.notes = planned.notes
         checks = planned.checks
@@ -120,17 +126,22 @@ class VerificationLoop:
         return self._conclude(checks, results, self._judge(results))
 
     def _judge(self, results: list[CheckResult]) -> Judgement:
-        """The verdict; a reproduction edited after it was seen failing proves nothing."""
+        """The verdict; a reproduction or an acceptance test edited after it was seen failing
+        proves nothing."""
 
         judgement = judge(results, verification_revision(self.ctx.workspace))
-        changed = tampered(self.ctx, self.state)
-        if not changed:
+        problems = [
+            f"The {what} file(s) {', '.join(changed)} changed after they were seen failing, so a "
+            "pass proves nothing. Restore them (or start a new run)."
+            for what, changed in (
+                ("reproduction", tampered(self.ctx, self.state)),
+                ("acceptance test", acceptance_tampered(self.ctx, self.state)),
+            )
+            if changed
+        ]
+        if not problems:
             return judgement
-        problem = (
-            f"The reproduction file(s) {', '.join(changed)} changed after they were seen failing, "
-            "so a pass proves nothing. Restore them (or start a new run)."
-        )
-        return Judgement("failed", [problem, *judgement.problems])
+        return Judgement("failed", [*problems, *judgement.problems])
 
     def _recorded(self, checks: list[CheckSpec]) -> list[CheckResult] | None:
         """The results already recorded, if they are for this very workspace and these checks."""
@@ -275,7 +286,12 @@ class VerificationLoop:
         record.verdict = judgement.verdict
         record.problems = judgement.problems
         record_green(ctx, self.state, results)
-        record.coverage = map_criteria(ctx.workspace, self.state.spec, checks, results)
+        record_acceptance_green(ctx, self.state, results)
+        apart = self.state.acceptance_record.digests if self.state.acceptance_record else {}
+        record.coverage = annotate(
+            map_criteria(ctx.workspace, self.state.spec, checks, results, written_apart=apart),
+            self.state,
+        )
         record_verification(
             ctx,
             {check.id: check.cwd for check in checks},
@@ -289,6 +305,7 @@ class VerificationLoop:
             judgement,
             max_rounds=self.max_rounds,
             notes=ctx.reports.label(QA_NOTES),
+            acceptance=self.state.acceptance_record,
         )
         ctx.reports.write(VERIFICATION, text)
         self.save()

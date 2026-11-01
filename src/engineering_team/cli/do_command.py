@@ -118,6 +118,13 @@ def do(
     fix: Annotated[
         bool, typer.Option(help="For a security audit: also fix the serious findings.")
     ] = False,
+    no_acceptance: Annotated[
+        bool,
+        typer.Option(
+            "--no-acceptance",
+            help="A feature: skip the acceptance tests written apart and seen failing first.",
+        ),
+    ] = False,
     worktree: Annotated[
         bool,
         typer.Option(help="Work in a separate worktree (the default when the tree is dirty)."),
@@ -180,7 +187,7 @@ def do(
     options = SimpleNamespace(
         provider=provider, profile=profile, strategy=strategy, allow_web=allow_web, checks=checks,
         sandbox=sandbox, no_git=no_git, verbose=g.verbose, workspace_root=g.workspace_root,
-        project_name=project_name,
+        project_name=project_name, no_acceptance=no_acceptance,
     )  # fmt: skip
     ask = wants_questions(interactive, stdin_used=STDIN in files)
 

@@ -25,6 +25,7 @@ from engineering_team.harness import StagePrompt, stage_prompts
 from engineering_team.intake.context_docs import context_note
 from engineering_team.llm import build_llm
 from engineering_team.model_routing import facts_for
+from engineering_team.modes.acceptance_contracts import AcceptanceSuite
 from engineering_team.modes.answer_contracts import Answer
 from engineering_team.modes.codebase_map import (
     ChunkAnalysis,
@@ -54,6 +55,7 @@ CONTRACT_MODELS: dict[str, type[Contract]] = {
     "fix_note": FixNote,
     "upgrades": UpgradePlan,
     "answer": Answer,
+    "acceptance": AcceptanceSuite,
 }
 
 
@@ -137,6 +139,7 @@ def prompt_key(stage: StageSpec, *, synthesis: bool = False, findings: bool = Fa
     key = stage.prompt or {
         "parallel": "implement", "verify": "repair", "analyze": "analyze_chunk",
         "upgrade": "upgrade_apply", "review": "review", "lead": "lead", "answer": "answer",
+        "acceptance": "acceptance",
     }.get(stage.kind, stage.name)  # fmt: skip
     if stage.kind == "analyze" and synthesis:
         key = "analyze_synthesis"  # the last step combines what the chunk analysts found

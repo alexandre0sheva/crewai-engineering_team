@@ -4,8 +4,9 @@ Every agent session used to start cold: list the tree, read the same files, ask 
 said. The controller already knows those facts, so each session's prompt carries a compact pack
 built from the workspace and the run's state: the files (most recently changed first, with a
 content hash so an agent can tell whether a file changed since it last saw it), the latest
-check results, the repository's verified facts, the lessons chosen for the run
-(``learning/retrieve.py``) and one line per earlier stage; on a rung the escalation ladder
+check results, the acceptance tests the controller saw fail on the baseline, the repository's
+verified facts, the lessons chosen for the run (``learning/retrieve.py``) and one line per
+earlier stage; on a rung the escalation ladder
 escalated to, first the controller's account of the rung before (``ladder_brief.py``).
 Everything in it is the controller's record (or labelled data); the agents' own summaries are
 quoted as theirs.
@@ -83,6 +84,14 @@ def handoff_pack(
             "Files in the workspace now (path, size, sha256 prefix; the most recently changed, "
             "listed by path). Read a file before you change it:",
             *files,
+        ]
+    record = state.acceptance_record
+    if record is not None and record.accepted and stage.kind != "acceptance":
+        parts += [
+            "",
+            "Acceptance tests the controller saw fail on the baseline (written apart, read-only "
+            "for you; the change must make each pass):",
+            *[f"- {t.id} ({', '.join(t.criteria)}): `{t.command}`" for t in record.accepted],
         ]
     if state.checks:
         parts += ["", "The controller's latest check results:"]

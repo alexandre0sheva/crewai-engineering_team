@@ -17,6 +17,8 @@ from engineering_team.contracts import (
 from engineering_team.modes import adopt as adopt  # noqa: F401  (registers the adopt actions)
 from engineering_team.modes import maintain as maintain  # noqa: F401  (registers the actions)
 from engineering_team.modes import review_mode as review_mode  # noqa: F401  (registers them too)
+from engineering_team.modes.acceptance import run_acceptance
+from engineering_team.modes.acceptance_contracts import AcceptanceSuite
 from engineering_team.modes.answer_stage import SCRATCH, run_answer
 from engineering_team.modes.change_report import ChangeError, measure_change, render_noise
 from engineering_team.modes.fix_contracts import Repro
@@ -24,6 +26,7 @@ from engineering_team.modes.fix_repro import run_reproduction
 from engineering_team.modes.maintain_contracts import Upgrade
 from engineering_team.modes.map_stage import run_map
 from engineering_team.modes.needs_info import NeedsInfo
+from engineering_team.modes.policies import SCOPES
 from engineering_team.modes.upgrade import run_upgrades
 from engineering_team.pipeline.actions import CONTROLLER_ACTIONS
 from engineering_team.pipeline.executor_base import MAX_NOTE_ERROR, MAX_SUMMARY
@@ -47,6 +50,7 @@ from engineering_team.pipeline.state import PipelineState
 from engineering_team.runtime.budget import BudgetExceeded
 from engineering_team.runtime.cancel import RunCancelled, check_cancelled
 from engineering_team.runtime.events import stage_scope
+from engineering_team.tools import WriteScope
 from engineering_team.verification.loop import RepairCall, VerificationError, VerificationLoop
 
 
@@ -118,6 +122,8 @@ class StageExecutor(LeadExecutor):
             self._analyze(stage)
         elif stage.kind == "reproduce":
             self._reproduce(stage)
+        elif stage.kind == "acceptance":
+            self._acceptance(stage)
         elif stage.kind == "answer":
             self._answer(stage)
         elif stage.kind == "upgrade":
@@ -179,6 +185,23 @@ class StageExecutor(LeadExecutor):
             return found if isinstance(found, Repro) else None
 
         self.state.summaries[stage.name] = run_reproduction(
+            self.ctx, self.state, attempt, self._save
+        )[:MAX_SUMMARY]
+        self._save()
+
+    def _acceptance(self, stage: StageSpec) -> None:
+        """The quality engineer writes tests for the criteria, test files only; the controller
+        keeps those it sees fail on the baseline for the right reason, and pins them."""
+
+        teammate = lead_teammate(self.ctx, stage)
+        scope = WriteScope(allow=SCOPES["tests"])
+
+        def attempt(note: str) -> AcceptanceSuite | None:
+            output = self._call(stage, teammate, note, scope=scope)
+            found = output.contracts.get("acceptance")
+            return found if isinstance(found, AcceptanceSuite) else None
+
+        self.state.summaries[stage.name] = run_acceptance(
             self.ctx, self.state, attempt, self._save
         )[:MAX_SUMMARY]
         self._save()

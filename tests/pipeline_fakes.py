@@ -13,6 +13,7 @@ from engineering_team.contracts import (
     Spec,
     WorkPackage,
 )
+from engineering_team.modes.acceptance_contracts import AcceptanceSuite
 from engineering_team.modes.answer_contracts import Answer
 from engineering_team.modes.codebase_map import ChunkAnalysis, CodebaseMap, ModuleNote
 from engineering_team.modes.fix_contracts import FixNote, Hypothesis, Repro, Triage
@@ -131,6 +132,7 @@ class FakeRunner:
         fix_note: FixNote | None = None,
         upgrade_plan: UpgradePlan | None = None,
         answers: list[Answer] | None = None,
+        acceptance: list[AcceptanceSuite] | None = None,
     ) -> None:
         # Fix mode: what the triage, reproduce (one per attempt; the last repeats) and fix stages
         # return.
@@ -141,6 +143,8 @@ class FakeRunner:
         self.repros = list(repros or [Repro()])
         self.upgrade_plan = upgrade_plan or UpgradePlan()  # what ``plan_upgrades`` returns
         self.answers = list(answers or [])  # what successive ``answer`` calls return (last repeats)
+        # What successive ``acceptance`` calls return (the last repeats); scripts write the files.
+        self.acceptance = list(acceptance or [AcceptanceSuite()])
         self.fix_note = fix_note or FixNote(root_cause="The cause.", change="The fix.", risk="Low.")
         self.codebase_map = codebase_map or CODEBASE_MAP  # what an ``analyze`` synthesis returns
         self.plan = PLAN if plan is None else plan
@@ -178,6 +182,9 @@ class FakeRunner:
                     modules=[ModuleNote(name="core", path="src", purpose="The core.")],
                 )
             )
+        elif request.stage.kind == "acceptance":
+            suites = self.acceptance
+            contracts["acceptance"] = suites.pop(0) if len(suites) > 1 else suites[0]
         elif request.stage.kind == "answer":
             contracts["answer"] = self.answers.pop(0) if len(self.answers) > 1 else self.answers[0]
         elif stage == "spec":

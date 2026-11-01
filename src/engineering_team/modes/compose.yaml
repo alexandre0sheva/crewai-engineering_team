@@ -184,6 +184,17 @@ library:
       skip_if: [not_large_task]
       retry: 1
 
+  - id: acceptance
+    cost: session
+    summary: Tests for each criterion, written apart before the change; kept only if red on the baseline.
+    stage:
+      name: acceptance
+      kind: acceptance
+      teammates: [quality_engineer]
+      inputs: [spec, plan]
+      outputs: [acceptance]
+      skip_if: [no_acceptance, escalated]
+
   # -- bugs ------------------------------------------------------------------------------
   - id: triage
     cost: session
@@ -630,6 +641,10 @@ rules:
     add: [design_change, spec_change, impact, implement_change, tests_change, verify_new,
           review_change, summary]
     why: A feature is specified against the existing behaviour, planned as the smallest change, built, tested and verified against the baseline.
+
+  - when: {target: existing, primary: [feature], size_at_least: small}
+    add: [acceptance]
+    why: Acceptance tests are written apart and seen failing on the baseline before anyone implements (not for a trivial change).
 
   - when: {target: existing, primary: [tests], only: true}
     add: [tests_characterize]

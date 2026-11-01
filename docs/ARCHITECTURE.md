@@ -581,7 +581,8 @@ mode, so "fix this bug, add a test and update the docs" gets one recipe with all
 
 The main rules: an existing project gets `profile` and `baseline` (a review only `profile`); the
 primary intent brings its stages (`bugfix`: `triage`, `reproduce`, `fix`, `verify` red to green;
-`feature`: `design` or `spec`/`impact`, `implement`, `tests`, `verify`; `tests`, `docs`, `refactor`,
+`feature`: `design` or `spec`/`impact`, `acceptance` (unless the size is `trivial`), `implement`, `tests`,
+`verify`; `tests`, `docs`, `refactor`,
 `upgrade_deps`, `security_audit`, `review`: the maintenance and review stages with their policies,
 which apply only when that intent is the only one; `performance` and `devops` on an existing project:
 the generalist `work` stage); a size of `medium` or more, or a risk of `medium` or more, adds the
@@ -905,6 +906,41 @@ the now-passing check ids as evidence, or `failed`.
 the same with exit code **4**. Both are resumable (`resume` gives the stage fresh repair rounds) and both
 leave `docs/verification.md` with the reason. Budget and cancel stops are unchanged (exit 1 and 130).
 
+### Acceptance tests first
+
+A test that never failed proves little, and a test the implementers wrote grades their own work. A stage of kind
+`acceptance` (`modes/acceptance.py`; in the `feature` recipe between `impact` and `implement`) has its first teammate,
+the `quality_engineer`, return an `AcceptanceSuite` (`modes/acceptance_contracts.py`): per test, the criteria it
+proves, its files and one command that runs only it. The agent's write scope is the `tests` lane (`modes/policies.py`
+`SCOPES`). The suite is its account, never evidence; `AcceptanceRecord` (`PipelineState.acceptance_record`) is what the
+controller saw.
+
+- **Red on the baseline** (`modes/acceptance_red.py`). Nothing is implemented yet, so the controller runs each test
+  through `Verifier` (label `acceptance-red-<attempt>-<n>`, timeout `acceptance.timeout`) on the baseline and keeps it
+  only when it fails for the right reason: an assertion, or an error on a symbol the change adds (`ImportError`,
+  `cannot import name`, `has no attribute`, `undefined:`, ...; pytest's collection error, exit 2, counts only then). It
+  is rejected when it passes; when it cannot run (exit 126/127, a timeout, pytest exits 4 and 5); when it fails for a
+  reason no implementation changes (a syntax error, a missing fixture, a module that is neither the project's nor in
+  the plan's paths); when it names no criterion of the spec, changes an existing file, or has a command that does not
+  name its files (a suite that already fails on the baseline would otherwise pass for it).
+- **Bounded rewrites.** A rejected test goes back with the reason, the accepted ones (now read-only) and the criteria
+  still without a test, within `acceptance.max_attempts`. Files of a test still rejected after them are removed (only
+  files the stage created; a stage that runs again first removes what it made before), and the run goes on: the
+  stage never fails the run.
+- **Pinned.** Every file the stage kept is pinned by SHA-256 digest; `pinned_paths` (the reproduction's and these)
+  becomes the `deny` of every later agent call's write scope (`StageExecutor._call`, the lead's tools), and an edit
+  that gets around it turns the verdict into `failed`, like an edited reproduction. The hand-off pack lists the tests.
+- **Green and coverage.** `VerificationLoop` adds `acceptance_checks` (required, `plan`-sourced, mapped to their
+  criteria) to the checks, so a criterion is `verified` when a test that was red on the baseline passes; the coverage
+  note says so. The acceptance files are left out of the mention scan of `map_criteria`, so `referenced` is about the
+  implementers' own tests only. `docs/verification.md` has a section with each test's red run and whether it passes
+  now; `CHANGE_SUMMARY.md` lists them too.
+- **When it is skipped.** `--no-acceptance` (`feature`, `do`; the run option `no_acceptance`), a rung the ladder
+  escalated to (`escalated`: its workspace already holds the change of the rung before), and a composed recipe for a
+  `trivial` change, which leaves the stage out. The `team` strategy's lead recipe has no `acceptance` stage (its
+  skeleton has no spec to test). Events: `acceptance.red`, `acceptance.rejected`, `acceptance.green`,
+  `acceptance.none`.
+
 ### Review and optional stages
 
 `review` is a stage kind of its own. Its teammates (`code_reviewer`, `security_engineer`) run through
@@ -1006,7 +1042,7 @@ modes will inline or reuse the three stages; a recipe cannot include another yet
 ### Feature mode
 
 `modes/recipes/feature.yaml` is the `adopt` stages followed by `spec` (prompt `spec_change`), `impact` (the architect;
-output `plan`), `implement` (a `parallel` stage with prompt `implement_change` and `allow_shared`), `tests`, `verify`,
+output `plan`), `acceptance` ([Acceptance tests first](#acceptance-tests-first)), `implement` (a `parallel` stage with prompt `implement_change` and `allow_shared`), `tests`, `verify`,
 `review` (prompt `review_change`), and `summary` (the controller action `change_summary`). Two stage options exist for
 it: `prompt` names a harness stage prompt instead of the one the kind or name picks, and `allow_shared`
 lets a parallel stage's packages own shared root files (`plan_problems(allow_shared=)` and the write scope's `deny`
@@ -1279,7 +1315,7 @@ larger ones today:
 | `main.py` | `run_prep` (options to a prepared run), `request_sources`, `outcome` (exit codes), `api` (`resume`); `main` is the entry and re-exports them |
 | `tools/` catalogue | `spec`, `catalogue_project`, `catalogue_dev`, `catalogue_external`, `catalogue_team`, `registry` (the builder), `finder` (Find Tool and Use Tool) |
 | `git/` | `core` (the safe command line), `reads`, `writes`, `port` (`GitPort`) |
-| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `lead_exec` (the lead stage), `executor` (stages); `lean` (task size and what it skips), `handoff` (hand-off packs), `release_notes`; `lead` (the lead's recipe and prompt), `delegation` and `delegation_briefs` (checking, running and reporting delegated jobs), `lead_contracts`; `ladder` (the escalation policy), `ladder_run` (walking it), `ladder_brief` (what the next rung is told), `ladder_contracts` |
+| `pipeline/` executor | `executor_base` (agent calls), `package_exec` (work packages), `lead_exec` (the lead stage), `executor` (stages); `conditions` (the named `skip_if` conditions), `lean` (task size and what it skips), `handoff` (hand-off packs), `release_notes`; `lead` (the lead's recipe and prompt), `delegation` and `delegation_briefs` (checking, running and reporting delegated jobs), `lead_contracts`; `ladder` (the escalation policy), `ladder_run` (walking it), `ladder_brief` (what the next rung is told), `ladder_contracts` |
 | `report/` HTML | `html_common`, `html_overview`, `html_board`, `html_results`, `html_artifacts`; `html_sections` re-exports them |
 | `board/` | `store` (`BoardStore`), `files` (saving), `limits` |
 

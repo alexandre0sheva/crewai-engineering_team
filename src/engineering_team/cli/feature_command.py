@@ -74,6 +74,13 @@ def feature(
         str | None,
         typer.Option(callback=one_of(["local", "docker"]), help="Where commands run."),
     ] = None,
+    no_acceptance: Annotated[
+        bool,
+        typer.Option(
+            "--no-acceptance",
+            help="A feature: skip the acceptance tests written apart and seen failing first.",
+        ),
+    ] = False,
     config: Annotated[str | None, typer.Option(help="Path to a config file.")] = None,
 ) -> None:
     """Add a feature to an existing project, on a branch, worktree, or copy (never blindly)."""
@@ -108,6 +115,7 @@ def feature(
             stdin_used=STDIN in files,
             project_name=project_name,
             config=config,
+            run_options={"no_acceptance": True} if no_acceptance else {},
             slug_fallback="feature",
         ),
     )

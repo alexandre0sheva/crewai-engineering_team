@@ -17,7 +17,7 @@ engineering-team team show product_analyst
 | `solution_architect` | Writes the spec and the plan in one session for small and medium tasks (`design` stage; the controller writes `docs/spec.md` and `docs/plan.md`); for a large task designs the solution and splits the work (`plan` stage) and writes `docs/architecture.md`. | `reviewer` for the `plan` stage (measured: the cheap `worker` model broke the plan rules in 3 of 11 pipeline runs, see [BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)); `design` runs on `worker` unless the request is high-risk (provisional, [The lean team](ARCHITECTURE.md#the-lean-team)) | read tools as above, plus `fs_write` |
 | `backend_engineer` | Foundation, backend work packages, integration; the whole plan when it has one package (`implement_solo`). | `worker` | `fs_read`, `fs_write`, `search`, `command`, `dev`, `runtime`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
 | `frontend_engineer` | Frontend work packages. | `worker` | as `backend_engineer`, plus `browser` |
-| `quality_engineer` | Writes tests (the `tests` stage of `feature`). The release report is the controller's since 0.3.0. | `worker` | as `frontend_engineer` (it needs `browser` to look at the UI) |
+| `quality_engineer` | Writes tests: the `acceptance` tests of `feature`, before the change and apart from the implementers, and its `tests` stage. The release report is the controller's since 0.3.0. | `worker` | as `frontend_engineer` (it needs `browser` to look at the UI) |
 | `code_reviewer` | Read-only review of the finished project: correctness, maintainability, tests, diff noise (`review` stage); the only reviewer of a small, low-risk task, then on `worker`. | `reviewer` | `fs_read`, `search`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `mcp:docs` |
 | `security_engineer` | Read-only security review: secrets, injection, access control, unsafe defaults, and `Dependency Audit` (pip-audit, npm audit, cargo audit, only where installed and allowed). | `reviewer` | as `code_reviewer`, plus `dev` (the audit is the only `dev` tool a read-only reviewer gets) |
 | `devops_engineer` | Dockerfile, CI workflow, `.env.example`, run scripts; records them in `docs/devops.md` (`devops` stage). | `worker` | `fs_read`, `fs_write`, `search`, `command`, `dev`, `runtime`, `code_intel`, `git_read`, `board`, `notes`, `human`, `knowledge`, `web`, `mcp:docs` |
@@ -167,7 +167,9 @@ The `feature` recipe ([USAGE.md](USAGE.md#feature-mode)) uses the same teammates
 already exists: `codebase_analyst` (the `map` stage), `product_analyst` (`spec`: criteria for the new behaviour and for
 what must keep working), `solution_architect` (`impact`: the smallest change, as work packages with exact owned paths),
 `backend_engineer` and `frontend_engineer` (`implement`: minimal diff, follow the project's conventions, only their
-own paths), `quality_engineer` (`tests`: in the project's existing test style), `debugger` (repairs only new failures,
+own paths), `quality_engineer` (`acceptance`: tests for the criteria before anyone implements, kept only if they
+fail on the baseline, [ARCHITECTURE.md](ARCHITECTURE.md#acceptance-tests-first); `tests`: in the project's existing
+test style), `debugger` (repairs only new failures,
 never the baseline's), and `code_reviewer` and `security_engineer` (`review`: the change since the starting commit).
 
 ## Teammates in `fix` mode

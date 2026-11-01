@@ -49,6 +49,7 @@ from engineering_team.settings.masking import _flatten, mask_value
 from engineering_team.settings.sections import (
     TEAM_KEY,
     WEB_KEY_ENV,
+    AcceptanceSettings,
     AnalysisSettings,
     BrowserSettings,
     BudgetSettings,
@@ -121,6 +122,7 @@ class Settings(_Frozen):
     delegation: DelegationSettings = DelegationSettings()
     ladder: LadderSettings = LadderSettings()
     fix: FixSettings = FixSettings()
+    acceptance: AcceptanceSettings = AcceptanceSettings()
     maintain: MaintainSettings = MaintainSettings()
     ui: UiSettings = UiSettings()
     team_profile: Literal["full", "minimal"] = "full"  # minimal: no review, DevOps, or docs stage

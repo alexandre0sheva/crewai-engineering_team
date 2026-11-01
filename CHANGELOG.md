@@ -11,6 +11,13 @@ renames that section and dates it.
 
 ### Added
 
+- Acceptance tests first ([docs/USAGE.md](docs/USAGE.md#feature-mode)): before anyone implements a feature, the
+  quality engineer writes tests for its criteria in new test files, and the controller keeps only those it sees fail
+  on the project as it is for the right reason (a wrong result or the missing symbol, not a syntax error, a missing
+  package or a test that already passes); a rejected test is rewritten once (`acceptance.max_attempts`) or dropped.
+  The kept tests are pinned so no implementer can change them, they must pass at the end, and the criteria they
+  prove are reported `verified`, apart from the team's other tests. `--no-acceptance` (`feature`, `do`) skips the
+  stage; a trivial change goes without it.
 - Harness tuning ([docs/HARNESS.md](docs/HARNESS.md#tuning)): `engineering-team harness tune --domain bugfix/python`
   improves a domain's harness on the benchmark's dev tasks. A procedure proposer (teammate guidance, what "done"
   means) and a knowledge proposer (skills) read a team run as data and propose changes; each is tried on the same

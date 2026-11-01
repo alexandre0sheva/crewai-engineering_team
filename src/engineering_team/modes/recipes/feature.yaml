@@ -52,6 +52,17 @@ stages:
     skip_if: [not_large_task]
     retry: 1
 
+  # Acceptance tests first: the quality engineer writes tests for the criteria in new test files,
+  # before anyone implements; the controller keeps a test only if it fails on the baseline for the
+  # right reason, and pins it (no implementer may change it). Skipped with --no-acceptance and on
+  # an escalated rung (its workspace already holds a change). See docs/USAGE.md.
+  - name: acceptance
+    kind: acceptance
+    teammates: [quality_engineer]
+    inputs: [spec, plan]
+    outputs: [acceptance]
+    skip_if: [no_acceptance, escalated]
+
   # Packages that do not depend on each other run side by side, each able to write only its
   # own paths (shared root files such as package.json may be owned: there is no foundation).
   - name: implement

@@ -205,7 +205,8 @@ def test_a_small_feature_designs_in_one_session_and_skips_the_map(
     assert result.exit_code == 0, result.output
     records = {r.name: r for r in latest().manifest.stages}
     assert [name for name, r in records.items() if r.status == "succeeded"] == [
-        "profile", "baseline", "design", "implement", "tests", "verify", "review", "summary",
+        "profile", "baseline", "design", "acceptance", "implement", "tests", "verify", "review",
+        "summary",
     ]  # fmt: skip
     assert records["map"].detail == "skipped: small_task"
     assert records["spec"].detail == records["impact"].detail == "skipped: not_large_task"

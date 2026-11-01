@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from engineering_team.modes.fix_repro import protected_paths
+from engineering_team.modes.acceptance import pinned_paths
 from engineering_team.pipeline.delegation import Delegator
 from engineering_team.pipeline.delegation_briefs import Job, delegation_cap
 from engineering_team.pipeline.executor_base import MAX_SUMMARY
@@ -43,7 +43,7 @@ class LeadExecutor(PackageExecutor):
             save=self._save,
         )
         groups = stage_groups(ctx, teammate) + ((TEAM_GROUP,) if cap > 0 else ())
-        pinned = protected_paths(state)  # a reproduction seen failing stays as it was
+        pinned = pinned_paths(state)  # a reproduction (or test) seen failing stays as it was
         scope = WriteScope(allow=("**",), deny=tuple(pinned)) if pinned else None
         tools = build_tools(ctx, groups=groups, write_scope=scope, agent=teammate)
         earlier = resumed_note(state)

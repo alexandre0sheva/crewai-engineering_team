@@ -667,6 +667,18 @@ How hard `engineering-team fix` tries to reproduce a bug before it stops and ask
 | `fix.max_repro_attempts` | `3` | How many times the debugger may try to write a test or script that fails because of the bug. Each try is checked by the controller, which runs the reproduction itself. When none fails, the run ends `needs-info` (exit 4) with questions. 1 to 6. |
 | `fix.repro_timeout` | `120` | Seconds one run of the reproduction may take; a hang is not a reproduction. 5 to 1,800. |
 
+### Acceptance tests (`[acceptance]`)
+
+The `acceptance` stage of a feature ([USAGE.md](USAGE.md#feature-mode),
+[ARCHITECTURE.md](ARCHITECTURE.md#acceptance-tests-first)): the quality engineer writes tests for the criteria before
+anyone implements, and the controller keeps only those it sees fail on the baseline for the right reason. Skip it for one
+run with `--no-acceptance` (`feature`, `do`); `do` leaves it out for a trivial change.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `acceptance.max_attempts` | `2` | Attempts the quality engineer gets; each after the first rewrites only the tests the controller rejected (with the reason) and the criteria still without one. A test still rejected after them is removed and the run goes on without it. 1 to 4. Provisional until the 0.3.0 evaluation measures it. |
+| `acceptance.timeout` | `120` | Seconds one run of one acceptance test may take (on the baseline and in verification); a hang is not a failure for the right reason. 5 to 1,800. |
+
 ### Maintenance (`[maintain]`)
 
 Limits for `engineering-team maintain` ([USAGE.md](USAGE.md#maintaining-a-project)). The threshold that makes

@@ -93,6 +93,9 @@ def execute(
         root = continued.source  # the user's directory; the branch is in the parent's workspace
     options.project_name = project_name_of(root, options.project_name)
     task = do_plan.TASK_OF.get(plan.profile.primary)
+    run_options: dict[str, Any] = {"task": task, "fix_findings": fix} if task else {}
+    if getattr(options, "no_acceptance", False):  # `do --no-acceptance`
+        run_options["no_acceptance"] = True
     run_repository_mode(
         g,
         RepoRun(
@@ -111,7 +114,7 @@ def execute(
             config=config,
             slug_fallback=plan.profile.primary.replace("_", "-"),
             continued=continued,
-            run_options={"task": task, "fix_findings": fix} if task else {},
+            run_options=run_options,
             opened=opened,
             extra=lambda prepared, data: _describe(g, prepared, data, plan),
         ),

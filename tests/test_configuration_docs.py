@@ -18,6 +18,7 @@ from engineering_team.model_routing import MODEL_FACTS, PROVIDER_PRESETS
 from engineering_team.pricing import build_table, default_prices
 from engineering_team.settings import (
     ENV_SETTINGS,
+    AcceptanceSettings,
     AnalysisSettings,
     BrowserSettings,
     BudgetSettings,
@@ -84,6 +85,7 @@ def test_every_setting_is_documented() -> None:
         "delegation",
         "ladder",
         "fix",
+        "acceptance",
         "maintain",
         "ui",
         "mcp",
@@ -114,6 +116,7 @@ def test_every_setting_is_documented() -> None:
         ("delegation", DelegationSettings),
         ("ladder", LadderSettings),
         ("fix", FixSettings),
+        ("acceptance", AcceptanceSettings),
         ("maintain", MaintainSettings),
         ("ui", UiSettings),
         ("mcp.<name>", McpServer),

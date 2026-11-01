@@ -11,24 +11,20 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from collections.abc import Callable, Collection
+from collections.abc import Collection
 from importlib import resources
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from engineering_team.pipeline.lean import LEAN_CONDITIONS
+from engineering_team.pipeline.conditions import CONDITIONS as CONDITIONS  # re-exported
 from engineering_team.settings import user_config_directory
-
-if TYPE_CHECKING:
-    from engineering_team.pipeline.state import PipelineState
-    from engineering_team.settings import Settings
 
 StageKind = Literal[
     "agent", "controller", "parallel", "verify", "review", "analyze", "reproduce", "upgrade",
-    "lead", "answer",
+    "lead", "answer", "acceptance",
 ]  # fmt: skip
 # Named sets of paths an ``agent`` stage may write (``modes/policies.py`` has what they hold).
 WriteScopeName = Literal["tests", "docs", "manifests", "nothing"]
@@ -36,33 +32,13 @@ VerificationPolicy = Literal["none", "artifacts"]
 
 # Contracts a stage can read or write; anything else must be ``file:<path>`` (outputs only) or
 # ``request`` (inputs only).
-CONTRACTS = ("spec", "plan", "triage", "repro", "fix_note", "upgrades", "answer")
+CONTRACTS = ("spec", "plan", "triage", "repro", "fix_note", "upgrades", "answer", "acceptance")
 FILE_PREFIX = "file:"
 NAME_PATTERN = re.compile(r"[a-z][a-z0-9_]*")
-
-# Named conditions a stage can be skipped on; each looks at the pipeline's state and settings.
-CONDITIONS: dict[str, Callable[[PipelineState, Settings], bool]] = {
-    "no_work_packages": lambda state, _: state.plan is not None and not state.plan.work_packages,
-    # The smoke profile and ``team_profile = "minimal"`` run only the essential stages.
-    # maintain's security audit only changes code when asked to (``--fix``) and has findings.
-    "fixes_not_requested": lambda state, _: not state.options.get("fix_findings"),
-    "fixes_requested": lambda state, _: bool(state.options.get("fix_findings")),
-    "no_findings": lambda state, _: not state.findings and not state.audit_findings,
-    # ``review`` found no change to look at (a clean branch, nothing against the base).
-    "nothing_to_review": lambda state, _: bool((state.isolation or {}).get("empty")),
-    "minimal_team": lambda _, settings: (
-        settings.profile == "smoke" or settings.team_profile == "minimal"
-    ),
-    # The lean team's: the task's size, a one-package plan, ceremony nobody asked for.
-    **LEAN_CONDITIONS,
-    # The ``team`` strategy's security review: only when the controller saw a security signal
-    # and no security review has read the project as it is now (``pipeline/lead.py``).
-    "no_security_signal": lambda state, _: (
-        state.lead is None
-        or not state.lead.signals
-        or state.lead.security_reviewed == state.lead.handed_back
-    ),
-}
+# Stages the controller gates itself: the one contract each returns, and the setting that bounds
+# its attempts (so the stage takes no ``retry``).
+GATED = {"reproduce": ("repro", "fix.max_repro_attempts"),
+         "acceptance": ("acceptance", "acceptance.max_attempts")}  # fmt: skip
 
 
 class RecipeError(ValueError):
@@ -88,6 +64,9 @@ class StageSpec(BaseModel):
     ``reproduce`` (fix mode) has its first teammate write a failing test or script, runs it as the
     controller and accepts it only if it fails for a real reason; ``fix.max_repro_attempts`` is
     its retry budget and when it is spent the run stops with questions (``needs-info``).
+    ``acceptance`` (before ``implement``) has its first teammate write tests for the spec's
+    criteria, test files only; the controller keeps a test only if it fails on the baseline for
+    the right reason and pins it, so the implementers cannot change it (``modes/acceptance.py``).
     ``upgrade`` (maintain's ``upgrade-deps``) applies the dependency upgrades the previous stage
     planned, grouped, runs the controller's checks after each group and bisects a failing one, so
     what could not be upgraded is reported with the check that said so.
@@ -151,7 +130,7 @@ class StageSpec(BaseModel):
     def _consistent(self) -> StageSpec:
         needs_team = (
             "agent", "parallel", "verify", "review", "analyze", "reproduce", "upgrade", "lead",
-            "answer",
+            "answer", "acceptance",
         )  # fmt: skip
         if self.kind in needs_team and not self.teammates:
             raise ValueError(f"stage {self.name!r} ({self.kind}) needs at least one teammate")
@@ -176,10 +155,11 @@ class StageSpec(BaseModel):
                 f"answer stage {self.name!r} must output exactly 'answer' and takes no retry: "
                 "the controller gives the agent one more turn when citations do not hold"
             )
-        if self.kind == "reproduce" and (self.retry or self.outputs != ["repro"]):
+        if self.kind in GATED and (self.retry or self.outputs != [GATED[self.kind][0]]):
+            output, attempts = GATED[self.kind]
             raise ValueError(
-                f"reproduce stage {self.name!r} must output exactly 'repro' and takes no retry: "
-                "its attempts are fix.max_repro_attempts"
+                f"{self.kind} stage {self.name!r} must output exactly {output!r} and takes no "
+                f"retry: its attempts are {attempts}"
             )
         if self.instructions is not None and (
             self.kind not in ("agent", "parallel") or self.prompt or not self.instructions.strip()

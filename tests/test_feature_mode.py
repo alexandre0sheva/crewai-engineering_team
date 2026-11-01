@@ -139,12 +139,12 @@ def test_a_feature_run_ends_on_a_new_branch_verified_against_its_baseline_with_a
     assert git(repo, "branch", "--show-current") == iso.branch
     assert iso.branch and iso.branch.startswith("engineering-team/")
     assert [s.name for s in ref.manifest.stages if s.status == "succeeded"] == [
-        "profile", "baseline", "map", "spec", "impact", "implement", "tests", "verify", "review",
-        "summary",
+        "profile", "baseline", "map", "spec", "impact", "acceptance", "implement", "tests",
+        "verify", "review", "summary",
     ]  # fmt: skip
     assert [s.name for s in ref.manifest.stages if s.status != "succeeded"] == ["design"]
     subjects = git(repo, "log", "--format=%s", f"{base}..HEAD").splitlines()
-    assert len(subjects) == 10 and subjects[0].startswith("stage(summary)")
+    assert len(subjects) == 11 and subjects[0].startswith("stage(summary)")
     assert git(repo, "status", "--porcelain") == ""
     # What the project did not have before: the controller's write-ups stay out of the diff.
     assert not (repo / "docs").exists()

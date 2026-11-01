@@ -333,6 +333,16 @@ class FixSettings(_Frozen):
     repro_timeout: int = Field(default=120, ge=5, le=1800)
 
 
+class AcceptanceSettings(_Frozen):
+    """Acceptance tests first (``feature``): how often a rejected test is rewritten."""
+
+    # Attempts the quality engineer gets to write tests that fail on the baseline for the right
+    # reason; each after the first rewrites only what was rejected. Provisional until T33.
+    max_attempts: int = Field(default=2, ge=1, le=4)
+    # Seconds the controller lets one run of one acceptance test take.
+    timeout: int = Field(default=120, ge=5, le=1800)
+
+
 class MaintainSettings(_Frozen):
     """Maintenance tasks (``engineering-team maintain``) and the read-only ``review``."""
 

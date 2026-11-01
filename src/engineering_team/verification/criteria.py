@@ -2,14 +2,16 @@
 
 A criterion is ``verified`` only when a *passing* check that is mapped to it (``criteria`` in the
 user's checks file) ran. A passing test suite whose test files merely mention the criterion's id
-is ``referenced``: a hint for a human, because an agent wrote both the test and the mention.
+is ``referenced``: a hint for a human, because an agent wrote both the test and the mention. The
+acceptance tests written apart (``modes/acceptance.py``) prove criteria as mapped checks, so their
+files are left out of that scan: ``referenced`` is about the implementers' own tests.
 Everything else is ``unverified`` and is listed for a person in the report.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from pathlib import PurePosixPath
 
 from engineering_team.contracts import CheckResult, CheckSpec, CriterionCoverage, Spec
@@ -32,15 +34,18 @@ def is_test_file(relative: str) -> bool:
     )
 
 
-def _mentions(workspace: ProjectWorkspace, ids: Sequence[str]) -> dict[str, list[str]]:
-    """Criterion id -> test files that mention it as a whole token (``AC-1`` is not ``AC-10``)."""
+def _mentions(
+    workspace: ProjectWorkspace, ids: Sequence[str], skip: Collection[str] = ()
+) -> dict[str, list[str]]:
+    """Criterion id -> test files that mention it as a whole token (``AC-1`` is not ``AC-10``),
+    ``skip`` left out."""
 
     patterns = {i: re.compile(rf"(?<![\w-]){re.escape(i)}(?![\w-])") for i in ids}
     found: dict[str, list[str]] = {i: [] for i in ids}
     scanned = 0
     for path in iter_files(workspace, rules=IgnoreRules.for_workspace(workspace)):
         name = workspace.relative_name(path)
-        if not is_test_file(name):
+        if not is_test_file(name) or name in skip:
             continue
         scanned += 1
         if scanned > MAX_TEST_FILES:
@@ -59,14 +64,18 @@ def map_criteria(
     spec: Spec | None,
     checks: Sequence[CheckSpec],
     results: Sequence[CheckResult],
+    *,
+    written_apart: Collection[str] = (),
 ) -> list[CriterionCoverage]:
-    """The standing of every criterion of ``spec`` (in spec order)."""
+    """The standing of every criterion of ``spec`` (in spec order); ``written_apart`` are the
+    acceptance tests' files, which do not count as mentions."""
 
     if spec is None or not spec.criteria:
         return []
     by_id = {r.id: r for r in results}
     suite_passed = any(r.kind == "test" and r.status == "passed" for r in results)
-    mentioned = _mentions(workspace, [c.id for c in spec.criteria]) if suite_passed else {}
+    ids = [c.id for c in spec.criteria]
+    mentioned = _mentions(workspace, ids, written_apart) if suite_passed else {}
     coverage: list[CriterionCoverage] = []
     for criterion in spec.criteria:
         mapped = [c.id for c in checks if criterion.id in c.criteria_ids and c.id in by_id]

@@ -81,11 +81,16 @@ def test_no_sentence_of_a_0_2_0_teammate_prompt_is_lost() -> None:
             assert sentence in own or any(sentence in body for body in loadable), (key, sentence)
 
 
+# Stage prompts that are new in 0.3.0, so the 0.2.0 golden has none of them.
+ADDED_STAGES = {"acceptance"}
+
+
 def test_every_stage_prompt_is_the_0_2_0_prompt_after_the_evidence_boundary() -> None:
     prompts = stage_prompts()
     prefix = boundary() + "\n"
 
-    assert set(prompts) == set(GOLDEN["stages"])
+    assert set(prompts) == set(GOLDEN["stages"]) | ADDED_STAGES
+    assert all(prompts[key].description.startswith(prefix) for key in ADDED_STAGES)
     for key, golden in GOLDEN["stages"].items():
         prompt = prompts[key]
         assert prompt.description.startswith(prefix), key

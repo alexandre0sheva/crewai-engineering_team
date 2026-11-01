@@ -15,7 +15,7 @@ from engineering_team.contracts import (
 from engineering_team.modes import adopt as adopt  # noqa: F401  (registers the adopt actions)
 from engineering_team.modes import maintain as maintain  # noqa: F401  (registers the actions)
 from engineering_team.modes import review_mode as review_mode  # noqa: F401  (registers them too)
-from engineering_team.modes.fix_repro import protected_paths
+from engineering_team.modes.acceptance import pinned_paths
 from engineering_team.modes.policies import SCOPES
 from engineering_team.pipeline import release_notes as release_notes  # noqa: F401  (registers)
 from engineering_team.pipeline.board_sync import StageBoard
@@ -177,8 +177,9 @@ class ExecutorBase:
         check_cancelled(self.ctx)
         if scope is None and stage.write_scope is not None:
             scope = WriteScope(allow=SCOPES[stage.write_scope])  # the recipe's lane for the stage
-        if stage.kind != "reproduce" and (pinned := protected_paths(self.state)):
-            # The reproduction was seen failing: no agent may edit it to make it pass.
+        if stage.kind != "reproduce" and (pinned := pinned_paths(self.state)):
+            # A reproduction or an acceptance test was seen failing: no agent may edit it to make
+            # it pass.
             scope = WriteScope(
                 allow=scope.allow if scope else ("**",),
                 deny=(*(scope.deny if scope else ()), *pinned),

@@ -27,6 +27,7 @@ from engineering_team.contracts import (
     VerificationRecord,
 )
 from engineering_team.intake.bundle import request_hash as request_hash  # re-exported
+from engineering_team.modes.acceptance_contracts import AcceptanceRecord, AcceptanceSuite
 from engineering_team.modes.answer_contracts import Answer, AnswerCheck
 from engineering_team.modes.baseline_report import BaselineReport
 from engineering_team.modes.diff_noise import DiffNoise
@@ -83,6 +84,10 @@ class PipelineState(Contract):
     fix_note: FixNote | None = None
     fix: FixRecord | None = None
     needs_info: list[str] = Field(default_factory=list)  # questions when the bug is not reproduced
+    # Acceptance tests first: the quality engineer's account (not evidence) and the controller's
+    # record of the tests it saw fail on the baseline (``modes/acceptance.py``).
+    acceptance: AcceptanceSuite | None = None
+    acceptance_record: AcceptanceRecord | None = None
     # What the command line asked for beyond the request (``modes/run_options.py``); conditions
     # such as ``fixes_not_requested`` read it. Loaded again on resume.
     options: dict[str, Any] = Field(default_factory=dict)

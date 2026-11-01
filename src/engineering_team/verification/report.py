@@ -11,6 +11,7 @@ import re
 from collections.abc import Sequence
 
 from engineering_team.contracts import CheckResult, VerificationRecord
+from engineering_team.modes.acceptance_contracts import AcceptanceRecord
 from engineering_team.verification.verdict import Judgement
 
 STATUS_LABEL = {
@@ -52,6 +53,7 @@ def render_report(
     *,
     max_rounds: int,
     notes: str = "docs/qa-notes.md",
+    acceptance: AcceptanceRecord | None = None,
 ) -> str:
     verdict = judgement.verdict
     lines = [
@@ -99,6 +101,7 @@ def render_report(
             lines += [f"- known: {_cell(key)}" for key in r.known_failures]
             lines += [f"- NEW: {_cell(key)}" for key in r.new_failures]
 
+    lines += _acceptance(acceptance)
     if record.coverage:
         lines += ["", "## Acceptance criteria", ""]
         lines += ["| ID | Criterion | Status | Checks / note |", "|---|---|---|---|"]
@@ -121,3 +124,38 @@ def render_report(
     if record.notes:
         lines += ["", "## Notes", "", *[f"- {note}" for note in record.notes]]
     return "\n".join(lines) + "\n"
+
+
+def _acceptance(record: AcceptanceRecord | None) -> list[str]:
+    """The acceptance tests written apart from the implementers, each with its red run."""
+
+    if record is None or not (record.accepted or record.rejected):
+        return []
+    lines = ["", "## Acceptance tests (written apart, red on the baseline)", ""]
+    lines.append(
+        "The quality engineer wrote these before the change; the controller ran each on the "
+        "baseline and kept it only because it failed there for the right reason. No implementer "
+        "could change them. The implementers' own tests are the project's checks above: a "
+        "criterion they only mention is `referenced`, not `verified`."
+    )
+    if record.accepted:
+        lines += ["", "| Test | Criteria | Red on the baseline | Now | Command |"]
+        lines += ["|---|---|---|---|---|"]
+        for test in record.accepted:
+            red = (
+                f"failed, exit {test.red.exit_code}" if test.red.exit_code is not None else "failed"
+            )
+            now = "passed" if test.green is not None else "NOT passing"
+            lines.append(
+                f"| {_cell(test.id)} | {_cell(', '.join(test.criteria))} | {_cell(red)} | {now} | "
+                f"{_code(test.command)} |"
+            )
+    else:
+        lines += ["", "None was kept: no test failed on the baseline for the right reason."]
+    if record.rejected:
+        lines += ["", "Rejected (rewritten or dropped):", ""]
+        lines += [f"- {_cell(line)[:300]}" for line in record.rejected]
+    if record.untestable:
+        lines += ["", "No automated test (the quality engineer's account):", ""]
+        lines += [f"- {_cell(line)}" for line in record.untestable]
+    return lines

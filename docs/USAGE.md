@@ -430,11 +430,22 @@ first ([above](#adopting-an-existing-project)), then the `feature` recipe runs: 
 adopt stages; a small project of at most 40 files skips the map), **design** (the architect writes the criteria for the
 new behaviour and for the existing behaviour the change must keep, and plans the smallest change as work packages,
 each owning exact paths, in one session; a large task has a separate **spec** by the analyst and **impact** by the
-architect instead; a small one's plan becomes one package), **implement** (packages that do not depend on each other run side by side, each able to write only its own
+architect instead; a small one's plan becomes one package), **acceptance** (tests for the criteria, written first and
+seen failing; below), **implement** (packages that do not depend on each other run side by side, each able to write only its own
 paths; a package may own `package.json`, `pyproject.toml`, and the other shared root files, since there is no
 foundation stage), **tests** (the quality engineer writes tests in the style the project already uses), **verify**,
 **review**, **summary**. The agents are told to follow the project's conventions, keep the diff minimal, and never
 reformat or tidy what they were not asked to change.
+
+**Acceptance tests first.** Before anyone implements, the quality engineer writes tests for the criteria in new test
+files, in the project's own style. The controller runs each on the project as it still is and keeps it only if it
+fails for the right reason (a wrong result, or the symbol the feature adds is missing): a test that passes already, or
+cannot run (a syntax error, a missing fixture or package), is sent back once to be rewritten
+(`acceptance.max_attempts`) and dropped if it is still wrong. The kept tests are pinned: no implementer can change
+them, and an edit to one fails the verification. They must pass at the end, and a criterion they prove is reported
+`verified` (by `acceptance-1`, ...), while the team's other tests only make a criterion `referenced`;
+`reports/verification.md` lists each acceptance test with its red run on the baseline. Skip the stage with
+`--no-acceptance` (`feature` or `do`); `do` leaves it out for a trivial change.
 
 **Baseline-aware verification.** The controller runs the project's own checks (the ones the baseline recorded, not
 commands the plan declares) and compares them with the baseline: a failing check whose failures were all failing

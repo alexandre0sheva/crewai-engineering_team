@@ -208,7 +208,7 @@ def _ceremony(name: str) -> Callable[[PipelineState, Settings], bool]:
     return lambda state, _: state.lean is not None and name not in state.lean.ceremony
 
 
-# Named skip conditions (``recipes.CONDITIONS`` includes them).
+# Named skip conditions (``conditions.CONDITIONS`` includes them).
 LEAN_CONDITIONS: dict[str, Callable[[PipelineState, Settings], bool]] = {
     "large_task": lambda state, _: _size(state) == "large",
     "not_large_task": lambda state, _: _size(state) in ("small", "medium"),

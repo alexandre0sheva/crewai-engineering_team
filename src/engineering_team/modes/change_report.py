@@ -13,6 +13,7 @@ from pathlib import Path
 
 from engineering_team.atomic_io import atomic_write_text
 from engineering_team.git.port import Change, GitError
+from engineering_team.modes.acceptance import render_acceptance_section
 from engineering_team.modes.diff_noise import DiffNoise, measure, touched_scope
 from engineering_team.modes.fix_report import render_fix_section
 from engineering_team.modes.maintain_report import render_maintain_sections
@@ -104,6 +105,8 @@ def render_change_summary(ctx: RunContext, state: PipelineState, measured: Measu
     ]
     if state.fix is not None:
         lines += ["", *render_fix_section(state)]
+    if acceptance := render_acceptance_section(state):
+        lines += ["", *acceptance]
     lines += render_maintain_sections(state)
     lines += ["", "## Files changed", ""]
     if measured.changes:
