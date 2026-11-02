@@ -19,6 +19,7 @@ from engineering_team.contracts import (
     Finding,
     UsageReport,
 )
+from engineering_team.integrations.issue import IssueCite
 from engineering_team.modes.answer_contracts import Answer, AnswerCheck
 from engineering_team.pipeline.attempts_contracts import AttemptsRecord
 from engineering_team.pipeline.ladder_contracts import LadderRecord
@@ -180,6 +181,7 @@ class RunReport:
     answer: Answer | None = None  # the answer path's answer and the check of its citations
     answer_check: AnswerCheck | None = None
     thread: ThreadInfo | None = None  # the run it follows and its follow-ups
+    issue: IssueCite | None = None  # the GitHub issue the run was started from (``do --issue``)
     harness: str = ""  # the domain, its packs and the skills loaded (``harness_line``)
     prompts: list[dict[str, Any]] = field(default_factory=list)  # prompt sizes per session
     models: ModelNotes = field(default_factory=ModelNotes)  # the route and the fallbacks used

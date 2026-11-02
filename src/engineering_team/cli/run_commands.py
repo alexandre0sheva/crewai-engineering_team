@@ -69,6 +69,7 @@ def present_run(
     data = summary.build(ctx, result, code, resumable=resumable)
     if extra is not None:
         extra(data)
+        code = int(data["exit_code"])  # a step after the run (a pull request) may change it
     if g.json:
         print_json(data)
     elif g.interactive:

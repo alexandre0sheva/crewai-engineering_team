@@ -151,7 +151,8 @@ See [SAFETY.md](SAFETY.md#docker-backend).
 `GitPort` (`git/port.py`, `ctx.git`; built from `git/core.py`, `reads.py` and `writes.py`) is the controller's Git, a thin wrapper that builds fixed `git` argv
 lists and runs them through `ctx.backend` (so cancellation, timeouts, and a Docker sandbox apply; nothing
 spawns `git` itself). Its rules (no push or remote, no hooks, no outside repository) are in
-[SAFETY.md](SAFETY.md#git). It offers `is_repo`, `is_dirty`, `status`, `current_branch`, `head`,
+[SAFETY.md](SAFETY.md#git). The one push the tool can make, `do --open-pr`, is not the port's: it is a
+controller step of `integrations/github.py` after a passing run ([SAFETY.md](SAFETY.md#github)). It offers `is_repo`, `is_dirty`, `status`, `current_branch`, `head`,
 `create_branch`, `worktree_add`/`worktree_remove`, `checkpoint(message)` (stage everything, commit, return the sha; a
 commit is made even when nothing changed), the work as it is now (`diff`, `diff_stat`, `export_patch`,
 `tree_hash`, all via a temporary index so the real one is never touched), and bounded history for the read-only tools
@@ -1396,7 +1397,7 @@ code at load time; the tools import the runtime context only for type checking).
 | Entry | `main.py`, `run_prep.py`, `request_sources.py`, `outcome.py`, `api.py`, `__main__.py`, `cli/` | The Typer commands, the live Rich views, `doctor`, and the `run_crew` entry point `crewai run` uses; run preparation, request sources, exit codes, `resume` |
 | Web UI | `ui/` | FastAPI app over the run directories, SSE events, the static single-page app, `ui --demo` |
 | Orchestration | `pipeline/`, `modes/`, `team/`, `harness/`, `llm.py` | Recipes, the Flow pipeline, parallel work packages, resume, strategies; the mode recipes and their actions; the roster; the prompt components and their composition ([HARNESS.md](HARNESS.md)); model construction |
-| Control | `verification/`, `board/`, `git/`, `report/`, `intake/` | Controller-run checks and bounded repair, the task board and notes, `GitPort` and checkpoints, the run report, requirements intake and triage |
+| Control | `verification/`, `board/`, `git/`, `report/`, `intake/`, `integrations/` | Controller-run checks and bounded repair, the task board and notes, `GitPort` and checkpoints, the run report, requirements intake and triage; the opt-in GitHub steps (`do --issue`, `do --open-pr`: `gh` and `git push` on the host, `cli/do_github.py` is their glue) |
 | Run state | `runtime/`, `contracts.py`, `artifacts.py`, `atomic_io.py`, `workspaces.py` | `RunContext`, events, budget, usage, processes, the run store, locks, cancellation; the typed contracts; crash-safe file writes; project directories |
 | Agent tools | `tools/`, `devtools/`, `codeintel/`, `webtools/`, `browsertools/` | Every tool an agent can call ([TOOLS.md](TOOLS.md)) and the engines behind them |
 | Execution | `execution/` | `ExecutionBackend`: the local backend and the Docker sandbox; no tool spawns a process any other way |

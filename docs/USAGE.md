@@ -111,6 +111,38 @@ takes the options of its mode (`fix --trace-file`, `maintain --task`, `review --
 preview and keeps its exit codes and outputs. Use `do` when you would rather say what you want than pick the
 mode.
 
+### GitHub issues and draft pull requests
+
+```bash
+uv run engineering-team do --issue acme/notes#7 --repo ../notes                # the issue is the request
+uv run engineering-team do --issue https://github.com/acme/notes/issues/7 --open-pr
+uv run engineering-team do "Keep it small." --issue acme/notes#7 --open-pr --yes
+```
+
+`--issue owner/repo#123` (or the issue's URL) reads the title, body and comments through `gh` and uses them as the
+request, after any request you give yourself (a long issue is cut to `intake.max_request_chars`, keeping the newest
+comments). `gh` must be installed and signed in; the tool never handles a token, and the issue text is data like any
+request: it changes no permission, budget or check. The issue is cited in the preview, in `github_issue.json` in the run directory, and in the run report.
+
+`--open-pr` (never the default; `github.open_pr = true` makes it the standing choice, `--no-open-pr` turns it off for
+one run) works on a change to a Git repository whose `origin` is a GitHub address. It is checked while planning, so a
+missing `origin` or `gh` is refused before anything is spent (when only the setting asks, the preview says
+no pull request will be opened and the request goes ahead). After a run that **passed** (verdict `verified`) it:
+
+1. asks "Push branch ... and open a draft pull request?", unless `--yes`; with `--json`, `--quiet` or no terminal and
+   no `--yes` nobody can answer, so it opens nothing and says so (`pull_request.status` is `skipped`);
+2. pushes the run's branch `engineering-team/<run-id>-<slug>` to `origin` under the same name (never forced);
+3. opens a **draft** pull request against the branch you started from (or the repository's default branch when
+   `origin` does not know it). The body is the controller's summary: the verdict, the checks, the acceptance
+   criteria, the files changed with their line counts, the cost, and the path of the full report on your machine; it
+   starts with `Closes owner/repo#N` when the issue is in the same repository (`Refs ...` otherwise). It is also kept
+   as `pull_request.md` in the run directory.
+
+A run that did not pass, a `review`, a question or a new project opens nothing. The summary gains a `Pull request:`
+line (`pull_request` in `--json`: `opened` with its `url`, `skipped` with a reason, or `failed` with the error). If
+pushing or opening fails the exit code is `1`, the work stays on the branch, and the error says why. Without
+`--open-pr` nothing is ever pushed.
+
 ## Starting a run
 
 ```bash
@@ -860,7 +892,7 @@ project (symlinks included), uploads are text files with a size cap, and request
 | Code | Meaning |
 |------|---------|
 | `0` | Success (a `pipeline` run: verified). |
-| `1` | A runtime error, or a failed check of your setup (`doctor`). |
+| `1` | A runtime error, or a failed check of your setup (`doctor`); a passing `do --open-pr` run whose pull request could not be opened. |
 | `2` | Usage or configuration error: one line on stderr, no traceback. |
 | `3` | The controller's own checks failed (not verified); for `review` and an unfixed `security-audit`, a finding reached `review.fail_on`. |
 | `4` | Verification was partial (a required check could not run), or `fix` or `maintain --task refactor` stopped because it needs more information (verdict `needs-info`, with questions). |

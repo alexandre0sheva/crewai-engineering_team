@@ -132,6 +132,13 @@ def delivery(data: dict[str, Any]) -> list[tuple[str, str]]:
         found.append(("Copy", str(isolation["workspace"])))
     if data.get("patch"):
         found.append(("Patch", str(data["patch"])))
+    if pull := data.get("pull_request"):
+        shown = {
+            "opened": f"{pull.get('url')} (draft)",
+            "skipped": f"not opened: {pull.get('reason')}",
+            "failed": f"not opened: {pull.get('error')}",
+        }
+        found.append(("Pull request", shown.get(pull["status"], pull["status"])))
     return found
 
 

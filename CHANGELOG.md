@@ -11,6 +11,12 @@ renames that section and dates it.
 
 ### Added
 
+- GitHub issue intake and opt-in draft pull requests ([docs/USAGE.md](docs/USAGE.md#github-issues-and-draft-pull-requests)):
+  `do --issue owner/repo#N` (or an issue URL) reads the title, body and comments through `gh` and uses them as the
+  request, and the issue is cited in the report. `do --open-pr` (or `github.open_pr = true`; never the default)
+  pushes the branch of a passing run to `origin` and opens a draft pull request whose body is the report summary
+  (verdict, checks, criteria, diff stats, cost); it asks first unless `--yes`. Without the flag nothing is pushed
+  ([docs/SAFETY.md](docs/SAFETY.md#github)).
 - Optional language-server bridge ([docs/CONFIGURATION.md](docs/CONFIGURATION.md#language-servers-lsp)): with
   `lsp.enabled`, `Diagnostics` and `Go To Definition` tools and exact, scope-aware `Find References`
   (pyright, typescript-language-server, gopls, rust-analyzer; falls back to word matching, saying so, when no

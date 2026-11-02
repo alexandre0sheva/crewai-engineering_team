@@ -15,7 +15,8 @@ code reads it only to build the child-process environment).
 * ``model_section``: the ``[models]`` table (overrides, routes, fallbacks)
 * ``model``: ``Settings`` itself (cross-section validation, model routing)
 * ``describe``: ``Settings.describe`` (``config show``)
-* ``openrouter``, ``context_pack``, ``lsp``: the ``[openrouter]``, ``[context]``, ``[lsp]`` tables
+* ``openrouter``, ``context_pack``, ``lsp``, ``github``: the ``[openrouter]``, ``[context]``,
+  ``[lsp]``, ``[github]`` tables
 * ``masking``: showing values without showing secrets
 * ``env``: the ``ENGINEERING_*`` variables and the settings each one sets
 * ``loading``: layering defaults, files, environment and overrides into one ``Settings``
@@ -32,6 +33,7 @@ from engineering_team.settings.common import (
 from engineering_team.settings.context_pack import ContextSettings
 from engineering_team.settings.describe import SettingRow
 from engineering_team.settings.env import CONFIG_FILE_ENV, ENV_SETTINGS, OVERRIDES_ENV
+from engineering_team.settings.github import GithubSettings
 from engineering_team.settings.loading import (
     SECRET_ENV_NAME,
     child_environment,
@@ -106,6 +108,7 @@ __all__ = [
     "ExecutionSettings",
     "FixSettings",
     "GitSettings",
+    "GithubSettings",
     "IntakeSettings",
     "KnowledgeSettings",
     "AttemptsSettings",

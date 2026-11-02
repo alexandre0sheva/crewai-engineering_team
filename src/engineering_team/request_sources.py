@@ -57,6 +57,7 @@ def load_bundle(
     context_dir: str | Path | None = None,
     stdin: TextIO | None = None,
     settings: Settings | None = None,
+    extra: Sequence[tuple[str, str]] = (),
 ) -> RequestBundle:
     """Load the normalised, non-placeholder request (see :class:`RequestBundle`).
 
@@ -64,7 +65,9 @@ def load_bundle(
     ``-`` is stdin) merge in that order, ``--example`` stands alone. With none of them the
     first of ``ENGINEERING_PROJECT_REQUEST``, ``ENGINEERING_REQUEST_FILE``, and
     ``PROJECT_REQUEST.md`` in the current directory is used. A blank explicit value is an
-    error rather than a silent fallback. ``ValueError`` (``IntakeError``) says what to fix.
+    error rather than a silent fallback. ``extra`` is request text already read elsewhere, as
+    ``(label, text)`` (a GitHub issue): it is merged after the others and, when it is all there
+    is, stands in for the environment's request. ``ValueError`` (``IntakeError``) says what to fix.
     """
 
     settings = settings or load_settings()
@@ -79,7 +82,7 @@ def load_bundle(
         )
     default_file = Path.cwd() / DEFAULT_REQUEST_FILENAME
     files: Sequence[str | Path] = request_files
-    if inline_request is None and not files:
+    if inline_request is None and not files and not extra:
         if settings.request is not None:
             inline_request = settings.request
         elif settings.request_file is not None:
@@ -89,7 +92,12 @@ def load_bundle(
         else:
             raise ValueError(NO_REQUEST)
     return RequestBundle.from_sources(
-        text=inline_request, files=files, stdin=stdin, context_dir=context_dir, limits=limits
+        text=inline_request,
+        files=files,
+        stdin=stdin,
+        context_dir=context_dir,
+        limits=limits,
+        extra=extra,
     )
 
 

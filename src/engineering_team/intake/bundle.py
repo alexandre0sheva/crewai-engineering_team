@@ -68,8 +68,10 @@ class RequestBundle:
         stdin: TextIO | None = None,
         context_dir: str | Path | None = None,
         limits: IntakeSettings | None = None,
+        extra: Sequence[tuple[str, str]] = (),
     ) -> RequestBundle:
-        """Merge ``text`` and ``files`` (a ``-`` entry reads ``stdin``, default ``sys.stdin``).
+        """Merge ``text`` and ``files`` (a ``-`` entry reads ``stdin``, default ``sys.stdin``),
+        then ``extra`` pieces already read, as ``(label, text)`` (a GitHub issue).
 
         Raises :class:`IntakeError` for no source, an empty or still-templated source, an
         unreadable file, a request over ``intake.max_request_chars``, or a bad ``context_dir``.
@@ -84,6 +86,7 @@ class RequestBundle:
                 pieces.append(("stdin", _read_stdin(stdin, limits)))
             else:
                 pieces.append((Path(entry).name, _read_file(Path(entry), limits)))
+        pieces.extend(extra)
         if not pieces:
             raise IntakeError("No project request given. Pass --request or --request-file.")
         parts: list[tuple[str, str]] = []

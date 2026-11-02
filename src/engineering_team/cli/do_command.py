@@ -19,7 +19,7 @@ from typing import Annotated, Any
 
 import typer
 
-from engineering_team.cli import do_plan, do_run
+from engineering_team.cli import do_github, do_plan, do_run
 from engineering_team.cli.context import Globals, fail, one_of, print_json
 from engineering_team.cli.context import get as get_globals
 from engineering_team.cli.do_plan import with_notes  # noqa: F401  (re-exported)
@@ -177,6 +177,18 @@ def do(
         str | None,
         typer.Option(callback=one_of(["local", "docker"]), help="Where commands run."),
     ] = None,
+    issue: Annotated[
+        str | None,
+        typer.Option(help="A GitHub issue (owner/repo#123 or its URL) to take as the request."),
+    ] = None,
+    open_pr: Annotated[
+        bool | None,
+        typer.Option(
+            "--open-pr/--no-open-pr",
+            help="After a passing run, push its branch to origin and open a draft pull request "
+            "(asks first unless --yes; setting github.open_pr; never the default).",
+        ),
+    ] = None,
     config: Annotated[str | None, typer.Option(help="Path to a config file.")] = None,
 ) -> None:
     """Do what the request asks: triage it, show the plan, then build, change, fix or review."""
@@ -195,17 +207,26 @@ def do(
         project_name=project_name, no_acceptance=no_acceptance,
     )  # fmt: skip
     ask = wants_questions(interactive, stdin_used=STDIN in files)
+    try:
+        github = do_github.GithubRun.from_options(issue, open_pr, yes)
+    except ValueError as exc:
+        fail(str(exc))
 
     def make_plan() -> do_plan.DoPlan:
-        settings, bundle, root = _intake(options, config, inline, files, context_dir, example, repo)
-        return _plan(settings, bundle, root, mode, recipe, ask, dry_run, explicit=repo is not None)
+        settings, bundle, root = _intake(
+            options, config, inline, files, context_dir, example, repo, github
+        )
+        plan = _plan(settings, bundle, root, mode, recipe, ask, dry_run, explicit=repo is not None)
+        if github is not None:
+            github.check_plan(plan.route, plan.root)
+        return plan
 
     plan_and_run(
         ctx, g, make_plan,
         options=options, config=config, ask=ask, context_dir=context_dir, yes=yes,
         dry_run=dry_run, interactive=interactive, stdin_used=STDIN in files, worktree=worktree,
         allow_dirty=allow_dirty, squash=squash, reset=reset or force_reset,
-        force_reset=force_reset, fix=fix,
+        force_reset=force_reset, fix=fix, github=github,
     )  # fmt: skip
 
 
@@ -228,6 +249,7 @@ def plan_and_run(
     reset: bool = False,
     force_reset: bool = False,
     fix: bool = False,
+    github: do_github.GithubRun | None = None,
 ) -> None:
     """What ``do`` and ``continue`` share: plan (a usage error or a question nobody can answer
     stops here), show the plan, ask to proceed, run it."""
@@ -248,10 +270,13 @@ def plan_and_run(
         raise typer.Exit(EXIT_INTERRUPTED) from None
     except ValueError as exc:
         fail(str(exc))
-    _show(g, plan)
+    _show(g, plan, github.plan_lines() if github is not None else [])
     if dry_run:
         if g.json:
-            print_json({"status": "planned", "exit_code": 0, "plan": do_plan.plan_document(plan)})
+            document = do_plan.plan_document(plan)
+            if github is not None:
+                document["github"] = github.document()
+            print_json({"status": "planned", "exit_code": 0, "plan": document})
         raise typer.Exit(0)
     if not _proceed(g, yes=yes, interactive=interactive, stdin_used=stdin_used):
         sys.stderr.write("Not started: nothing was changed.\n")
@@ -271,6 +296,7 @@ def plan_and_run(
         force_reset=force_reset,
         fix=fix,
         stdin_used=stdin_used,
+        github=github,
     )
 
 
@@ -282,6 +308,7 @@ def _intake(
     context_dir: str | None,
     example: str | None,
     repo: str | None,
+    github: do_github.GithubRun | None = None,
 ) -> tuple[Settings, RequestBundle, Path | None]:
     from engineering_team import main as engine
 
@@ -292,6 +319,7 @@ def _intake(
         example=example,
         context_dir=context_dir,
         settings=settings,
+        extra=github.intake(settings) if github is not None else (),
     )
     return settings.for_request(bundle.text), bundle, detect_root(repo)
 
@@ -329,11 +357,11 @@ def _plan(
     return plan
 
 
-def _show(g: Globals, plan: do_plan.DoPlan) -> None:
+def _show(g: Globals, plan: do_plan.DoPlan, more: list[str] | None = None) -> None:
     if g.quiet:
         return
     console = g.console()
-    for line in do_plan.render_plan(plan):
+    for line in [*do_plan.render_plan(plan), *(more or [])]:
         console.print(line, markup=False, highlight=False, soft_wrap=True)
 
 

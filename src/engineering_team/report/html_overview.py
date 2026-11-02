@@ -34,6 +34,7 @@ def summary(report: RunReport) -> str:
         ("Mode · strategy", f"{report.mode} · {report.strategy}"),
         *([("Harness", report.harness)] if report.harness else []),
         ("Status", f"{report.status}" + (f" · {report.verdict}" if report.verdict else "")),
+        *([("Issue", report.issue.line)] if report.issue else []),
         ("Duration", clock(report.duration_seconds)),
         ("Started", when(report.created)),
         ("Ended", when(report.finished) if report.status not in ("running", "pending") else "-"),

@@ -384,7 +384,8 @@ unchanged; a changed request starts a new run, which needs `--checks` again.
 A new project (an empty workspace) becomes a Git repository with an initial commit, and the `pipeline`
 and `single` strategies commit after every finished stage (see [Git](ARCHITECTURE.md#git)).
 A project that already is a repository is continued on its current branch; a project that has
-files but no repository is left alone. The controller never pushes, fetches, or touches remotes.
+files but no repository is left alone. The controller never pushes, fetches, or touches remotes, unless
+you ask for a pull request ([GitHub](#github-github)).
 
 | Key (TOML) | Default | Meaning |
 |---|---|---|
@@ -392,6 +393,17 @@ files but no repository is left alone. The controller never pushes, fetches, or 
 | `git.author_name` | `Engineering Team` | Author and committer name of the controller's commits |
 | `git.author_email` | `engineering-team@users.noreply.github.com` | Their email (a no-reply address; set your own to attribute the commits) |
 | `git.squash` | `false` | Also `feature --squash`: when a repository mode (`feature`) succeeds, its stage commits since the starting commit become one commit (`feature: <title>`) on the team's branch |
+
+### GitHub (`[github]`)
+
+`do --issue owner/repo#123` takes a GitHub issue as the request, and `do --open-pr` pushes the branch of a
+passing run to `origin` and opens a **draft** pull request ([USAGE.md](USAGE.md#github-issues-and-draft-pull-requests);
+what is sent where: [SAFETY.md](SAFETY.md#github)). Both use the `gh` command line, which must be installed and
+signed in (`gh auth login`); this tool never reads or stores a token.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `github.open_pr` | `false` | The standing form of `--open-pr` (`--no-open-pr` turns it off for one run). It applies only to a change to a Git repository with a GitHub `origin`; other requests ignore it. Pushing is never the default |
 
 ### Requirements intake (`[intake]` and the request options)
 

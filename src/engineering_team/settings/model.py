@@ -48,6 +48,7 @@ from engineering_team.settings.common import (
 )
 from engineering_team.settings.context_pack import ContextSettings
 from engineering_team.settings.describe import SettingRow
+from engineering_team.settings.github import GithubSettings
 from engineering_team.settings.lsp import LspSettings
 from engineering_team.settings.model_section import ModelOverride, ModelsSettings, _Frozen
 from engineering_team.settings.openrouter import OpenRouterSettings
@@ -121,6 +122,7 @@ class Settings(_Frozen):
     browser: BrowserSettings = BrowserSettings()
     verify: VerifySettings = VerifySettings()
     git: GitSettings = GitSettings()
+    github: GithubSettings = GithubSettings()
     intake: IntakeSettings = IntakeSettings()
     review: ReviewSettings = ReviewSettings()
     analysis: AnalysisSettings = AnalysisSettings()

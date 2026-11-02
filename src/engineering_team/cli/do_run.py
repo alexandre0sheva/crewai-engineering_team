@@ -16,6 +16,7 @@ from engineering_team.atomic_io import atomic_write_json
 from engineering_team.cli import do_plan
 from engineering_team.cli.answer_run import describe_document, run_answer_route
 from engineering_team.cli.context import Globals, print_json
+from engineering_team.cli.do_github import GithubRun
 from engineering_team.cli.repo_mode import RepoRun, project_name_of, run_repository_mode
 from engineering_team.cli.run_commands import present_run
 from engineering_team.intake.bundle import RequestBundle
@@ -52,6 +53,7 @@ def execute(
     force_reset: bool,
     fix: bool,
     stdin_used: bool,
+    github: GithubRun | None = None,
 ) -> None:
     from engineering_team.cli.app import _forward_globals, main
 
@@ -66,6 +68,8 @@ def execute(
 
     def opened(prepared: Any) -> None:
         _record(prepared, plan)
+        if github is not None:
+            github.opened(prepared)
         if thread is not None:
             link_thread(prepared, thread.parent.ref)
 
@@ -117,6 +121,7 @@ def execute(
             run_options=run_options,
             opened=opened,
             extra=lambda prepared, data: _describe(g, prepared, data, plan),
+            publish=github.publish if github is not None else None,
         ),
     )
 

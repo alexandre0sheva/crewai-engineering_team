@@ -23,6 +23,7 @@ from engineering_team.contracts import (
     RunManifest,
     UsageReport,
 )
+from engineering_team.integrations.issue import load_cite
 from engineering_team.pipeline.attempts_contracts import AttemptsRecord
 from engineering_team.pipeline.ladder_contracts import LadderRecord
 from engineering_team.pipeline.state import PipelineState
@@ -110,6 +111,7 @@ def build_report(run_dir: Path) -> RunReport:
         answer=state.answer if state else None,
         answer_check=state.answer_check if state else None,
         thread=build_thread(run_dir, manifest),
+        issue=load_cite(run_dir),
         environment=_environment(run_dir, manifest),
     )
     report.stages = _stages(manifest, end)

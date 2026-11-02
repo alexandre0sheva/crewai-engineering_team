@@ -156,7 +156,8 @@ through the execution backend. The rules are what the port *can* do, not a filte
 asked:
 
 - **No outward Git.** It has no way to push, fetch, pull, add or change remotes, or force anything
-  (a test asserts it), and `protocol.allow=never` and a disabled credential helper back that up.
+  (a test asserts it), and `protocol.allow=never` and a disabled credential helper back that up. The one
+  push the tool can make is `do --open-pr`, which is not the port's: see [GitHub](#github).
 - **No code from the repository.** Hooks never run (`core.hooksPath=/dev/null`, `--no-verify`), and
   neither do commands a repository's own config names: `core.fsmonitor`, `diff.external`, and
   text conversion are switched off; there is no pager, no prompt, and no system or global
@@ -176,6 +177,31 @@ asked:
 Committing is best effort and never fails a run. A commit is made as `Engineering Team
 <engineering-team@users.noreply.github.com>` (`git.author_name`, `git.author_email`); nothing is signed.
 
+### GitHub
+
+Off unless you ask. Two opt-in features use the GitHub command line `gh` (and `git` for the push) **on your machine,
+as you**, outside the sandbox and outside the agents' reach: no agent tool can push or call `gh`.
+
+| Feature | Sent where | What is sent | When |
+|---|---|---|---|
+| `do --issue owner/repo#N` | `gh issue view` to the issue's host (github.com, or the host in the URL) | A read-only request for the issue's title, body, comments, labels, state and author | While planning, before any model is called. What comes back becomes the request text, so the model provider sees it like any request |
+| `do --open-pr` | `git push` to `origin`, then `gh pr create --draft` against the repository `origin` points at | The run's branch (**its commits, any local commits of yours that `origin` does not have yet, and, with `--allow-dirty`, your uncommitted changes**, which become the team's first commit), and a pull request whose body is the controller's report summary: verdict, checks, criteria, file names with line counts, cost, and a local path to the report | After a run that passed, and after you confirm (`--yes` confirms in advance; with nobody to ask and no `--yes`, nothing is sent) |
+
+- **Credentials.** The tool never reads, stores, logs or prints a token. `gh` and `git` find your sign-in themselves
+  (`gh auth login`, your credential helper, your SSH agent); of the environment they get only `PATH`, `HOME`, locale,
+  proxy and certificate variables and the ones `gh` and `git` use to find a sign-in (`GH_TOKEN`, `GITHUB_TOKEN`,
+  `GH_HOST`, `GH_CONFIG_DIR`, `SSH_AUTH_SOCK`, ...). Error text is scrubbed of known secret values.
+- **What cannot happen.** The push is `refs/heads/<branch>` to the same name on `origin`, never forced (a branch that
+  exists there with other history is refused); it never touches your branch, other branches or tags. The pull
+  request is a draft, and nothing is merged. Hooks do not run (`core.hooksPath=/dev/null`, `--no-verify`), so a
+  repository cannot make the push run its code. `origin` must be a GitHub address; credentials inside its URL are
+  never shown.
+- **Untrusted text.** The pull request body contains no text the agents wrote; text from the project (check
+  summaries, criteria) is shown as data with markup escaped and `@` mentions broken, so opening the pull request
+  notifies nobody. The issue text is untrusted like any request: it cannot change permissions, budgets or verdicts.
+- **A failure is visible.** If the push succeeded and the pull request did not open, the branch stays on `origin`
+  and the exit code is `1`; delete it yourself if you do not want it.
+
 ### Adopting an existing project
 
 What the adoption machinery touches in a project that is not the tool's own, and what it never does
@@ -185,7 +211,7 @@ What the adoption machinery touches in a project that is not the tool's own, and
 |-----------|---------|---------------|
 | `analyze` | Nothing. It reads files and asks Git read-only questions (its Git home and caches go to a throw-away directory). | Everything: no file, no `.git`, no `.engineering-team/` is created. |
 | `analyze --deep` | `.engineering-team/` (the map, the profile, the run record, scratch) and one line in `.git/info/exclude`. | Source files (the analysts' write tools can reach only their own scratch file), `.gitignore`, branches, history (no stage commits). |
-| **branch** isolation | A new branch `engineering-team/<run-id>-<slug>` is created and checked out; `.git/info/exclude`; `.engineering-team/` | Your branch, your other branches, remotes, hooks. Files on disk change only when the team writes. |
+| **branch** isolation | A new branch `engineering-team/<run-id>-<slug>` is created and checked out; `.git/info/exclude`; `.engineering-team/` | Your branch, your other branches, remotes (unless you pass `--open-pr`: [GitHub](#github)), hooks. Files on disk change only when the team writes. |
 | **worktree** isolation | A new branch, `.git/worktrees/<id>` (Git's bookkeeping), `.engineering-team/worktrees/<run-id>` | Your working copy: not one file, including uncommitted changes and untracked files. |
 | **copy** isolation | A new directory `workspace/<name>` | The original directory, which is only read. |
 

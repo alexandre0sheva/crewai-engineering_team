@@ -4,7 +4,7 @@
 (clean repository), a worktree (dirty one, or ``--worktree``) or a copy (a directory that is not
 a repository, made a Git repository so the work can be diffed). It opens the run with the mode's
 recipe, runs it, and shows how it ended. The run records ``CHANGE_SUMMARY.md`` and
-``changes.patch`` in its run directory; nothing is ever pushed.
+``changes.patch`` in its run directory; nothing is pushed unless ``do --open-pr`` asked for it.
 """
 
 from __future__ import annotations
@@ -90,6 +90,9 @@ class RepoRun:
     opened: Callable[[Any], None] | None = None
     # Called with the summary data after the run; may add to it (what ``--json`` prints).
     extra: Callable[[Any, dict[str, Any]], None] | None = None
+    # Called after the run with the summary data, once ``extra`` has run: ``(globals, prepared,
+    # isolation, data)``. It may add to the data and set its ``exit_code`` (``do --open-pr``).
+    publish: Callable[[Globals, Any, Isolation, dict[str, Any]], None] | None = None
 
 
 def run_repository_mode(g: Globals, run: RepoRun) -> None:
@@ -184,6 +187,8 @@ def run_repository_mode(g: Globals, run: RepoRun) -> None:
                 data["report"] = str(summary)
             if run.extra is not None:
                 run.extra(prepared, data)
+            if run.publish is not None:
+                run.publish(g, prepared, isolation, data)
             data["next_steps"] = [
                 f"engineering-team diff {prepared.ctx.run_id}",
                 f"engineering-team export-patch {prepared.ctx.run_id} --out change.patch",

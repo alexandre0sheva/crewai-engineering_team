@@ -82,6 +82,7 @@ def _summary(report: RunReport) -> list[str]:
         ("Mode · strategy", f"{report.mode} · {report.strategy}"),
         *([("Harness", report.harness)] if report.harness else []),
         ("Status", report.status + (f" · {report.verdict}" if report.verdict else "")),
+        *([("Issue", report.issue.line)] if report.issue else []),
         ("Duration", clock(report.duration_seconds)),
         ("Started", when(report.created)),
         ("Tool calls", report.tool_calls),
