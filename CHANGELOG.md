@@ -255,6 +255,8 @@ renames that section and dates it.
 
 ### Fixed
 
+- `.gitignore` now keeps the `repo/` workspace of a repository-task bench run local, like `ws/`. Committing
+  results added each one as an orphan gitlink, which Git could not stage once its working tree changed.
 - Triage no longer calls a pasted stack trace or failing test a new project when there is no directory to run it
   in: it is a question.
 - A zero price override (`[pricing."ollama/*"]`) reported an unknown cost for local models: a model call made
