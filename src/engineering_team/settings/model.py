@@ -22,6 +22,7 @@ from engineering_team.extensions.config import (
     McpServer,
     PluginSettings,
 )
+from engineering_team.model_routes import RouteChoice, fallback_models, match_route
 from engineering_team.model_routing import (
     CREDENTIAL_ENV,
     DEFAULT_OLLAMA_BASE_URL,
@@ -47,6 +48,7 @@ from engineering_team.settings.common import (
 )
 from engineering_team.settings.context_pack import ContextSettings
 from engineering_team.settings.describe import SettingRow
+from engineering_team.settings.model_section import ModelOverride, ModelsSettings, _Frozen
 from engineering_team.settings.openrouter import OpenRouterSettings
 from engineering_team.settings.sections import (
     TEAM_KEY,
@@ -67,8 +69,6 @@ from engineering_team.settings.sections import (
     LearningSettings,
     MaintainSettings,
     MemorySettings,
-    ModelOverride,
-    ModelsSettings,
     NetworkSettings,
     ParallelSettings,
     PriceOverride,
@@ -81,7 +81,6 @@ from engineering_team.settings.sections import (
     UiSettings,
     VerifySettings,
     WebSettings,
-    _Frozen,
 )
 
 
@@ -144,6 +143,7 @@ class Settings(_Frozen):
     _sources: dict[str, str] = PrivateAttr(default_factory=dict)
     _credential_names: frozenset[str] = PrivateAttr(default_factory=frozenset)
     _web_secrets: dict[str, str] = PrivateAttr(default_factory=dict)
+    _task: tuple[str, str] | None = PrivateAttr(default=None)  # (intent, size) of the run
 
     @field_validator("pricing")
     @classmethod
@@ -204,7 +204,29 @@ class Settings(_Frozen):
         from engineering_team.settings.loading import _build, _nest  # loading builds Settings
 
         layers = [*self._layers, (source, _nest(overrides))]
-        return _build(layers, self._credential_names, self._web_secrets)
+        built = _build(layers, self._credential_names, self._web_secrets)
+        built._task = self._task
+        return built
+
+    def for_task(self, intent: str, size: str) -> Settings:
+        """These settings for a run of this kind of task: ``models.routes`` then apply."""
+
+        routed = self.model_copy()
+        routed._task = (intent, size)
+        return routed
+
+    def route(self) -> RouteChoice | None:
+        """The ``models.routes`` entry that applies to this run's task, if any."""
+
+        if self._task is None:
+            return None
+        return match_route(self.models.routes, *self._task)
+
+    def fallbacks_for(self, resolved: ResolvedModel) -> list[ResolvedModel]:
+        """The models ``resolved`` moves to when it keeps failing (``models.fallbacks``)."""
+
+        entries = self.models.fallbacks.get(resolved.tier, [])
+        return fallback_models(entries, resolved, self.has_key)
 
     def web_api_key(self, provider: str) -> str | None:
         """The API key of a web search provider (from its environment variable), if set."""
@@ -256,7 +278,12 @@ class Settings(_Frozen):
         slot_name = "lead" if tier == "lead" or (tier is None and role in LEAD_ROLES) else "worker"
         slot = getattr(PROFILE_DEFAULTS[self.profile], slot_name)
         tier_name = tier if tier is not None and self.profile == "standard" else slot.tier
+        routed = self.route() if self.profile == "standard" else None
+        if routed is not None:
+            tier_name = routed.tier_for(role, tier_name)
         model_tier, tier_source = self._tier(tier_name)
+        if routed is not None:
+            tier_source += f" via route {routed.key}"
 
         values: dict[str, Any] = {
             "model": model_tier.model if model_tier else None,

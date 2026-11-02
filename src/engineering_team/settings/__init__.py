@@ -12,6 +12,7 @@ code reads it only to build the child-process environment).
 
 * ``common``: constants and ``SettingsError``
 * ``sections``: one typed model per ``[table]`` of the configuration
+* ``model_section``: the ``[models]`` table (overrides, routes, fallbacks)
 * ``model``: ``Settings`` itself (cross-section validation, model routing)
 * ``describe``: ``Settings.describe`` (``config show``)
 * ``openrouter``, ``context_pack``: the ``[openrouter]`` and ``[context]`` tables
@@ -42,6 +43,7 @@ from engineering_team.settings.loading import (
 )
 from engineering_team.settings.masking import hide_address, mask_url, mask_value
 from engineering_team.settings.model import Settings
+from engineering_team.settings.model_section import ModelOverride, ModelRoute, ModelsSettings
 from engineering_team.settings.sections import (
     SEARCH_PROVIDERS,
     TEAM_KEY,
@@ -64,8 +66,6 @@ from engineering_team.settings.sections import (
     LearningSettings,
     MaintainSettings,
     MemorySettings,
-    ModelOverride,
-    ModelsSettings,
     NetworkSettings,
     ParallelSettings,
     PriceOverride,
@@ -111,6 +111,7 @@ __all__ = [
     "LadderSettings",
     "MaintainSettings",
     "ModelOverride",
+    "ModelRoute",
     "ModelsSettings",
     "NetworkSettings",
     "ParallelSettings",

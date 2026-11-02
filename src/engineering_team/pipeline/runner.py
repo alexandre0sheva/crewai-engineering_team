@@ -14,6 +14,7 @@ from pathlib import Path
 from engineering_team.contracts import RunManifest
 from engineering_team.learning.reflect import reflect_run
 from engineering_team.pipeline.attempts_contracts import ATTEMPTS_FILENAME
+from engineering_team.pipeline.context_pack import saved_task
 from engineering_team.pipeline.recipes import Recipe, load_recipe, pinned_recipe
 from engineering_team.pipeline.resume import ResumeError
 from engineering_team.pipeline.state import (
@@ -127,6 +128,8 @@ def open_resume(settings: Settings, run_id: str, workspace_dir: Path | None = No
     """
 
     store, manifest, request = read_request(settings, run_id, workspace_dir)
+    if (task := saved_task(store.run_dir(run_id))) is not None:
+        settings = settings.for_task(*task)
     if manifest.mode not in RESUMABLE_MODES:
         raise ResumeError(
             f"Run {run_id} is a '{manifest.mode}' run; only builds, features, and fixes can be "

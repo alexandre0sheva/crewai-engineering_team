@@ -747,6 +747,7 @@ Each role (the manager `engineering_lead` and every specialist) resolves to a mo
 later steps winning:
 
 1. the **provider preset** for the role's tier in the active profile,
+   (under `standard`, a matching [route](#routes-fallbacks-and-prompt-caching) first changes the tier),
 2. `[models.tiers.<tier>]` overrides,
 3. `[profiles.<profile>.lead|worker]` overrides,
 4. `[models.roles.<role>]` overrides.
@@ -844,6 +845,53 @@ more than any tier needs. Prices change monthly; `models --refresh-prices` shows
 - **GPT-6 models** are called through the Responses API (`gpt-6.1-sol` has no tool calling on Chat
   Completions) and get an explicit 1.05M-token context window, because CrewAI would otherwise assume
   about 7K for IDs it does not know. Override with `api` / `context_window` on any model table.
+
+### Routes, fallbacks and prompt caching
+
+**Routes** (`[models.routes."<intent>/<size>"]`) pick the tier by what the task is, once triage
+has classified it (`do`). Intents: `question`, `research`, `review`, `bugfix`, `feature`, `new_project`,
+`refactor`, `tests`, `docs`, `upgrade_deps`, `security_audit`, `performance`, `devops`, `plan_only`; sizes:
+`trivial`, `small`, `medium`, `large`. Either part may be `*`; the most specific route wins (`bugfix/large`, then `bugfix/*`, then `*/large`, then `*/*`).
+`tier` moves every teammate to that tier; `roles` moves single teammates (a teammate key, or a
+controller role such as `triage`) and wins over `tier`. The preset, `[models.tiers]` and
+`[models.roles]` apply as usual to the tier a route chose. Routes apply under the `standard` profile
+only (`smoke` and `max-quality` fix their models), are recorded in the run's events and report, and
+a resumed run keeps its route. A route can also name a dearer tier: it is your choice, not a guess.
+
+```toml
+[models.routes."question/small"]
+tier = "cheap"                       # a small question needs no strong model
+
+[models.routes."bugfix/large"]
+roles = { debugger = "reviewer" }    # a large bugfix's root-cause work on the reviewer tier
+```
+
+**Fallbacks** (`[models.fallbacks]`, tier → list) name the models a tier moves to when its model keeps
+failing: a provider error (5xx, overloaded, connection), a rate limit or a timeout that is still
+there after CrewAI's own retries (three attempts with backoff for a rate limit). An entry is a
+`provider/model-id`, or a provider name (`"anthropic"`) for that provider's preset model of the same
+tier. Up to three, tried in order; one with no key or SDK is skipped. A model that failed is left
+alone for `models.fallback_cooldown_seconds` (default `60`; `0`: ask it every time) and asked again
+after, so the next calls do not each wait out its retries. Bad requests, invalid keys, budget stops
+and cancels are never retried on another model. Every call a fallback answers is recorded as a
+`model.fallback` event and counted in the usage and cost of the fallback model; the run report lists
+them ("Fallback models") with the cost of that model. This is not OpenRouter's `allow_fallbacks`,
+which lets OpenRouter pick another *host* of the same model ([below](#openrouter-openrouter)).
+
+```toml
+[models.fallbacks]
+worker = ["openrouter/z-ai/glm-5.3-flash", "anthropic"]
+lead = ["anthropic"]
+```
+
+**Prompt caching** needs no setting. CrewAI marks the system prompt (role, tool guidance, guardrails) and
+the task prompt as cache breakpoints: Anthropic caches up to them (`cache_control`); OpenAI and Gemini
+cache an identical prefix by themselves, and OpenRouter passes on the cache reads its host reports. The team keeps what comes first in a
+teammate's prompt the same for every task, and the request after it. The cache reads and writes
+the provider reports are counted (`cached_prompt_tokens`, `cache_creation_tokens`), priced at the
+model's cached and cache-write rates, and shown in the report as "Cache hits" and "Cache writes".
+Not covered: explicit caching of Anthropic models called *through OpenRouter* (OpenRouter's own
+cost report already reflects what it discounted).
 
 ### OpenRouter (`[openrouter]`)
 

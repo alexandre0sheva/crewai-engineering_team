@@ -80,6 +80,14 @@ def bind_run(
         _current.reset(token)
 
 
+def emit_current(type: str, **data: Any) -> None:
+    """Record an event of our own in the run bound to this context (none: nothing happens)."""
+
+    binding = _current.get()
+    if binding is not None:
+        binding.sink.emit(type, **data)
+
+
 def flush_bridge() -> None:
     """Wait for CrewAI's handler pool to deliver pending events (call before closing a run)."""
 

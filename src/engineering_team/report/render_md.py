@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
-from engineering_team.report import attempts_view, prompts_view
+from engineering_team.report import attempts_view, models_view, prompts_view
 from engineering_team.report.fmt import clock, money, size, tail, time_of_day, when
 from engineering_team.report.model import RunReport
 from engineering_team.report.thread import shown
@@ -203,6 +203,7 @@ def _usage(report: RunReport) -> list[str]:
     rows: list[tuple[object, object]] = [
         ("Total tokens", f"{totals.total_tokens:,}"),
         ("Prompt (cached)", f"{totals.prompt_tokens:,} ({totals.cached_prompt_tokens:,})"),
+        *models_view.cache_rows(data),
         ("Completion", f"{totals.completion_tokens:,}"),
         ("Model calls", totals.calls),
         ("Tool calls", report.tool_calls),
@@ -218,6 +219,11 @@ def _usage(report: RunReport) -> list[str]:
                 for i in report.budget.limits
             ],
         )
+    if report.models.route:
+        lines += ["", f"Model route: {cell(report.models.route)}"]
+    if report.models.fallbacks:
+        lines += ["", "Fallback models stood in for a failing model:", ""]
+        lines += table(models_view.FALLBACK_HEAD, models_view.fallback_rows(report.models))
     if data.by_stage:
         lines += ["", "By stage:", ""]
         lines += table(

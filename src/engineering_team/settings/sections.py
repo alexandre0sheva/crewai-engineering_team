@@ -6,8 +6,6 @@ import re
 from typing import Literal
 
 from pydantic import (
-    BaseModel,
-    ConfigDict,
     Field,
     field_validator,
     model_validator,
@@ -16,47 +14,9 @@ from pydantic import (
 from engineering_team.extensions.config import (
     EmbedderSettings,
 )
-from engineering_team.model_routing import (
-    TIER_NAMES,
-)
-from engineering_team.settings.common import Effort
+from engineering_team.settings.model_section import ModelOverride, _Frozen
 
 # --- schema --------------------------------------------------------------------------------
-
-
-class _Frozen(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-
-class ModelOverride(_Frozen):
-    """Overrides for a tier, a profile slot, or one role. Unset fields change nothing."""
-
-    model: str | None = None
-    reasoning_effort: Effort | None = None
-    temperature: float | None = Field(default=None, ge=0, le=2)
-    max_iter: int | None = Field(default=None, ge=1)
-    context_window: int | None = Field(default=None, ge=1024)
-    api: Literal["completions", "responses"] | None = None
-
-    @field_validator("model")
-    @classmethod
-    def _provider_qualified(cls, value: str | None) -> str | None:
-        if value is not None and not re.fullmatch(r"[A-Za-z0-9_.-]+/\S+", value):
-            raise ValueError("must look like 'provider/model-id' (for example 'openai/gpt-6-luna')")
-        return value
-
-
-class ModelsSettings(_Frozen):
-    tiers: dict[str, ModelOverride] = {}
-    roles: dict[str, ModelOverride] = {}
-
-    @field_validator("tiers")
-    @classmethod
-    def _known_tiers(cls, value: dict[str, ModelOverride]) -> dict[str, ModelOverride]:
-        unknown = sorted(set(value) - set(TIER_NAMES))
-        if unknown:
-            raise ValueError(f"unknown tier(s) {unknown}; choose from {list(TIER_NAMES)}")
-        return value
 
 
 class ProfileOverrides(_Frozen):

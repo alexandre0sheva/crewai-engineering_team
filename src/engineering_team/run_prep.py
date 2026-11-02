@@ -12,6 +12,7 @@ from engineering_team.harness.domains import domain_for
 from engineering_team.harness.library import resolve_for_run
 from engineering_team.intake import ContextScan, install_context
 from engineering_team.learning.retrieve import choose_lessons
+from engineering_team.model_routes import describe_route
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
 from engineering_team.pipeline.recipes import Recipe, pin_recipe
 from engineering_team.pipeline.state import RunBundle
@@ -239,6 +240,8 @@ def _open_run(
         workspace = _prepare_workspace(settings, reset=reset, force_reset=force_reset, adopt=adopt)
     domain = domain_for(profile, mode=mode, recipe=recipe, root=project_root or workspace.root)
     harness = resolve_for_run(domain, repo_root=project_root)  # a broken pack: a usage error
+    if profile is not None:  # `models.routes` pick the tiers by what the task is
+        settings = settings.for_task(profile.primary, profile.size)
     run_id = run_id or new_run_id()
     lock = WorkspaceLock(workspace.root).acquire(run_id)
     strategy_name = settings.strategy
@@ -250,6 +253,10 @@ def _open_run(
         ctx = RunContext.create(
             settings, workspace, run_id=run_id, adopted=adopted, harness=harness
         )
+        if profile is not None and (route := settings.route()) is not None:
+            ctx.events.emit(
+                "model.route", route=route.key, summary=describe_route(route), size=profile.size
+            )
         pin = _pin_checks(settings, ctx, mode, strategy_name)
         if recipe is not None and recipe.source != "bundled":
             pin_recipe(ctx.run_dir, recipe)

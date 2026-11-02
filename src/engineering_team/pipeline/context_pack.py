@@ -88,6 +88,18 @@ def focus_paths(run_dir: Path) -> list[str]:
     return [path for path in found if isinstance(path, str)] if isinstance(found, list) else []
 
 
+def saved_task(run_dir: Path) -> tuple[str, str] | None:
+    """The ``(intent, size)`` a ``do`` run was planned for, so a resumed run routes its models
+    (``models.routes``) as the first one did; ``None`` for a run `do` did not plan."""
+
+    try:
+        profile = json.loads((run_dir / PROFILE_FILE).read_text(encoding="utf-8"))["profile"]
+        intent, size = profile["intents"][0], profile["size"]
+    except (OSError, ValueError, KeyError, IndexError, TypeError):
+        return None
+    return (intent, size) if isinstance(intent, str) and isinstance(size, str) else None
+
+
 def reproduction_files(state: PipelineState) -> list[str]:
     """Files the reproduction (the debugger's, the controller's or a stack trace's) points at."""
 

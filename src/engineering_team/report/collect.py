@@ -27,7 +27,7 @@ from engineering_team.pipeline.attempts_contracts import AttemptsRecord
 from engineering_team.pipeline.ladder_contracts import LadderRecord
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.pricing import PriceTable, default_prices
-from engineering_team.report import analysis, prompts_view
+from engineering_team.report import analysis, models_view, prompts_view
 from engineering_team.report.diffs import parse_patch
 from engineering_team.report.digest import EventDigest, digest_events
 from engineering_team.report.model import (
@@ -119,6 +119,7 @@ def build_report(run_dir: Path) -> RunReport:
     report.diff, report.diff_note = _diff(run_dir)
     report.trace = _trace(run_dir)
     report.profile = _profile(run_dir)
+    report.models = models_view.collect(read_events(run_dir / EVENTS_FILENAME), usage)
     report.warnings = analysis.make_notices(
         manifest, state, checks, coverage, findings, digest, budget, usage.unpriced_models
     )

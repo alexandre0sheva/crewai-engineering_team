@@ -13,6 +13,7 @@ from rich.table import Table
 from engineering_team.cli.context import fail, print_json
 from engineering_team.cli.context import get as get_globals
 from engineering_team.cli.info_commands import ConfigOpt, load
+from engineering_team.model_routes import RouteChoice, describe_route
 from engineering_team.model_routing import CREDENTIAL_ENV, PROVIDERS, TIER_NAMES
 from engineering_team.price_refresh import PriceDiff
 from engineering_team.pricing import format_price
@@ -94,6 +95,7 @@ def models(
     settings = load(g, config)
     rows = preset_rows(settings)
     keys = key_rows(settings)
+    routes = settings.models.routes
     diffs = _refresh(settings) if refresh_prices else None
     if g.json:
         print_json(
@@ -101,6 +103,8 @@ def models(
                 "active": settings.provider,
                 "presets": [asdict(row) for row in rows],
                 "keys": keys,
+                "routes": {k: r.model_dump(exclude_defaults=True) for k, r in routes.items()},
+                "fallbacks": settings.models.fallbacks,
                 "price_changes": None if diffs is None else [asdict(d) for d in diffs],
             }
         )
@@ -113,6 +117,10 @@ def models(
     console.print(table)
     present = ", ".join(f"{p} {'set' if ok else 'missing'}" for p, ok in keys.items())
     console.print(f"Keys: {present}.", markup=False, soft_wrap=True)
+    for key, route in routes.items():
+        console.print(f"Route {describe_route(RouteChoice(key, route))}", markup=False)
+    for tier, models in settings.models.fallbacks.items():
+        console.print(f"Fallbacks of {tier}: {', '.join(models)}", markup=False, soft_wrap=True)
     console.print(
         "Presets and the model screen behind them: docs/CONFIGURATION.md (Models).",
         markup=False,

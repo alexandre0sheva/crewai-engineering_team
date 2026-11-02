@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
 from crewai import LLM
 
+from engineering_team.llm_fallback import attach_fallbacks
 from engineering_team.model_routing import REASONING_EFFORT_PREFIXES, ResolvedModel
 from engineering_team.settings import Settings
 
@@ -14,8 +16,22 @@ CONTEXT_WINDOW_USAGE_RATIO = 0.75
 
 
 def build_llm(resolved: ResolvedModel, settings: Settings) -> LLM:
-    """Construct a CrewAI LLM from a resolved model, sending only parameters it accepts."""
+    """Construct a CrewAI LLM from a resolved model, sending only parameters it accepts. When the
+    model's tier has ``models.fallbacks``, a call that keeps failing moves on to them."""
 
+    llm = _construct(resolved, settings)
+    fallbacks = settings.fallbacks_for(resolved)
+    if fallbacks:
+        attach_fallbacks(
+            llm,
+            [(item.model, partial(_construct, item, settings)) for item in fallbacks],
+            primary=resolved.model,
+            cooldown_seconds=settings.models.fallback_cooldown_seconds,
+        )
+    return llm
+
+
+def _construct(resolved: ResolvedModel, settings: Settings) -> LLM:
     options: dict[str, Any] = {"model": resolved.model}
     prefix = resolved.provider_prefix
     if resolved.reasoning_effort is not None and prefix in REASONING_EFFORT_PREFIXES:
@@ -80,4 +96,7 @@ def cap_output(llm: Any, tokens: int) -> Any:
         if hasattr(llm, name):
             object.__setattr__(llm, name, tokens)
             break
+    chain = getattr(llm, "_fallback_chain", None)
+    if chain is not None:  # the fallbacks answer the same call, so they get the same cap
+        chain.on_build(lambda fallback: cap_output(fallback, tokens))
     return llm

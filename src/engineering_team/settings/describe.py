@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from engineering_team.model_routes import RouteChoice, describe_route
 from engineering_team.model_routing import CREDENTIAL_ENV, REASONING_EFFORT_PREFIXES, ResolvedModel
 from engineering_team.pricing import format_price
 from engineering_team.settings.masking import _flatten, mask_value
@@ -31,6 +32,24 @@ def describe_settings(settings: Settings) -> list[SettingRow]:
         )
     ]
     table = settings.price_table()
+    if settings.models.fallbacks:
+        rows.append(
+            SettingRow(
+                "models.fallback_cooldown_seconds",
+                str(settings.models.fallback_cooldown_seconds),
+                settings.source_of("models.fallback_cooldown_seconds"),
+            )
+        )
+    rows.extend(
+        SettingRow(f"models.routes.{key}", describe_route(RouteChoice(key, route)),
+                   settings.source_of(f"models.routes.{key}.{'tier' if route.tier else 'roles'}"))
+        for key, route in settings.models.routes.items()
+    )  # fmt: skip
+    rows.extend(
+        SettingRow(f"models.fallbacks.{tier}", ", ".join(models),
+                   settings.source_of(f"models.fallbacks.{tier}"))
+        for tier, models in settings.models.fallbacks.items()
+    )  # fmt: skip
     rows.extend(
         SettingRow(
             f"pricing.{model}",

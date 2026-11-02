@@ -23,6 +23,7 @@ from engineering_team.modes.answer_contracts import Answer, AnswerCheck
 from engineering_team.pipeline.attempts_contracts import AttemptsRecord
 from engineering_team.pipeline.ladder_contracts import LadderRecord
 from engineering_team.pipeline.lead_contracts import DelegationRecord
+from engineering_team.report.models_view import ModelNotes
 from engineering_team.runtime.profile import Profile
 
 Tone = Literal["good", "warn", "bad", "info"]
@@ -181,3 +182,4 @@ class RunReport:
     thread: ThreadInfo | None = None  # the run it follows and its follow-ups
     harness: str = ""  # the domain, its packs and the skills loaded (``harness_line``)
     prompts: list[dict[str, Any]] = field(default_factory=list)  # prompt sizes per session
+    models: ModelNotes = field(default_factory=ModelNotes)  # the route and the fallbacks used

@@ -11,6 +11,12 @@ renames that section and dates it.
 
 ### Added
 
+- Model routing ([docs/CONFIGURATION.md](docs/CONFIGURATION.md#routes-fallbacks-and-prompt-caching)):
+  `[models.routes."<intent>/<size>"]` picks the tier (or a single teammate's tier) by what the task is;
+  `[models.fallbacks]` names the models a tier moves to when its model keeps failing with a provider error, a rate
+  limit or a timeout (after CrewAI's retries), with a cooldown for the failed model; the run report lists the
+  fallbacks used and, with cache hits and writes, the prompt-cache share of the run. `models` and `config show` print
+  routes and fallbacks.
 - OpenRouter provider ([docs/CONFIGURATION.md](docs/CONFIGURATION.md#openrouter-openrouter)): `openrouter/<vendor>/<model>`
   models with `OPENROUTER_API_KEY` (checked by `doctor`) and an optional `OPENROUTER_BASE_URL`, and `provider =
   "openrouter"`. `[openrouter]` sets the provider routing (`order`, `only`, `ignore`, `allow_fallbacks`,

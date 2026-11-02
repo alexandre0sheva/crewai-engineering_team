@@ -5,6 +5,7 @@ Every string that did not come from this module goes through ``esc``.
 
 from __future__ import annotations
 
+from engineering_team.report import models_view
 from engineering_team.report.fmt import money, tail
 from engineering_team.report.html_common import badge, code, esc, section, table
 from engineering_team.report.model import (
@@ -24,6 +25,7 @@ def usage(report: RunReport) -> str:
     rows = [
         ["Total tokens", f"{totals.total_tokens:,}"],
         ["Prompt (of which cached)", f"{totals.prompt_tokens:,} ({totals.cached_prompt_tokens:,})"],
+        *[list(row) for row in models_view.cache_rows(data)],
         ["Completion", f"{totals.completion_tokens:,}"],
         ["Model calls", f"{totals.calls:,}"],
         ["Tool calls", f"{report.tool_calls:,}"],
@@ -48,6 +50,11 @@ def usage(report: RunReport) -> str:
         )
     else:
         body += '<p class="muted">No budget was set.</p>'
+    if report.models.route:
+        body += f'<p class="muted">Model route: {esc(report.models.route)}</p>'
+    if report.models.fallbacks:
+        fallbacks = [[esc(str(c)) for c in row] for row in models_view.fallback_rows(report.models)]
+        body += "<h3>Fallback models</h3>" + table(models_view.FALLBACK_HEAD, fallbacks, (3, 4))
     if data.by_stage:
         by_stage = [
             [esc(name), f"{t.total_tokens:,}", str(t.calls)] for name, t in data.by_stage.items()

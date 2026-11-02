@@ -145,3 +145,38 @@ def test_compare_skips_free_and_expired_rows() -> None:
     ]
 
     assert compare(rows, fixture_fetch, quantizations=FULL_PRECISION, on=date(2026, 11, 1)) == []
+
+
+ROUTED = """
+[models.routes."question/small"]
+tier = "cheap"
+
+[models.fallbacks]
+worker = ["anthropic", "openrouter/z-ai/glm-5.3"]
+"""
+
+
+def test_models_prints_the_routes_and_fallbacks_of_the_configuration(isolated: Path) -> None:
+    config = isolated / "routed.toml"
+    config.write_text(ROUTED, "utf-8")
+
+    text = CliRunner().invoke(app, ["models", "--config", str(config)])
+    data = json.loads(CliRunner().invoke(app, ["--json", "models", "--config", str(config)]).output)
+
+    assert "Route question/small: all → cheap" in text.output
+    assert "Fallbacks of worker: anthropic, openrouter/z-ai/glm-5.3" in text.output
+    assert data["routes"] == {"question/small": {"tier": "cheap"}}
+    assert data["fallbacks"] == {"worker": ["anthropic", "openrouter/z-ai/glm-5.3"]}
+
+
+def test_config_show_names_where_a_route_and_a_fallback_came_from(isolated: Path) -> None:
+    config = isolated / "routed.toml"
+    config.write_text(ROUTED, "utf-8")
+
+    result = CliRunner().invoke(app, ["config", "show", "--config", str(config)])
+
+    assert result.exit_code == 0, result.output
+    lines = {line.split()[0]: line for line in result.output.splitlines() if line.strip()}
+    assert "all → cheap" in lines["models.routes.question/small"]
+    assert str(config) in lines["models.routes.question/small"]
+    assert "anthropic, openrouter/z-ai/glm-5.3" in lines["models.fallbacks.worker"]
