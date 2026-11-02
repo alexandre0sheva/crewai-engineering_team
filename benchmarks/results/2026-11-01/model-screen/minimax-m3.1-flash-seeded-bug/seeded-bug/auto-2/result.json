@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "minimax-m3.1-flash-seeded-bug",
+  "task": "seeded-bug",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "dev",
+  "intent": "bugfix",
+  "agent": null,
+  "agent_version": null,
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261101-213510-da0c32",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 154.22,
+  "tokens": 361189,
+  "prompt_tokens": 337281,
+  "completion_tokens": 23908,
+  "model_calls": 38,
+  "sessions": 3,
+  "cached_prompt_tokens": 300544,
+  "tool_calls": 55,
+  "cost_usd": 0.020533034999999998,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 6,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "empty-cart-report",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.15
+    },
+    {
+      "id": "empty-cart-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "reports-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.2
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.43
+    }
+  ],
+  "started": "2026-11-01T21:35:10+00:00",
+  "finished": "2026-11-01T21:37:45+00:00",
+  "run_dir": "seeded-bug/auto-2",
+  "workspace": "seeded-bug/auto-2/repo"
+}

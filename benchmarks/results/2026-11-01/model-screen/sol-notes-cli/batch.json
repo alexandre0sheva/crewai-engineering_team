@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "batch": "sol-notes-cli",
+  "created": "2026-11-01T21:51:20+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": null,
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": "c2b70fe5a37c83e4",
+  "strategies": [
+    "single"
+  ],
+  "agents": {},
+  "repeat": 1,
+  "parallel": 1,
+  "budget_usd": 0.3,
+  "run_budget_usd": 0.3,
+  "planned_runs": 1,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "notes-cli": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "3aa304eccdb5e497"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "notes-cli",
+    "--strategy",
+    "single",
+    "--repeat",
+    "1",
+    "--parallel",
+    "1",
+    "--config",
+    "benchmarks/configs/screen/sol.toml",
+    "--allocation",
+    "T25",
+    "--budget-usd",
+    "0.30",
+    "--run-budget-usd",
+    "0.30",
+    "--out",
+    "benchmarks/results/2026-11-01/model-screen",
+    "--batch",
+    "sol-notes-cli",
+    "--allow-failures"
+  ]
+}

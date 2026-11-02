@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "batch": "minimax-m3.1-flash-seeded-bug",
+  "created": "2026-11-01T21:35:10+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": null,
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": "f5e144fe85d76f7b",
+  "strategies": [
+    "auto"
+  ],
+  "agents": {},
+  "repeat": 2,
+  "parallel": 2,
+  "budget_usd": 0.26,
+  "run_budget_usd": 0.13,
+  "planned_runs": 2,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "seeded-bug": {
+      "split": "dev",
+      "intent": "bugfix",
+      "digest": "1eff09c48c8febde"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "seeded-bug",
+    "--strategy",
+    "auto",
+    "--repeat",
+    "2",
+    "--parallel",
+    "2",
+    "--config",
+    "benchmarks/configs/screen/minimax-m3.1-flash.toml",
+    "--allocation",
+    "T25",
+    "--budget-usd",
+    "0.26",
+    "--run-budget-usd",
+    "0.13",
+    "--out",
+    "benchmarks/results/2026-11-01/model-screen",
+    "--batch",
+    "minimax-m3.1-flash-seeded-bug",
+    "--allow-failures"
+  ]
+}

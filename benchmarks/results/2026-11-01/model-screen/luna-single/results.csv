@@ -1,0 +1,3 @@
+batch,task,strategy,repeat,kind,mode,intent,split,agent,agent_version,billing,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,equivalent_cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+luna-single,notes-cli,single,1,greenfield,new,new_project,dev,,,api,,,False,passed,,,0,succeeded,,59.71,67438,64711,57620,2727,13,1,14,0.002649,,0,1,0,20261101-210056-9a14bd,notes-cli/single-1
+luna-single,notes-cli,single,2,greenfield,new,new_project,dev,,,api,,,False,passed,,,0,succeeded,,80.07,93167,88535,83931,4632,17,1,16,0.003616,,0,4,0,20261101-210431-4353f0,notes-cli/single-2

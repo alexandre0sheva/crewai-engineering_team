@@ -1,0 +1,17 @@
+# Model screen (plan T25, 2026-11-01): every tier on openrouter/moonshotai/kimi-k2.7-code.
+provider = "openrouter"
+
+[models.tiers.max]
+model = "openrouter/moonshotai/kimi-k2.7-code"
+
+[models.tiers.lead]
+model = "openrouter/moonshotai/kimi-k2.7-code"
+
+[models.tiers.reviewer]
+model = "openrouter/moonshotai/kimi-k2.7-code"
+
+[models.tiers.worker]
+model = "openrouter/moonshotai/kimi-k2.7-code"
+
+[models.tiers.cheap]
+model = "openrouter/moonshotai/kimi-k2.7-code"

@@ -26,13 +26,49 @@ def build_llm(resolved: ResolvedModel, settings: Settings) -> LLM:
         options["api"] = resolved.api
     if prefix == "ollama":
         options["base_url"] = settings.ollama_base_url
+    if prefix == "openrouter":
+        options.update(_openrouter_options(settings))
     llm = LLM(**options)
+    if prefix == "openrouter":
+        _report_cost(llm)
     if resolved.context_window is not None:
         window = int(resolved.context_window * CONTEXT_WINDOW_USAGE_RATIO)
         # Not a constructor option: CrewAI's native providers (OpenAI, Anthropic, Ollama, ...) pass
         # unknown options on to the API, which rejects ``context_window_size`` in every call.
         object.__setattr__(llm, "get_context_window_size", lambda: window)
     return llm
+
+
+def _openrouter_options(settings: Settings) -> dict[str, Any]:
+    """Routing preferences in the request body, and only the attribution headers the user set:
+    ``client_params`` replaces CrewAI's own default ``HTTP-Referer``."""
+
+    config = settings.openrouter
+    options: dict[str, Any] = {
+        "extra_body": {"provider": config.provider_routing()},
+        "client_params": {"default_headers": config.headers()},
+    }
+    if config.base_url:
+        options["base_url"] = config.base_url
+    return options
+
+
+def _report_cost(llm: Any) -> None:
+    """Pass OpenRouter's own reported cost (``usage.cost``, in USD credits) on with the token
+    usage of each call, so the run's cost is what was billed (``runtime/usage.py``)."""
+
+    extract = getattr(llm, "_extract_openai_token_usage", None)
+    if extract is None:
+        return
+
+    def with_cost(response: Any) -> dict[str, Any]:
+        usage = extract(response)
+        cost = getattr(getattr(response, "usage", None), "cost", None)
+        if isinstance(cost, (int, float)) and not isinstance(cost, bool) and cost >= 0:
+            usage["cost"] = float(cost)
+        return usage
+
+    object.__setattr__(llm, "_extract_openai_token_usage", with_cost)
 
 
 def cap_output(llm: Any, tokens: int) -> Any:

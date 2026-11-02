@@ -1,0 +1,207 @@
+{
+  "export_version": 1,
+  "batch": "gemini-3.8-flash-notes-cli-cap25",
+  "created": "2026-11-01T21:53:05+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "single",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "gemini/gemini-3.8-flash"
+      ],
+      "runs": 2,
+      "counted": 2,
+      "passed": 2,
+      "pass_rate": 1.0,
+      "wilson_low": 0.34238022750665303,
+      "wilson_high": 1.0,
+      "cost_total_usd": 0.479489625,
+      "cost_per_success_usd": 0.2397448125,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 352.815
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "gemini-3.8-flash-notes-cli-cap25",
+      "task": "notes-cli",
+      "strategy": "single",
+      "repeat": 1,
+      "kind": "greenfield",
+      "mode": "new",
+      "split": "dev",
+      "intent": "new_project",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-215305-6294de",
+      "exit_code": 1,
+      "team_status": "error",
+      "team_verdict": null,
+      "duration_seconds": 413.9,
+      "tokens": 777346,
+      "prompt_tokens": 744322,
+      "completion_tokens": 33024,
+      "model_calls": 51,
+      "sessions": 2,
+      "cached_prompt_tokens": 590410,
+      "tool_calls": 49,
+      "cost_usd": 0.28355474999999997,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "gemini/gemini-3.8-flash"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 4,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "add-and-list",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.25
+        },
+        {
+          "id": "ids-not-reused",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.28
+        },
+        {
+          "id": "tag-filter-and-search",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.34
+        },
+        {
+          "id": "delete-and-errors",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.36
+        },
+        {
+          "id": "storage-file",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.16
+        }
+      ],
+      "started": "2026-11-01T21:53:05+00:00",
+      "finished": "2026-11-01T22:00:00+00:00",
+      "run_dir": "notes-cli/single-1",
+      "workspace": "notes-cli/single-1/ws/app"
+    },
+    {
+      "schema_version": 3,
+      "batch": "gemini-3.8-flash-notes-cli-cap25",
+      "task": "notes-cli",
+      "strategy": "single",
+      "repeat": 2,
+      "kind": "greenfield",
+      "mode": "new",
+      "split": "dev",
+      "intent": "new_project",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-215305-c0b1c6",
+      "exit_code": 1,
+      "team_status": "failed",
+      "team_verdict": null,
+      "duration_seconds": 291.73,
+      "tokens": 576904,
+      "prompt_tokens": 553233,
+      "completion_tokens": 23671,
+      "model_calls": 31,
+      "sessions": 1,
+      "cached_prompt_tokens": 455935,
+      "tool_calls": 30,
+      "cost_usd": 0.195934875,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "gemini/gemini-3.8-flash"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "add-and-list",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.25
+        },
+        {
+          "id": "ids-not-reused",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.29
+        },
+        {
+          "id": "tag-filter-and-search",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.33
+        },
+        {
+          "id": "delete-and-errors",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.3
+        },
+        {
+          "id": "storage-file",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.14
+        }
+      ],
+      "started": "2026-11-01T21:53:05+00:00",
+      "finished": "2026-11-01T21:57:58+00:00",
+      "run_dir": "notes-cli/single-2",
+      "workspace": "notes-cli/single-2/ws/app"
+    }
+  ]
+}

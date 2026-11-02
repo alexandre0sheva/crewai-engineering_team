@@ -1,0 +1,207 @@
+{
+  "export_version": 1,
+  "batch": "terra-notes-cli",
+  "created": "2026-11-01T21:42:34+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "single",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "openai/gpt-6.1-terra"
+      ],
+      "runs": 2,
+      "counted": 2,
+      "passed": 2,
+      "pass_rate": 1.0,
+      "wilson_low": 0.34238022750665303,
+      "wilson_high": 1.0,
+      "cost_total_usd": 0.07644524999999999,
+      "cost_per_success_usd": 0.038222624999999996,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 97.91499999999999
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "terra-notes-cli",
+      "task": "notes-cli",
+      "strategy": "single",
+      "repeat": 1,
+      "kind": "greenfield",
+      "mode": "new",
+      "split": "dev",
+      "intent": "new_project",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-214234-5fe0e5",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": null,
+      "duration_seconds": 86.98,
+      "tokens": 48312,
+      "prompt_tokens": 42976,
+      "completion_tokens": 5336,
+      "model_calls": 10,
+      "sessions": 1,
+      "cached_prompt_tokens": 38993,
+      "tool_calls": 11,
+      "cost_usd": 0.03261265,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6.1-terra"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "add-and-list",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.24
+        },
+        {
+          "id": "ids-not-reused",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.27
+        },
+        {
+          "id": "tag-filter-and-search",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.3
+        },
+        {
+          "id": "delete-and-errors",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.27
+        },
+        {
+          "id": "storage-file",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.14
+        }
+      ],
+      "started": "2026-11-01T21:42:34+00:00",
+      "finished": "2026-11-01T21:44:03+00:00",
+      "run_dir": "notes-cli/single-1",
+      "workspace": "notes-cli/single-1/ws/app"
+    },
+    {
+      "schema_version": 3,
+      "batch": "terra-notes-cli",
+      "task": "notes-cli",
+      "strategy": "single",
+      "repeat": 2,
+      "kind": "greenfield",
+      "mode": "new",
+      "split": "dev",
+      "intent": "new_project",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-214234-f2f862",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": null,
+      "duration_seconds": 108.85,
+      "tokens": 67334,
+      "prompt_tokens": 60543,
+      "completion_tokens": 6791,
+      "model_calls": 12,
+      "sessions": 1,
+      "cached_prompt_tokens": 53332,
+      "tool_calls": 15,
+      "cost_usd": 0.0438326,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6.1-terra"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 1,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "add-and-list",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.24
+        },
+        {
+          "id": "ids-not-reused",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.28
+        },
+        {
+          "id": "tag-filter-and-search",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.3
+        },
+        {
+          "id": "delete-and-errors",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.27
+        },
+        {
+          "id": "storage-file",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.13
+        }
+      ],
+      "started": "2026-11-01T21:42:34+00:00",
+      "finished": "2026-11-01T21:44:24+00:00",
+      "run_dir": "notes-cli/single-2",
+      "workspace": "notes-cli/single-2/ws/app"
+    }
+  ]
+}

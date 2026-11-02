@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import importlib.util
+import itertools
 from datetime import date
 from pathlib import Path
 
 import pytest
 
-from engineering_team.model_routing import PROVIDER_PRESETS, TIER_NAMES
+from engineering_team.model_routing import PROVIDER_PRESETS, TIER_NAMES, VALUE_PRESET, preset_tier
 from engineering_team.pricing import build_table, default_prices
 from engineering_team.settings import (
     SMOKE_PROFILE_MARKER,
@@ -72,8 +73,13 @@ def test_defaults(project: Path, home: Path) -> None:
     ("provider", "lead", "worker"),
     [
         ("openai", "openai/gpt-6.1-sol", "openai/gpt-6-luna"),
-        ("anthropic", "anthropic/claude-sonnet-5-5", "anthropic/claude-sonnet-5-5"),
+        ("anthropic", "anthropic/claude-sonnet-5-5", "anthropic/claude-haiku-5-5"),
         ("google", "gemini/gemini-3.8-flash", "gemini/gemini-3.8-flash"),
+        (
+            "openrouter",
+            "openrouter/moonshotai/kimi-k2.7-code",
+            "openrouter/minimax/minimax-m3.1-flash",
+        ),
         ("ollama", "ollama/qwen3.8:27b", "ollama/qwen3.8:27b"),
     ],
 )
@@ -125,21 +131,31 @@ def test_azure_can_be_enabled_and_has_no_default_models(project: Path, home: Pat
     assert load(project, home).provider == "azure"
 
 
-def test_presets_contain_only_the_approved_models() -> None:
+def test_presets_contain_only_the_screened_models() -> None:
+    """Every preset model passed the model screen of 2026-11-01 (docs/BENCHMARKS.md), except
+    Opus on `max` (not screened: its price rules it out of the other tiers) and Ollama's."""
+
     models = {tier.model for tiers in PROVIDER_PRESETS.values() if tiers for tier in tiers.values()}
 
     assert models == {
         "openai/gpt-6.1-sol",
+        "openai/gpt-6.1-terra",
         "openai/gpt-6-luna",
         "anthropic/claude-opus-5-5",
         "anthropic/claude-sonnet-5-5",
+        "anthropic/claude-haiku-5-5",
         "gemini/gemini-3.8-flash",
+        "openrouter/moonshotai/kimi-k2.7-code",
+        "openrouter/deepseek/deepseek-v4.1-flash",
+        "openrouter/minimax/minimax-m3.1-flash",
         "ollama/qwen3.8:27b",
     }
-    assert {price.model for price in default_prices()} == models  # every preset model is priced
+    assert models <= {price.model for price in default_prices()}  # every preset model is priced
+    value = {tier.model for chain in VALUE_PRESET.values() for tier in chain}
+    assert value <= models  # `value` only mixes the providers' own preset models
 
 
-PRICE_DAY = date(2026, 10, 2)
+PRICE_DAY = date(2026, 11, 2)
 
 
 def _output_price(model: str) -> float:
@@ -163,11 +179,32 @@ def test_documented_price_ordering() -> None:
     output_price = _output_price
 
     luna = output_price("openai/gpt-6-luna")
+    haiku = output_price("anthropic/claude-haiku-5-5")
+    minimax = output_price("openrouter/minimax/minimax-m3.1-flash")
+    deepseek = output_price("openrouter/deepseek/deepseek-v4.1-flash")
     flash = output_price("gemini/gemini-3.8-flash")
+    kimi = output_price("openrouter/moonshotai/kimi-k2.7-code")
+    terra = output_price("openai/gpt-6.1-terra")
     sol = output_price("openai/gpt-6.1-sol")
     sonnet = output_price("anthropic/claude-sonnet-5-5")
     opus = output_price("anthropic/claude-opus-5-5")
-    assert luna < flash < sol == sonnet < opus
+    assert luna == haiku < minimax < deepseek < flash < kimi < terra < sol == sonnet < opus
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [
+        set(subset)
+        for n in range(5)
+        for subset in itertools.combinations(("openai", "anthropic", "google", "openrouter"), n)
+    ],
+)
+def test_value_tiers_never_get_cheaper_whatever_keys_are_set(keys: set[str]) -> None:
+    order = ["cheap", "worker", "reviewer", "lead", "max"]
+    tiers = [preset_tier("value", name, lambda provider: provider in keys) for name in order]
+    prices = [_output_price(tier.model) for tier in tiers if tier is not None]
+
+    assert prices == sorted(prices), (keys, [t.model for t in tiers if t])
 
 
 def test_profiles_select_tiers_and_iteration_caps(project: Path, home: Path) -> None:
@@ -213,7 +250,8 @@ def test_overriding_to_another_provider_drops_model_specific_facts(
     resolved = settings.resolve_model(LEAD)
 
     assert resolved.model == "anthropic/claude-opus-5-5"
-    assert resolved.api is None and resolved.context_window is None
+    # GPT-6's Responses API does not follow the role to Anthropic; Opus has its own window.
+    assert resolved.api is None and resolved.context_window == 1_000_000
 
 
 # --- precedence ------------------------------------------------------------------------

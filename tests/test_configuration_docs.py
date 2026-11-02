@@ -48,6 +48,7 @@ from engineering_team.settings import (
     WebSettings,
 )
 from engineering_team.settings.loading import _build
+from engineering_team.settings.openrouter import OpenRouterSettings
 
 ROOT = Path(__file__).resolve().parents[1]
 DOC = (ROOT / "docs" / "CONFIGURATION.md").read_text(encoding="utf-8")
@@ -106,6 +107,7 @@ def test_every_setting_is_documented() -> None:
         ("memory", MemorySettings),
         ("learning", LearningSettings),
         ("context", ContextSettings),
+        ("openrouter", OpenRouterSettings),
         ("network", NetworkSettings),
         ("web", WebSettings),
         ("knowledge", KnowledgeSettings),

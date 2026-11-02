@@ -301,6 +301,20 @@ instead of installing it.
 configure only servers you trust, since they add network access and their own data-handling
 boundary ([Extensions](#extensions-mcp-plugins-and-hooks)).
 
+### Model providers and OpenRouter (data flow)
+
+Prompts, including the code and command output the team reads, go to the model provider of each
+tier: OpenAI, Anthropic, Google or Azure under their own terms, or nowhere for a local model. An
+`openrouter/...` model is different: **OpenRouter forwards each request to a third-party host it
+chooses** among those serving that model (DeepInfra, Together, the model maker's own API, ...), so
+the code leaves for a company you did not pick by name. The defaults narrow that
+([CONFIGURATION.md](CONFIGURATION.md#openrouter-openrouter)): `data_collection = "deny"` allows only
+hosts that do not store or train on prompts, and `require_parameters = true` only hosts that support
+tool calls. Set `zdr = true` for zero-data-retention endpoints only, or `only`/`ignore` to pick the
+hosts. No attribution header (your app's URL or name) is sent unless you set `openrouter.app_url`;
+CrewAI's own `HTTP-Referer` is replaced. Use a first-party provider for code that must not reach
+other hosts.
+
 ### Web tools (network model)
 
 The `web` tools are off unless `web.enabled` ([CONFIGURATION.md](CONFIGURATION.md#web-tools-web-and-knowledge)),

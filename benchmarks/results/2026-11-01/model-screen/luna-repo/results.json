@@ -1,0 +1,361 @@
+{
+  "export_version": 1,
+  "batch": "luna-repo",
+  "created": "2026-11-01T21:02:00+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "auto",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "runs": 4,
+      "counted": 4,
+      "passed": 4,
+      "pass_rate": 1.0,
+      "wilson_low": 0.5101091635454027,
+      "wilson_high": 1.0,
+      "cost_total_usd": 0.00859271,
+      "cost_per_success_usd": 0.0021481775,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 46.46
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "luna-repo",
+      "task": "legacy-feature",
+      "strategy": "auto",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "feature",
+      "split": "dev",
+      "intent": "feature",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-210200-128297",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 32.18,
+      "tokens": 33856,
+      "prompt_tokens": 32413,
+      "completion_tokens": 1443,
+      "model_calls": 7,
+      "sessions": 1,
+      "cached_prompt_tokens": 28869,
+      "tool_calls": 9,
+      "cost_usd": 0.0013645900000000002,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "low-stock-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.09
+        },
+        {
+          "id": "low-stock-validation",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "existing-behaviour",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "existing-tests-pass",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.11
+        },
+        {
+          "id": "tests-added",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.12
+        }
+      ],
+      "started": "2026-11-01T21:02:00+00:00",
+      "finished": "2026-11-01T21:02:33+00:00",
+      "run_dir": "legacy-feature/auto-1",
+      "workspace": "legacy-feature/auto-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "luna-repo",
+      "task": "legacy-feature",
+      "strategy": "auto",
+      "repeat": 2,
+      "kind": "brownfield",
+      "mode": "feature",
+      "split": "dev",
+      "intent": "feature",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-210200-b7a5dd",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 42.18,
+      "tokens": 54004,
+      "prompt_tokens": 51532,
+      "completion_tokens": 2472,
+      "model_calls": 9,
+      "sessions": 1,
+      "cached_prompt_tokens": 43925,
+      "tool_calls": 12,
+      "cost_usd": 0.0024359499999999997,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 2,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "low-stock-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "low-stock-validation",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "existing-behaviour",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "existing-tests-pass",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.13
+        },
+        {
+          "id": "tests-added",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.12
+        }
+      ],
+      "started": "2026-11-01T21:02:00+00:00",
+      "finished": "2026-11-01T21:02:43+00:00",
+      "run_dir": "legacy-feature/auto-2",
+      "workspace": "legacy-feature/auto-2/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "luna-repo",
+      "task": "seeded-bug",
+      "strategy": "auto",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "fix",
+      "split": "dev",
+      "intent": "bugfix",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-210233-a9d15a",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 51.17,
+      "tokens": 68850,
+      "prompt_tokens": 67136,
+      "completion_tokens": 1714,
+      "model_calls": 14,
+      "sessions": 2,
+      "cached_prompt_tokens": 58077,
+      "tool_calls": 21,
+      "cost_usd": 0.00234367,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 2,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "empty-cart-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.16
+        },
+        {
+          "id": "empty-cart-api",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "reports-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.21
+        },
+        {
+          "id": "regression-test",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.17
+        }
+      ],
+      "started": "2026-11-01T21:02:33+00:00",
+      "finished": "2026-11-01T21:03:25+00:00",
+      "run_dir": "seeded-bug/auto-1",
+      "workspace": "seeded-bug/auto-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "luna-repo",
+      "task": "seeded-bug",
+      "strategy": "auto",
+      "repeat": 2,
+      "kind": "brownfield",
+      "mode": "fix",
+      "split": "dev",
+      "intent": "bugfix",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-210243-a2a94e",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 50.74,
+      "tokens": 70818,
+      "prompt_tokens": 68629,
+      "completion_tokens": 2189,
+      "model_calls": 14,
+      "sessions": 2,
+      "cached_prompt_tokens": 61210,
+      "tool_calls": 18,
+      "cost_usd": 0.0024485,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 3,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "empty-cart-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.11
+        },
+        {
+          "id": "empty-cart-api",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "reports-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.21
+        },
+        {
+          "id": "regression-test",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.17
+        }
+      ],
+      "started": "2026-11-01T21:02:43+00:00",
+      "finished": "2026-11-01T21:03:34+00:00",
+      "run_dir": "seeded-bug/auto-2",
+      "workspace": "seeded-bug/auto-2/repo"
+    }
+  ]
+}

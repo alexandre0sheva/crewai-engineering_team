@@ -1,0 +1,22 @@
+# Model screen (plan T25, 2026-11-01): every tier on openai/gpt-6.1-sol.
+provider = "openai"
+
+[models.tiers.max]
+model = "openai/gpt-6.1-sol"
+reasoning_effort = "medium"
+
+[models.tiers.lead]
+model = "openai/gpt-6.1-sol"
+reasoning_effort = "medium"
+
+[models.tiers.reviewer]
+model = "openai/gpt-6.1-sol"
+reasoning_effort = "medium"
+
+[models.tiers.worker]
+model = "openai/gpt-6.1-sol"
+reasoning_effort = "medium"
+
+[models.tiers.cheap]
+model = "openai/gpt-6.1-sol"
+reasoning_effort = "medium"

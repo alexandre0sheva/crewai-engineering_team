@@ -42,6 +42,7 @@ from crewai.events.types.task_events import TaskCompletedEvent, TaskFailedEvent,
 from crewai.events.types.tool_usage_events import ToolUsageErrorEvent, ToolUsageFinishedEvent
 from crewai.types.usage_metrics import UsageMetrics
 
+from engineering_team.model_routing import AGGREGATOR_PREFIXES
 from engineering_team.runtime.events import EventSink
 from engineering_team.runtime.prompt_parts import prompt_chars
 from engineering_team.runtime.trajectory import TrajectoryRecorder
@@ -122,13 +123,13 @@ def _raw(output: Any) -> str:
     return _clip(getattr(output, "raw", output))
 
 
-def _usage(usage: Any) -> dict[str, int]:
+def _usage(usage: Any) -> dict[str, int | float]:
     if not isinstance(usage, dict):
         return {}
     metrics = UsageMetrics.from_provider_dict(usage)
     if metrics is None:
         return {}
-    return {
+    out: dict[str, int | float] = {
         "prompt_tokens": metrics.prompt_tokens,
         "completion_tokens": metrics.completion_tokens,
         "total_tokens": metrics.total_tokens,
@@ -136,16 +137,32 @@ def _usage(usage: Any) -> dict[str, int]:
         "reasoning_tokens": metrics.reasoning_tokens,
         "cache_creation_tokens": metrics.cache_creation_tokens,
     }
+    cost = usage.get("cost")  # the provider's own billed cost (OpenRouter), in USD
+    if isinstance(cost, (int, float)) and not isinstance(cost, bool):
+        out["cost_usd"] = float(cost)
+    return out
+
+
+def _with_provider(model: str, provider: Any) -> str:
+    """``provider/model``. A bare name gets its provider; an aggregator's names have a slash of
+    their own (OpenRouter's ``deepseek/deepseek-v4.1-flash``), so they get it unless they start
+    with it. Any other name with a slash is already qualified and is kept."""
+
+    if not isinstance(provider, str) or not provider:
+        return model
+    if "/" not in model or (
+        provider in AGGREGATOR_PREFIXES and not model.startswith(f"{provider}/")
+    ):
+        return f"{provider}/{model}"
+    return model
 
 
 def _model(event: Any) -> str:
     """``provider/model``: CrewAI's event carries the bare model name, the agent's LLM knows
     the provider, and prices are keyed by both."""
 
-    model = str(event.model)
     llm = getattr(getattr(event, "from_agent", None), "llm", None)
-    provider = getattr(llm, "provider", None)
-    return f"{provider}/{model}" if provider and "/" not in model else model
+    return _with_provider(str(event.model), getattr(llm, "provider", None))
 
 
 def _qualified(data: dict[str, Any], source: Any) -> None:
@@ -154,9 +171,8 @@ def _qualified(data: dict[str, Any], source: Any) -> None:
     be priced under a name no ``[pricing]`` entry matches and its cost would read "unknown"."""
 
     model = data.get("model")
-    provider = getattr(source, "provider", None)
-    if isinstance(model, str) and "/" not in model and isinstance(provider, str) and provider:
-        data["model"] = f"{provider}/{model}"
+    if isinstance(model, str):
+        data["model"] = _with_provider(model, getattr(source, "provider", None))
 
 
 # event class -> (our event type, how to read its data)

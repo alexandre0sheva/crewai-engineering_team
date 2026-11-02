@@ -949,3 +949,11 @@ opt-in and never runs in tests). A model that only answers in text cannot drive 
 models (Ollama, LM Studio) often do; a run with a model known not to call tools stops at the first writing stage with
 the same hint instead of finishing without writing anything. `doctor` recommends the Docker sandbox when Docker is
 available (`new --sandbox docker`).
+
+`models` lists every model preset (`openai`, `anthropic`, `google`, `openrouter`, `ollama`, the mixed
+`value`, and `azure` when enabled) with the model each tier resolves to under your configuration, its
+price, and whether the provider's key is set (by name; values are never printed); `--json` gives the
+same as data. `models --refresh-prices` also fetches OpenRouter's public models API (a live request,
+no key needed) and prints where `pricing.toml` differs from it, for you to confirm on each row's
+`source_url`; it never rewrites the file. How the presets were chosen:
+[CONFIGURATION.md](CONFIGURATION.md#provider-presets).

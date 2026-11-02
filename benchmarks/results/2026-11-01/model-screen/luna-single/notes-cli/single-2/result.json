@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "luna-single",
+  "task": "notes-cli",
+  "strategy": "single",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261101-210431-4353f0",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": null,
+  "duration_seconds": 80.07,
+  "tokens": 93167,
+  "prompt_tokens": 88535,
+  "completion_tokens": 4632,
+  "model_calls": 17,
+  "sessions": 1,
+  "cached_prompt_tokens": 83931,
+  "tool_calls": 16,
+  "cost_usd": 0.00361571,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 4,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.31
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.33
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    },
+    {
+      "id": "storage-file",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.15
+    }
+  ],
+  "started": "2026-11-01T21:04:31+00:00",
+  "finished": "2026-11-01T21:05:53+00:00",
+  "run_dir": "notes-cli/single-2",
+  "workspace": "notes-cli/single-2/ws/app"
+}

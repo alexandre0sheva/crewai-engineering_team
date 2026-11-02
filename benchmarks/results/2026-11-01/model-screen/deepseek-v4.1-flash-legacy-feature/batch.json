@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "batch": "deepseek-v4.1-flash-legacy-feature",
+  "created": "2026-11-01T21:40:30+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": null,
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": "6900b8c1db313b84",
+  "strategies": [
+    "auto"
+  ],
+  "agents": {},
+  "repeat": 2,
+  "parallel": 2,
+  "budget_usd": 0.38,
+  "run_budget_usd": 0.19,
+  "planned_runs": 2,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "legacy-feature": {
+      "split": "dev",
+      "intent": "feature",
+      "digest": "a5179fb4cd8425cb"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "legacy-feature",
+    "--strategy",
+    "auto",
+    "--repeat",
+    "2",
+    "--parallel",
+    "2",
+    "--config",
+    "benchmarks/configs/screen/deepseek-v4.1-flash.toml",
+    "--allocation",
+    "T25",
+    "--budget-usd",
+    "0.38",
+    "--run-budget-usd",
+    "0.19",
+    "--out",
+    "benchmarks/results/2026-11-01/model-screen",
+    "--batch",
+    "deepseek-v4.1-flash-legacy-feature",
+    "--allow-failures"
+  ]
+}

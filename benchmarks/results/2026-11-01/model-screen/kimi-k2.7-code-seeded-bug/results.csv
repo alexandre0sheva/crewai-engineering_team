@@ -1,0 +1,2 @@
+batch,task,strategy,repeat,kind,mode,intent,split,agent,agent_version,billing,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,equivalent_cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+kimi-k2.7-code-seeded-bug,seeded-bug,auto,1,brownfield,fix,bugfix,dev,,,api,,,False,passed,,,1,failed,,146.03,198373,189596,170240,8777,32,3,30,0.080614,,0,7,0,20261101-220004-b8fc73,seeded-bug/auto-1

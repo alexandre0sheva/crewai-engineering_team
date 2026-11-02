@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "deepseek-v4.1-flash-notes-cli",
+  "task": "notes-cli",
+  "strategy": "single",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261101-212502-2fa714",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": null,
+  "duration_seconds": 58.69,
+  "tokens": 191225,
+  "prompt_tokens": 174862,
+  "completion_tokens": 16363,
+  "model_calls": 18,
+  "sessions": 1,
+  "cached_prompt_tokens": 152320,
+  "tool_calls": 30,
+  "cost_usd": 0.02661042,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/deepseek/deepseek-v4.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 1,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.27
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.33
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.38
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.34
+    },
+    {
+      "id": "storage-file",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.17
+    }
+  ],
+  "started": "2026-11-01T21:25:02+00:00",
+  "finished": "2026-11-01T21:26:02+00:00",
+  "run_dir": "notes-cli/single-1",
+  "workspace": "notes-cli/single-1/ws/app"
+}

@@ -4,6 +4,9 @@
 token usage) per ``(stage, agent, model)`` and ``tool.call`` events, and can turn that into a
 :class:`UsageReport` with estimated costs. The report can always be rebuilt from
 ``events.jsonl`` (:meth:`UsageTracker.from_events`), so a crash loses nothing.
+
+A provider that reports what a call was billed (OpenRouter's ``usage.cost``) is costed by that:
+a row whose every call reported a cost uses their sum, any other row the price table.
 """
 
 from __future__ import annotations
@@ -35,6 +38,7 @@ class UsageTracker:
         self._rows: dict[_Key, dict[str, int]] = defaultdict(
             lambda: dict.fromkeys((*_FIELDS, "calls"), 0)
         )
+        self._reported: dict[_Key, list[float]] = defaultdict(list)
         self._tool_calls = 0
 
     @classmethod
@@ -62,6 +66,9 @@ class UsageTracker:
             row["calls"] += 1
             for name in _FIELDS:
                 row[name] += int(usage.get(name) or 0)
+            reported = usage.get("cost_usd")
+            if isinstance(reported, (int, float)) and not isinstance(reported, bool):
+                self._reported[key].append(float(reported))
 
     @property
     def tool_calls(self) -> int:
@@ -75,24 +82,33 @@ class UsageTracker:
     def report(self, prices: PriceTable) -> UsageReport:
         with self._lock:
             snapshot = {key: dict(row) for key, row in self._rows.items()}
+            reported = {key: list(costs) for key, costs in self._reported.items()}
             tool_calls = self._tool_calls
         rows: list[UsageRow] = []
-        for (stage, agent, model), counters in sorted(
+        for key, counters in sorted(
             snapshot.items(), key=lambda item: tuple(str(part or "") for part in item[0])
         ):
-            cost = estimate_cost(
-                prices.lookup(model),
-                prompt_tokens=counters["prompt_tokens"],
-                completion_tokens=counters["completion_tokens"],
-                cached_prompt_tokens=counters["cached_prompt_tokens"],
-                cache_creation_tokens=counters["cache_creation_tokens"],
-            )
+            stage, agent, model = key
+            billed = reported.get(key, [])
+            cost: float | None
+            if billed and len(billed) == counters["calls"]:
+                cost, source = sum(billed), "provider"
+            else:
+                cost = estimate_cost(
+                    prices.lookup(model),
+                    prompt_tokens=counters["prompt_tokens"],
+                    completion_tokens=counters["completion_tokens"],
+                    cached_prompt_tokens=counters["cached_prompt_tokens"],
+                    cache_creation_tokens=counters["cache_creation_tokens"],
+                )
+                source = "price table"
             rows.append(
                 UsageRow(
                     stage=stage,
                     agent=agent,
                     model=model,
                     cost_usd=cost,
+                    cost_source=source if cost is not None else None,
                     **_totals([counters]).model_dump(exclude={"schema_version"}),
                 )
             )

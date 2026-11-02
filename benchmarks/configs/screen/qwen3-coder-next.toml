@@ -1,0 +1,17 @@
+# Model screen (plan T25, 2026-11-01): every tier on openrouter/qwen/qwen3-coder-next.
+provider = "openrouter"
+
+[models.tiers.max]
+model = "openrouter/qwen/qwen3-coder-next"
+
+[models.tiers.lead]
+model = "openrouter/qwen/qwen3-coder-next"
+
+[models.tiers.reviewer]
+model = "openrouter/qwen/qwen3-coder-next"
+
+[models.tiers.worker]
+model = "openrouter/qwen/qwen3-coder-next"
+
+[models.tiers.cheap]
+model = "openrouter/qwen/qwen3-coder-next"

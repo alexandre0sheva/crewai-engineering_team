@@ -1,0 +1,2 @@
+batch,task,strategy,repeat,kind,mode,intent,split,agent,agent_version,billing,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,equivalent_cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+sol-notes-cli,notes-cli,single,1,greenfield,new,new_project,dev,,,api,,,False,passed,,,0,succeeded,,97.91,77846,70034,62370,7812,13,1,14,0.099685,,0,0,0,20261101-215120-52f634,notes-cli/single-1

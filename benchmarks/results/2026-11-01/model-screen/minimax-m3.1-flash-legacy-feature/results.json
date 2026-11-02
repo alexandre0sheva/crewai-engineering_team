@@ -1,0 +1,207 @@
+{
+  "export_version": 1,
+  "batch": "minimax-m3.1-flash-legacy-feature",
+  "created": "2026-11-01T21:37:52+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "auto",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "openrouter/minimax/minimax-m3.1-flash"
+      ],
+      "runs": 2,
+      "counted": 2,
+      "passed": 2,
+      "pass_rate": 1.0,
+      "wilson_low": 0.34238022750665303,
+      "wilson_high": 1.0,
+      "cost_total_usd": 0.02131914,
+      "cost_per_success_usd": 0.01065957,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 59.735
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "minimax-m3.1-flash-legacy-feature",
+      "task": "legacy-feature",
+      "strategy": "auto",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "feature",
+      "split": "dev",
+      "intent": "feature",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-213752-8b29ce",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 31.75,
+      "tokens": 46978,
+      "prompt_tokens": 41322,
+      "completion_tokens": 5656,
+      "model_calls": 6,
+      "sessions": 1,
+      "cached_prompt_tokens": 32640,
+      "tool_calls": 8,
+      "cost_usd": 0.0051855,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openrouter/minimax/minimax-m3.1-flash"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "low-stock-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "low-stock-validation",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "existing-behaviour",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "existing-tests-pass",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.12
+        },
+        {
+          "id": "tests-added",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.11
+        }
+      ],
+      "started": "2026-11-01T21:37:52+00:00",
+      "finished": "2026-11-01T21:38:24+00:00",
+      "run_dir": "legacy-feature/auto-1",
+      "workspace": "legacy-feature/auto-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "minimax-m3.1-flash-legacy-feature",
+      "task": "legacy-feature",
+      "strategy": "auto",
+      "repeat": 2,
+      "kind": "brownfield",
+      "mode": "feature",
+      "split": "dev",
+      "intent": "feature",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-213752-59f6f7",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 87.72,
+      "tokens": 341746,
+      "prompt_tokens": 329108,
+      "completion_tokens": 12638,
+      "model_calls": 31,
+      "sessions": 1,
+      "cached_prompt_tokens": 302336,
+      "tool_calls": 33,
+      "cost_usd": 0.01613364,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openrouter/minimax/minimax-m3.1-flash"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 8,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "low-stock-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.09
+        },
+        {
+          "id": "low-stock-validation",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "existing-behaviour",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "existing-tests-pass",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.12
+        },
+        {
+          "id": "tests-added",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.12
+        }
+      ],
+      "started": "2026-11-01T21:37:52+00:00",
+      "finished": "2026-11-01T21:39:20+00:00",
+      "run_dir": "legacy-feature/auto-2",
+      "workspace": "legacy-feature/auto-2/repo"
+    }
+  ]
+}

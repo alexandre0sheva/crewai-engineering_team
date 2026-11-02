@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "terra-legacy-feature",
+  "task": "legacy-feature",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "feature",
+  "split": "dev",
+  "intent": "feature",
+  "agent": null,
+  "agent_version": null,
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261101-214620-23650a",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 78.11,
+  "tokens": 36787,
+  "prompt_tokens": 31341,
+  "completion_tokens": 5446,
+  "model_calls": 6,
+  "sessions": 1,
+  "cached_prompt_tokens": 20848,
+  "tool_calls": 6,
+  "cost_usd": 0.0387654,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "low-stock-report",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "low-stock-validation",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "existing-behaviour",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "existing-tests-pass",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    },
+    {
+      "id": "tests-added",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    }
+  ],
+  "started": "2026-11-01T21:46:20+00:00",
+  "finished": "2026-11-01T21:47:39+00:00",
+  "run_dir": "legacy-feature/auto-1",
+  "workspace": "legacy-feature/auto-1/repo"
+}

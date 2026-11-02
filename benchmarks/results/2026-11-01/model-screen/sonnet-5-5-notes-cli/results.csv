@@ -1,0 +1,2 @@
+batch,task,strategy,repeat,kind,mode,intent,split,agent,agent_version,billing,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,equivalent_cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+sonnet-5-5-notes-cli,notes-cli,single,1,greenfield,new,new_project,dev,,,api,,,False,passed,,,0,succeeded,,81.98,96464,84985,43584,11479,9,1,16,0.204674,,0,0,0,20261101-220841-6ba7bf,notes-cli/single-1

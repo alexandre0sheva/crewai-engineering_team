@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "sol-notes-cli",
+  "task": "notes-cli",
+  "strategy": "single",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261101-215120-52f634",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": null,
+  "duration_seconds": 97.91,
+  "tokens": 77846,
+  "prompt_tokens": 70034,
+  "completion_tokens": 7812,
+  "model_calls": 13,
+  "sessions": 1,
+  "cached_prompt_tokens": 62370,
+  "tool_calls": 14,
+  "cost_usd": 0.099685,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6.1-sol"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.26
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.28
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.32
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    },
+    {
+      "id": "storage-file",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    }
+  ],
+  "started": "2026-11-01T21:51:20+00:00",
+  "finished": "2026-11-01T21:52:59+00:00",
+  "run_dir": "notes-cli/single-1",
+  "workspace": "notes-cli/single-1/ws/app"
+}

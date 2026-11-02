@@ -1,0 +1,191 @@
+{
+  "export_version": 1,
+  "batch": "deepseek-v4.1-flash-seeded-bug",
+  "created": "2026-11-01T21:39:24+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "auto",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "openrouter/deepseek/deepseek-v4.1-flash"
+      ],
+      "runs": 2,
+      "counted": 2,
+      "passed": 2,
+      "pass_rate": 1.0,
+      "wilson_low": 0.34238022750665303,
+      "wilson_high": 1.0,
+      "cost_total_usd": 0.025295890799999998,
+      "cost_per_success_usd": 0.012647945399999999,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 50.065
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "deepseek-v4.1-flash-seeded-bug",
+      "task": "seeded-bug",
+      "strategy": "auto",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "fix",
+      "split": "dev",
+      "intent": "bugfix",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-213924-1ac88a",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 37.23,
+      "tokens": 121366,
+      "prompt_tokens": 115106,
+      "completion_tokens": 6260,
+      "model_calls": 16,
+      "sessions": 2,
+      "cached_prompt_tokens": 100992,
+      "tool_calls": 18,
+      "cost_usd": 0.009415602,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openrouter/deepseek/deepseek-v4.1-flash"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 1,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "empty-cart-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.12
+        },
+        {
+          "id": "empty-cart-api",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "reports-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.2
+        },
+        {
+          "id": "regression-test",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.18
+        }
+      ],
+      "started": "2026-11-01T21:39:24+00:00",
+      "finished": "2026-11-01T21:40:01+00:00",
+      "run_dir": "seeded-bug/auto-1",
+      "workspace": "seeded-bug/auto-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "deepseek-v4.1-flash-seeded-bug",
+      "task": "seeded-bug",
+      "strategy": "auto",
+      "repeat": 2,
+      "kind": "brownfield",
+      "mode": "fix",
+      "split": "dev",
+      "intent": "bugfix",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-213924-d7158e",
+      "exit_code": 1,
+      "team_status": "failed",
+      "team_verdict": null,
+      "duration_seconds": 62.9,
+      "tokens": 271433,
+      "prompt_tokens": 263636,
+      "completion_tokens": 7797,
+      "model_calls": 34,
+      "sessions": 3,
+      "cached_prompt_tokens": 233344,
+      "tool_calls": 46,
+      "cost_usd": 0.0158802888,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openrouter/deepseek/deepseek-v4.1-flash"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 13,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "empty-cart-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.11
+        },
+        {
+          "id": "empty-cart-api",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "reports-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.18
+        },
+        {
+          "id": "regression-test",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.42
+        }
+      ],
+      "started": "2026-11-01T21:39:24+00:00",
+      "finished": "2026-11-01T21:40:27+00:00",
+      "run_dir": "seeded-bug/auto-2",
+      "workspace": "seeded-bug/auto-2/repo"
+    }
+  ]
+}

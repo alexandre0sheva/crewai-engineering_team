@@ -1,0 +1,191 @@
+{
+  "export_version": 1,
+  "batch": "haiku-5-5-seeded-bug",
+  "created": "2026-11-01T21:33:19+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "auto",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "anthropic/claude-haiku-5-5"
+      ],
+      "runs": 2,
+      "counted": 2,
+      "passed": 2,
+      "pass_rate": 1.0,
+      "wilson_low": 0.34238022750665303,
+      "wilson_high": 1.0,
+      "cost_total_usd": 0.013351655,
+      "cost_per_success_usd": 0.0066758275,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 37.15
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "haiku-5-5-seeded-bug",
+      "task": "seeded-bug",
+      "strategy": "auto",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "fix",
+      "split": "dev",
+      "intent": "bugfix",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-213319-0887b2",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 42.85,
+      "tokens": 125696,
+      "prompt_tokens": 119663,
+      "completion_tokens": 6033,
+      "model_calls": 12,
+      "sessions": 2,
+      "cached_prompt_tokens": 73501,
+      "tool_calls": 17,
+      "cost_usd": 0.00860701,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "anthropic/claude-haiku-5-5"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 3,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "empty-cart-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.12
+        },
+        {
+          "id": "empty-cart-api",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "reports-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.2
+        },
+        {
+          "id": "regression-test",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.16
+        }
+      ],
+      "started": "2026-11-01T21:33:19+00:00",
+      "finished": "2026-11-01T21:34:02+00:00",
+      "run_dir": "seeded-bug/auto-1",
+      "workspace": "seeded-bug/auto-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "haiku-5-5-seeded-bug",
+      "task": "seeded-bug",
+      "strategy": "auto",
+      "repeat": 2,
+      "kind": "brownfield",
+      "mode": "fix",
+      "split": "dev",
+      "intent": "bugfix",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-213319-eb21c1",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 31.45,
+      "tokens": 63920,
+      "prompt_tokens": 59634,
+      "completion_tokens": 4286,
+      "model_calls": 7,
+      "sessions": 2,
+      "cached_prompt_tokens": 40012,
+      "tool_calls": 8,
+      "cost_usd": 0.0047446450000000005,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "anthropic/claude-haiku-5-5"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "empty-cart-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.12
+        },
+        {
+          "id": "empty-cart-api",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "reports-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.2
+        },
+        {
+          "id": "regression-test",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.17
+        }
+      ],
+      "started": "2026-11-01T21:33:19+00:00",
+      "finished": "2026-11-01T21:33:51+00:00",
+      "run_dir": "seeded-bug/auto-2",
+      "workspace": "seeded-bug/auto-2/repo"
+    }
+  ]
+}

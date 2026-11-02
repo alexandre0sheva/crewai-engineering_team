@@ -1,0 +1,2 @@
+batch,task,strategy,repeat,kind,mode,intent,split,agent,agent_version,billing,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,equivalent_cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+terra-legacy-feature,legacy-feature,auto,1,brownfield,feature,feature,dev,,,api,,,False,passed,,,0,succeeded,verified,78.11,36787,31341,20848,5446,6,1,6,0.038765,,0,0,0,20261101-214620-23650a,legacy-feature/auto-1

@@ -499,6 +499,59 @@ tests or docs that come with its fix, a research word last (it is weak evidence 
 never makes tests, docs or CI the primary intent of a new project: offline it scores **88 %** primary intent
 (65/74) with the same size, target and secondary figures (`bench triage`, no model).
 
+## Model screen (2026-11-01)
+
+Which models can drive the team, and at what cost: the evidence behind every
+[provider preset](CONFIGURATION.md#provider-presets). Each candidate ran with every tier set to it
+(`benchmarks/configs/screen/<model>.toml`): first `doctor --probe-tools`, then `notes-cli`
+(greenfield) on `single` and `seeded-bug` (bugfix) and `legacy-feature` (brownfield feature) on
+`auto`, the 0.3.0 default, since the repository modes do not run `single`. Two repeats where the
+budget allowed, cheapest candidates first; the batches are in
+[`benchmarks/results/2026-11-01/model-screen/`](../benchmarks/results/2026-11-01/model-screen/)
+(`<model>-<task>/`, probes in `probes/`). `engineering_team` 0.2.0 plus the 0.3.0 work to date, `crewai` 1.15.31, macOS
+arm64, `--sandbox local`. Costs are OpenRouter's reported cost for `openrouter/...` models and the
+price table (checked 2026-11-01) for the others. The screen cost **$1.99** (allocation T25, $2.90
+after $0.10 moved from the reserve with the user's OK for the Sonnet run).
+
+| Model | Probe | Passed | Tasks (passed/runs) | Cost / success | Median time | Tool failures |
+|---|---|---|---|---|---|---|
+| `openai/gpt-6-luna` (effort low) | ok | **6/6** | notes 2/2, bugfix 2/2, feature 2/2 | **$0.0025** | 51 s | 12 |
+| `anthropic/claude-haiku-5-5` | ok | 6/6 | 2/2, 2/2, 2/2 | $0.014 | 59 s | 6 |
+| `openrouter/minimax/minimax-m3.1-flash` | ok | 6/6 | 2/2, 2/2, 2/2 | $0.017 | 121 s | 24 |
+| `openrouter/deepseek/deepseek-v4.1-flash` | ok | 6/6 | 2/2, 2/2, 2/2 | $0.022 | 59 s | 24 |
+| `openai/gpt-6.1-terra` (effort medium) | ok | 4/4 | 2/2, 1/1, 1/1 | $0.042 | 98 s | 4 |
+| `openai/gpt-6.1-sol` (effort medium) | ok | 1/1 | notes 1/1 | $0.10 | 98 s | 0 |
+| `openrouter/moonshotai/kimi-k2.7-code` | ok | 2/2 | notes 1/1, bugfix 1/1 | $0.11 | 165 s | 12 |
+| `anthropic/claude-sonnet-5-5` | ok | 1/1 | notes 1/1 | $0.20 | 82 s | 0 |
+| `gemini/gemini-3.8-flash` | ok | 2/4 | notes 2/4 | $0.32 | 214 s | 9 |
+| `openrouter/qwen/qwen3-coder-next` | ok | 2/2 | notes 2/2 | $0.042 | 156 s | 19 |
+| `openrouter/mistralai/devstral-2512` | ok | 2/2 | notes 2/2 | $0.066 | 105 s | 11 |
+| `openrouter/z-ai/glm-5.3-flash` | ok | 1/2 | notes 1/2 | $0.092 | 389 s | 7 |
+| `openrouter/z-ai/glm-5.3`, `gemini/gemini-4-argon` | ok | – | probe only (budget) | – | – | – |
+
+What it shows, on a small sample (one to six runs per model, three easy-to-medium tasks):
+
+- **Every candidate calls tools**: all 14 passed the probe, unlike the small local models of 0.2.0.
+- **The cheapest model is the cheapest per success.** `gpt-6-luna` passed everything at a quarter
+  of a cent per task, 6–9× less than the open-weight models on OpenRouter: OpenAI served 87 % of its
+  prompt from cache at $0.01 per million, while OpenRouter's hosts cached less and charge more for
+  the cached part. Open-weight models are not the cheap option for this workload.
+- **Haiku 5.5** (new, $0.10/$0.50) passed everything, so Anthropic's workers no longer cost what
+  its manager costs.
+- **Gemini 3.8 Flash** works but is the dearest per success: its two runs at a $0.05 cap were
+  stopped by the budget, the two at $0.25 passed at $0.20 and $0.28.
+- Not carried on to the repository tasks: `glm-5.3-flash` (one failure, 4–9 minutes a run),
+  `qwen3-coder-next` (19 tool failures, one run stopped by its cap) and `devstral-2512` (dearest of
+  the cheap tier, both runs stopped by the cap after the checks passed).
+- The lead models (Sol, Sonnet, Kimi) were screened as workers on greenfield work only; how well
+  they plan and review is for the 0.3.0 evaluation (plan T33), and the presets are provisional
+  until then.
+
+Two harness lessons: a run cap below the ladder's own estimate of its first rung (built from the
+token priors of [`bench/estimate.py`](../src/engineering_team/bench/estimate.py), 10–50× the measured
+cost of these runs) makes `auto` refuse to start (those batches cost nothing and were discarded); and
+the ledger checks a batch against the same priors, so expensive models were run one task at a time.
+
 ## Harness tuning (`harness tune`)
 
 The benchmark also drives an improvement loop: `harness tune` (Propose–Probe–Compose) changes a domain's

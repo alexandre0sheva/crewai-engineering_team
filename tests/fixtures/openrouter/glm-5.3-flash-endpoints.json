@@ -1,0 +1,1144 @@
+{
+ "data": {
+  "id": "z-ai/glm-5.3-flash",
+  "endpoints": [
+   {
+    "provider_name": "Relace",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.0000000285",
+     "completion": "0.0000000923",
+     "input_cache_read": "0.0000000285",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "seed",
+     "top_k",
+     "repetition_penalty",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "OpenInference",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.00000003",
+     "completion": "0.00000016",
+     "input_cache_read": "0.00000002",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "temperature",
+     "max_tokens",
+     "stop",
+     "seed",
+     "response_format",
+     "structured_outputs",
+     "top_p",
+     "frequency_penalty",
+     "presence_penalty",
+     "top_k",
+     "min_p",
+     "logit_bias",
+     "repetition_penalty",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Morph",
+    "quantization": "fp8",
+    "pricing": {
+     "prompt": "0.000000042",
+     "completion": "0.0000003",
+     "input_cache_read": "0.000000018",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "stop",
+     "top_p",
+     "top_k",
+     "min_p",
+     "frequency_penalty",
+     "presence_penalty",
+     "repetition_penalty",
+     "seed",
+     "logit_bias",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Wafer",
+    "quantization": "nvfp4",
+    "pricing": {
+     "prompt": "0.000000044",
+     "completion": "0.0000002",
+     "input_cache_read": "0.000000043",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "temperature",
+     "top_p",
+     "top_k",
+     "min_p",
+     "presence_penalty",
+     "repetition_penalty",
+     "stop",
+     "seed",
+     "max_tokens",
+     "logit_bias",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Wafer",
+    "quantization": "nvfp4",
+    "pricing": {
+     "prompt": "0.000000054",
+     "completion": "0.0000002",
+     "input_cache_read": "0.000000053",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "temperature",
+     "top_p",
+     "top_k",
+     "min_p",
+     "frequency_penalty",
+     "presence_penalty",
+     "repetition_penalty",
+     "stop",
+     "seed",
+     "max_tokens",
+     "logit_bias",
+     "response_format",
+     "tools",
+     "tool_choice",
+     "structured_outputs",
+     "logprobs",
+     "top_logprobs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Darkbloom",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.000000065",
+     "completion": "0.00000018",
+     "input_cache_read": "0.000000012",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "temperature",
+     "top_p",
+     "top_k",
+     "frequency_penalty",
+     "presence_penalty",
+     "repetition_penalty",
+     "stop",
+     "seed",
+     "max_tokens",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "GMICloud",
+    "quantization": "fp8",
+    "pricing": {
+     "prompt": "0.000000075",
+     "completion": "0.00000025",
+     "input_cache_read": "0.000000015",
+     "discount": 0.5
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "seed",
+     "response_format",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Near AI",
+    "quantization": "fp8",
+    "pricing": {
+     "prompt": "0.00000008",
+     "completion": "0.0000005",
+     "input_cache_read": "0.000000012",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "temperature",
+     "top_p",
+     "top_k",
+     "min_p",
+     "frequency_penalty",
+     "presence_penalty",
+     "repetition_penalty",
+     "max_tokens",
+     "stop",
+     "seed",
+     "logit_bias",
+     "response_format",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "structured_outputs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Novita",
+    "quantization": "fp8",
+    "pricing": {
+     "prompt": "0.000000084",
+     "completion": "0.00000028",
+     "input_cache_read": "0.0000000168",
+     "discount": 0.44
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "seed",
+     "top_k",
+     "repetition_penalty",
+     "response_format",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "StreamLake",
+    "quantization": "fp8",
+    "pricing": {
+     "prompt": "0.0000000885",
+     "completion": "0.000000295",
+     "input_cache_read": "0.0000000177",
+     "discount": 0.41
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "response_format",
+     "tools",
+     "tool_choice",
+     "structured_outputs",
+     "logprobs",
+     "top_logprobs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Particle AI",
+    "quantization": "nvfp4",
+    "pricing": {
+     "prompt": "0.0000001",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "frequency_penalty",
+     "logprobs",
+     "max_tokens",
+     "min_p",
+     "presence_penalty",
+     "repetition_penalty",
+     "seed",
+     "stop",
+     "temperature",
+     "tool_choice",
+     "tools",
+     "top_k",
+     "top_logprobs",
+     "top_p",
+     "response_format",
+     "structured_outputs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "InferenceNet",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.000000108",
+     "completion": "0.00000035",
+     "input_cache_read": "0.000000032",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "seed",
+     "top_k",
+     "min_p",
+     "logit_bias",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "repetition_penalty",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "InferenceNet",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.000000108",
+     "completion": "0.00000035",
+     "input_cache_read": "0.000000032",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "seed",
+     "top_k",
+     "min_p",
+     "logit_bias",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "repetition_penalty",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "NextBit",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.00000011",
+     "completion": "0.00000045",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "response_format",
+     "structured_outputs",
+     "repetition_penalty",
+     "seed",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Phala",
+    "quantization": "nvfp4",
+    "pricing": {
+     "prompt": "0.0000001125",
+     "completion": "0.000000375",
+     "input_cache_read": "0.0000000225",
+     "discount": 0.25
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "seed",
+     "top_k",
+     "min_p",
+     "repetition_penalty",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "DigitalOcean",
+    "quantization": "unknown",
+    "pricing": {
+     "prompt": "0.0000001125",
+     "completion": "0.000000375",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "temperature",
+     "top_p",
+     "max_tokens",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Reka",
+    "quantization": "unknown",
+    "pricing": {
+     "prompt": "0.00000012",
+     "completion": "0.0000003",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "temperature",
+     "top_p",
+     "top_k",
+     "max_tokens",
+     "stop",
+     "seed",
+     "frequency_penalty",
+     "presence_penalty",
+     "repetition_penalty",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "CoreWeave",
+    "quantization": "nvfp4",
+    "pricing": {
+     "prompt": "0.00000012",
+     "completion": "0.00000038",
+     "input_cache_read": "0.00000002",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "top_k",
+     "repetition_penalty",
+     "frequency_penalty",
+     "presence_penalty",
+     "stop",
+     "seed",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Makora",
+    "quantization": "unknown",
+    "pricing": {
+     "prompt": "0.00000014",
+     "completion": "0.00000047",
+     "input_cache_read": "0.000000024",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "temperature",
+     "top_p",
+     "top_k",
+     "frequency_penalty",
+     "presence_penalty",
+     "repetition_penalty",
+     "stop",
+     "max_tokens",
+     "seed",
+     "min_p",
+     "logit_bias",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Mistral",
+    "quantization": "unknown",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "seed",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Cohere",
+    "quantization": "unknown",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "top_k",
+     "seed",
+     "structured_outputs",
+     "response_format",
+     "tools",
+     "tool_choice",
+     "parallel_tool_calls",
+     "logprobs",
+     "top_logprobs",
+     "repetition_penalty",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "PrimeIntellect",
+    "quantization": "unknown",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "frequency_penalty",
+     "logit_bias",
+     "max_tokens",
+     "min_p",
+     "parallel_tool_calls",
+     "presence_penalty",
+     "repetition_penalty",
+     "seed",
+     "stop",
+     "temperature",
+     "top_k",
+     "top_p",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Nebius",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "seed",
+     "top_k",
+     "logit_bias",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Modal",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "temperature",
+     "top_p",
+     "stop",
+     "max_tokens",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "BaseTen",
+    "quantization": "fp8",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Crusoe",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "seed",
+     "min_p",
+     "repetition_penalty",
+     "top_k",
+     "logit_bias",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "AtlasCloud",
+    "quantization": "fp8",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "top_k",
+     "min_p",
+     "frequency_penalty",
+     "presence_penalty",
+     "repetition_penalty",
+     "stop",
+     "seed",
+     "logit_bias",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Fireworks",
+    "quantization": "unknown",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "top_k",
+     "repetition_penalty",
+     "logit_bias",
+     "logprobs",
+     "top_logprobs",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Friendli",
+    "quantization": "unknown",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "seed",
+     "top_k",
+     "min_p",
+     "repetition_penalty",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "SiliconFlow",
+    "quantization": "fp8",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "temperature",
+     "top_p",
+     "top_k",
+     "frequency_penalty",
+     "max_tokens",
+     "tools",
+     "tool_choice",
+     "response_format",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Together",
+    "quantization": "unknown",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "top_k",
+     "repetition_penalty",
+     "logit_bias",
+     "min_p",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Parasail",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "frequency_penalty",
+     "presence_penalty",
+     "repetition_penalty",
+     "seed",
+     "stop",
+     "top_k",
+     "logit_bias",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "BaseTen",
+    "quantization": "fp8",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Venice",
+    "quantization": "unknown",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "top_k",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "DeepInfra",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "repetition_penalty",
+     "top_k",
+     "seed",
+     "min_p",
+     "logit_bias",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "response_format",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Z.AI",
+    "quantization": "fp8",
+    "pricing": {
+     "prompt": "0.00000015",
+     "completion": "0.0000005",
+     "input_cache_read": "0.00000003",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "tools",
+     "tool_choice",
+     "top_k",
+     "response_format",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Inceptron",
+    "quantization": "fp8",
+    "pricing": {
+     "prompt": "0.00000019",
+     "completion": "0.0000006",
+     "input_cache_read": "0.00000006",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "temperature",
+     "max_tokens",
+     "top_p",
+     "stop",
+     "response_format",
+     "tools",
+     "tool_choice",
+     "logprobs",
+     "top_logprobs",
+     "frequency_penalty",
+     "logit_bias",
+     "parallel_tool_calls",
+     "presence_penalty",
+     "seed",
+     "structured_outputs",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Fireworks",
+    "quantization": "unknown",
+    "pricing": {
+     "prompt": "0.000000225",
+     "completion": "0.00000075",
+     "input_cache_read": "0.000000045",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "max_tokens",
+     "temperature",
+     "top_p",
+     "stop",
+     "frequency_penalty",
+     "presence_penalty",
+     "top_k",
+     "repetition_penalty",
+     "logit_bias",
+     "logprobs",
+     "top_logprobs",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Sail Research",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.000000225",
+     "completion": "0.00000075",
+     "input_cache_read": "0.000000045",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "frequency_penalty",
+     "max_tokens",
+     "presence_penalty",
+     "seed",
+     "stop",
+     "temperature",
+     "top_k",
+     "top_p",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "response_format",
+     "reasoning_effort"
+    ]
+   },
+   {
+    "provider_name": "Sail Research",
+    "quantization": "fp4",
+    "pricing": {
+     "prompt": "0.00000035",
+     "completion": "0.00000125",
+     "input_cache_read": "0.000000045",
+     "discount": 0
+    },
+    "supported_parameters": [
+     "reasoning",
+     "include_reasoning",
+     "temperature",
+     "top_p",
+     "top_k",
+     "frequency_penalty",
+     "presence_penalty",
+     "stop",
+     "seed",
+     "max_tokens",
+     "response_format",
+     "structured_outputs",
+     "tools",
+     "tool_choice",
+     "reasoning_effort"
+    ]
+   }
+  ]
+ }
+}

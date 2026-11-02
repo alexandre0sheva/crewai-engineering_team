@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "glm-5.3-flash-notes-cli",
+  "task": "notes-cli",
+  "strategy": "single",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: add-and-list, tag-filter-and-search",
+  "run_id": "20261101-210822-e3242a",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": null,
+  "duration_seconds": 539.67,
+  "tokens": 618284,
+  "prompt_tokens": 553331,
+  "completion_tokens": 64953,
+  "model_calls": 31,
+  "sessions": 1,
+  "cached_prompt_tokens": 435840,
+  "tool_calls": 50,
+  "cost_usd": 0.046660019999999996,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/z-ai/glm-5.3-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 3,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: list output was ['1: buy milk  [home,food]', '2: write report']",
+      "duration": 0.22
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.3
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: list --tag home is wrong",
+      "duration": 0.22
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.3
+    },
+    {
+      "id": "storage-file",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.15
+    }
+  ],
+  "started": "2026-11-01T21:08:22+00:00",
+  "finished": "2026-11-01T21:17:23+00:00",
+  "run_dir": "notes-cli/single-2",
+  "workspace": "notes-cli/single-2/ws/app"
+}

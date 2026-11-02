@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "batch": "luna-repo",
+  "created": "2026-11-01T21:02:00+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": null,
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": "5f1a7246e848f438",
+  "strategies": [
+    "auto"
+  ],
+  "agents": {},
+  "repeat": 2,
+  "parallel": 2,
+  "budget_usd": 0.4,
+  "run_budget_usd": 0.12,
+  "planned_runs": 4,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "legacy-feature": {
+      "split": "dev",
+      "intent": "feature",
+      "digest": "a5179fb4cd8425cb"
+    },
+    "seeded-bug": {
+      "split": "dev",
+      "intent": "bugfix",
+      "digest": "1eff09c48c8febde"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "seeded-bug,legacy-feature",
+    "--strategy",
+    "auto",
+    "--repeat",
+    "2",
+    "--parallel",
+    "2",
+    "--config",
+    "benchmarks/configs/screen/luna.toml",
+    "--allocation",
+    "T25",
+    "--budget-usd",
+    "0.40",
+    "--run-budget-usd",
+    "0.12",
+    "--out",
+    "benchmarks/results/2026-11-01/model-screen",
+    "--batch",
+    "luna-repo",
+    "--allow-failures"
+  ]
+}

@@ -329,6 +329,7 @@ class UsageRow(UsageTotals):
     agent: str | None = None
     model: str = ""
     cost_usd: float | None = None  # None: the model has no known price
+    cost_source: str | None = None  # "provider" (its billed cost) or "price table"
 
 
 class SessionUsage(Contract):

@@ -1,0 +1,3 @@
+batch,task,strategy,repeat,kind,mode,intent,split,agent,agent_version,billing,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,equivalent_cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+haiku-5-5-seeded-bug,seeded-bug,auto,1,brownfield,fix,bugfix,dev,,,api,,,False,passed,,,0,succeeded,verified,42.85,125696,119663,73501,6033,12,2,17,0.008607,,0,3,0,20261101-213319-0887b2,seeded-bug/auto-1
+haiku-5-5-seeded-bug,seeded-bug,auto,2,brownfield,fix,bugfix,dev,,,api,,,False,passed,,,0,succeeded,verified,31.45,63920,59634,40012,4286,7,2,8,0.004745,,0,0,0,20261101-213319-eb21c1,seeded-bug/auto-2

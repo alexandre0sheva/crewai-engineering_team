@@ -1,0 +1,5 @@
+batch,task,strategy,repeat,kind,mode,intent,split,agent,agent_version,billing,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,equivalent_cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+luna-repo,legacy-feature,auto,1,brownfield,feature,feature,dev,,,api,,,False,passed,,,0,succeeded,verified,32.18,33856,32413,28869,1443,7,1,9,0.001365,,0,0,0,20261101-210200-128297,legacy-feature/auto-1
+luna-repo,legacy-feature,auto,2,brownfield,feature,feature,dev,,,api,,,False,passed,,,0,succeeded,verified,42.18,54004,51532,43925,2472,9,1,12,0.002436,,0,2,0,20261101-210200-b7a5dd,legacy-feature/auto-2
+luna-repo,seeded-bug,auto,1,brownfield,fix,bugfix,dev,,,api,,,False,passed,,,0,succeeded,verified,51.17,68850,67136,58077,1714,14,2,21,0.002344,,0,2,0,20261101-210233-a9d15a,seeded-bug/auto-1
+luna-repo,seeded-bug,auto,2,brownfield,fix,bugfix,dev,,,api,,,False,passed,,,0,succeeded,verified,50.74,70818,68629,61210,2189,14,2,18,0.002449,,0,3,0,20261101-210243-a2a94e,seeded-bug/auto-2

@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "qwen3-coder-next-notes-cli",
+  "task": "notes-cli",
+  "strategy": "single",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261101-212118-26c565",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": null,
+  "duration_seconds": 106.05,
+  "tokens": 279309,
+  "prompt_tokens": 273816,
+  "completion_tokens": 5493,
+  "model_calls": 31,
+  "sessions": 1,
+  "cached_prompt_tokens": 235008,
+  "tool_calls": 30,
+  "cost_usd": 0.02550192,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/qwen/qwen3-coder-next"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 4,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.24
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.33
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    },
+    {
+      "id": "storage-file",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    }
+  ],
+  "started": "2026-11-01T21:21:18+00:00",
+  "finished": "2026-11-01T21:23:06+00:00",
+  "run_dir": "notes-cli/single-2",
+  "workspace": "notes-cli/single-2/ws/app"
+}

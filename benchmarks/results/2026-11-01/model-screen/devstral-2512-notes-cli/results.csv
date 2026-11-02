@@ -1,0 +1,3 @@
+batch,task,strategy,repeat,kind,mode,intent,split,agent,agent_version,billing,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,equivalent_cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+devstral-2512-notes-cli,notes-cli,single,1,greenfield,new,new_project,dev,,,api,,,False,passed,,,1,error,,109.0,438062,421114,376960,16948,29,1,28,0.066636,,0,4,0,20261101-212937-a275d7,notes-cli/single-1
+devstral-2512-notes-cli,notes-cli,single,2,greenfield,new,new_project,dev,,,api,,,False,passed,,,1,error,,101.14,382228,366476,313472,15752,31,1,30,0.065244,,0,7,0,20261101-212937-d88a70,notes-cli/single-2

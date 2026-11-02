@@ -1,0 +1,95 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "name": "Python",
+      "status": "ok",
+      "detail": "3.12.12",
+      "hint": ""
+    },
+    {
+      "name": "uv",
+      "status": "ok",
+      "detail": "0.13.6",
+      "hint": ""
+    },
+    {
+      "name": "git",
+      "status": "ok",
+      "detail": "2.54.0",
+      "hint": ""
+    },
+    {
+      "name": "Docker",
+      "status": "ok",
+      "detail": "Docker 29.6.2 is running.",
+      "hint": "Recommended: run with --sandbox docker for untrusted requests."
+    },
+    {
+      "name": "node",
+      "status": "ok",
+      "detail": "24.14.1",
+      "hint": ""
+    },
+    {
+      "name": "go",
+      "status": "warn",
+      "detail": "found at /usr/local/bin/go but cannot run (Bad CPU type in executable)",
+      "hint": ""
+    },
+    {
+      "name": "java",
+      "status": "ok",
+      "detail": "26.0.2.1",
+      "hint": ""
+    },
+    {
+      "name": "rust",
+      "status": "warn",
+      "detail": "found at /usr/local/bin/cargo but cannot run (Bad CPU type in executable)",
+      "hint": ""
+    },
+    {
+      "name": "dotnet",
+      "status": "info",
+      "detail": "not installed",
+      "hint": "Only needed for dotnet projects."
+    },
+    {
+      "name": "Credentials",
+      "status": "ok",
+      "detail": "present for openrouter",
+      "hint": ""
+    },
+    {
+      "name": "Browser tools",
+      "status": "info",
+      "detail": "Playwright not installed",
+      "hint": "Optional: uv sync --extra browser, then playwright install chromium."
+    },
+    {
+      "name": "Web UI",
+      "status": "ok",
+      "detail": "FastAPI and uvicorn installed",
+      "hint": "Start it with: engineering-team ui"
+    },
+    {
+      "name": "Team",
+      "status": "warn",
+      "detail": "12 of 12 teammates enabled",
+      "hint": "debugger: browser tools are not installed (pip install 'engineering_team[browser]' and run `playwright install chromium`); the teammate works without them. frontend_engineer: browser tools are not installed (pip install 'engineering_team[browser]' and run `playwright install chromium`); the teammate works without them. generalist_engineer: browser tools are not installed (pip install 'engineering_team[browser]' and run `playwright install chromium`); the teammate works without them. quality_engineer: browser tools are not installed (pip install 'engineering_team[browser]' and run `playwright install chromium`); the teammate works without them."
+    },
+    {
+      "name": "Workspace root",
+      "status": "ok",
+      "detail": "/Users/alexander/apps/app-coder/crewai-engineering_team/workspace",
+      "hint": ""
+    },
+    {
+      "name": "Tools openrouter/deepseek/deepseek-v4.1-flash",
+      "status": "ok",
+      "detail": "can call tools (lead): called probe_echo",
+      "hint": ""
+    }
+  ]
+}

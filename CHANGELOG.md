@@ -11,6 +11,21 @@ renames that section and dates it.
 
 ### Added
 
+- OpenRouter provider ([docs/CONFIGURATION.md](docs/CONFIGURATION.md#openrouter-openrouter)): `openrouter/<vendor>/<model>`
+  models with `OPENROUTER_API_KEY` (checked by `doctor`) and an optional `OPENROUTER_BASE_URL`, and `provider =
+  "openrouter"`. `[openrouter]` sets the provider routing (`order`, `only`, `ignore`, `allow_fallbacks`,
+  `require_parameters`, `quantizations`, `sort`, `zdr`); by default only hosts that keep no prompts, support tool
+  calls and serve fp8 or better are used, and no attribution header is sent unless `app_url` is set. A run's cost
+  is the cost OpenRouter reports for each call when it does (`usage.json` rows say `cost_source`). OpenRouter
+  forwards requests to third-party hosts: [docs/SAFETY.md](docs/SAFETY.md#model-providers-and-openrouter-data-flow).
+- `provider = "value"`: a preset mixing providers by measured cost per success, falling back tier by tier to the
+  keys you have ([docs/CONFIGURATION.md](docs/CONFIGURATION.md#provider-presets)).
+- `engineering-team models` ([docs/USAGE.md](docs/USAGE.md#checking-your-setup)): every preset, the model of each
+  tier, its price and whether its key is set (never the value); `--refresh-prices` prints where `pricing.toml`
+  differs from OpenRouter's models API, without rewriting it.
+- Model screen results ([docs/BENCHMARKS.md](docs/BENCHMARKS.md#model-screen-2026-11-01)): 14 models probed for tool
+  calls, 12 run on real tasks, with cost per success.
+
 - `bench run --strategy auto|team` ([docs/BENCHMARKS.md](docs/BENCHMARKS.md#how-a-run-works)): the escalation
   ladder (the default of `do`) and the lead with teammates can be benchmarked; `auto` is estimated as the rung it
   starts on for the task's size. `bench run --library DIR` lets a batch's runs share one experience library on
@@ -177,6 +192,11 @@ renames that section and dates it.
   (`ENGINEERING_LAZY_TOOLS`).
 
 ### Changed
+
+- Presets from the model screen ([docs/CONFIGURATION.md](docs/CONFIGURATION.md#provider-presets)): Anthropic's
+  `worker` and `cheap` tiers use Claude Haiku 5.5 instead of Sonnet 5.5; OpenAI's `reviewer` tier uses GPT-6.1 Terra
+  (medium effort) instead of Sol. Prices checked on 2026-11-01: Sonnet 5.5 cache hits cost $0.10 per million tokens
+  (was $0.20); new prices for Haiku 5.5, GPT-6.1 Terra, Gemini 4 Argon and the OpenRouter models.
 
 - A repair round runs the checks it set out to fix first and the rest only once those pass
   ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)); while one still fails, the others are recorded `skipped` with

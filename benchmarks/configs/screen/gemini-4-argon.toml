@@ -1,0 +1,17 @@
+# Model screen (plan T25, 2026-11-01): every tier on gemini/gemini-4-argon.
+provider = "google"
+
+[models.tiers.max]
+model = "gemini/gemini-4-argon"
+
+[models.tiers.lead]
+model = "gemini/gemini-4-argon"
+
+[models.tiers.reviewer]
+model = "gemini/gemini-4-argon"
+
+[models.tiers.worker]
+model = "gemini/gemini-4-argon"
+
+[models.tiers.cheap]
+model = "gemini/gemini-4-argon"

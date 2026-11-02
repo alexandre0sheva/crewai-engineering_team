@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "gemini-3.8-flash-notes-cli",
+  "task": "notes-cli",
+  "strategy": "single",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: add-and-list, ids-not-reused, tag-filter-and-search, delete-and-errors, storage-file (the team ended: exit code 1)",
+  "run_id": "20261101-212704-c89da7",
+  "exit_code": 1,
+  "team_status": "error",
+  "team_verdict": null,
+  "duration_seconds": 128.37,
+  "tokens": 113562,
+  "prompt_tokens": 102490,
+  "completion_tokens": 11072,
+  "model_calls": 13,
+  "sessions": 1,
+  "cached_prompt_tokens": 63780,
+  "tool_calls": 12,
+  "cost_usd": 0.075336,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "gemini/gemini-3.8-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 3,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: add: '' /Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/python3: No module named notes",
+      "duration": 0.14
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: delete must print 'Deleted note 2'",
+      "duration": 0.16
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: list --tag home is wrong",
+      "duration": 0.15
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: stderr was '/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/python3: No module named notes\\n'",
+      "duration": 0.1
+    },
+    {
+      "id": "storage-file",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: NOTES_FILE was not written",
+      "duration": 0.08
+    }
+  ],
+  "started": "2026-11-01T21:27:04+00:00",
+  "finished": "2026-11-01T21:29:13+00:00",
+  "run_dir": "notes-cli/single-1",
+  "workspace": "notes-cli/single-1/ws/app"
+}

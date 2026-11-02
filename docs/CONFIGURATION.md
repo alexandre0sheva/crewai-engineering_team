@@ -34,7 +34,7 @@ a profile.
 
 | Key (TOML) | Environment variable | Default | Meaning |
 |---|---|---|---|
-| `provider` | `ENGINEERING_PROVIDER` | `openai` | Model preset: `openai`, `anthropic`, `google`, `ollama` (`azure` needs `enable_azure`) |
+| `provider` | `ENGINEERING_PROVIDER` | `openai` | Model preset: `openai`, `anthropic`, `google`, `openrouter`, `ollama`, or `value` (a mix of providers, by the keys you have); `azure` needs `enable_azure`. See [Provider presets](#provider-presets) |
 | `profile` | `ENGINEERING_RUN_PROFILE` | `standard` | `standard`, `smoke` (cheap end-to-end check), `max-quality` |
 | `strategy` | `ENGINEERING_STRATEGY` | `auto` | How the team is orchestrated: `auto` (the [escalation ladder](#escalation-ladder-ladder): start on the cheapest rung the task's size and risk allow and escalate while verification fails), `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)), `single` (one agent with every tool, the benchmark baseline) or `team` (a lead agent that does the work and calls teammates on demand; see [Team strategy](#team-strategy-delegation)). `--strategy` overrides it for `new`. The default is provisional until the 0.3.0 live evaluation. The repository modes follow `auto`, `team` and `pipeline` and use `pipeline` instead of `single`; under `auto`, `maintain` tasks and recipes of your own run as written (the ladder climbs for `new`, `feature` and `fix`). |
 | `team_profile` | `ENGINEERING_TEAM_PROFILE` | `full` | `full` runs every stage of the `new` recipe that the task's size and request call for ([Lean team](#lean-team-lean-and-toolslazy)); `minimal` leaves out the optional ones (review, DevOps, docs), as `--profile smoke` does. To drop only one, disable its teammates instead (`[team.code_reviewer] enabled = false`; a stage is skipped when none of its teammates is enabled). See [Review](#review-review-and-team_profile) |
@@ -50,6 +50,7 @@ a profile.
 | `command_allowlist` | `ENGINEERING_COMMAND_ALLOWLIST` | – | Extra executables project commands may run (keep narrow) |
 | `subprocess_env_allowlist` | `ENGINEERING_SUBPROCESS_ENV_ALLOWLIST` | – | Environment variable names project commands may inherit |
 | `ollama_base_url` | `ENGINEERING_OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server |
+| `openrouter.base_url` | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter's API (a proxy in front of it); the other `[openrouter]` keys are in [OpenRouter](#openrouter-openrouter) |
 | `enable_azure` | `ENGINEERING_ENABLE_AZURE` | `false` | Allow the Azure provider and `azure/...` models |
 | `web.enabled` | `ENGINEERING_ALLOW_WEB` | `false` | Register the web tools (Web Search, Fetch URL, Package Info). Also `--allow-web`. Off means no network tool exists in the run; see [Web tools](#web-tools-web-and-knowledge) |
 | `execution.backend` | `ENGINEERING_EXECUTION_BACKEND` | `local` | `local` runs commands on this machine; `docker` runs each in a hardened container (also `--sandbox docker`; never falls back to `local`). See [Docker sandbox](#docker-sandbox-executiondocker-and---sandbox) |
@@ -765,34 +766,65 @@ proposers and composer are the role `tune` on the `lead` tier ([HARNESS.md](HARN
 
 ### Provider presets
 
-Presets are organised **by price**: a tier never costs less than the tier below it, and only models
-worth their price are included. Prices (USD per million input/output tokens) and IDs were checked
-against the providers' documentation on 2026-10-02; they change often, so treat the presets as
-starting points and override per tier or role. They are *defaults*: only the OpenAI preset was
-exercised by the benchmarks ([results](BENCHMARKS.md#results-2026-10-04); its model IDs worked end to
-end on 2026-10-04), and the only change they led to is the architect's tier. The other providers are
-untested starting points. `config show` prints the price of every resolved model.
+Each preset model passed the [model screen of 2026-11-01](BENCHMARKS.md#model-screen-2026-11-01):
+a tool-calling probe and real tasks (greenfield, bugfix, brownfield feature). Per provider the
+`cheap` and `worker` tiers take the cheapest model that passed, `reviewer` and `lead` the best value
+that passed, `max` the strongest; a tier never costs less than the tier below it. **The cheapest
+preset that passed is `openai`'s `cheap`/`worker` model, `openai/gpt-6-luna`: 6/6 tasks at
+$0.0025 per success** (Haiku 5.5 next at $0.014). The presets are provisional until the 0.3.0
+evaluation (plan T33): the screen ran each model alone, so it measures doing the work, not planning
+or reviewing it. `engineering-team models` prints every preset as your configuration and keys
+resolve it, with prices.
 
-| Model | Price (in / out) | Role in the ladder |
-|---|---|---|
-| `openai/gpt-6-luna` | $0.10 / $0.50 | cheapest: high-volume specialist work |
-| `gemini/gemini-3.8-flash` | $0.75 / $3.75 (introductory, until 2026-12-31; $1.50 / $7.50 after) | low-cost generalist |
-| `openai/gpt-6.1-sol` | $2 / $10 | flagship manager and reviewer (same price as Sonnet 5.5) |
-| `anthropic/claude-sonnet-5-5` | $2 / $10 | flagship manager and reviewer |
-| `anthropic/claude-opus-5-5` | $4 / $20 | most expensive: the `max` tier only |
-| `ollama/qwen3.8:27b` | free (local) | best open model up to 30B in the Ollama library |
+| Tier | `openai` | `anthropic` | `google` | `openrouter` | `ollama` |
+|---|---|---|---|---|---|
+| `max` | `openai/gpt-6.1-sol` (xhigh) | `anthropic/claude-opus-5-5` | `gemini/gemini-3.8-flash` | `openrouter/moonshotai/kimi-k2.7-code` | `ollama/qwen3.8:27b` |
+| `lead` | `openai/gpt-6.1-sol` (high) | `anthropic/claude-sonnet-5-5` | `gemini/gemini-3.8-flash` | `openrouter/moonshotai/kimi-k2.7-code` | `ollama/qwen3.8:27b` |
+| `reviewer` | `openai/gpt-6.1-terra` (medium) | `anthropic/claude-sonnet-5-5` | `gemini/gemini-3.8-flash` | `openrouter/deepseek/deepseek-v4.1-flash` | `ollama/qwen3.8:27b` |
+| `worker` | `openai/gpt-6-luna` (low) | `anthropic/claude-haiku-5-5` | `gemini/gemini-3.8-flash` | `openrouter/minimax/minimax-m3.1-flash` | `ollama/qwen3.8:27b` |
+| `cheap` | `openai/gpt-6-luna` (none) | `anthropic/claude-haiku-5-5` | `gemini/gemini-3.8-flash` | `openrouter/minimax/minimax-m3.1-flash` | `ollama/qwen3.8:27b` |
 
-| Tier | `openai` | `anthropic` | `google` | `ollama` |
+**`value`** (`provider = "value"`) mixes providers: each tier takes the first of the providers'
+own preset models, in order of measured cost per success, whose key is set, so it falls back tier by
+tier to the keys you have. With every key: Luna for `cheap`/`worker`, DeepSeek V4.1 Flash on
+OpenRouter for `reviewer`, Sol for `lead` and `max`. Without an OpenAI key the workers move to Haiku
+and the lead to Kimi. The order per tier:
+
+- `cheap` and `worker`: `openai`, `anthropic`, `openrouter`, `google`;
+- `reviewer`: `openrouter`, `openai`, `anthropic`, `google`;
+- `lead` and `max`: `openai`, `openrouter`, `anthropic`, `google`.
+
+Opus 5.5 (the Anthropic `max`) was not screened, as the plan says for the `max` tier: its price
+rules it out of every other tier. Gemini 3.8 Flash passed but cost the most per success, so it is the
+only Google model; Gemini 4 Argon passed only the probe and is in no preset.
+
+**Models researched on 2026-11-01** (USD per million tokens; *tools*: function calling per the
+provider's documentation or OpenRouter's `supported_parameters`, and the screen's probe). The
+OpenRouter prices are the median of the hosts the default routing allows (see
+[OpenRouter](#openrouter-openrouter)); the shipped rows are in `src/engineering_team/data/pricing.toml`.
+
+| Model | Price (in / cached / out) | Context | Tools | Source |
 |---|---|---|---|---|
-| `max` | `openai/gpt-6.1-sol` (xhigh) | `anthropic/claude-opus-5-5` | `gemini/gemini-3.8-flash` | `ollama/qwen3.8:27b` |
-| `lead` | `openai/gpt-6.1-sol` (high) | `anthropic/claude-sonnet-5-5` | `gemini/gemini-3.8-flash` | `ollama/qwen3.8:27b` |
-| `reviewer` | `openai/gpt-6.1-sol` (medium) | `anthropic/claude-sonnet-5-5` | `gemini/gemini-3.8-flash` | `ollama/qwen3.8:27b` |
-| `worker` | `openai/gpt-6-luna` (low) | `anthropic/claude-sonnet-5-5` | `gemini/gemini-3.8-flash` | `ollama/qwen3.8:27b` |
-| `cheap` | `openai/gpt-6-luna` (none) | `anthropic/claude-sonnet-5-5` | `gemini/gemini-3.8-flash` | `ollama/qwen3.8:27b` |
+| `openai/gpt-6-luna` | $0.10 / $0.01 / $0.50 | 1.05M | yes (Responses API) | [OpenAI pricing](https://developers.openai.com/api/docs/pricing) |
+| `openai/gpt-6.1-terra` | $1 / $0.05 / $5 | 1.05M | yes (Responses API) | [OpenAI pricing](https://developers.openai.com/api/docs/pricing) |
+| `openai/gpt-6.1-sol` | $2 / $0.10 / $10 | 1.05M | yes (Responses API) | [OpenAI pricing](https://developers.openai.com/api/docs/pricing) |
+| `anthropic/claude-haiku-5-5` | $0.10 / $0.01 / $0.50 (prompts up to 100K) | 1M | yes | [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing) |
+| `anthropic/claude-sonnet-5-5` | $2 / $0.10 / $10 | 1M | yes | [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing) |
+| `anthropic/claude-opus-5-5` | $4 / $0.20 / $20 | 1M | yes | [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing) |
+| `gemini/gemini-3.8-flash` | $0.75 / $0.075 / $3.75 (until 2026-12-31; $1.50 / $0.15 / $7.50 after) | 1M | yes | [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing) |
+| `gemini/gemini-4-argon` | $2 / $0.10 / $10 (until 2026-11-30; $4 / $0.20 / $20 after) | 1M | yes | [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing) |
+| `openrouter/minimax/minimax-m3.1-flash` | $0.15 / $0.015 / $0.60 | 1M | yes | [OpenRouter API](https://openrouter.ai/api/v1/models/minimax/minimax-m3.1-flash/endpoints) |
+| `openrouter/deepseek/deepseek-v4.1-flash` | $0.225 / $0.006 / $1 | 1M | yes | [OpenRouter API](https://openrouter.ai/api/v1/models/deepseek/deepseek-v4.1-flash/endpoints) |
+| `openrouter/moonshotai/kimi-k2.7-code` | $0.95 / $0.19 / $4 | 262K | yes | [OpenRouter API](https://openrouter.ai/api/v1/models/moonshotai/kimi-k2.7-code/endpoints) |
+| `openrouter/z-ai/glm-5.3-flash` | $0.15 / $0.03 / $0.50 | 1M | yes | [OpenRouter API](https://openrouter.ai/api/v1/models/z-ai/glm-5.3-flash/endpoints) |
+| `openrouter/z-ai/glm-5.3` | $1.085 / $0.19 / $3.85 | 1M | yes | [OpenRouter API](https://openrouter.ai/api/v1/models/z-ai/glm-5.3/endpoints) |
+| `openrouter/qwen/qwen3-coder-next` | $0.12 / $0.07 / $0.80 (one bf16 host) | 262K | yes | [OpenRouter API](https://openrouter.ai/api/v1/models/qwen/qwen3-coder-next/endpoints) |
+| `openrouter/mistralai/devstral-2512` | $0.40 / $0.04 / $2 | 262K | yes | [OpenRouter API](https://openrouter.ai/api/v1/models/mistralai/devstral-2512/endpoints) |
+| `ollama/qwen3.8:27b` | free (local) | 32K (set) | probe it | [Ollama library](https://ollama.com/library/qwen3.8) |
 
-- OpenAI uses exactly two models (Sol for judgement, Luna for volume); Anthropic exactly Sonnet and
-  Opus; Google exactly Gemini 3.8 Flash. Anthropic has nothing cheaper than Sonnet, so its workers cost
-  the same as its manager; Opus is used only by the `max-quality` profile.
+Not shipped: `gpt-6-astra` ($10/$50, OpenAI's top model) and Claude Fable 5.1 ($10/$50), which cost
+more than any tier needs. Prices change monthly; `models --refresh-prices` shows what moved.
+
 - **Ollama** needs a running server (`ollama pull qwen3.8:27b`, 18 GB, 256K native context). The
   context window is capped at 32K for CrewAI because Ollama's server-side `num_ctx` is usually far
   smaller than the model's; raise `context_window` if you configure the server for more.
@@ -812,6 +844,34 @@ untested starting points. `config show` prints the price of every resolved model
 - **GPT-6 models** are called through the Responses API (`gpt-6.1-sol` has no tool calling on Chat
   Completions) and get an explicit 1.05M-token context window, because CrewAI would otherwise assume
   about 7K for IDs it does not know. Override with `api` / `context_window` on any model table.
+
+### OpenRouter (`[openrouter]`)
+
+`openrouter/<vendor>/<model>` models (the IDs of [openrouter.ai/models](https://openrouter.ai/models),
+for example `openrouter/z-ai/glm-5.3-flash`) go through OpenRouter with `OPENROUTER_API_KEY`
+(`doctor` checks it). OpenRouter sends each request to one of several hosts serving the model, at
+different prices and precisions, so the requests carry routing preferences
+([provider routing](https://openrouter.ai/docs/features/provider-routing)); the data-flow side is in
+[SAFETY.md](SAFETY.md#model-providers-and-openrouter-data-flow).
+
+| Key | Default | Meaning |
+|---|---|---|
+| `openrouter.data_collection` | `deny` | `deny`: only hosts that do not store or train on prompts; `allow`: any |
+| `openrouter.require_parameters` | `true` | Only hosts that support every parameter sent (tool calls, structured output) |
+| `openrouter.allow_fallbacks` | `true` | Another host may serve a request when the preferred ones fail |
+| `openrouter.quantizations` | `fp8`, `mxfp8`, `fp16`, `bf16`, `fp32`, `unknown` | Precisions allowed: fp8 or better (`unknown` covers most model makers' own hosts). `[]` allows any, including 4-bit hosts. Provisional until the 0.3.0 evaluation |
+| `openrouter.order`, `openrouter.only`, `openrouter.ignore` | – | Host slugs to try first, the only ones allowed, ones never used (`["deepinfra", "z-ai"]`) |
+| `openrouter.sort` | – | `price`, `throughput` or `latency`; unset: OpenRouter's own balancing |
+| `openrouter.zdr` | `false` | Only zero-data-retention endpoints |
+| `openrouter.app_url`, `openrouter.app_title` | – | Attribution in OpenRouter's rankings (`HTTP-Referer`, `X-OpenRouter-Title`). Off by default: no header names your app, and CrewAI's own is not sent |
+
+`openrouter.base_url` (or `OPENROUTER_BASE_URL`) is in the [settings reference](#settings-reference).
+
+**Cost.** OpenRouter reports what it billed for each call (`usage.cost`, in credits, which are
+USD); a run's cost uses that whenever every call of a model reported it, and the price table
+otherwise (`usage.json` rows say which: `cost_source`). The OpenRouter rows of `pricing.toml` are
+the median price of the hosts the default routing allows, so estimates and budgets are on the safe
+side of what a run usually costs.
 
 ### Example `engineering-team.toml`
 

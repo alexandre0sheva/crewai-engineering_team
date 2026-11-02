@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "minimax-m3.1-flash-notes-cli",
+  "task": "notes-cli",
+  "strategy": "single",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261101-211739-37a42e",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": null,
+  "duration_seconds": 202.63,
+  "tokens": 455109,
+  "prompt_tokens": 413656,
+  "completion_tokens": 41453,
+  "model_calls": 31,
+  "sessions": 1,
+  "cached_prompt_tokens": 371759,
+  "tool_calls": 46,
+  "cost_usd": 0.0183663675,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 5,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.34
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.38
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.33
+    },
+    {
+      "id": "storage-file",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.16
+    }
+  ],
+  "started": "2026-11-01T21:17:39+00:00",
+  "finished": "2026-11-01T21:21:03+00:00",
+  "run_dir": "notes-cli/single-1",
+  "workspace": "notes-cli/single-1/ws/app"
+}

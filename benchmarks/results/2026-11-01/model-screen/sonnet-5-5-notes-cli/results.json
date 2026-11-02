@@ -1,0 +1,122 @@
+{
+  "export_version": 1,
+  "batch": "sonnet-5-5-notes-cli",
+  "created": "2026-11-01T22:08:41+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "single",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "anthropic/claude-sonnet-5-5"
+      ],
+      "runs": 1,
+      "counted": 1,
+      "passed": 1,
+      "pass_rate": 1.0,
+      "wilson_low": 0.20654931437723745,
+      "wilson_high": 1.0,
+      "cost_total_usd": 0.2046744,
+      "cost_per_success_usd": 0.2046744,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 81.98
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "sonnet-5-5-notes-cli",
+      "task": "notes-cli",
+      "strategy": "single",
+      "repeat": 1,
+      "kind": "greenfield",
+      "mode": "new",
+      "split": "dev",
+      "intent": "new_project",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-220841-6ba7bf",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": null,
+      "duration_seconds": 81.98,
+      "tokens": 96464,
+      "prompt_tokens": 84985,
+      "completion_tokens": 11479,
+      "model_calls": 9,
+      "sessions": 1,
+      "cached_prompt_tokens": 43584,
+      "tool_calls": 16,
+      "cost_usd": 0.2046744,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "anthropic/claude-sonnet-5-5"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "add-and-list",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.25
+        },
+        {
+          "id": "ids-not-reused",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.28
+        },
+        {
+          "id": "tag-filter-and-search",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.33
+        },
+        {
+          "id": "delete-and-errors",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.29
+        },
+        {
+          "id": "storage-file",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.15
+        }
+      ],
+      "started": "2026-11-01T22:08:41+00:00",
+      "finished": "2026-11-01T22:10:04+00:00",
+      "run_dir": "notes-cli/single-1",
+      "workspace": "notes-cli/single-1/ws/app"
+    }
+  ]
+}

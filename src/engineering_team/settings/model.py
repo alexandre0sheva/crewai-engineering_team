@@ -5,7 +5,6 @@ from __future__ import annotations
 import importlib.util
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
 from typing import Any, Literal
 
 from pydantic import (
@@ -30,15 +29,16 @@ from engineering_team.model_routing import (
     PREFIX_TO_PROVIDER,
     PROFILE_DEFAULTS,
     PROFILE_NAMES,
-    PROVIDER_PRESETS,
     PROVIDER_SDK,
-    REASONING_EFFORT_PREFIXES,
+    VALUE_PRESET_NAME,
     ModelTier,
+    Provider,
     ResolvedModel,
     facts_for,
+    preset_tier,
     provider_prefix,
 )
-from engineering_team.pricing import PriceTable, build_table, format_price
+from engineering_team.pricing import PriceTable, build_table
 from engineering_team.settings.common import (
     AZURE_DISABLED,
     DEFAULT,
@@ -46,7 +46,8 @@ from engineering_team.settings.common import (
     SettingsError,
 )
 from engineering_team.settings.context_pack import ContextSettings
-from engineering_team.settings.masking import _flatten, mask_value
+from engineering_team.settings.describe import SettingRow
+from engineering_team.settings.openrouter import OpenRouterSettings
 from engineering_team.settings.sections import (
     TEAM_KEY,
     WEB_KEY_ENV,
@@ -85,7 +86,7 @@ from engineering_team.settings.sections import (
 
 
 class Settings(_Frozen):
-    provider: Literal["openai", "anthropic", "google", "ollama", "azure"] = "openai"
+    provider: Provider = "openai"  # a provider's preset, or `value` (mixed)
     profile: Literal["standard", "smoke", "max-quality"] = "standard"
     strategy: Literal["auto", "pipeline", "single", "team"] = "auto"
     project_name: str = "mvp-app"
@@ -99,6 +100,7 @@ class Settings(_Frozen):
     command_allowlist: list[str] = []
     subprocess_env_allowlist: list[str] = []
     ollama_base_url: str = DEFAULT_OLLAMA_BASE_URL
+    openrouter: OpenRouterSettings = OpenRouterSettings()
     enable_azure: bool = False
     models: ModelsSettings = ModelsSettings()
     profiles: dict[str, ProfileOverrides] = {}
@@ -228,9 +230,17 @@ class Settings(_Frozen):
     def docs_mcp_enabled(self) -> bool:
         return PROFILE_DEFAULTS[self.profile].docs_mcp
 
+    def has_key(self, provider: str) -> bool:
+        """Is a credential of ``provider`` set (by name; values are never read)?"""
+
+        return any(name in self._credential_names for name in CREDENTIAL_ENV.get(provider, ()))
+
     def _tier(self, name: str) -> tuple[ModelTier | None, str]:
-        preset = PROVIDER_PRESETS[self.provider]
-        return (preset[name] if preset else None), f"{self.provider} preset ({name})"
+        tier = preset_tier(self.provider, name, self.has_key)
+        source = f"{self.provider} preset ({name})"
+        if self.provider == VALUE_PRESET_NAME and tier is not None:
+            source = f"value preset ({name}, {PREFIX_TO_PROVIDER[provider_prefix(tier.model)]})"
+        return tier, source
 
     def resolve_model(
         self, role: str, *, tier: str | None = None, max_iter: int | None = None
@@ -377,71 +387,6 @@ class Settings(_Frozen):
     def describe(self) -> list[SettingRow]:
         """Every effective value with its source; secrets and URL credentials are masked."""
 
-        rows = [
-            SettingRow(key, mask_value(key, value), self.source_of(key))
-            for key, value in _flatten(
-                self.model_dump(exclude={"models", "profiles", "pricing", "team"})
-            )
-        ]
-        rows.extend(
-            SettingRow(
-                f"pricing.{model}",
-                format_price(price) + " (override)",
-                self.source_of(f"pricing.{model}.input"),
-            )
-            for model, price in (
-                (model, self.price_table().lookup(model)) for model in sorted(self.pricing)
-            )
-            if price is not None
-        )
-        table = self.price_table()
-        for resolved in self.resolved_models():
-            label = "lead" if resolved.slot == "lead" else resolved.role
-            if resolved.role == "worker":
-                label = "worker (default)"
-            detail = (
-                f"{resolved.model}, effort {_effort_text(resolved)}, max_iter {resolved.max_iter}"
-            )
-            if resolved.api:
-                detail += f", api {resolved.api}"
-            price = table.lookup(resolved.model)
-            detail += f", {format_price(price)}" if price else ", price unknown"
-            rows.append(SettingRow(f"model.{label}", detail, resolved.sources["model"]))
-        for provider in sorted(self.used_providers()):
-            names = CREDENTIAL_ENV.get(provider, ())
-            if names:
-                present = any(name in self._credential_names for name in names)
-                rows.append(
-                    SettingRow(
-                        f"credentials.{'/'.join(names)}",
-                        "set" if present else "MISSING",
-                        "environment",
-                    )
-                )
-        if self.web.enabled:
-            keys_set = [name for name in WEB_KEY_ENV.values() if name in self._web_secrets]
-            rows.extend(
-                SettingRow(f"credentials.{name}", "set", "environment") for name in keys_set
-            )
-            if not keys_set:
-                rows.append(
-                    SettingRow(
-                        f"credentials.{'/'.join(WEB_KEY_ENV.values())}", "MISSING", "environment"
-                    )
-                )
-        return rows
+        from engineering_team.settings.describe import describe_settings
 
-
-@dataclass(frozen=True)
-class SettingRow:
-    key: str
-    value: str
-    source: str
-
-
-def _effort_text(resolved: ResolvedModel) -> str:
-    if resolved.reasoning_effort is None:
-        return "provider default"
-    if resolved.provider_prefix not in REASONING_EFFORT_PREFIXES:
-        return f"{resolved.reasoning_effort} (ignored by this provider)"
-    return resolved.reasoning_effort
+        return describe_settings(self)

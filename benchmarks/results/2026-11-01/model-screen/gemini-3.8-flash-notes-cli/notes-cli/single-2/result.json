@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "gemini-3.8-flash-notes-cli",
+  "task": "notes-cli",
+  "strategy": "single",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: add-and-list, ids-not-reused, tag-filter-and-search, delete-and-errors, storage-file (the team ended: exit code 1)",
+  "run_id": "20261101-212704-cbff2a",
+  "exit_code": 1,
+  "team_status": "error",
+  "team_verdict": null,
+  "duration_seconds": 137.08,
+  "tokens": 72823,
+  "prompt_tokens": 56265,
+  "completion_tokens": 16558,
+  "model_calls": 7,
+  "sessions": 1,
+  "cached_prompt_tokens": 30228,
+  "tool_calls": 6,
+  "cost_usd": 0.08388735,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "gemini/gemini-3.8-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 2,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: add: '' /Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/python3: No module named notes.__main__; 'notes' is a package and cannot be directly executed",
+      "duration": 0.13
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: delete must print 'Deleted note 2'",
+      "duration": 0.18
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: list --tag home is wrong",
+      "duration": 0.16
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: stderr was \"/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/python3: No module named notes.__main__; 'notes' is a package and cannot be directly executed\\n\"",
+      "duration": 0.12
+    },
+    {
+      "id": "storage-file",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: NOTES_FILE was not written",
+      "duration": 0.09
+    }
+  ],
+  "started": "2026-11-01T21:27:04+00:00",
+  "finished": "2026-11-01T21:29:21+00:00",
+  "run_dir": "notes-cli/single-2",
+  "workspace": "notes-cli/single-2/ws/app"
+}

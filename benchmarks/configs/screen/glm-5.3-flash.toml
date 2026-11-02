@@ -1,0 +1,17 @@
+# Model screen (plan T25, 2026-11-01): every tier on openrouter/z-ai/glm-5.3-flash.
+provider = "openrouter"
+
+[models.tiers.max]
+model = "openrouter/z-ai/glm-5.3-flash"
+
+[models.tiers.lead]
+model = "openrouter/z-ai/glm-5.3-flash"
+
+[models.tiers.reviewer]
+model = "openrouter/z-ai/glm-5.3-flash"
+
+[models.tiers.worker]
+model = "openrouter/z-ai/glm-5.3-flash"
+
+[models.tiers.cheap]
+model = "openrouter/z-ai/glm-5.3-flash"

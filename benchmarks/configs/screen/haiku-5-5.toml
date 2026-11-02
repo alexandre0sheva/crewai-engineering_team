@@ -1,0 +1,17 @@
+# Model screen (plan T25, 2026-11-01): every tier on anthropic/claude-haiku-5-5.
+provider = "anthropic"
+
+[models.tiers.max]
+model = "anthropic/claude-haiku-5-5"
+
+[models.tiers.lead]
+model = "anthropic/claude-haiku-5-5"
+
+[models.tiers.reviewer]
+model = "anthropic/claude-haiku-5-5"
+
+[models.tiers.worker]
+model = "anthropic/claude-haiku-5-5"
+
+[models.tiers.cheap]
+model = "anthropic/claude-haiku-5-5"

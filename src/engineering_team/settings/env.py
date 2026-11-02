@@ -59,6 +59,7 @@ def _build_env_table() -> dict[str, tuple[str, Callable[[str], Any]]]:
         "ENGINEERING_COMMAND_ALLOWLIST": ("command_allowlist", _list),
         "ENGINEERING_SUBPROCESS_ENV_ALLOWLIST": ("subprocess_env_allowlist", _list),
         "ENGINEERING_OLLAMA_BASE_URL": ("ollama_base_url", _text),
+        "OPENROUTER_BASE_URL": ("openrouter.base_url", _text),
         "ENGINEERING_ENABLE_AZURE": ("enable_azure", _bool),
         "ENGINEERING_ALLOW_WEB": ("web.enabled", _bool),
         "ENGINEERING_ALLOW_PROJECT_PLUGINS": ("allow_project_plugins", _bool),

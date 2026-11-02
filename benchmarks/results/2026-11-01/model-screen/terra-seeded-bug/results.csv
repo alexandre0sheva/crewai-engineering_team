@@ -1,0 +1,2 @@
+batch,task,strategy,repeat,kind,mode,intent,split,agent,agent_version,billing,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,equivalent_cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+terra-seeded-bug,seeded-bug,auto,1,brownfield,fix,bugfix,dev,,,api,,,False,passed,,,0,succeeded,verified,108.03,126354,121770,97773,4584,21,3,26,0.051806,,0,3,0,20261101-214428-27bfd9,seeded-bug/auto-1

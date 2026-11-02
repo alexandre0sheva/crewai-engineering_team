@@ -1,0 +1,2 @@
+batch,task,strategy,repeat,kind,mode,intent,split,agent,agent_version,billing,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,equivalent_cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+kimi-k2.7-code-notes-cli,notes-cli,single,1,greenfield,new,new_project,dev,,,api,,,False,passed,,,1,failed,,183.03,365357,349817,314752,15540,31,1,34,0.145812,,0,5,0,20261101-214746-bf0a99,notes-cli/single-1

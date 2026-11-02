@@ -24,6 +24,7 @@ from engineering_team.cli import (
     fix_command,
     init_command,
     maintain_command,
+    models_command,
     profile_command,
     recipes_command,
     report_command,
@@ -155,6 +156,7 @@ app.command()(info.note)
 app.command()(info.pause)
 app.command()(info.unpause)
 app.command()(doctor_module.doctor)
+app.command()(models_command.models)
 app.command()(init_command.init)
 config_app.command("show")(info.config_show)
 examples_app.command("list")(info.examples_list)

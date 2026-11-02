@@ -1,0 +1,3 @@
+batch,task,strategy,repeat,kind,mode,intent,split,agent,agent_version,billing,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,equivalent_cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+haiku-5-5-notes-cli,notes-cli,single,1,greenfield,new,new_project,dev,,,api,,,False,passed,,,0,succeeded,,105.92,97949,81654,38129,16295,8,1,13,0.013017,,0,0,0,20261101-210557-e15495,notes-cli/single-1
+haiku-5-5-notes-cli,notes-cli,single,2,greenfield,new,new_project,dev,,,api,,,False,passed,,,0,succeeded,,129.16,179716,158950,59917,20766,12,1,25,0.021022,,0,1,0,20261101-210557-a92c89,notes-cli/single-2

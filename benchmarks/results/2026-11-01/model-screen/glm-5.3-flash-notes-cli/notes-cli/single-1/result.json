@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "glm-5.3-flash-notes-cli",
+  "task": "notes-cli",
+  "strategy": "single",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261101-210822-cbfb56",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": null,
+  "duration_seconds": 237.69,
+  "tokens": 480842,
+  "prompt_tokens": 427257,
+  "completion_tokens": 53585,
+  "model_calls": 31,
+  "sessions": 1,
+  "cached_prompt_tokens": 379712,
+  "tool_calls": 44,
+  "cost_usd": 0.04531561,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/z-ai/glm-5.3-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 4,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.26
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.28
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.31
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.28
+    },
+    {
+      "id": "storage-file",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    }
+  ],
+  "started": "2026-11-01T21:08:22+00:00",
+  "finished": "2026-11-01T21:12:21+00:00",
+  "run_dir": "notes-cli/single-1",
+  "workspace": "notes-cli/single-1/ws/app"
+}

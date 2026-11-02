@@ -12,7 +12,9 @@ code reads it only to build the child-process environment).
 
 * ``common``: constants and ``SettingsError``
 * ``sections``: one typed model per ``[table]`` of the configuration
-* ``model``: ``Settings`` itself (cross-section validation, model routing, ``describe``)
+* ``model``: ``Settings`` itself (cross-section validation, model routing)
+* ``describe``: ``Settings.describe`` (``config show``)
+* ``openrouter``, ``context_pack``: the ``[openrouter]`` and ``[context]`` tables
 * ``masking``: showing values without showing secrets
 * ``env``: the ``ENGINEERING_*`` variables and the settings each one sets
 * ``loading``: layering defaults, files, environment and overrides into one ``Settings``
@@ -27,6 +29,7 @@ from engineering_team.settings.common import (
     SettingsError,
 )
 from engineering_team.settings.context_pack import ContextSettings
+from engineering_team.settings.describe import SettingRow
 from engineering_team.settings.env import CONFIG_FILE_ENV, ENV_SETTINGS, OVERRIDES_ENV
 from engineering_team.settings.loading import (
     SECRET_ENV_NAME,
@@ -38,7 +41,7 @@ from engineering_team.settings.loading import (
     user_config_path,
 )
 from engineering_team.settings.masking import hide_address, mask_url, mask_value
-from engineering_team.settings.model import SettingRow, Settings
+from engineering_team.settings.model import Settings
 from engineering_team.settings.sections import (
     SEARCH_PROVIDERS,
     TEAM_KEY,

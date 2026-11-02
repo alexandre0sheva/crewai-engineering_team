@@ -1,0 +1,207 @@
+{
+  "export_version": 1,
+  "batch": "luna-single",
+  "created": "2026-11-01T21:04:31+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.31",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "single",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "runs": 2,
+      "counted": 2,
+      "passed": 2,
+      "pass_rate": 1.0,
+      "wilson_low": 0.34238022750665303,
+      "wilson_high": 1.0,
+      "cost_total_usd": 0.00626451,
+      "cost_per_success_usd": 0.003132255,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 69.89
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "luna-single",
+      "task": "notes-cli",
+      "strategy": "single",
+      "repeat": 1,
+      "kind": "greenfield",
+      "mode": "new",
+      "split": "dev",
+      "intent": "new_project",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-210056-9a14bd",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": null,
+      "duration_seconds": 59.71,
+      "tokens": 67438,
+      "prompt_tokens": 64711,
+      "completion_tokens": 2727,
+      "model_calls": 13,
+      "sessions": 1,
+      "cached_prompt_tokens": 57620,
+      "tool_calls": 14,
+      "cost_usd": 0.0026488,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 1,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "add-and-list",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.26
+        },
+        {
+          "id": "ids-not-reused",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.31
+        },
+        {
+          "id": "tag-filter-and-search",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.35
+        },
+        {
+          "id": "delete-and-errors",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.31
+        },
+        {
+          "id": "storage-file",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.16
+        }
+      ],
+      "started": "2026-11-01T21:00:56+00:00",
+      "finished": "2026-11-01T21:01:57+00:00",
+      "run_dir": "notes-cli/single-1",
+      "workspace": "notes-cli/single-1/ws/app"
+    },
+    {
+      "schema_version": 3,
+      "batch": "luna-single",
+      "task": "notes-cli",
+      "strategy": "single",
+      "repeat": 2,
+      "kind": "greenfield",
+      "mode": "new",
+      "split": "dev",
+      "intent": "new_project",
+      "agent": null,
+      "agent_version": null,
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261101-210431-4353f0",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": null,
+      "duration_seconds": 80.07,
+      "tokens": 93167,
+      "prompt_tokens": 88535,
+      "completion_tokens": 4632,
+      "model_calls": 17,
+      "sessions": 1,
+      "cached_prompt_tokens": 83931,
+      "tool_calls": 16,
+      "cost_usd": 0.00361571,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 4,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "add-and-list",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.31
+        },
+        {
+          "id": "ids-not-reused",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.29
+        },
+        {
+          "id": "tag-filter-and-search",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.33
+        },
+        {
+          "id": "delete-and-errors",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.29
+        },
+        {
+          "id": "storage-file",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.15
+        }
+      ],
+      "started": "2026-11-01T21:04:31+00:00",
+      "finished": "2026-11-01T21:05:53+00:00",
+      "run_dir": "notes-cli/single-2",
+      "workspace": "notes-cli/single-2/ws/app"
+    }
+  ]
+}
