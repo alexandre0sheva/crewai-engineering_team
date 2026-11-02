@@ -13,6 +13,7 @@ from engineering_team.runtime.context import RunContext
 from engineering_team.runtime.events import read_events
 from engineering_team.testing import ScriptedLLM, ToolCall, run_agent_task
 from engineering_team.tools import CATALOGUE, build_tools
+from engineering_team.tools.registry import LSP_TOOLS
 
 MakeToolbox = Callable[..., Toolbox]
 TOOLS = [spec.name for spec in CATALOGUE if spec.group == "code_intel"]
@@ -26,7 +27,8 @@ def box(make_toolbox: MakeToolbox) -> Toolbox:
 
 
 def test_the_group_has_the_nine_planned_tools_and_all_are_read_only() -> None:
-    assert TOOLS == [
+    # The two language-server tools are opt-in (lsp.enabled) and tested in test_lsp_tools.py.
+    assert [name for name in TOOLS if name not in LSP_TOOLS] == [
         "Find Symbol",
         "Show Symbol",
         "Find References",

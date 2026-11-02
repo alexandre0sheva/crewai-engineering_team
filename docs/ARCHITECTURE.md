@@ -131,7 +131,9 @@ wrappers, and `tools/net.py` holds the HTTP policy and client. See [SAFETY.md](S
 
 ### Execution backend
 
-Tools never spawn processes. `tools/commands.py` validates a command and builds a `CommandSpec`;
+Tools never spawn processes. (A language server is the one process a caller talks to: a backend that has
+`open_stdio(spec)` returns a `StdioProcess` with its stdin and stdout connected, stderr going to a log;
+`codeintel/lsp.py` speaks JSON-RPC over it and `codeintel/lsp_servers.py` keeps one per language and run.) `tools/commands.py` validates a command and builds a `CommandSpec`;
 `ctx.backend` (an `ExecutionBackend`: `run(spec) -> CommandRecord`, `start(spec) -> ProcessHandle`)
 runs it. `LocalBackend` puts each command in its own process group, streams output to a capped log
 under `run_dir/commands/`, keeps a head-and-tail window in memory, and kills the whole group on

@@ -215,3 +215,25 @@ def test_other_programs_follow_the_stack_of_their_directory(root: Path) -> None:
 def test_every_default_image_is_a_pinned_tag() -> None:
     for image in DEFAULT_IMAGES.values():
         assert ":" in image and not image.endswith(":latest"), image
+
+
+def test_an_interactive_process_keeps_stdin_open_and_is_otherwise_sandboxed_alike(
+    root: Path,
+) -> None:
+    command = spec(root, "pyright-langserver", "--stdio")
+    plain = argv_for(root, command)
+
+    interactive = run_argv(
+        command,
+        options(root),
+        docker="docker",
+        image="python:3.12-slim",
+        name="et-run-cmd-1",
+        command_id="cmd-1",
+        env_file=root / "logs" / "1.env",
+        interactive=True,
+    )
+
+    assert "-i" not in plain and "-t" not in interactive
+    assert interactive[:5] == ["docker", "run", "--rm", "--init", "-i"]
+    assert [part for part in interactive if part != "-i"] == plain  # nothing else differs

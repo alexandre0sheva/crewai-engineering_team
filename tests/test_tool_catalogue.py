@@ -25,10 +25,12 @@ def browser_extra_installed(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def web_context(make_context: MakeContext) -> MakeContext:
-    """Contexts with the opt-in web tools enabled (the catalogue lists them, a default run not)."""
+    """Contexts with the opt-in web and language-server tools enabled (the catalogue lists them,
+    a default run does not)."""
 
     def build(**options: object) -> RunContext:
-        return make_context(settings=load_settings(overrides={"web.enabled": True}), **options)
+        overrides = {"web.enabled": True, "lsp.enabled": True}
+        return make_context(settings=load_settings(overrides=overrides), **options)
 
     return build
 
@@ -183,7 +185,7 @@ def test_no_tool_calls_subprocess_directly() -> None:
     # The execution backends themselves, and the web UI's launcher, which starts a *run* as a CLI
     # process (the controller, not a tool an agent can call). The same goes for the benchmark
     # harness (``bench/``): it starts runs of the team and the hidden checks, never a tool.
-    allowed = {"local.py", "docker.py", "launcher.py"}
+    allowed = {"local.py", "docker.py", "stdio.py", "docker_stdio.py", "launcher.py"}
     offenders = [
         path.relative_to(ROOT).as_posix()
         for path in (ROOT / "src" / "engineering_team").rglob("*.py")

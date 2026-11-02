@@ -133,12 +133,15 @@ def run_argv(
     name: str,
     command_id: str,
     env_file: Path,
+    interactive: bool = False,
 ) -> list[str]:
-    """The full ``docker run`` command for ``spec`` (``spec.argv`` follows the image name)."""
+    """The full ``docker run`` command for ``spec`` (``spec.argv`` follows the image name).
+    ``interactive`` keeps stdin open (``-i``) for a process the caller talks to."""
 
     cwd = check_cwd(spec, options.root)
     argv = [
-        docker, "run", "--rm", "--init", "--pull", "never", "--name", name,
+        docker, "run", "--rm", "--init", *(["-i"] if interactive else []),
+        "--pull", "never", "--name", name,
         "--label", f"{LABEL_MARK}=1",
         "--label", f"{LABEL_RUN}={options.run_id}",
         "--label", f"{LABEL_COMMAND}={command_id}",

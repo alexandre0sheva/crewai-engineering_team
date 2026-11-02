@@ -45,6 +45,7 @@ from engineering_team.tools.workspace import CONTROLLER_DIRECTORY, ProjectWorksp
 if TYPE_CHECKING:  # imported when a context is created: ``board`` itself imports ``runtime``
     from engineering_team.board.notes import NoteStore
     from engineering_team.board.store import BoardStore
+    from engineering_team.codeintel.lsp_servers import LspManager
     from engineering_team.git.port import GitPort
     from engineering_team.harness.library import ResolvedHarness
     from engineering_team.memory import MemoryStore
@@ -209,6 +210,7 @@ class RunContext:
     conventions: Conventions = field(default_factory=Conventions)
     delegation: DelegationHub = field(default_factory=DelegationHub)
     rankings: RankingCache = field(default_factory=RankingCache)  # the file ranking for packs
+    lsp: LspManager | None = None  # the run's language servers, started on first use
 
     @classmethod
     def create(
@@ -254,6 +256,7 @@ class RunContext:
         )
         from engineering_team.board.notes import NoteStore
         from engineering_team.board.store import BoardStore
+        from engineering_team.codeintel.lsp_servers import LspManager
         from engineering_team.git.port import GitPort
 
         run_id = run_id or new_run_id()
@@ -342,4 +345,7 @@ class RunContext:
             plugins=plugins,
             conventions=conventions,
             delegation=hub,
+            lsp=LspManager(
+                run_backend, settings.lsp, workspace, run_dir / "commands", sink, cancel_event
+            ),
         )

@@ -22,6 +22,7 @@ from engineering_team.codeintel.render import (
 )
 from engineering_team.codeintel.targets import file_or_symbol, require_file
 from engineering_team.codeintel.todos import DEFAULT_TAGS, annotate, format_todos, scan_todos
+from engineering_team.tools.lsp_tools import precise_references
 from engineering_team.tools.support import ToolEnv, bounded
 
 
@@ -83,23 +84,43 @@ def make_codeintel_tools(env: ToolEnv) -> dict[str, BaseTool]:
         )
 
     @tool("Find References")
-    def find_references_tool(symbol: str, path: str = ".", max_results: int = 60) -> str:
+    def find_references_tool(
+        symbol: str, path: str = ".", max_results: int = 60, file: str = "", line: int = 0
+    ) -> str:
         """List every use of a name, classified as definition, import, call, or other.
 
         Whole-word and case-sensitive over source files (Python, JS/TS, Go, Java/Kotlin, C#,
         Rust, Ruby, PHP), grouped by file with line numbers. Use it before changing a
         function to see what calls it; pair it with Who Imports and Find Related Tests.
+        With a language server (lsp.enabled) the answer is exact and scope-aware: pass file and
+        line of the symbol when its name is not unique; otherwise word matching is used, and
+        the result says so.
         """
 
         def work() -> str:
+            limit = max(1, min(int(max_results), 300))
+            lead = ""
+            if env.ctx.settings.lsp.enabled:
+                precise, why = precise_references(
+                    env, symbol=symbol, file=file, line=int(line), max_results=limit
+                )
+                if precise is not None:
+                    return bounded(precise, hint="lower max_results")
+                lead = f"No language-server answer ({why}); word-match results follow.\n"
             index = indexed()
             found = find_references(index, symbol, path_prefix=prefix(path))
-            return note(index, render_references(found, symbol, max(1, min(int(max_results), 300))))
+            return lead + note(index, render_references(found, symbol, limit))
 
         return env.run(
             "Find References",
             work,
-            arguments={"symbol": symbol, "path": path, "max_results": max_results},
+            arguments={
+                "symbol": symbol,
+                "path": path,
+                "max_results": max_results,
+                "file": file,
+                "line": line,
+            },
         )
 
     @tool("Who Imports")

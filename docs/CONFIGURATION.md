@@ -111,6 +111,30 @@ memory = "4g"
 cpus = 4
 ```
 
+### Language servers (`[lsp]`)
+
+Off by default ([SAFETY.md](SAFETY.md#language-servers): a server loads the project's configuration and
+may run its build scripts). With `lsp.enabled`, the `code_intel` group gains `Diagnostics` and
+`Go To Definition` and `Find References` becomes exact ([TOOLS.md](TOOLS.md#code-intelligence-tools)).
+A server per language starts on first use through the run's execution backend and stops with the run.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `lsp.enabled` | `false` | Offer the language-server tools |
+| `lsp.servers` | – | The command that starts a language's server over stdio, by `python`, `typescript`, `go` or `rust`. Unset: the first installed of `pyright-langserver`/`basedpyright-langserver`, `typescript-language-server`, `gopls`, `rust-analyzer` (under `--sandbox docker`, the one in the image) |
+| `lsp.request_timeout_seconds` | `30` | How long a request (definition, references, pulled diagnostics) may take |
+| `lsp.startup_timeout_seconds` | `30` | How long the handshake with a starting server may take |
+| `lsp.diagnostics_wait_seconds` | `10` | How long to wait for diagnostics from a server that pushes them |
+| `lsp.max_diagnostic_files` | `25` | Files a project-wide `Diagnostics` call opens |
+
+```toml
+[lsp]
+enabled = true
+
+[lsp.servers]
+python = ["basedpyright-langserver", "--stdio"]
+```
+
 ### Developer tools (`[tools.dev]`, config file only)
 
 Applies to Run Tests, Run Linter, Type Check, Format Code, Build Project, Coverage Report, Install

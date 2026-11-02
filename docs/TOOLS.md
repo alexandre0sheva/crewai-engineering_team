@@ -71,7 +71,9 @@ once never share them. The default groups for the 0.1 crew are the four project 
 | `Dependency Audit` | `dev` | no | yes | yes | pip-audit, `npm`/`pnpm audit`, `cargo audit`: package, version, severity, fixed version. A missing audit tool is `UNAVAILABLE`, never an empty pass. Needs the network; refused when `tools.dev.allow_network` is false. |
 | `Find Symbol` | `code_intel` | yes | no | no | Definitions by name (exact, prefix, then case-insensitive substring) and optional `kind`, with file:line and line range; ≤ 100 results (default 30). |
 | `Show Symbol` | `code_intel` | yes | no | no | One definition's body with 0–20 context lines, numbered, ≤ 200 lines; `Class.method` names; `file=` picks among several; closest names on a miss. |
-| `Find References` | `code_intel` | yes | no | no | Whole-word, case-sensitive uses classified as `definition`, `import`, `call`, or `other`, counted first and grouped by file; ≤ 300 shown (default 60). |
+| `Find References` | `code_intel` | yes | no | no | Whole-word, case-sensitive uses classified as `definition`, `import`, `call`, or `other`, counted first and grouped by file; ≤ 300 shown (default 60). With `lsp.enabled` and a server, exact and scope-aware results instead (`file=` and `line=` pick the symbol when its name is not unique), and when none can answer it falls back to this and says why. |
+| `Diagnostics` | `code_intel` | yes | no | no | **Opt-in: `lsp.enabled`** (absent otherwise). Errors and warnings from a language server for a file, or the first `lsp.max_diagnostic_files` supported files of a directory: `path:line:col severity [code] message`, errors first, ≤ 300 shown (default 60). Without a server it says so and points at `Type Check`. |
+| `Go To Definition` | `code_intel` | yes | no | no | **Opt-in: `lsp.enabled`.** Where the name at `path:line` (`symbol=` or `column=`) is defined, by the language server; follows imports and inheritance and may point outside the project. ≤ 20 results with the source line. |
 | `Who Imports` | `code_intel` | yes | no | no | Files that import a file, dotted module, or unique file name; `depth` 1–4 follows importers of importers and says which file each came through. |
 | `Imports Of` | `code_intel` | yes | no | no | A file's imports: project files (with the specifier and line) versus external packages. |
 | `Find Related Tests` | `code_intel` | yes | no | no | Tests that import a file (strongest), are named after it, or mention what it defines; for a bare symbol, tests that mention it. Each result carries its reasons; ≤ 100. |
@@ -228,7 +230,15 @@ use and `Who Imports` for the dependent files, then `Find Related Tests` for wha
 - **Dependencies.** Offline: declared versions and locked versions only. Whether a version is
   outdated or deprecated needs a registry and comes from `Package Info` when the web tools are
   enabled.
-- **Not included.** An LSP diagnostics bridge is deferred; `Type Check` covers diagnostics.
+- **Language servers (opt-in).** `lsp.enabled = true` adds `Diagnostics` and `Go To Definition` and makes
+  `Find References` precise ([CONFIGURATION.md](CONFIGURATION.md#language-servers-lsp)). One server per
+  language and run (`pyright-langserver` or `basedpyright-langserver`, `typescript-language-server`,
+  `gopls`, `rust-analyzer`; or `lsp.servers.<language>`), started on first use through the run's
+  execution backend, so inside the Docker sandbox when the run uses it (the image needs the server),
+  and stopped when the run ends or is cancelled. A server that is missing, does not start or dies is
+  reported once and not retried; the tools then answer from the word-matching tools or say so.
+  A server reads the project's own configuration and may run its build scripts
+  ([SAFETY.md](SAFETY.md#language-servers)), which is why it is off by default.
 
 ## Web and knowledge tools
 

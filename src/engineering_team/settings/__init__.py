@@ -15,7 +15,7 @@ code reads it only to build the child-process environment).
 * ``model_section``: the ``[models]`` table (overrides, routes, fallbacks)
 * ``model``: ``Settings`` itself (cross-section validation, model routing)
 * ``describe``: ``Settings.describe`` (``config show``)
-* ``openrouter``, ``context_pack``: the ``[openrouter]`` and ``[context]`` tables
+* ``openrouter``, ``context_pack``, ``lsp``: the ``[openrouter]``, ``[context]``, ``[lsp]`` tables
 * ``masking``: showing values without showing secrets
 * ``env``: the ``ENGINEERING_*`` variables and the settings each one sets
 * ``loading``: layering defaults, files, environment and overrides into one ``Settings``
@@ -41,6 +41,7 @@ from engineering_team.settings.loading import (
     user_config_directory,
     user_config_path,
 )
+from engineering_team.settings.lsp import LspSettings
 from engineering_team.settings.masking import hide_address, mask_url, mask_value
 from engineering_team.settings.model import Settings
 from engineering_team.settings.model_section import ModelOverride, ModelRoute, ModelsSettings
@@ -110,6 +111,7 @@ __all__ = [
     "AttemptsSettings",
     "LadderSettings",
     "MaintainSettings",
+    "LspSettings",
     "ModelOverride",
     "ModelRoute",
     "ModelsSettings",

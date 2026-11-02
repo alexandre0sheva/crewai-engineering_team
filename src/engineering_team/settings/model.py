@@ -48,6 +48,7 @@ from engineering_team.settings.common import (
 )
 from engineering_team.settings.context_pack import ContextSettings
 from engineering_team.settings.describe import SettingRow
+from engineering_team.settings.lsp import LspSettings
 from engineering_team.settings.model_section import ModelOverride, ModelsSettings, _Frozen
 from engineering_team.settings.openrouter import OpenRouterSettings
 from engineering_team.settings.sections import (
@@ -109,6 +110,7 @@ class Settings(_Frozen):
     parallel: ParallelSettings = ParallelSettings()
     tools: ToolsSettings = ToolsSettings()
     runtime: RuntimeSettings = RuntimeSettings()
+    lsp: LspSettings = LspSettings()
     trajectory: TrajectorySettings = TrajectorySettings()
     memory: MemorySettings = MemorySettings()
     learning: LearningSettings = LearningSettings()

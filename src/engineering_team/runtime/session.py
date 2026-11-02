@@ -290,6 +290,8 @@ class RunRecorder:
         ctx = self.ctx
         ctx.processes.stop_all("the run ended")  # nothing the run started may keep running
         ctx.browsers.close_all("the run ended")
+        if ctx.lsp is not None:
+            ctx.lsp.close_all("the run ended")  # language servers started by the code-intel tools
         close_backend(ctx.backend, "the run ended")  # containers the run still has
         ctx.board.flush()  # board.json and board.md as the run ended
         finish_run(ctx)  # repo memory: proposals confirmed or dropped, facts gone stale

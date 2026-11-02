@@ -9,6 +9,7 @@ from crewai.tools import BaseTool
 from engineering_team.runtime.context import RunContext
 from engineering_team.settings import load_settings
 from engineering_team.tools import CATALOGUE, WriteScope, browser_tools, build_tools
+from engineering_team.tools.registry import LSP_TOOLS
 
 MakeContext = Callable[..., RunContext]
 
@@ -22,12 +23,14 @@ def _by_name(tools: list[BaseTool]) -> dict[str, BaseTool]:
     return {tool.name: tool for tool in tools}
 
 
-def test_the_default_toolset_covers_every_catalogued_tool_but_the_opt_in_web_group(
+def test_the_default_toolset_covers_every_catalogued_tool_but_the_opt_in_groups(
     make_context: MakeContext,
 ) -> None:
     tools = build_tools(make_context(), lazy=False)
 
-    assert [tool.name for tool in tools] == [spec.name for spec in CATALOGUE if spec.group != "web"]
+    assert [tool.name for tool in tools] == [
+        spec.name for spec in CATALOGUE if spec.group != "web" and spec.name not in LSP_TOOLS
+    ]
     assert {"Read Project File", "Write Project File", "Run Project Command"} <= {
         tool.name for tool in tools
     }
@@ -87,7 +90,11 @@ def test_read_only_tools_exclude_everything_that_changes_state(make_context: Mak
 
     tools = _by_name(build_tools(ctx, read_only=True, lazy=False))
 
-    assert set(tools) == {spec.name for spec in CATALOGUE if spec.read_only and spec.group != "web"}
+    assert set(tools) == {
+        spec.name
+        for spec in CATALOGUE
+        if spec.read_only and spec.group != "web" and spec.name not in LSP_TOOLS
+    }
     assert {"Read Project File", "Search Project Files", "Workspace Changes"} <= set(tools)
     assert not {"Write Project File", "Apply Patch", "Run Project Command"} & set(tools)
     assert tools["Read Project File"].run(path="notes.txt") == "hello"

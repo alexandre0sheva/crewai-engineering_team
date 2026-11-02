@@ -87,6 +87,19 @@ class ProcessHandle(Protocol):
         """Terminate the whole process group (SIGTERM, then SIGKILL) and describe the outcome."""
 
 
+class StdioProcess(Protocol):
+    """A process the caller talks to over stdin and stdout (``execution/stdio.py``)."""
+
+    def write(self, data: bytes) -> None: ...
+
+    def read(self, timeout: float) -> bytes | None:
+        """Next output bytes; ``b""`` after ``timeout`` with none; ``None`` once it ended."""
+
+    def poll(self) -> int | None: ...
+
+    def stop(self, grace: float = 3.0) -> None: ...
+
+
 @runtime_checkable
 class ExecutionBackend(Protocol):
     """Runs commands for a run. Implementations must be safe to call from several threads."""
@@ -106,6 +119,17 @@ def has_executable(backend: object, name: str) -> bool:
     if getattr(backend, "resolves_on_host", True):
         return shutil.which(name) is not None
     return True
+
+
+def open_stdio(backend: object, spec: CommandSpec) -> StdioProcess:
+    """Start ``spec`` with its stdin and stdout connected to the caller, through ``backend``.
+    Raises :class:`ExecutionError` for a backend that cannot."""
+
+    opener = getattr(backend, "open_stdio", None)
+    if not callable(opener):
+        raise ExecutionError(f"The {type(backend).__name__} cannot start an interactive process.")
+    process: StdioProcess = opener(spec)
+    return process
 
 
 def close_backend(backend: object, reason: str) -> None:

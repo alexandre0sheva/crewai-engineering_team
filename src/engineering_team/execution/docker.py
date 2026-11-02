@@ -48,6 +48,7 @@ from engineering_team.execution.local import (
     LocalBackend,
     LocalProcess,
 )
+from engineering_team.execution.stdio import LocalStdioProcess
 from engineering_team.settings import DockerSettings
 from engineering_team.tools.workspace import CONTROLLER_DIRECTORY
 
@@ -389,6 +390,15 @@ class DockerBackend(LocalBackend):
             if isinstance(exc, SandboxError):
                 raise ExecutionError(str(exc)) from exc
             raise
+
+    def open_stdio(self, spec: CommandSpec) -> LocalStdioProcess:
+        """A process with stdin and stdout connected to the caller (``execution/stdio.py``)."""
+
+        from engineering_team.execution.docker_stdio import open_docker_stdio
+
+        with self._number_lock:
+            number = next(self._numbers)
+        return open_docker_stdio(self, spec, number, self.log_dir / f"{number}.log")
 
     def close(self, reason: str = "the run ended") -> None:
         """Remove every container this run still has (stopped, stuck, or orphaned)."""

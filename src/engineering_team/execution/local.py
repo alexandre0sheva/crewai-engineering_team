@@ -14,6 +14,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from engineering_team.execution.backend import CommandRecord, CommandSpec
+from engineering_team.execution.stdio import LocalStdioProcess
 
 DEFAULT_MAX_LOG_BYTES = 5_000_000
 DEFAULT_HEAD_CHARS = 4_000
@@ -232,3 +233,8 @@ class LocalBackend:
 
     def run(self, spec: CommandSpec) -> CommandRecord:
         return self.start(spec).wait(spec.timeout)
+
+    def open_stdio(self, spec: CommandSpec) -> LocalStdioProcess:
+        with self._number_lock:
+            number = next(self._numbers)
+        return LocalStdioProcess(spec, self.log_dir / f"{number}.log", cancel_event=self._cancel)

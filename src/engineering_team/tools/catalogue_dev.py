@@ -6,6 +6,7 @@ from engineering_team.tools.codeintel_tools import make_codeintel_tools
 from engineering_team.tools.dev_tools import make_dev_tools
 from engineering_team.tools.git_tools import make_git_tools
 from engineering_team.tools.knowledge_tools import make_knowledge_tools
+from engineering_team.tools.lsp_tools import make_lsp_tools
 from engineering_team.tools.skill_tools import make_skill_tools
 from engineering_team.tools.spec import ToolSpec, _spec
 
@@ -111,6 +112,20 @@ DEV_SPECS: tuple[ToolSpec, ...] = (
         "code_intel",
         make_codeintel_tools,
         "Every use of a name, classified as definition, import, call, or other.",
+        read_only=True,
+    ),
+    _spec(
+        "Diagnostics",
+        "code_intel",
+        make_lsp_tools,
+        "Language-server errors and warnings for a file or the project (opt-in: lsp.enabled).",
+        read_only=True,
+    ),
+    _spec(
+        "Go To Definition",
+        "code_intel",
+        make_lsp_tools,
+        "Where a use is defined, resolved by the language server (opt-in: lsp.enabled).",
         read_only=True,
     ),
     _spec(

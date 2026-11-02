@@ -32,6 +32,7 @@ __all__ = [
     "FINDER_TOOLS",
     "GROUPS",
     "LAZY_TOOLS",
+    "LSP_TOOLS",
     "PROJECT_GROUPS",
     "ToolFactory",
     "ToolSpec",
@@ -77,6 +78,9 @@ CATALOGUE: tuple[ToolSpec, ...] = tuple(
 LAZY_TOOLS = frozenset(spec.name for spec in CATALOGUE if spec.lazy)
 # Not in a group of their own: ``build_tools`` adds them whenever it held tools back.
 FINDER_TOOLS = ("Find Tool", "Use Tool")
+# Only there when ``lsp.enabled``: a language server reads the project's configuration and may run
+# its build scripts, so a run that did not ask for one has no tool that starts it.
+LSP_TOOLS = frozenset({"Diagnostics", "Go To Definition"})
 
 
 def hold_back(
@@ -149,6 +153,8 @@ def build_tools(
             continue
         if spec.group == "web" and not web_allowed:
             continue  # off unless enabled: a disabled run has no network tool registered at all
+        if spec.name in LSP_TOOLS and not ctx.settings.lsp.enabled:
+            continue
         if spec.group == "browser" and not browser_present:
             continue  # the optional Playwright extra is not installed
         if spec.factory not in bundles:

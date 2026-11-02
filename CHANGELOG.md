@@ -11,6 +11,12 @@ renames that section and dates it.
 
 ### Added
 
+- Optional language-server bridge ([docs/CONFIGURATION.md](docs/CONFIGURATION.md#language-servers-lsp)): with
+  `lsp.enabled`, `Diagnostics` and `Go To Definition` tools and exact, scope-aware `Find References`
+  (pyright, typescript-language-server, gopls, rust-analyzer; falls back to word matching, saying so, when no
+  server is available). One server per language and run, started through the execution backend (so inside the
+  Docker sandbox too) and stopped when the run ends or is cancelled. Off by default: a server loads the project's
+  configuration ([docs/SAFETY.md](docs/SAFETY.md#language-servers)).
 - Model routing ([docs/CONFIGURATION.md](docs/CONFIGURATION.md#routes-fallbacks-and-prompt-caching)):
   `[models.routes."<intent>/<size>"]` picks the tier (or a single teammate's tier) by what the task is;
   `[models.fallbacks]` names the models a tier moves to when its model keeps failing with a provider error, a rate

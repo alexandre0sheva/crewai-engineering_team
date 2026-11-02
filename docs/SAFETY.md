@@ -257,6 +257,17 @@ count and workspace-checked paths, never git arguments. Manifest and lockfile pa
 package manager is run), and `pom.xml` is read with the standard library XML parser, which limits entity
 expansion.
 
+### Language servers
+
+`lsp.enabled` (off by default) lets the code-intelligence tools start a language server
+(`pyright-langserver`, `typescript-language-server`, `gopls`, `rust-analyzer`) in the project. A server
+is not a read-only parser: it loads the project's configuration and plugins, and `rust-analyzer` runs
+build scripts and procedural macros, so opening an untrusted repository with it is running its code.
+It starts through `ExecutionBackend.open_stdio` like every other process, so `--sandbox docker` puts it
+in the same container hardening (no network unless setup, read-only root, resource limits; the image must
+contain the server), and it is killed when its run ends or is cancelled. What a server returns is data
+shown to the agent, like any tool output.
+
 ### Background processes and the HTTP tool
 
 `Start Background Process` uses the same validation as any command, then `ExecutionBackend.start`.
