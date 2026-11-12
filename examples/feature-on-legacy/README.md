@@ -27,4 +27,7 @@ Judged by hidden checks in [`benchmarks/tasks/legacy-feature`](../../benchmarks/
 ## The committed report
 
 [`report.html`](report.html), including the diff viewer. Produced by a scripted run, see
-[the examples README](../README.md#about-the-committed-reports).
+[the examples README](../README.md#about-the-committed-scripted-reports).
+
+[`report-live.html`](report-live.html) is the same request run live on `openai/gpt-6-luna` (model, cost
+and date: [the live runs](../README.md#the-live-reports)); it shows what a model did on that one run, not a benchmark.

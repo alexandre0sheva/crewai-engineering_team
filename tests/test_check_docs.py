@@ -106,3 +106,44 @@ def test_a_setting_with_two_rows_is_reported(
     assert check.duplicate_setting_problems() == [
         "docs/CONFIGURATION.md:3: `a.b` already has a row (line 1)"
     ]
+
+
+def test_the_site_config_lists_real_pages_and_every_page_is_listed_or_excluded(
+    check: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    for name in ("index.md", "USAGE.md", "forgotten.md", "PLAN.md"):
+        (docs / name).write_text("# x\n", encoding="utf-8")
+    config = tmp_path / "mkdocs.yml"
+    config.write_text(
+        "docs_dir: docs\nexclude_docs: |\n  PLAN.md\n  gone.md\nhooks:\n  - hook.py\n"
+        "markdown_extensions:\n  - pymdownx.superfences:\n      custom_fences:\n"
+        "        - format: !!python/name:pymdownx.superfences.fence_code_format\n"
+        "nav:\n  - Home: index.md\n  - Using:\n      - Usage: USAGE.md\n      - Missing: nope.md\n"
+        "  - Log: https://example.com/CHANGELOG.md\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(check, "ROOT", tmp_path)
+    monkeypatch.setattr(check, "MKDOCS", config)
+
+    assert check.site_problems() == [
+        "mkdocs.yml: nav lists nope.md, which is not in docs/",
+        "mkdocs.yml: exclude_docs names gone.md, which does not exist",
+        "mkdocs.yml: hook hook.py does not exist",
+        "mkdocs.yml: docs/forgotten.md is neither in the nav nor excluded",
+    ]
+
+
+def test_links_to_the_reports_the_site_adds_are_valid_when_the_report_exists(
+    check: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "examples" / "demo").mkdir(parents=True)
+    (tmp_path / "examples" / "demo" / "report.html").write_text("<html>", encoding="utf-8")
+    (tmp_path / "docs").mkdir()
+    page = tmp_path / "docs" / "examples.md"
+    page.write_text("[a](reports/demo.html) [b](reports/demo-live.html)\n", encoding="utf-8")
+    monkeypatch.setattr(check, "ROOT", tmp_path)
+    monkeypatch.setattr(check, "markdown_files", lambda: [page])
+
+    assert check.link_problems() == ["docs/examples.md:1: reports/demo-live.html does not exist"]

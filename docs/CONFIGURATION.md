@@ -455,7 +455,7 @@ stages = ["implement"]
 enabled = false
 ```
 
-### MCP servers (`[mcp.<name>]`)
+### MCP servers (`[mcp.NAME]`)
 
 An MCP server gives agents tools the team does not ship (a docs index, a ticket tracker). Define each one
 by name; a teammate gets it by listing `mcp:<name>` under `tool_groups`, or by being named in the

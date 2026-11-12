@@ -11,6 +11,14 @@ renames that section and dates it.
 
 ### Added
 
+- Public website on GitHub Pages ([CONTRIBUTING.md](CONTRIBUTING.md#the-website)): MkDocs Material over the existing
+  `docs/`, with a landing page, an examples gallery that hosts each example's run report, and a **leaderboard**
+  that `scripts/build_leaderboard.py` generates from every committed benchmark batch (pass rate with interval,
+  cost per success, time, tasks, version, a link to the raw batch; runs below ten are greyed as "n < 10"; the
+  0.2.0 results included). `pages.yml` deploys from `main`, a `site` CI job builds it with `mkdocs build --strict`,
+  `check_docs.py` checks `mkdocs.yml`, and the README shows a three-row summary of the leaderboard. A `vhs` tape
+  (`docs/assets/demo.tape`) records `do` fixing a bug.
+
 - Web UI v2 ([docs/USAGE.md](docs/USAGE.md#web-ui)): the new-run page is one box (plus file upload and a project
   folder) with a live plan beside it from the new `POST /triage` (what the team understood, the starting rung, the
   stages with reasons, the estimate; signals only unless you ask the model to refine) and optional overrides

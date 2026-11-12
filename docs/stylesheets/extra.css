@@ -1,0 +1,12 @@
+/* The leaderboard: a sortable table whose small samples are greyed. */
+table.leaderboard { display: table; width: 100%; font-size: 0.72rem; }
+table.leaderboard td, table.leaderboard th { white-space: nowrap; }
+.md-grid { max-width: 72rem; }
+table.leaderboard th[data-type] { cursor: pointer; white-space: nowrap; }
+table.leaderboard th[aria-sort="ascending"]::after { content: " ▲"; }
+table.leaderboard th[aria-sort="descending"]::after { content: " ▼"; }
+table.leaderboard tr.lb-small td { opacity: 0.55; }
+table.leaderboard .lb-note {
+  font-size: 0.85em; padding: 0 0.3em; border: 1px solid currentcolor; border-radius: 0.2em;
+}
+.md-typeset .report-links a + a { margin-left: 0.8em; }

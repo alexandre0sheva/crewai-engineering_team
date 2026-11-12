@@ -27,3 +27,6 @@ benchmarks/results/**/crewai-storage/
 benchmarks/results/**/stdout.log
 benchmarks/results/**/stderr.log
 benchmarks/results/**/request.md
+
+# The built website (mkdocs build).
+site/

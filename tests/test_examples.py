@@ -73,9 +73,12 @@ def test_the_bug_in_the_bugfix_example_is_real(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.parametrize("file", ["report.html", "report-live.html"])
 @pytest.mark.parametrize("name", TASK_OF)
-def test_the_sample_reports_are_verified_runs_without_machine_specific_paths(name: str) -> None:
-    html = (EXAMPLES / name / "report.html").read_text(encoding="utf-8")
+def test_the_sample_reports_are_verified_runs_without_machine_specific_paths(
+    name: str, file: str
+) -> None:
+    html = (EXAMPLES / name / file).read_text(encoding="utf-8")
 
     assert html.startswith("<!doctype html>") or html.startswith("<!DOCTYPE html>")
     assert "Verified" in html
@@ -89,3 +92,13 @@ def test_the_readmes_say_the_reports_come_from_a_scripted_run() -> None:
         text = (EXAMPLES / name / "README.md").read_text(encoding="utf-8")
         assert "scripted" in text, name
     assert "teammates were scripted" in (EXAMPLES / "README.md").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("name", TASK_OF)
+def test_the_live_reports_name_their_model_and_are_in_the_spend_ledger(name: str) -> None:
+    html = (EXAMPLES / name / "report-live.html").read_text(encoding="utf-8")
+    ledger = (EXAMPLES.parent / "benchmarks" / "spend.jsonl").read_text(encoding="utf-8")
+
+    assert "gpt-6-luna" in html
+    assert f"examples/{name}/report-live.html" in ledger  # every live run is charged to T32
+    assert "report-live.html" in (EXAMPLES / name / "README.md").read_text(encoding="utf-8")

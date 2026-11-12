@@ -1,6 +1,7 @@
 """Documentation checks CI runs: every environment variable the code reads is documented, every
-setting has exactly one row in ``docs/CONFIGURATION.md``, and every relative link in the Markdown
-files points at something that exists.
+setting has exactly one row in ``docs/CONFIGURATION.md``, every relative link in the Markdown
+files points at something that exists, and the website's ``mkdocs.yml`` lists pages that exist
+(and every page of ``docs/`` is listed or excluded on purpose).
 
     uv run python scripts/check_docs.py
 
@@ -15,6 +16,8 @@ import re
 import sys
 from pathlib import Path
 from urllib.parse import unquote
+
+import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "src" / "engineering_team"
@@ -31,6 +34,22 @@ SKIP_PARTS = {
     "fixture", "reference", ".engineering-team", "results", "knowledge", ".runs", "tasks-swe",
     ".cache",
 }  # fmt: skip
+
+
+MKDOCS = ROOT / "mkdocs.yml"
+# The website adds each example's run report as ``docs/reports/<example>[-live].html`` while it
+# builds (scripts/mkdocs_hooks.py): links to those are valid when the report exists.
+SITE_REPORTS = {"report.html": "{name}.html", "report-live.html": "{name}-live.html"}
+
+
+def site_report_files() -> set[Path]:
+    found: set[Path] = set()
+    examples = ROOT / "examples"
+    for example in sorted(examples.iterdir()) if examples.is_dir() else []:
+        for source, published in SITE_REPORTS.items():
+            if (example / source).is_file():
+                found.add(ROOT / "docs" / "reports" / published.format(name=example.name))
+    return {path.resolve() for path in found}
 
 
 def markdown_files() -> list[Path]:
@@ -82,6 +101,7 @@ def anchors(path: Path) -> set[str]:
 def link_problems() -> list[str]:
     problems: list[str] = []
     cache: dict[Path, set[str]] = {}
+    reports = site_report_files()
     for path in markdown_files():
         in_fence = False
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -96,7 +116,7 @@ def link_problems() -> list[str]:
                 where = f"{path.relative_to(ROOT)}:{number}"
                 name, _, fragment = target.partition("#")
                 destination = (path.parent / unquote(name)).resolve() if name else path
-                if not destination.exists():
+                if not destination.exists() and destination not in reports:
                     problems.append(f"{where}: {target} does not exist")
                 elif fragment and destination.suffix == ".md":
                     known = cache.setdefault(destination, anchors(destination))
@@ -136,8 +156,67 @@ def duplicate_setting_problems() -> list[str]:
     return problems
 
 
+class _Loader(yaml.SafeLoader):
+    """Reads ``mkdocs.yml`` as data: its ``!!python/name:`` tags (Markdown extensions) stay text."""
+
+
+_Loader.add_multi_constructor("tag:yaml.org,2002:python/", lambda loader, suffix, node: suffix)
+
+
+def nav_paths(entries: object) -> list[str]:
+    """The pages (Markdown files) a ``nav`` lists, in order; external URLs are not pages."""
+
+    found: list[str] = []
+    if isinstance(entries, str):
+        if not re.match(r"[a-z][a-z0-9+.-]*://", entries):
+            found.append(entries)
+    elif isinstance(entries, list):
+        for entry in entries:
+            found += nav_paths(entry)
+    elif isinstance(entries, dict):
+        for value in entries.values():
+            found += nav_paths(value)
+    return found
+
+
+def site_problems() -> list[str]:
+    """``mkdocs.yml``: every nav page exists; every page of ``docs/`` is in the nav or excluded."""
+
+    if not MKDOCS.is_file():
+        return ["mkdocs.yml is missing"]
+    config = yaml.load(MKDOCS.read_text(encoding="utf-8"), Loader=_Loader)
+    docs = ROOT / str(config.get("docs_dir", "docs"))
+    excluded = {line.strip() for line in str(config.get("exclude_docs") or "").splitlines()}
+    excluded.discard("")
+    listed = nav_paths(config.get("nav"))
+    problems = [
+        f"mkdocs.yml: nav lists {name}, which is not in docs/"
+        for name in listed
+        if not (docs / name).is_file()
+    ]
+    problems += [
+        f"mkdocs.yml: exclude_docs names {name}, which does not exist"
+        for name in sorted(excluded)
+        if not (docs / name).exists()
+    ]
+    problems += [
+        f"mkdocs.yml: hook {name} does not exist"
+        for name in config.get("hooks") or []
+        if not (ROOT / name).is_file()
+    ]
+    for page in sorted(docs.glob("*.md")):
+        if page.name not in listed and page.name not in excluded:
+            problems.append(f"mkdocs.yml: docs/{page.name} is neither in the nav nor excluded")
+    return problems
+
+
 def main() -> int:
-    problems = [*environment_problems(), *duplicate_setting_problems(), *link_problems()]
+    problems = [
+        *environment_problems(),
+        *duplicate_setting_problems(),
+        *link_problems(),
+        *site_problems(),
+    ]
     for problem in problems:
         print(problem)
     if problems:

@@ -49,7 +49,8 @@ ui = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/alexandre0sheva/crewai-engineering_team"
+Homepage = "https://alexandre0sheva.github.io/crewai-engineering_team/"
+Leaderboard = "https://alexandre0sheva.github.io/crewai-engineering_team/leaderboard/"
 Repository = "https://github.com/alexandre0sheva/crewai-engineering_team"
 Issues = "https://github.com/alexandre0sheva/crewai-engineering_team/issues"
 Changelog = "https://github.com/alexandre0sheva/crewai-engineering_team/blob/main/CHANGELOG.md"
@@ -67,6 +68,9 @@ dev = [
     "mypy>=2.4.0",
     "pytest>=9.2.0",
     "ruff>=0.17.3",
+]
+site = [
+    "mkdocs-material>=9.7,<10",
 ]
 
 # The benchmark suite (tasks, hidden checks, results) lives in the repository only.

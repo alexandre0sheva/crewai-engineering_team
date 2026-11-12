@@ -116,11 +116,34 @@ One home per fact: update the canonical file and link to it from elsewhere inste
 | Harness: prompt components, composition order, overrides; later skills, memory and lessons | `docs/HARNESS.md` | TEAM.md links to it for prompt files. |
 | Task board / dashboard behaviour and card lifecycle | `docs/ARCHITECTURE.md` (board section) + `docs/USAGE.md` (viewing progress) | |
 | GitHub Action (`action.yml`), its inputs, permissions and cost | `docs/USAGE.md` (In CI) + `docs/SAFETY.md` (GitHub Actions) | Example workflows live in `examples/github-actions/`. |
-| Runnable examples and their sample run reports | `examples/` | Reports are regenerated offline by `scripts/make_example_reports.py`. |
+| Runnable examples and their sample run reports | `examples/` | Scripted reports are regenerated offline by `scripts/make_example_reports.py`; live ones (`report-live.html`) are recorded once and labelled. |
+| The public website (landing page, examples gallery, leaderboard) | `mkdocs.yml` + `docs/index.md`, `docs/examples.md`; `docs/leaderboard.md` is generated | The pages are the other `docs/*.md`, listed in the nav and never copied. Rebuild: [The website](#the-website). |
 | Benchmark method + results | `docs/BENCHMARKS.md` | README links only. |
 | Dev workflow, doc map, release process | `CONTRIBUTING.md` | This table. |
 | History | `CHANGELOG.md` | |
 | Assistant instructions | `AGENTS.md` | Only update version facts; do not duplicate project docs into it. |
+
+## The website
+
+The public site (GitHub Pages) is built by MkDocs Material from `docs/` and `mkdocs.yml`. The pages are the
+files of `docs/` as they are; `scripts/mkdocs_hooks.py` adds the examples' run reports and turns links that
+leave `docs/` into links to the repository. The **leaderboard** is generated, never edited: every committed
+batch under `benchmarks/results/` gives rows to `docs/leaderboard.md`, `docs/assets/leaderboard.json` and the
+three-row summary in the README.
+
+```bash
+uv sync --group site                          # once: MkDocs Material
+uv run python scripts/build_leaderboard.py    # after a new batch is committed (--check: is it current?)
+uv run mkdocs build --strict                  # the site, in site/ (the CI build); a broken link fails it
+uv run mkdocs serve                           # preview at http://127.0.0.1:8000/
+```
+
+CI builds the site on every pull request (`site` job in `ci.yml`). `.github/workflows/pages.yml` deploys it
+from `main` when `docs/`, `examples/`, `benchmarks/results/` or `mkdocs.yml` change. One-time setup by the
+repository owner: **Settings → Pages → Source: GitHub Actions**; the site is then at
+<https://alexandre0sheva.github.io/crewai-engineering_team/>. The terminal recording is
+`docs/assets/demo.tape`; render it with `vhs docs/assets/demo.tape` (needs `vhs`, `ttyd` and `ffmpeg`; it
+makes a live run, so it costs a few cents).
 
 ## Releasing
 

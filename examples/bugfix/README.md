@@ -29,4 +29,7 @@ If the team cannot reproduce a bug it stops and asks you, instead of guessing
 ## The committed report
 
 [`report.html`](report.html): the red/green reproduction, the checks, the board and the diff. Produced by
-a scripted run, see [the examples README](../README.md#about-the-committed-reports).
+a scripted run, see [the examples README](../README.md#about-the-committed-scripted-reports).
+
+[`report-live.html`](report-live.html) is the same request run live on `openai/gpt-6-luna` (model, cost
+and date: [the live runs](../README.md#the-live-reports)); it shows what a model did on that one run, not a benchmark.

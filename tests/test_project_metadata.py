@@ -8,6 +8,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_URL = "https://github.com/alexandre0sheva/crewai-engineering_team"
+SITE_URL = "https://alexandre0sheva.github.io/crewai-engineering_team/"  # the GitHub Pages website
 
 
 @pytest.fixture(scope="module")
@@ -25,7 +26,11 @@ def test_package_metadata_is_complete(pyproject: dict) -> None:
     assert project["classifiers"]
     assert project["keywords"]
     assert set(project["urls"]) >= {"Homepage", "Repository", "Issues", "Changelog"}
-    assert all(url.startswith(REPOSITORY_URL) for url in project["urls"].values())
+    urls = project["urls"]
+    assert all(url.startswith((REPOSITORY_URL, SITE_URL)) for url in urls.values())
+    assert urls["Homepage"] == SITE_URL
+    assert urls["Leaderboard"] == f"{SITE_URL}leaderboard/"
+    assert urls["Repository"] == REPOSITORY_URL
 
 
 def test_license_and_community_files_exist() -> None:
