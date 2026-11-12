@@ -5,6 +5,9 @@ import { blob, get } from "../api.js";
 import { clear, download, duration, h, money, tokens } from "../dom.js";
 import { button, chip, copyCommand, emptyState, errorState, kv, loading, panel, statusChip, table, tabs, toast } from "../ui.js";
 import { diffView, filesView, screenshotsView } from "./results_changes.js";
+import { learningView } from "./results_learning.js";
+import { answerView, attemptsView, escalationView } from "./results_views.js";
+import { followUpBox, threadStrip } from "./results_thread.js";
 
 const SEVERITY_TONE = { critical: "bad", high: "bad", medium: "warn", low: "info", info: "" };
 
@@ -13,8 +16,12 @@ export async function mount(root, [runId]) {
   const report = await get(`/runs/${runId}/results`);
   const cleanups = [];
 
+  const views = report.views;
   const sections = [
     { key: "summary", label: "Summary", build: () => summary(report) },
+    views.answer && { key: "answer", label: views.answer.kind === "plan" ? "Plan" : "Answer", build: () => answerView(views.answer) },
+    views.escalation && { key: "escalation", label: views.escalation.climbed ? `Escalation (${views.escalation.rungs.length} rungs)` : "Escalation", build: () => escalationView(views.escalation) },
+    views.attempts && { key: "attempts", label: `Attempts (${views.attempts.count})`, build: () => attemptsView(views.attempts) },
     { key: "criteria", label: `Criteria (${report.coverage.length})`, build: () => criteria(report) },
     { key: "checks", label: `Checks (${report.checks.length})`, build: () => checks(report) },
     { key: "changes", label: report.diff ? `Changes (${report.diff.files.length})` : "Changes", build: () => diffView(report) },
@@ -25,10 +32,12 @@ export async function mount(root, [runId]) {
       return view;
     } },
     { key: "merge", label: "Take the change", build: () => mergeView(report) },
-  ];
+    { key: "learning", label: "Harness & learning", build: () => learningView(runId) },
+  ].filter(Boolean);
+  const first = views.answer ? "answer" : "summary";
   const body = h("div", { id: "result-panel", role: "tabpanel" });
   const strip = tabs(sections.map((s) => ({ key: s.key, label: s.label, controls: "result-panel" })), {
-    selected: "summary",
+    selected: first,
     label: "Result sections",
     className: "tabs",
     onSelect: (key) => {
@@ -62,7 +71,7 @@ export async function mount(root, [runId]) {
         h("h1", { id: "verdict-title" }, `${banner.label}: ${report.project}`),
         banner.reasons.length ? h("ul", {}, banner.reasons.map((r) => h("li", {}, r))) : null,
         h("div", { class: "stats mt" }, stat(duration(report.duration_seconds), "duration"), stat(money(cost), "cost"), stat(tokens(report.usage?.totals?.total_tokens), "tokens"), stat(String(report.tool_calls), "tool calls"), report.diff ? stat(`+${report.diff.added} −${report.diff.removed}`, "lines") : null)),
-      strip.element, body),
+      threadStrip(views.thread), strip.element, body, followUpBox(views.thread, runId)),
   );
   return () => cleanups.forEach((fn) => fn());
 }

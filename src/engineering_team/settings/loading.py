@@ -171,6 +171,13 @@ def user_data_directory() -> Path | None:
     return base / "engineering-team"
 
 
+def set_user_data_home(path: Path) -> None:
+    """Make ``path`` the data home of this process and of the processes it starts (the demo's own
+    experience library; settings is the one place that touches the environment)."""
+
+    os.environ["XDG_DATA_HOME"] = str(path)
+
+
 def user_config_path(env: Mapping[str, str], home: Path) -> Path:
     config_home = env.get("XDG_CONFIG_HOME")
     base = Path(config_home) if config_home else home / ".config"

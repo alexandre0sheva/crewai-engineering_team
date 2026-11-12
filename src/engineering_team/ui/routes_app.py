@@ -19,8 +19,10 @@ from engineering_team.report.collect import build_report
 from engineering_team.runtime.run_store import RunNotFound
 from engineering_team.settings import SEARCH_PROVIDERS, SettingsError
 from engineering_team.tools.browser_tools import available as browser_available
+from engineering_team.ui import result_views
 from engineering_team.ui.launcher import REPO_MODES
 from engineering_team.ui.state import state_of
+from engineering_team.ui.triage_view import FORCE_LABELS
 
 router = APIRouter()
 
@@ -58,6 +60,7 @@ def options(
             {"key": key, "label": label, "needs_repo": key in REPO_MODES}
             for key, label in MODE_LABELS.items()
         ],
+        "intents": [{"key": key, "label": label} for key, label in FORCE_LABELS.items()],
         "templates": {mode: template_for(mode) for mode in TEMPLATE_MODES},
         "demo": {"repo": state.demo_repo} if state.demo_repo else None,
         "providers": list(PROVIDERS),
@@ -119,7 +122,8 @@ def results(request: Request, run_id: str) -> dict[str, Any]:
     """What the report shows, as JSON: banner, summaries, criteria coverage, checks, findings,
     changed files with their diffs, screenshots, usage and warnings."""
 
-    ref = state_of(request).need(run_id)
+    state = state_of(request)
+    ref = state.need(run_id)
     try:
         report = build_report(ref.run_dir)
     except RunNotFound as exc:
@@ -127,6 +131,7 @@ def results(request: Request, run_id: str) -> dict[str, Any]:
     data: dict[str, Any] = jsonable_encoder(report)
     isolation = read_isolation(ref.workspace)
     data["merge"] = merge_guide(run_id, isolation) if isolation else None
+    data["views"] = result_views.build(report, ref, state.settings.workspace_root)
     return data
 
 

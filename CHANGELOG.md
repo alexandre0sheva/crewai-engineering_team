@@ -11,6 +11,16 @@ renames that section and dates it.
 
 ### Added
 
+- Web UI v2 ([docs/USAGE.md](docs/USAGE.md#web-ui)): the new-run page is one box (plus file upload and a project
+  folder) with a live plan beside it from the new `POST /triage` (what the team understood, the starting rung, the
+  stages with reasons, the estimate; signals only unless you ask the model to refine) and optional overrides
+  (intent, strategy, best-of-N). Results gain an **Answer** tab (sources with the controller's check), an
+  **Escalation** timeline, an **Attempts** comparison with the judge's reason, a **Follow up** box that starts
+  `continue` with a thread strip across the runs of the thread, and a **Harness & learning** tab. A new
+  **Learning** screen lists the lessons (approve or reject the pending ones) and a project's remembered facts
+  (forget). `POST /runs` takes `mode: "do"` and `mode: "continue"`; `ui --demo` shows every state, with its own
+  temporary lesson library. The per-mode form stays at `#/classic`.
+
 - MCP server ([docs/USAGE.md](docs/USAGE.md#delegating-from-another-agent-mcp)): `engineering-team mcp serve`
   (stdio; optional `mcp` extra) lets Claude Code, Cursor, Codex and other MCP clients hand work to the team with
   `start_task`, `task_status`, `task_report`, `answer`, `cancel` and `list_runs`; each run is a `do` subprocess, as
@@ -225,6 +235,8 @@ renames that section and dates it.
 
 ### Changed
 
+- The web UI's new-run page no longer starts with a choice of mode: describe the work in one box and the team
+  works out the kind of work (the mode tabs and their extra fields are the per-mode form at `#/classic`).
 - Presets from the model screen ([docs/CONFIGURATION.md](docs/CONFIGURATION.md#provider-presets)): Anthropic's
   `worker` and `cheap` tiers use Claude Haiku 5.5 instead of Sonnet 5.5; OpenAI's `reviewer` tier uses GPT-6.1 Terra
   (medium effort) instead of Sol. Prices checked on 2026-11-01: Sonnet 5.5 cache hits cost $0.10 per million tokens
@@ -287,6 +299,9 @@ renames that section and dates it.
 
 ### Fixed
 
+- Best-of-N attempts (`do --attempts N`) on an existing repository failed every attempt at the `summary` stage ("no
+  base commit") and left no patch or change summary; attempts now skip that stage and the run writes
+  `changes.patch` and `CHANGE_SUMMARY.md` for the chosen attempt.
 - `.gitignore` now keeps the `repo/` workspace of a repository-task bench run local, like `ws/`. Committing
   results added each one as an orphan gitlink, which Git could not stage once its working tree changed.
 - Triage no longer calls a pasted stack trace or failing test a new project when there is no directory to run it

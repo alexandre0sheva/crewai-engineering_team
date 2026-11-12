@@ -93,6 +93,12 @@ def _first_problem(exc: Exception) -> str:
 async def start_run(request: Request) -> dict[str, Any]:
     state = state_of(request)
     spec, uploads = await _read_start(request)
+    if spec.mode == "continue":
+        _check_parent(state, spec.parent)
+    if state.demo_repo and spec.mode in ("do", "continue") and spec.options.strategy is None:
+        # The demo's environment pins the pipeline for the older forms; a run of ``do`` goes the
+        # way its preview said (``POST /triage`` uses the server's settings).
+        spec.options.strategy = state.settings.strategy
     record = await run_in_threadpool(state.launcher.start, spec, uploads)
     return {
         "run_id": record.run_id,
@@ -100,6 +106,18 @@ async def start_run(request: Request) -> dict[str, Any]:
         "mode": spec.mode,
         "links": _links(record.run_id),
     }
+
+
+def _check_parent(state: UiState, parent: str | None) -> None:
+    """A follow-up needs a run that has ended (``continue`` reads what it left behind)."""
+
+    ref = state.find(parent or "")
+    if ref is None:
+        raise StartError(f"No run {parent!r} to follow up.", 404 if parent else 422)
+    if ref.manifest.status in ("pending", "running"):
+        raise StartError(
+            f"Run {ref.run_id} is still {ref.manifest.status}; follow it up once it ends.", 409
+        )
 
 
 def _links(run_id: str) -> dict[str, str]:

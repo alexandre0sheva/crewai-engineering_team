@@ -62,7 +62,7 @@ async function request(path, { method = "GET", json, form, signal } = {}) {
 }
 
 export const get = async (path, options) => (await request(path, options)).json();
-export const post = async (path, json) => (await request(path, { method: "POST", json: json ?? {} })).json();
+export const post = async (path, json, signal) => (await request(path, { method: "POST", json: json ?? {}, signal })).json();
 export const postForm = async (path, form) => (await request(path, { method: "POST", form })).json();
 export const blob = async (path) => (await request(path)).blob();
 

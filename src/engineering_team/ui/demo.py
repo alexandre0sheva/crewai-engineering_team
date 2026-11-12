@@ -34,6 +34,7 @@ from engineering_team.modes.maintain_contracts import UpgradePlan
 from engineering_team.modes.repo_analyzer import standalone_git
 from engineering_team.pipeline import strategies
 from engineering_team.pipeline.stages import StageOutput, StageRequest
+from engineering_team.ui.demo_data import ANSWER
 
 DEMO_DIR = "engineering_team_demo"
 DEMO_MODEL = "openai/gpt-6.1-sol"
@@ -68,6 +69,15 @@ TESTS = (
     "def test_ac_2_listing_returns_notes() -> None:  # AC-2\n    assert add('x') >= 1\n"
 )
 TESTS_BROKEN = TESTS.replace("assert add('x') >= 1", "assert add('x') == 99  # not yet true")
+SEARCH = (
+    "from engineering_team_demo.storage import NOTES\n\n\ndef search(word: str) -> list[str]:\n"
+    '    """The stored notes that contain the word, oldest first."""\n'
+    "    return [note for note in NOTES if word.lower() in note.lower()]\n"
+)
+# The ladder's first rungs (one agent, then a lead with teammates on call) hand back work whose
+# check fails and is not repaired, so the demo shows the controller escalating on the evidence
+# until the full team's rung repairs it.
+WEAK_RUNGS = ("solo", "team")
 BODY = "Written by the demo runner; no model was called. " * 3
 
 SPEC = Spec(
@@ -143,6 +153,13 @@ REVIEWS = {
 }
 
 
+def attempt_of(run_id: str) -> int:
+    """``k`` for the run of attempt ``k`` of a best-of-N run (``<run>-aK``), else 0."""
+
+    number = run_id.rpartition("-a")[2]
+    return int(number) if number.isdigit() and "-a" in run_id else 0
+
+
 class DemoRunner:
     """A :class:`StageRunner` that acts out the stage and returns scripted contracts."""
 
@@ -197,6 +214,10 @@ class DemoRunner:
             contracts["fix_note"] = FixNote(
                 root_cause="Demo root cause.", change="Demo change.", risk="Low."
             )
+        elif stage.kind == "answer":
+            contracts["answer"] = ANSWER
+        elif stage.kind == "lead":
+            self._lead(request, write)
         elif package is not None:
             for title in MODULES if whole else (package.title,):
                 header = f'"""{title} (written by the demo runner; notes are {notes})."""\n\n'
@@ -207,11 +228,26 @@ class DemoRunner:
         elif name == "tests" or name == "integrate":
             write(f"{DEMO_DIR}/__init__.py", "")
             write(f"{DEMO_DIR}/test_notes.py", TESTS_BROKEN)  # a check fails; verify repairs it
-        elif stage.kind == "verify":
-            write(f"{DEMO_DIR}/test_notes.py", TESTS)  # the repair
+        elif stage.kind == "verify" and (
+            request.state.rung not in WEAK_RUNGS or attempt_of(request.ctx.run_id)
+        ):
+            write(f"{DEMO_DIR}/test_notes.py", TESTS)  # the repair; every attempt gets one
         for path in stage.file_outputs:  # what a recipe promises (only a new project's does)
             write(path, f"# {path}\n{BODY}\n")
         return StageOutput(contracts=contracts, summary=f"{name}: done (demo)")
+
+    def _lead(self, request: StageRequest, write: Any) -> None:
+        """The lead's whole job in one go: the feature and a test that fails. Each attempt of a
+        best-of-N run (``<run>-aK``) pads its change a little more, so the attempts differ and the
+        smallest passing one is clear."""
+
+        padding = "# more thorough, and longer\n" * max(
+            (attempt_of(request.ctx.run_id) or 1) - 1, 0
+        )
+        write(f"{DEMO_DIR}/__init__.py", "")
+        write(f"{DEMO_DIR}/storage.py", MODULES["Storage"])
+        write(f"{DEMO_DIR}/notes_search.py", SEARCH + padding)
+        write(f"{DEMO_DIR}/test_notes.py", TESTS_BROKEN)
 
     def _act(self, request: StageRequest, kind: str, path: str) -> None:
         ctx = request.ctx

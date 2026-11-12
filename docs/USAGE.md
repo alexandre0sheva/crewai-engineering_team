@@ -835,25 +835,59 @@ fetched from elsewhere, and a content security policy that allows only its own f
 
 ### The screens
 
-- **New run.** Pick what to do (**Build new**, **Add feature**, **Fix bug**, **Maintain**, **Review**), write the
-  request (Markdown works; a counter shows its size and **Insert a request template** gives the mode's template) and/or
-  drop one or more `.md`/`.txt` files on it. For a project on this machine give its folder: the page checks it as you
-  type and shows the stack, test files, Git state, and how the team would be kept apart from your checkout (own branch
-  for a clean tree, a worktree for a dirty one, a copy outside Git). On the right: the team preset (**Full**, or
-  **Minimal** without review, DevOps and docs) with a toggle and the tool groups for each teammate; the provider and
-  profile with the model each slot would use and its price; optional limits on cost, tokens, minutes and tool calls (the
-  hint turns a dollar limit into roughly how many tokens it buys on the lead model); and, under **Advanced**,
-  parallelism, the command sandbox, the strategy, isolation, and the web tools. Fix, Maintain and Review add their own
-  fields (a reproduction command and a stack trace, the task, the base to compare against).
+- **New run.** One box: say what you want (Markdown works; a counter shows its size) and/or drop `.md`/`.txt`
+  files on it, and optionally give the project folder (empty: a new project). As you type, **The plan** appears beside
+  it: what the team understood (the kind of work, size, risk, how it will be proved), the rung it starts on and how far
+  it may climb, the stages with the reason for each, the estimate and the harness it will use. It is what
+  `do --dry-run` prints; the signals alone make it (free and instant), and **Refine with the model** adds triage's one
+  cheap model call. The folder is checked as you type (stack, test files, Git state, and how the team is kept apart
+  from your checkout: its own branch for a clean tree, a worktree for a dirty one, a copy outside Git). **Override
+  what the team decides** forces the kind of work (`do --mode`), the strategy, and best-of-N attempts. On the right:
+  the team preset and tool groups, the provider and profile with each slot's model and price, optional limits on cost,
+  tokens, minutes and tool calls (the hint turns a dollar limit into roughly how many tokens it buys on the lead
+  model), and, under **Advanced**, parallelism, the command sandbox, isolation, and the web tools. The per-mode form
+  (**Build new**, **Add feature**, **Fix bug**, **Maintain**, **Review** at `#/classic`) is still there for the
+  fields only a preset has: a reproduction command and a stack trace, a maintenance task, the base to compare against.
+
+  ![The new-run screen, with the plan beside the request](assets/ui-new-run.png)
+
 - **Run page** (`#/runs/ID`): the live dashboard, described under [Watching a run](#watching-a-run).
 - **Results** (`#/runs/ID/results`). The verdict and why, then tabs: **Summary** (warnings, review findings, who did
-  what), **Criteria** (each acceptance criterion with the checks that back it: *verified*, *referenced*, or
+  what), **Answer** (or **Plan**) for a question or a plan-only run, **Escalation** and **Attempts** when the run had
+  them, **Criteria** (each acceptance criterion with the checks that back it: *verified*, *referenced*, or
   *unverified*, so nothing unproven looks done), **Checks** (with log excerpts), **Changes** (a per-file diff),
   **Files** (the project tree with a viewer; secrets are never served), **Screenshots** (taken by the browser tools),
-  and **Take the change** (copyable commands to merge the team's branch or apply a patch; the team never merges or
-  pushes). **Export patch** and **Download report** save files from the header.
+  **Take the change** (copyable commands to merge the team's branch or apply a patch; the team never merges or
+  pushes) and **Harness & learning**. **Export patch** and **Download report** save files from the header.
 
   ![A finished run's changes](assets/ui-results.png)
+
+  - **Answer.** The answer's summary and sections with `[n]` markers that jump to **Sources**: each cited file and
+    lines (or fetched page) with the quoted text and the controller's check (*verified*, or why not: missing file,
+    wrong lines, quote mismatch, URL never fetched). The headline counts what the controller verified; the
+    confidence is the agent's own and is labelled so. A plan-only run shows its `PLAN.md`.
+
+    ![An answer with the sources the controller checked](assets/ui-answer.png)
+
+  - **Escalation.** The rungs an `auto` run climbed, in order: why each started, how it ended, the checks that
+    still failed, what it cost, and what the next rung was told. A run that never climbed says so; one that could not
+    climb further says why it stopped.
+
+    ![The escalation timeline](assets/ui-escalation.png)
+
+  - **Attempts.** Best-of-N side by side: how each differed, its checks, diff size and cost, which one was chosen and
+    how (the blind judge's reason, the only one that passed, or the smallest passing diff when the judge's answer
+    was not used), the judge's scores, and the cost ledger. When none passed, the closest is marked and never called
+    verified.
+
+    ![Best-of-N attempts and the choice](assets/ui-attempts.png)
+
+  - **Follow up.** Under the tabs, a box starts `continue` from this run: same branch, with this run's spec, plan,
+    answer and verdict as context and nothing it proved reused ([Follow-ups and threads](#follow-ups-and-threads-continue)); a stored plan
+    offers **Implement the stored plan**. When the run is in a thread, a strip above the tabs links every run of it,
+    oldest first. A run that is still going, or whose workspace is gone, says why it cannot be followed up.
+  - **Harness & learning.** The harness the run resolved (domain, packs with their sources, and each skill with
+    whether the run loaded it), the lessons it was given at its start, and the repository's memory.
 
 - **Runs** lists every run, including ones started from the terminal, with search, a status filter, and a mini
   progress bar each; it refreshes while any run is active.
@@ -863,6 +897,15 @@ fetched from elsewhere, and a content security policy that allows only its own f
 - **Settings** shows the effective configuration with its sources (secrets masked), the `doctor` checks, and whether
   the browser tools, Docker and web search are available. It is read-only: change values in the config file or the
   environment.
+- **Learning** (`#/learning`) is what the team keeps. **Lessons** of the experience library (yours, plus the
+  project's with a folder given): the ones waiting for approval first (`learning.review = manual`), each with its cue,
+  the lesson, the harness component it changes and the evidence it rests on, and **Approve** or **Reject**; then the
+  ones later runs receive, with **Forget**. **Repository memory** lists the facts the team verified about a project,
+  their evidence, and **Forget**. It is the UI of `lessons` and `memory`
+  ([HARNESS.md](HARNESS.md)); everything on it is learned or repository-written text, shown as text, and none of it
+  grants a permission or changes a verdict.
+
+  ![Lessons waiting for approval, and a project's memory](assets/ui-learning.png)
 
 The page is keyboard-navigable (tabs use the arrow keys), keeps a visible focus ring, announces status changes through
 a screen-reader live region, follows light/dark (the button in the header overrides it), and works down to phone
@@ -919,18 +962,29 @@ page computes no state), so it is the same whether the run was started from the 
 run, but every teammate's answers and tool calls are scripted, so no key is needed and nothing is billed. Every state
 of the dashboard shows up: three work packages in parallel lanes, a card **blocked** while a teammate **asks you a
 question**, a check that **fails** and is **repaired**, a **budget warning** (the demo's limit is $1.00 and the run
-ends at about 85 % of it), and review findings. Leave "Let the team ask me questions" ticked (Advanced) to be asked. Pick **Add feature**, press **Use the demo sample project**, write
+ends at about 85 % of it), and review findings. Leave "Let the team ask me questions" ticked (Advanced) to be asked. Press **Use the demo sample project**, write
 anything, and start. It works in a temporary workspace and only writes under `engineering_team_demo/` in the project you
 point it at (default: a small sample repository it creates).
 
+The one-box page is scripted end to end. A change request starts on the `solo` rung, whose check fails and is not
+repaired, so the run **escalates** to `team` and then `pipeline` (the Escalation tab). A question about the sample
+project (for example "How does the main function work?") gets an **answer** with two sources the controller
+verifies. **Best of N attempts** (Override) runs N scripted attempts, and since the demo calls no model the judge falls back
+to the smallest passing diff and says so. Starting a
+**follow-up** from any finished run makes a thread. The Learning screen has a demo library in its own temporary
+directory (one lesson later runs receive, two waiting for approval); your own library is never touched.
+
 ### The API
 
-Everything the page does is a call to the JSON API, which you can use directly: start a run (`POST /runs`: JSON, or
-`multipart/form-data` with a `spec` field and `request_files` / `context_files`), list and inspect runs, stream their
+Everything the page does is a call to the JSON API, which you can use directly: preview a request (`POST /triage`: the
+plan `do --dry-run` shows, nothing started), start a run (`POST /runs`: JSON, or `multipart/form-data` with a `spec`
+field and `request_files` / `context_files`; `mode` is `do` for the one-box path, `continue` with a `parent` run for
+a follow-up, or one of the older presets), list and inspect runs, stream their
 events (Server-Sent Events, resumable with `Last-Event-ID`), cancel, resume, pause, steer a card or the run, answer the
 team's questions, read the board (now, or replayed at any event with `?at=SEQ`), teammates, cards with their tool-call
 trail, artifacts, project files, the diff, the run report and its JSON form (`/results`), plus `GET /config`, `/doctor`,
-`/team`, `/recipes`, `/options` (what the start form offers), and `/repo/inspect?path=`. The endpoint reference is in
+`/team`, `/recipes`, `/options` (what the start form offers), `/repo/inspect?path=`, and the learning data (a run's
+harness and lessons, a project's memory, the lesson library with approve, reject and forget). The endpoint reference is in
 [ARCHITECTURE.md](ARCHITECTURE.md#web-ui-backend).
 
 ```bash

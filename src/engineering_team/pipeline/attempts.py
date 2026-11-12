@@ -28,15 +28,19 @@ from typing import Any
 
 from engineering_team.bench.estimate import per_run_cost
 from engineering_team.contracts import RunStatus
+from engineering_team.git.port import GitError
+from engineering_team.modes.change_report import ChangeError
 from engineering_team.pipeline.attempts_contracts import AttemptRecord, AttemptsRecord, Selection
 from engineering_team.pipeline.attempts_run import (
     ATTEMPTS_STAGE,
     Attempt,
     CancelLink,
     adopt_state,
+    attempt_recipe,
     keep,
     run_one,
     variant,
+    write_change_summary,
 )
 from engineering_team.pipeline.attempts_tree import (
     AttemptCopyError,
@@ -175,6 +179,7 @@ def _attempts(
         attempts=[{"label": a.label, "vary": a.vary} for a in record.attempts],
     )
     mode = RunStore(ctx.workspace.root).load(ctx.run_id).mode
+    walked = attempt_recipe(recipe)
     root = copies_root(ctx.workspace, ctx.run_id)
     before = spent_usd(ctx)
     try:
@@ -182,7 +187,7 @@ def _attempts(
 
             def work(attempt: Attempt, _lane: int) -> Attempt:
                 return run_one(
-                    ctx, attempt, recipe, bundle, runner_factory(),
+                    ctx, attempt, walked, bundle, runner_factory(),
                     start=start, copy_to=root / attempt.record.label, mode=mode,
                     strategy=strategy, link=link,
                 )  # fmt: skip
@@ -268,6 +273,13 @@ def _choose(
     )
     if not passing:
         raise AttemptsFailed(selection.reason)
+    if selection.revision_match is not False:
+        try:  # the patch and summary of a change to an existing project, for the chosen attempt
+            write_change_summary(ctx)
+        except (ChangeError, GitError) as exc:
+            raise AttemptsFailed(
+                f"The chosen attempt's change could not be measured: {exc}"
+            ) from exc
     if selection.revision_match is False:
         raise AttemptsFailed(
             f"Attempt {chosen.record.label} passed in its copy, but the run's workspace does not "

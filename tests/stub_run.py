@@ -27,7 +27,9 @@ def value(flag, default=None):
 
 root = Path(value("--workspace-root"))
 command = next(
-    a for a in sys.argv[1:] if a in ("new", "feature", "fix", "maintain", "review", "do", "resume")
+    a
+    for a in sys.argv[1:]
+    if a in ("new", "feature", "fix", "maintain", "review", "do", "continue", "resume")
 )
 resuming = command == "resume"
 run_id = sys.argv[sys.argv.index("resume") + 1] if resuming else value("--run-id")
@@ -49,8 +51,17 @@ if resuming:
     store.update(run_id, lambda m: setattr(m, "resumes", m.resumes + 1))
     store.set_status(run_id, "running")  # a failed/cancelled run may run again
 else:
+    parent = sys.argv[sys.argv.index("continue") + 1] if command == "continue" else None
+    earlier = {m.run_id: m for m in store.list_runs()}.get(parent or "")
     store.create(
-        RunManifest(run_id=run_id, project_name=project, mode=command, strategy="pipeline")
+        RunManifest(
+            run_id=run_id,
+            project_name=project,
+            mode=command,
+            strategy="pipeline",
+            parent_run=parent,
+            thread_id=(earlier.thread_id or parent) if earlier else parent,
+        )
     )
     store.set_status(run_id, "running")
 run_dir = store.run_dir(run_id)

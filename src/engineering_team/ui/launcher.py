@@ -13,19 +13,17 @@ from __future__ import annotations
 import contextlib
 import json
 import os
-import re
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
-
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any
 
 from engineering_team.atomic_io import atomic_write_json
+from engineering_team.intake.triage_rules import MODE_INTENTS
 from engineering_team.runtime.context import new_run_id
 from engineering_team.settings import (
     OVERRIDES_ENV,
@@ -33,117 +31,42 @@ from engineering_team.settings import (
     child_environment,
     load_settings,
 )
+from engineering_team.ui.launch_spec import (
+    CONTEXT_SUFFIXES,
+    ENTRY_MODES,
+    REPO_MODES,
+    REQUEST_SUFFIXES,
+    Budget,
+    Mode,
+    RunOptions,
+    StartError,
+    StartRecord,
+    StartRun,
+    Upload,
+    overrides_for,
+    safe_name,
+)
 from engineering_team.workspaces import resolve_workspace_root
+
+__all__ = [
+    "CONTEXT_SUFFIXES",
+    "ENTRY_MODES",
+    "REPO_MODES",
+    "REQUEST_SUFFIXES",
+    "Budget",
+    "Mode",
+    "RunLauncher",
+    "RunOptions",
+    "StartError",
+    "StartRecord",
+    "StartRun",
+    "Upload",
+    "overrides_for",
+    "safe_name",
+]
 
 STATE_DIRECTORY = ".engineering-team-ui"
 MAX_LOG_TAIL = 4000
-Mode = Literal["new", "feature", "fix", "maintain", "review"]
-REPO_MODES = ("feature", "fix", "maintain", "review")
-SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
-REQUEST_SUFFIXES = (".md", ".markdown", ".txt", ".rst")
-CONTEXT_SUFFIXES = (".md", ".markdown", ".txt", ".rst", ".json", ".yaml", ".yml", ".csv", ".toml")
-
-
-class StartError(ValueError):
-    """A start that cannot happen; ``status`` is the HTTP status that describes why."""
-
-    def __init__(self, message: str, status: int = 422) -> None:
-        super().__init__(message)
-        self.status = status
-
-
-class Budget(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    max_cost_usd: float | None = Field(default=None, gt=0)
-    max_tokens: int | None = Field(default=None, ge=1)
-    max_wall_seconds: int | None = Field(default=None, ge=1)
-    max_tool_calls: int | None = Field(default=None, ge=1)
-
-
-class RunOptions(BaseModel):
-    """The options every start (and a resume) may carry; each is what the CLI option of the same
-    name does, or the setting of the same name."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    strategy: Literal["auto", "pipeline", "single", "team"] | None = None
-    profile: str | None = None
-    provider: str | None = None
-    sandbox: Literal["local", "docker"] | None = None
-    allow_web: bool = False
-    budget: Budget | None = None
-    max_parallel_agents: int | None = Field(default=None, ge=1, le=16)
-    team_profile: Literal["full", "minimal"] | None = None  # minimal: no review, DevOps, docs
-    disabled_teammates: list[str] = Field(default_factory=list)  # roster toggles
-
-
-class StartRun(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    mode: Mode = "new"
-    request: str | None = Field(default=None, max_length=200_000)  # text; or upload files
-    example: str | None = None
-    repo: str | None = None  # the project directory (feature, fix, maintain, review)
-    project_name: str | None = None
-    # Mode-specific.
-    task: str | None = None  # maintain
-    goal: str | None = None  # maintain
-    fix_findings: bool = False  # maintain security-audit: also fix what it finds
-    base: str | None = None  # review
-    focus: str | None = None  # review
-    repro: str | None = None  # fix
-    trace: str | None = Field(default=None, max_length=200_000)  # fix: a stack trace or log
-    allow_unreproduced: bool = False  # fix
-    worktree: bool = False  # isolation (feature, fix, maintain)
-    allow_dirty: bool = False
-    squash: bool = False
-    no_git: bool = False  # new
-    interactive: bool = True  # the team may ask questions, answered through the API
-    options: RunOptions = Field(default_factory=RunOptions)
-
-
-@dataclass(frozen=True)
-class Upload:
-    name: str
-    data: bytes
-
-
-class StartRecord(BaseModel):
-    run_id: str
-    pid: int
-    mode: str
-    resume: bool = False
-    log: str
-    started: float
-    argv: list[str]
-    overrides: dict[str, Any] = Field(default_factory=dict)  # the settings this start changed
-
-
-def overrides_for(options: RunOptions) -> dict[str, Any]:
-    """The dotted settings the options set (the value of ``ENGINEERING_OVERRIDES``)."""
-
-    found: dict[str, Any] = {}
-    if options.budget is not None:
-        for key, value in options.budget.model_dump().items():
-            if value is not None:
-                found[f"budget.{key}"] = value
-    if options.max_parallel_agents is not None:
-        found["parallel.max_parallel_agents"] = options.max_parallel_agents
-    if options.team_profile is not None:
-        found["team_profile"] = options.team_profile
-    for key in options.disabled_teammates:
-        found[f"team.{key}.enabled"] = False
-    return found
-
-
-def safe_name(name: str, suffixes: Sequence[str]) -> str:
-    """A file name that is only itself: no directories, no odd characters, a known suffix."""
-
-    base = SAFE_NAME.sub("-", Path(name.replace("\\", "/")).name).strip(".-")
-    if not base or not base.lower().endswith(tuple(suffixes)):
-        raise StartError(f"{name!r} is not an accepted file; use one of: {', '.join(suffixes)}.")
-    return base[:100]
 
 
 class RunLauncher:
@@ -226,7 +149,10 @@ class RunLauncher:
         run_id = new_run_id()
         upload_dir = self.state_dir / "uploads" / run_id
         argv = self._arguments(spec, run_id, upload_dir, uploads)
-        return self._spawn(run_id, spec.mode, argv, overrides, resume=False)
+        # ``do`` and ``continue`` name their project themselves; started anywhere else, ``do``
+        # would take this server's own directory for the project when it is a Git repository.
+        cwd = self._neutral_directory() if spec.mode in ENTRY_MODES else None
+        return self._spawn(run_id, spec.mode, argv, overrides, resume=False, cwd=cwd)
 
     def resume(self, run_id: str, options: RunOptions) -> StartRecord:
         """Continue a run that did not finish, in a new process."""
@@ -248,6 +174,11 @@ class RunLauncher:
                 os.kill(record.pid, signal.SIGINT)
 
     # -- internals ----------------------------------------------------------------------------
+
+    def _neutral_directory(self) -> Path:
+        path = Path(tempfile.gettempdir()) / "engineering-team-ui-start"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
 
     def _check_capacity(self) -> None:
         busy = len(self.active())
@@ -274,17 +205,19 @@ class RunLauncher:
         argv = ["--workspace-root", str(self.root), "--run-id", run_id]
         if spec.interactive:
             argv.append("--answers-via-inbox")
-        argv.append(mode)
         requests = self._save(
             upload_dir, "request", uploads.get("request_files", []), REQUEST_SUFFIXES
         )
         if spec.request is not None and spec.request.strip():
             requests.append(self._write(upload_dir / "request", "request.md", spec.request))
-        if mode in ("new", "feature", "fix") and not requests and not spec.example:
+        if mode in ("new", "feature", "fix", "do") and not requests and not spec.example:
             raise StartError("Say what to do: send 'request' text or a request file.")
         context = self._save(
             upload_dir, "context", uploads.get("context_files", []), CONTEXT_SUFFIXES
         )
+        if mode in ENTRY_MODES:
+            return argv + self._entry_arguments(spec, requests, context, upload_dir)
+        argv.append(mode)
         if mode in REPO_MODES:
             argv += ["--repo", self._repo(spec.repo)]
         if mode in ("new", "feature", "fix"):
@@ -299,6 +232,49 @@ class RunLauncher:
         if self.config_file:
             argv += ["--config", self.config_file]
         return argv
+
+    def _entry_arguments(
+        self, spec: StartRun, requests: list[Path], context: list[Path], upload_dir: Path
+    ) -> list[str]:
+        """``do`` (triage, plan, run) or ``continue`` (a follow-up in the run's thread), started
+        without asking: the page showed the plan (``POST /triage``) before the person pressed
+        start, and questions reach them through the inbox."""
+
+        out = [spec.mode, *(["--yes", "--non-interactive"])]
+        if spec.mode == "continue":
+            if not spec.parent:
+                raise StartError("continue needs 'parent': the run to follow up.")
+            if not requests and not spec.implement:
+                raise StartError("Say what to do next, or ask to implement the stored plan.")
+            out.insert(1, spec.parent)
+            if spec.implement:
+                out.append("--implement")
+        else:
+            if spec.repo:
+                out += ["--repo", self._repo(spec.repo)]
+            if spec.intent:
+                if spec.intent not in MODE_INTENTS:
+                    raise StartError(f"intent must be one of: {', '.join(MODE_INTENTS)}.")
+                out += [f"--mode={spec.intent}"]
+            if spec.worktree:
+                out.append("--worktree")
+            if spec.no_git:
+                out.append("--no-git")
+            if spec.project_name:
+                out += [f"--project-name={spec.project_name}"]
+            if spec.example:
+                out += [f"--example={spec.example}"]
+        out += [flag for flag, on in (
+            ("--allow-dirty", spec.allow_dirty), ("--squash", spec.squash),
+        ) if on]  # fmt: skip
+        for path in requests:
+            out += ["--request-file", str(path)]
+        if context:
+            out += ["--context-dir", str(upload_dir / "context")]
+        out += _common_options(spec.options, mode="do")
+        if self.config_file:  # the process starts elsewhere, so a relative path would not hold
+            out += ["--config", str(Path(self.config_file).expanduser().resolve())]
+        return out
 
     # Free text goes in as ``--flag=value``: a value that starts with ``-`` is then a value, never
     # an option of its own (``--base=--help``).
@@ -380,6 +356,7 @@ class RunLauncher:
         overrides: dict[str, Any],
         *,
         resume: bool,
+        cwd: Path | None = None,
     ) -> StartRecord:
         logs = self.state_dir / "logs"
         logs.mkdir(parents=True, exist_ok=True)
@@ -396,6 +373,7 @@ class RunLauncher:
                 stdout=log,
                 stderr=subprocess.STDOUT,
                 env=env,
+                cwd=cwd,
                 start_new_session=True,  # the run outlives this server
             )
         self._children[run_id] = child
@@ -425,8 +403,10 @@ def _common_options(options: RunOptions, *, mode: str = "new", resume: bool = Fa
         out.append("--allow-web")
     if options.sandbox:
         out += ["--sandbox", options.sandbox]
-    if options.strategy and mode == "new" and not resume:
+    if options.strategy and mode in ("new", *ENTRY_MODES) and not resume:
         out += ["--strategy", options.strategy]
+    if options.attempts and mode in ENTRY_MODES and not resume:
+        out += ["--attempts", str(options.attempts)]
     return out
 
 

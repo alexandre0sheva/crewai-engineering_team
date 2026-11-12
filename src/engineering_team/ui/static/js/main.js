@@ -7,6 +7,8 @@ import { announce, errorState, loading, button } from "./ui.js";
 
 const ROUTES = [
   [/^\/?$/, "new", () => import("./pages/new_run.js"), "New run"],
+  [/^\/classic\/?$/, "new", () => import("./pages/classic_run.js"), "New run (per-mode form)"],
+  [/^\/learning\/?$/, "learning", () => import("./pages/learning.js"), "Learning"],
   [/^\/runs\/?$/, "runs", () => import("./pages/history.js"), "Runs"],
   [/^\/runs\/([^/]+)\/results\/?$/, "runs", () => import("./pages/results.js"), "Results"],
   [/^\/runs\/([^/]+)\/?$/, "runs", () => import("./pages/run.js"), "Run"],
@@ -18,7 +20,7 @@ let cleanup = null;
 let navigation = 0;
 
 async function show() {
-  const path = location.hash.replace(/^#/, "") || "/";
+  const path = location.hash.replace(/^#/, "").split("?")[0] || "/";
   const found = ROUTES.map(([pattern, nav, load, title]) => [pattern.exec(path), nav, load, title]).find(([m]) => m);
   const ticket = ++navigation;
   if (cleanup) {

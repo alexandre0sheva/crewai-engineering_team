@@ -264,6 +264,9 @@ engineering-team memory forget ID
 engineering-team memory clear [--yes]
 ```
 
+The web UI's Learning screen lists the same facts with their evidence and a **Forget** button
+([USAGE.md](USAGE.md#web-ui)).
+
 `[memory]` in the configuration ([CONFIGURATION.md](CONFIGURATION.md#repo-memory-memory-config-file-only)) switches it
 off or sizes it. A damaged `facts.jsonl` is reported with one line per bad line; the run goes on without memory and
 the file is left alone (`memory clear` removes it).
@@ -345,6 +348,9 @@ engineering-team lessons show ID       # the cue, the lesson and the evidence (a
 engineering-team lessons approve ID    # learning.review = "manual"
 engineering-team lessons forget ID
 ```
+
+The Learning screen of the web UI lists them too (pending ones first) with **Approve**, **Reject** and **Forget**,
+and a run's results show the harness and the lessons it was given ([USAGE.md](USAGE.md#web-ui)).
 
 `[learning]` in the configuration ([CONFIGURATION.md](CONFIGURATION.md#lessons-learning)) switches it off or sizes it.
 

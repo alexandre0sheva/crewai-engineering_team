@@ -278,11 +278,11 @@ def render_plan(plan: DoPlan) -> list[str]:
     lines += [f"  rule: {o}" for o in profile.overrides]
     lines += [f"Note: {note}" for note in plan.notes]
     lines.append(f"Harness: {describe(harness_of(plan))}")
-    lines.append(_route_line(plan))
+    lines.append(route_line(plan))
     for index, stage in enumerate(plan.stages, 1):
         cost = f", {stage.cost}" if stage.cost else ""
         lines += [f"  {index:2}. {stage.name} [{stage.kind}{cost}]", f"      {stage.why}"]
-    lines.append(_cost_line(plan))
+    lines.append(cost_line(plan))
     usage = plan.triage.usage
     if usage is not None:
         lines.append(
@@ -292,7 +292,7 @@ def render_plan(plan: DoPlan) -> list[str]:
     return lines
 
 
-def _route_line(plan: DoPlan) -> str:
+def route_line(plan: DoPlan) -> str:
     if plan.route == "review":
         return "Plan: a read-only review of your change (nothing is modified)."
     if plan.route == "analyze":
@@ -320,7 +320,7 @@ def _route_line(plan: DoPlan) -> str:
     return f"Plan: strategy {plan.strategy}, recipe {name} ({plan.size} task); stages:"
 
 
-def _cost_line(plan: DoPlan) -> str:
+def cost_line(plan: DoPlan) -> str:
     if plan.route in ("review", "analyze", "answer"):
         return "Cost: not estimated (read-only)."
     first, worst = money(plan.first_usd), money(plan.worst_usd)

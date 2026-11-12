@@ -1,0 +1,67 @@
+/* The v2 screens: the plan preview, answer, escalation ladder, attempts, thread, learning.
+   Built from the tokens and components of app.css; nothing here has colours of its own. */
+
+ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+ul.learned { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+
+/* -- the plan on the new-run page -- */
+.plan-head h3 { margin: 0 0 4px; }
+.plan-stages summary, details > summary { cursor: pointer; }
+.plan-stages table { margin-top: 8px; }
+
+/* -- answer -- */
+.prose { margin: 0 0 8px; max-width: 72ch; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+pre.plan-text { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; font-family: var(--font-body); max-width: none; }
+.answer-summary { font-size: 1.06em; }
+.answer-section h3 { margin: 0 0 4px; }
+.cite {
+  font: inherit; font-size: 0.8em; vertical-align: super; line-height: 1; padding: 0 2px; margin: 0 1px;
+  border: 0; background: none; color: var(--info); cursor: pointer; border-radius: 3px;
+}
+.cite:hover, .cite:focus-visible { background: var(--info-soft); }
+ol.sources { margin: 0; padding-left: 1.4em; display: grid; gap: 12px; }
+ol.sources li.unverified { border-left: 3px solid var(--bad); padding-left: 10px; margin-left: -12px; }
+ol.sources blockquote {
+  margin: 6px 0 0; padding: 4px 10px; border-left: 3px solid var(--line-strong); color: var(--muted);
+  font-family: var(--font-mono); font-size: 0.86em; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+/* -- escalation ladder -- */
+ol.ladder { list-style: none; margin: 0; padding: 0 0 0 22px; border-left: 2px solid var(--line-strong); display: grid; gap: 14px; }
+.rung { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; display: grid; gap: 4px; }
+.rung::before {
+  content: ""; position: absolute; left: -30px; top: 16px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--line-strong);
+}
+.rung.good::before { border-color: var(--good); background: var(--good); }
+.rung.warn::before { border-color: var(--warn); background: var(--warn); }
+.rung.info::before { border-color: var(--info); }
+.rung p { margin: 0; }
+
+/* -- attempts -- */
+.attempt-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.attempt { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 8px; align-content: start; }
+.attempt.chosen { border-color: var(--good); box-shadow: 0 0 0 1px var(--good); }
+.attempt.bad { border-color: var(--bad); }
+.attempt .sub { margin-left: 8px; }
+.attempt .chip { justify-self: start; }
+
+/* -- thread -- */
+.thread-strip { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.thread-strip .eyebrow { margin: 0; }
+.thread-strip ol { list-style: none; margin: 0; padding: 0; display: flex; gap: 8px; flex-wrap: wrap; }
+.thread-strip li { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.thread-strip li.current { border-color: var(--accent); }
+
+/* -- learning -- */
+.fact, .lesson { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; }
+.lesson.pending { border-color: var(--warn); background: var(--warn-soft); }
+.fact.stale { opacity: 0.8; }
+.fact p, .lesson p { margin: 6px 0 0; overflow-wrap: anywhere; }
+
+/* A wide table (the plan's stages) must scroll inside its card, not widen the column. */
+.layout-2 > * { min-width: 0; }
+
+/* A long path or word in the plan wraps; it must not widen the column (a bare grid track is as
+   wide as its widest unbreakable content). */
+#triage-body, #triage-body > .stack { grid-template-columns: minmax(0, 1fr); overflow-wrap: break-word; }

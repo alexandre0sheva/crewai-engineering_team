@@ -91,7 +91,7 @@ def _scores(selection: Selection) -> list[list[str]]:
     ]
 
 
-def _notes(record: AttemptsRecord) -> list[str]:
+def notes(record: AttemptsRecord) -> list[str]:
     selection = record.selection
     notes: list[str] = []
     if selection is not None:
@@ -131,7 +131,7 @@ def markdown(
     if selection is not None and selection.scores:
         head = ["Candidate", "Correctness", "Minimality", "Consistency", "Tests", "Total"]
         lines += ["", *md_table(head, _scores(selection))]
-    lines += ["", *(f"- {cell(note)}" for note in _notes(record))]
+    lines += ["", *(f"- {cell(note)}" for note in notes(record))]
     return lines
 
 
@@ -148,5 +148,5 @@ def html(record: AttemptsRecord | None) -> str:
         head = ["Candidate", "Correctness", "Minimality", "Consistency", "Tests", "Total"]
         scores = [[esc(c) for c in row] for row in _scores(selection)]
         body += "<h3>Judge's scores</h3>" + table(head, scores, (1, 2, 3, 4, 5))
-    body += "<ul>" + "".join(f"<li>{esc(note)}</li>" for note in _notes(record)) + "</ul>"
+    body += "<ul>" + "".join(f"<li>{esc(note)}</li>" for note in notes(record)) + "</ul>"
     return section("attempts", "Attempts", body)

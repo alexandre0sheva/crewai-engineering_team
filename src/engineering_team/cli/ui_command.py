@@ -96,12 +96,25 @@ def _demo(settings: Settings, config: str | None) -> tuple[Settings, Any, str]:
     import tempfile
     from pathlib import Path
 
+    from engineering_team.learning.library import user_library
+    from engineering_team.settings.loading import set_user_data_home
     from engineering_team.ui.demo import DEMO_BUDGET_USD, ensure_sample_repo
+    from engineering_team.ui.demo_data import seed_learning
     from engineering_team.ui.launcher import RunLauncher
 
     root = Path(tempfile.mkdtemp(prefix="engineering-team-demo-"))
+    # The demo's lessons live in its own directory: the runs it starts (which inherit this
+    # variable) and the learning screens read it, and your own library is never touched.
+    set_user_data_home(root / "data")
+    library = user_library()
+    if library is not None:
+        seed_learning(library)
     settings = settings.with_overrides(
-        {"workspace_root": str(root / "runs"), "budget.max_cost_usd": DEMO_BUDGET_USD},
+        {
+            "workspace_root": str(root / "runs"),
+            "budget.max_cost_usd": DEMO_BUDGET_USD,
+            "learning.review": "manual",
+        },
         source="--demo",
     )
     launcher = RunLauncher(

@@ -834,6 +834,10 @@ keep one chosen on evidence (`pipeline/attempts.py`, `attempts_run.py`, `attempt
   one the attempt was verified on (`revision_match`); if it is not, the run fails rather than claim
   a verification that does not carry over. Every attempt stays as `attempts/<label>.patch` (a
   `git diff`-style patch) and its run directory as `attempts/<label>/run`; the copies are deleted.
+  For a change to an existing project the run then writes `changes.patch` and `CHANGE_SUMMARY.md` for the
+  chosen attempt against the run's starting commit, as any run does: an attempt walks its recipe without the
+  `change_summary` stage (its copy has no isolation record or base commit), and the run measures once, on its
+  own branch or worktree, where the chosen changes were committed.
 - **Cost and budget.** Before anything starts, N runs of the attempt's prior plus the judge are
   estimated (`bench/estimate.py`); more than `budget.max_cost_usd` has left refuses the attempts
   with that reason. Each attempt's model and tool calls are also written to the run's own log (stage
@@ -1318,7 +1322,8 @@ over what the CLI already writes; nothing runs a team inside the server.
 
 | Endpoint (`/api/v1`) | What it does |
 |---|---|
-| `POST /runs` | Start a run (`mode` new/feature/fix/maintain/review, request text, uploads as multipart, `repo`, options); 202 with the run id, 429 at the concurrency limit, 422 for a bad request |
+| `POST /runs` | Start a run (`mode` do/continue or the older presets new/feature/fix/maintain/review, request text, uploads as multipart, `repo`, options; `do` takes `intent` to force the kind of work and `options.attempts`, `continue` a `parent` run and `implement`); 202 with the run id, 429 at the concurrency limit, 409 for a follow-up of a run still going, 422 for a bad request |
+| `POST /triage` | What `do` would make of a request, before anything starts: understood intent, size and risk, the starting rung and how far it may climb, the stages with their reasons, the estimate, the harness (`ui/triage_view.py` over `cli/do_plan.py`); the signals decide unless `refine` asks the model's cheap triage (never in demo mode) |
 | `GET /runs`, `GET /runs/{id}` | Runs of every project; one run with its manifest, progress, usage, budget against its limits, checks, `attention` (questions, blocked cards, budget, failed checks), open questions, last event `seq`, and the process the UI started for it (`status` is `starting` before the manifest exists, `failed` with the process log's tail if it never got one) |
 | `GET /runs/{id}/events` | SSE tail of `events.jsonl`; `id` is the event `seq`; resume with `Last-Event-ID` or `?after=`; `?follow=false`, `?types=board.,stage.`; ends with `event: end` once the run is over |
 | `POST /runs/{id}/cancel`, `/resume` | As the CLI commands (resume waits briefly for the old process to exit) |
@@ -1332,16 +1337,30 @@ over what the CLI already writes; nothing runs a team inside the server.
 | `GET /runs/{id}/artifacts[/path]` | Screenshots, command logs, reports, the patch: only what the listing names |
 | `GET /runs/{id}/files[/path]` | Read-only project files, with the agents' path rules plus: no secrets (`.env`, keys, `.ssh/`, ...) |
 | `GET /runs/{id}/diff`, `/report` | The change since the starting commit (feature/fix/maintain); the run report (`?format=html|md`, served with a sandboxing CSP) |
-| `GET /runs/{id}/results` | The run report as JSON (banner, summaries, criteria coverage, checks, findings, parsed diff, screenshots, warnings) plus `merge`: where the work is and the commands to take it (`null` for a new project) |
+| `GET /runs/{id}/results` | The run report as JSON (banner, summaries, criteria coverage, checks, findings, parsed diff, screenshots, warnings) plus `merge`: where the work is and the commands to take it (`null` for a new project), and `views` (`ui/result_views.py`): the answer or stored plan with each source's check, the escalation timeline, the attempts and the choice, and the thread with what a follow-up may do |
+| `GET /runs/{id}/learning` | The harness the run resolved (packs, skills, which it loaded), the lessons it was given, and its project's memory (`ui/learning_views.py`) |
+| `GET /memory?repo=`, `POST /memory/{id}/forget` | A project's remembered facts (stale ones marked first), and deleting one |
+| `GET /lessons[?repo=]`, `POST /lessons/{id}/approve`, `POST /lessons/{id}/reject` | The experience library (the user's, plus the project's), pending lessons first; approving moves a pending lesson into its domain, rejecting deletes any |
 | `GET /config`, `/doctor`, `/team`, `/recipes` | Masked settings, the machine check, teammates, recipes |
 | `GET /repo/inspect?path=` | A project directory's stack and Git state, and how the team would be isolated from it (`branch`, `worktree`, `copy`) |
 | `GET /options[?provider=&profile=]` | What the start form offers: modes, request templates, defaults, the models (with prices) the choice would use, which optional tools this machine has, and the demo sample project when serving `--demo` |
 | `GET /health`, `GET /`, `GET /static/...` | Version and whether a token is needed; the app shell. These are the only calls that need no token |
 
+**One box.** `POST /runs` with `mode: "do"` starts `engineering-team do --yes --non-interactive` and `mode: "continue"`
+starts `continue PARENT --yes --non-interactive` as the same kind of subprocess as any run: the page showed the plan
+(`POST /triage`) before the person pressed start, and the team's questions come through the inbox. The process starts
+in a neutral directory (never the server's own, which `do` would take for the project when it is a Git
+repository), so the project is always `--repo` or a new one in the workspace root. A follow-up is refused unless its
+parent has ended. In `ui --demo` the environment pins the pipeline for the older forms, so a `do` start without a
+strategy gets the server's own (what its preview said). The page computes none of the views the results and
+learning screens show: the server words and orders them from the controller's records (`ladder.json`,
+`attempts.json`, the answer and its citation check, `lessons.json`, the manifests of the thread).
+
 **App shell** (`ui/static/`, served at `/` and `/static/`). Vanilla ES modules and one stylesheet, no build step and no
 third-party code: the pages are small, nothing needs a framework's reactivity, and a bundler or CDN would add a
 supply chain to a tool that runs with your model keys. Each screen is a module with `mount(root, params)` under
-`js/pages/`; `js/dom.js` builds elements from text only (never from HTML strings), `js/ui.js` is the one component
+`js/pages/` (`new_run.js` the one box and its plan, `classic_run.js` the per-mode form, `learning.js` the learning screen;
+the results tabs for the answer, escalation, attempts, thread and learning are `results_*.js`); `js/dom.js` builds elements from text only (never from HTML strings), `js/ui.js` is the one component
 vocabulary (chips, meters, tabs, states) the live dashboard reuses, `js/api.js` is the only code that calls the server
 (it adds the header mutating calls need and the bearer token, and reads the event stream with `fetch` because
 `EventSource` cannot send headers). Routes are hash-based (`#/runs/ID`), so the server has nothing to rewrite. The

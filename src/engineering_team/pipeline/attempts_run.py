@@ -35,7 +35,7 @@ from engineering_team.pipeline.attempts_contracts import ATTEMPTS_DIR, AttemptRe
 from engineering_team.pipeline.attempts_tree import TreeDiff, make_copy, tree_diff
 from engineering_team.pipeline.flow import run_flow
 from engineering_team.pipeline.ladder_brief import failing_checks
-from engineering_team.pipeline.recipes import Recipe
+from engineering_team.pipeline.recipes import Recipe, RecipeError
 from engineering_team.pipeline.stages import StageRunner
 from engineering_team.pipeline.state import STATE_FILENAME, PipelineState, RunBundle
 from engineering_team.runtime.context import RunContext
@@ -48,6 +48,10 @@ from engineering_team.tools.workspace import CONTROLLER_DIRECTORY, ProjectWorksp
 from engineering_team.verification.checks_file import PINNED_FILENAME
 
 ATTEMPTS_STAGE = "attempts"  # the run's stage that holds the attempts
+# Controller stages an attempt leaves out: they measure the change against the starting commit of
+# the run's own branch, which an attempt's copy does not have. The run writes them once, for the
+# chosen attempt (``write_change_summary``).
+RUN_LEVEL_ACTIONS = ("change_summary",)
 FORWARDED = ("llm.call", "tool.call")  # what the run's own log also gets from an attempt
 MODEL_TIERS = ("worker", "reviewer", "lead")
 RUN_FILES = (PINNED_FILENAME, LESSONS_FILE)  # what an attempt's run directory starts with
@@ -278,3 +282,56 @@ def adopt_state(ctx: RunContext, attempt: Attempt) -> None:
         source = ctx.run_dir / attempt.record.run_dir / STATE_FILENAME
         if source.is_file():
             shutil.copyfile(source, ctx.run_dir / STATE_FILENAME)
+
+
+def attempt_recipe(recipe: Recipe) -> Recipe:
+    """``recipe`` as an attempt walks it: without the stages in ``RUN_LEVEL_ACTIONS``."""
+
+    if not any(s.action in RUN_LEVEL_ACTIONS for s in recipe.stages):
+        return recipe
+    produced = {"request"}
+    kept = []
+    for stage in recipe.stages:
+        if stage.action in RUN_LEVEL_ACTIONS:
+            continue
+        inputs = [name for name in stage.inputs if name in produced or name not in _outputs(recipe)]
+        kept.append(
+            stage.model_copy(update={"inputs": inputs}) if inputs != stage.inputs else stage
+        )
+        produced.update(stage.contract_outputs)
+    try:
+        copy = Recipe(
+            name=recipe.name,
+            description=recipe.description,
+            mode=recipe.mode,
+            policies=list(recipe.policies),
+            stages=kept,
+        )
+    except ValueError as exc:
+        raise RecipeError(f"Recipe '{recipe.name}' cannot be run as an attempt: {exc}") from exc
+    copy.source, copy.path = recipe.source, recipe.path
+    return copy
+
+
+def write_change_summary(ctx: RunContext) -> str:
+    """The run's ``changes.patch`` and ``CHANGE_SUMMARY.md`` for the chosen attempt, now applied
+    and committed on the run's own workspace: the controller's measure of the change, as in any
+    run that changes a project. Returns "" for a run that has no isolation record (a new project
+    has no base commit and no summary stage)."""
+
+    from engineering_team.modes.change_report import change_summary_action
+    from engineering_team.modes.isolation import read_isolation
+
+    isolation = read_isolation(ctx.workspace.root)
+    state = PipelineState.load(ctx.run_dir)
+    if isolation is None or state is None:
+        return ""
+    state.isolation = isolation.to_json()  # the attempt's own run had none: its copy has no record
+    note = change_summary_action(ctx, state)
+    state.summaries["summary"] = note
+    state.save(ctx.run_dir)
+    return note
+
+
+def _outputs(recipe: Recipe) -> set[str]:
+    return {name for stage in recipe.stages for name in stage.contract_outputs}

@@ -19,7 +19,9 @@ from engineering_team.ui import (
     routes_board,
     routes_files,
     routes_info,
+    routes_learning,
     routes_runs,
+    routes_triage,
 )
 from engineering_team.ui.launcher import RunLauncher, StartError
 from engineering_team.ui.security import GuardMiddleware, Security
@@ -126,6 +128,8 @@ def create_app(
         routes_board.router,
         routes_files.router,
         routes_info.router,
+        routes_learning.router,
+        routes_triage.router,
     ):
         app.include_router(router, prefix=API_PREFIX)
     return app
