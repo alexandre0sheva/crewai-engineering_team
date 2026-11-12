@@ -17,7 +17,7 @@ uv run engineering-team <command> --help # its options
 | `feature --repo PATH --request ...` | Add a feature to an existing project on a branch, worktree, or copy, verified against its baseline ([Feature mode](#feature-mode)). |
 | `fix --repo PATH --request ...` | Fix a bug in an existing project: reproduce it (red), fix it, prove it gone (green) ([Fixing a bug](#fixing-a-bug)). |
 | `maintain --task T --repo PATH` | Maintain an existing project: `add-tests`, `refactor`, `upgrade-deps`, `docs`, `security-audit`, `custom`, or a recipe of your own ([Maintaining a project](#maintaining-a-project)). |
-| `review [--base BRANCH]` | A read-only review of a branch or your working diff; `findings.json` for CI, exit 3 on a serious finding ([Reviewing a change](#reviewing-a-change)). |
+| `review [--base BRANCH]` | A read-only review of a branch or your working diff; `findings.json` (and SARIF) for CI, exit 3 on a serious finding ([Reviewing a change](#reviewing-a-change), [In CI](#in-ci-github-actions)). |
 | `harness show [--domain bugfix/python]` / `harness import PATH` / `harness tune` / `harness adopt DIR` | Which packs and skills a kind of work gets, importing a repository's skills or `AGENTS.md` as skills ([HARNESS.md](HARNESS.md#domains)), and tuning a domain's harness on the benchmark, then adopting an accepted result ([HARNESS.md](HARNESS.md#tuning); source checkout only). |
 | `memory list` / `show ID` / `forget ID` / `clear` | The verified facts the team remembers about a repository (the test command, setup steps, flaky tests) and why ([HARNESS.md](HARNESS.md#repo-memory)). |
 | `lessons list` / `show ID` / `approve ID` / `forget ID` | The lessons the team learned from verified runs, per kind of work, and approving the ones that wait for review ([HARNESS.md](HARNESS.md#lessons)). |
@@ -669,6 +669,8 @@ uv run engineering-team runs --thread 20261031-101500-ab12cd                  # 
 uv run engineering-team review --base main                       # everything on this branch since main
 uv run engineering-team review                                    # your uncommitted changes, or the work since main/master
 uv run engineering-team review --base origin/main --out-dir ci-artifacts --focus "the new migration"
+uv run engineering-team review --base main --format sarif --fail-on medium --max-cost-usd 1   # for code scanning
+uv run engineering-team review --base main --fake                                             # offline: no key, no spend
 ```
 
 `review` is read-only and runs in place: nothing in your project is written except the controller's own state
@@ -679,12 +681,81 @@ directory, and to `--out-dir`:
 
 - `findings.json`: `kind`, `run_id`, `base`, `base_branch`, `head`, `fail_on`, `passed`, `counts` per severity, and the
   `findings` (`id`, `severity`, `summary`, `file`, `line`, `suggested_fix`, `source_role`), most severe first;
-- `findings.md`: the same for people.
+- `findings.md`: the same for people;
+- with `--format sarif`, `findings.sarif`: the same as [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
+  for GitHub code scanning. One rule per severity (`engineering-team/review/high`, ...); `critical` and `high` are
+  level `error`, `medium` is `warning`, `low` and `info` are `note`. SARIF puts every result in a file, so a
+  project-wide finding (no file) is not a result: its id is listed under `runs[0].properties.withoutLocation` and it
+  stays in `findings.json` and `findings.md`.
+
+`--fail-on low|medium|high|critical` sets the threshold for one run (otherwise `review.fail_on`), and
+`--max-cost-usd N` the budget (otherwise `budget.max_cost_usd`; the run stops itself there). `--fake` replaces the
+model with a scripted one that finds nothing: it needs no key and spends nothing, and shows that a pipeline's wiring
+works, not that a change is good. `--out-dir` receives every file written.
 
 The exit code is the contract for a pipeline: **0** when no finding reaches `review.fail_on` (default `high`), **3**
 when one does, **2** for a bad `--base` or a directory that is not a repository, 1 for a failure. A clean branch with
 nothing to compare says so and exits 0. `--json` prints the findings on stdout. A finding is a claim to check, not a
 proven defect.
+
+### In CI (GitHub Actions)
+
+The repository's root [`action.yml`](../action.yml) is a composite GitHub Action that runs `review` on a pull
+request, and [`examples/github-actions/`](../examples/github-actions/) has two workflows to copy. Read
+[the safety notes](SAFETY.md#github-actions) first: the permissions each needs, what a fork's pull request gets, and
+what the model provider sees.
+
+```yaml
+permissions: {contents: read, pull-requests: write, security-events: write}
+steps:
+  - uses: actions/checkout@v7
+    with: {fetch-depth: 0}                 # the review needs the base branch's history
+  - uses: alexandre0sheva/crewai-engineering_team@v0.3.0   # pin a tag or a commit you have read
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}        # a repository secret, never a literal
+    with: {provider: openai, max-cost-usd: "2", fail-on: high}
+```
+
+The action installs the package with `uv` (from the action's own checkout, with the locked dependencies), runs
+`review` on the pull request's diff against its base branch, and then, whatever the result:
+
+1. uploads `findings.sarif` to code scanning (category `engineering-team-review`);
+2. posts one summary comment (the text of `findings.md`) and **updates it** on every push, found again by a hidden
+   marker; no other comment is touched;
+3. writes the same summary to the job summary and keeps `findings.json`, `findings.md` and `findings.sarif` as the
+   `engineering-team-review` artifact;
+4. fails the job with the review's exit code (`3` when a finding reaches `fail-on`; see [Exit codes](#exit-codes)).
+
+| Input | Default | Meaning |
+|-------|---------|---------|
+| `provider` | the configured one | Model provider preset (`openai`, `anthropic`, `google`, `openrouter`, `ollama`, `value`). Its key is a repository secret passed in `env`, never an input |
+| `profile` | the configured one | Model preset (quality/cost routing): `standard`, `smoke`, `max-quality` |
+| `max-cost-usd` | `2` | Budget for the review in USD; the run stops itself there |
+| `fail-on` | `high` | Fail the job at this severity or above: `low`, `medium`, `high`, `critical` |
+| `base` | the pull request's base branch | What the change is compared with (a branch, tag or commit) |
+| `focus` | none | What the reviewers should look at hardest |
+| `fake` | `false` | Offline run with a scripted model that finds nothing: no key, no spend. Checks the wiring only |
+| `upload-sarif` | `true` | Upload to code scanning (needs `security-events: write`; on private repositories, GitHub Code Security). A failed upload is a warning, not a failure |
+| `comment` | `true` | Post or update the summary comment (needs `pull-requests: write`); on a fork's pull request the token is read-only and this only warns |
+| `github-token` | `github.token` | The token for the comment and the upload; the workflow's own is enough |
+
+Outputs: `exit-code`, `passed` (`true`/`false`) and `findings-dir`.
+
+**Cost.** A review is a few model calls by two reviewers on the diff: typically cents to a few tens of cents for a
+pull request of ordinary size, billed to **your** provider account; `max-cost-usd` caps one run, and
+[`concurrency`](https://docs.github.com/actions/using-jobs/using-concurrency) in the example cancels a review a newer
+push makes stale. The `--fake` review costs nothing, and this repository runs it on its own pull requests
+([`.github/workflows/review.yml`](../.github/workflows/review.yml)).
+
+**Fixing an issue on a label.** [`fix-on-label.yml`](../examples/github-actions/fix-on-label.yml) runs when an issue
+gets the label `engineering-team:fix`:
+`do --mode fix --issue owner/repo#N --open-pr --yes --sandbox docker` ([GitHub issues and draft pull
+requests](#github-issues-and-draft-pull-requests)). Every command runs in the Docker sandbox; when the run passes its
+checks the branch is pushed and a **draft** pull request that closes the issue is opened; nothing is merged and a run
+that does not pass opens nothing. It needs `contents: write` and `pull-requests: write`, the repository setting
+*Allow GitHub Actions to create and approve pull requests*, and the provider key as a secret. Its budget is
+`ENGINEERING_BUDGET_MAX_COST_USD` in the workflow (a fix run typically costs tens of cents to a few dollars). A pull
+request opened with the workflow's own token does not start your other workflows (GitHub's rule against loops).
 
 ### Your own recipes
 

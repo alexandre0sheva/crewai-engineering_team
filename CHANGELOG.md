@@ -11,6 +11,13 @@ renames that section and dates it.
 
 ### Added
 
+- GitHub Action for pull-request review ([docs/USAGE.md](docs/USAGE.md#in-ci-github-actions)): the root `action.yml`
+  runs the read-only `review` on the pull request's diff, uploads the findings to code scanning as SARIF, posts or
+  updates one summary comment and fails the job at the chosen severity (inputs: provider, model preset, budget,
+  fail-on). `review` gains `--format sarif` (`findings.sarif`), `--fail-on`, `--max-cost-usd` and `--fake` (an offline,
+  scripted model: no key, no spend). `examples/github-actions/` has the review workflow and a fix-on-label workflow
+  (`do --issue --open-pr` in the Docker sandbox, draft pull request); this repository reviews its own pull requests
+  with the action in `--fake` mode. Permissions, secrets and cost: [docs/SAFETY.md](docs/SAFETY.md#github-actions).
 - GitHub issue intake and opt-in draft pull requests ([docs/USAGE.md](docs/USAGE.md#github-issues-and-draft-pull-requests)):
   `do --issue owner/repo#N` (or an issue URL) reads the title, body and comments through `gh` and uses them as the
   request, and the issue is cited in the report. `do --open-pr` (or `github.open_pr = true`; never the default)

@@ -1,0 +1,31 @@
+name: Review
+
+# This repository's own pull requests go through its own action (see action.yml) in --fake mode: a
+# scripted model that finds nothing, so no key, no spend, and nothing posted. It proves the action's
+# wiring (fetching the base, `review`, SARIF, the findings files, the exit code) on every change to
+# it; a real review needs a provider key (examples/github-actions/review.yml).
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review (offline, --fake)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./
+        with:
+          fake: "true"
+          comment: "false"
+          upload-sarif: "false"

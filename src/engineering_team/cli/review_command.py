@@ -9,6 +9,7 @@ the run directory (and to ``--out-dir``) and exits 3 when a finding reaches ``re
 from __future__ import annotations
 
 import shutil
+from importlib import metadata
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Annotated, Any
@@ -20,8 +21,10 @@ from engineering_team.cli.context import get as get_globals
 from engineering_team.intake.errors import IntakeError
 from engineering_team.model_routing import PROFILE_NAMES, PROVIDERS
 from engineering_team.modes.findings_report import FINDINGS_JSON, FINDINGS_MD, read_findings
+from engineering_team.modes.findings_sarif import FINDINGS_SARIF, write_sarif
 from engineering_team.modes.isolation import exclude_workspace_root
 from engineering_team.modes.repo_analyzer import standalone_git
+from engineering_team.modes.review_offline import offline_runner
 from engineering_team.modes.run_options import write_run_options
 from engineering_team.pipeline.recipes import load_recipe
 from engineering_team.pipeline.state import RunBundle
@@ -38,8 +41,14 @@ from engineering_team.workspaces import resolve_workspace_root, slugify_project_
 DEFAULT_REQUEST = "Review the change."
 
 
-def open_review(settings: Settings, root: Path, base: str | None, focus: str | None) -> Any:
-    """Open a run that reviews ``root`` in place. The caller releases the lock when it is over."""
+FORMATS = ("sarif",)  # files written besides findings.json and findings.md
+
+
+def open_review(
+    settings: Settings, root: Path, base: str | None, focus: str | None, *, fake: bool = False
+) -> Any:
+    """Open a run that reviews ``root`` in place. The caller releases the lock when it is over.
+    ``fake``: the reviewers are a scripted model that finds nothing (no key, no spend)."""
 
     from engineering_team.main import PreparedRun
 
@@ -76,9 +85,23 @@ def open_review(settings: Settings, root: Path, base: str | None, focus: str | N
         lock=lock,
         recorder=recorder,
         bundle=RunBundle(requirements=request),
-        strategy=get_strategy("pipeline"),
+        strategy=get_strategy("pipeline", offline_runner if fake else None),
         recipe=recipe,
     )
+
+
+def _formats(values: list[str] | None) -> list[str] | None:
+    for value in values or []:
+        if value not in FORMATS:
+            raise typer.BadParameter(f"{value!r} is not one of {', '.join(FORMATS)}.")
+    return values
+
+
+def _version() -> str:
+    try:
+        return metadata.version("engineering_team")
+    except metadata.PackageNotFoundError:
+        return "unknown"
 
 
 def review(
@@ -96,8 +119,37 @@ def review(
     ] = None,
     out_dir: Annotated[
         str | None,
-        typer.Option(help="Also copy findings.json and findings.md here (for a CI artifact)."),
+        typer.Option(help="Also copy findings.json, findings.md (and findings.sarif) here."),
     ] = None,
+    fmt: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--format",
+            callback=_formats,
+            help="Also write findings.sarif (SARIF 2.1.0, for GitHub code scanning): sarif.",
+        ),
+    ] = None,
+    fail_on: Annotated[
+        str | None,
+        typer.Option(
+            callback=one_of(["low", "medium", "high", "critical"]),
+            help="Exit 3 at this severity or above (default: review.fail_on, high).",
+        ),
+    ] = None,
+    max_cost_usd: Annotated[
+        float | None,
+        typer.Option(
+            min=0.01, help="Stop the run when it has spent this much (budget.max_cost_usd)."
+        ),
+    ] = None,
+    fake: Annotated[
+        bool,
+        typer.Option(
+            "--fake",
+            help="Offline: a scripted model that finds nothing. No key, no spend; for trying a "
+            "pipeline.",
+        ),
+    ] = False,
     provider: Annotated[
         str | None, typer.Option(callback=one_of(list(PROVIDERS)), help="Model provider preset.")
     ] = None,
@@ -129,12 +181,16 @@ def review(
             "git.enabled": False,  # no stage commits: a review never makes history in your repo
             "project_name": label,
         }
+        if fail_on:
+            overrides["review.fail_on"] = fail_on
+        if max_cost_usd is not None:
+            overrides["budget.max_cost_usd"] = max_cost_usd
         settings = load_settings(overrides=overrides, config_file=config)
-        settings.check_ready(require_credentials=True)
+        settings.check_ready(require_credentials=not fake)
         try:
             exclude_workspace_root(root, resolve_workspace_root(settings.workspace_root))
             register_workspace(settings.workspace_root, root, label)  # `status` and `board` find it
-            return open_review(settings, root, base, focus)
+            return open_review(settings, root, base, focus, fake=fake)
         except IntakeError as exc:
             raise ValueError(str(exc)) from exc
 
@@ -151,10 +207,15 @@ def review(
                 data["findings_json"] = str(path)
                 data["findings_md"] = str(run_dir / FINDINGS_MD)
                 data["report"] = str(run_dir / FINDINGS_MD)
+                names = [FINDINGS_JSON, FINDINGS_MD]
+                if "sarif" in (fmt or []):
+                    write_sarif(found, run_dir / FINDINGS_SARIF, version=_version())
+                    data["findings_sarif"] = str(run_dir / FINDINGS_SARIF)
+                    names.append(FINDINGS_SARIF)
                 if out_dir:
                     target = Path(out_dir).expanduser().resolve()
                     target.mkdir(parents=True, exist_ok=True)
-                    for name in (FINDINGS_JSON, FINDINGS_MD):
+                    for name in names:
                         shutil.copyfile(run_dir / name, target / name)
                     data["findings_copied_to"] = str(target)
             data["next_steps"] = [s for s in data["next_steps"] if "resume" not in s]

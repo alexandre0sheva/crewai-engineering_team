@@ -115,6 +115,7 @@ One home per fact: update the canonical file and link to it from elsewhere inste
 | Teammates and how to add one; default tool groups per teammate | `docs/TEAM.md` | |
 | Harness: prompt components, composition order, overrides; later skills, memory and lessons | `docs/HARNESS.md` | TEAM.md links to it for prompt files. |
 | Task board / dashboard behaviour and card lifecycle | `docs/ARCHITECTURE.md` (board section) + `docs/USAGE.md` (viewing progress) | |
+| GitHub Action (`action.yml`), its inputs, permissions and cost | `docs/USAGE.md` (In CI) + `docs/SAFETY.md` (GitHub Actions) | Example workflows live in `examples/github-actions/`. |
 | Runnable examples and their sample run reports | `examples/` | Reports are regenerated offline by `scripts/make_example_reports.py`. |
 | Benchmark method + results | `docs/BENCHMARKS.md` | README links only. |
 | Dev workflow, doc map, release process | `CONTRIBUTING.md` | This table. |

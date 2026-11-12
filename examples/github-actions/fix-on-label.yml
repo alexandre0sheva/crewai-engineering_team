@@ -1,0 +1,62 @@
+# Fix an issue when someone labels it `engineering-team:fix`.
+#
+# Copy this file to .github/workflows/engineering-team-fix.yml in your repository and add the
+# repository secret OPENAI_API_KEY (or the key of the provider you choose). Then, in
+# Settings > Actions > General > Workflow permissions, tick "Allow GitHub Actions to create and
+# approve pull requests" (the draft pull request is opened with the workflow's own token).
+#
+# What it does: runs `do --mode fix --issue ... --open-pr` on the issue, with every command in the
+# Docker sandbox. When the run passes its checks, the branch `engineering-team/<run-id>-<slug>` is
+# pushed and a DRAFT pull request that closes the issue is opened; nothing is merged. A run that does
+# not pass opens nothing. Cost: a fix run is typically a few tens of cents to a few dollars; it stops
+# itself at `ENGINEERING_BUDGET_MAX_COST_USD` (see the workflow). A pull request opened with the workflow's token does not start your
+# other workflows (GitHub's rule against loops): push an empty commit to it, or use a GitHub App
+# token, if you want CI to run on it. See docs/USAGE.md#in-ci-github-actions and
+# docs/SAFETY.md#github-actions.
+#
+# Only people with triage access or more can label an issue, so who may spend your money is who
+# may label. The issue's text is untrusted input to the agents (it changes no permission, budget or
+# check), but it is still text a stranger may have written: label only issues you would act on.
+
+name: Engineering team fix
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write # push the branch
+  pull-requests: write # open the draft pull request
+  issues: read # read the issue
+
+concurrency:
+  group: engineering-team-fix-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    if: github.event.label.name == 'engineering-team:fix'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the team's branch starts from the default branch's history
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: false
+      - name: Fix the issue and open a draft pull request
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }} # secrets only, never in the file
+          GH_TOKEN: ${{ github.token }} # `gh` reads the issue and opens the pull request
+          ISSUE: ${{ github.repository }}#${{ github.event.issue.number }}
+          ENGINEERING_BUDGET_MAX_COST_USD: "3" # the run stops itself at this budget
+          CREWAI_DISABLE_TELEMETRY: "true"
+          OTEL_SDK_DISABLED: "true"
+        run: |
+          git config user.name "engineering-team[bot]"
+          git config user.email "engineering-team@users.noreply.github.com"
+          uvx --from "git+https://github.com/alexandre0sheva/crewai-engineering_team@v0.3.0" \
+            engineering-team --workspace-root "$RUNNER_TEMP/engineering-team-workspace" \
+            do --mode fix --issue "$ISSUE" --repo "$GITHUB_WORKSPACE" \
+            --sandbox docker --open-pr --yes --non-interactive

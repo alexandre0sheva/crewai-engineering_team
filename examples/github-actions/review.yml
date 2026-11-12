@@ -1,0 +1,48 @@
+# Review every pull request with the engineering-team reviewers.
+#
+# Copy this file to .github/workflows/engineering-team-review.yml in your repository, add the
+# repository secret OPENAI_API_KEY (Settings > Secrets and variables > Actions; or the key of the
+# provider you choose), and pin `uses:` to a release tag or a commit SHA you have read.
+#
+# What it does: reads the pull request's diff (read-only: nothing in your project is changed), uploads
+# the findings to code scanning as SARIF, posts or updates one summary comment, and fails the job when
+# a finding reaches `fail-on`. Cost: one review is typically a few cents to a few tens of cents; the
+# run stops itself at `max-cost-usd`. See docs/USAGE.md#in-ci-github-actions and docs/SAFETY.md#github-actions.
+
+name: Engineering team review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read # check out the code
+  pull-requests: write # the summary comment
+  security-events: write # upload the SARIF file to code scanning
+
+concurrency:
+  group: engineering-team-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # Not for drafts, and not for pull requests from forks: a fork's run gets no secrets (and a
+    # read-only token), so it could neither call the model nor comment.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the review compares with the merge base of the pull request's base branch
+          persist-credentials: false
+      - uses: alexandre0sheva/crewai-engineering_team@v0.3.0
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }} # secrets only, never in the file
+        with:
+          provider: openai
+          profile: standard # the model preset: standard | smoke | max-quality (docs/CONFIGURATION.md)
+          max-cost-usd: "2" # the run stops itself at this budget
+          fail-on: high # critical | high | medium | low

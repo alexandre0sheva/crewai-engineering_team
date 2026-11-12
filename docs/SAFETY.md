@@ -65,6 +65,41 @@ what a process reads outside the workspace, or cap CPU and memory. A process tha
 leaves its process group (`setsid`) can outlive a timeout. The [Docker backend](#docker-backend) is
 the answer to all of these.
 
+### GitHub Actions
+
+The action ([`action.yml`](../action.yml)) and the example workflows ([`examples/github-actions/`](../examples/github-actions/))
+run the same tool on a GitHub runner, so the sections above apply there; this is what is different. Usage and the
+inputs are in [USAGE.md](USAGE.md#in-ci-github-actions).
+
+| Workflow | Permissions it needs | Why |
+|---|---|---|
+| Review a pull request (`action.yml`) | `contents: read`, `pull-requests: write`, `security-events: write` | read the code; post the summary comment; upload the SARIF file to code scanning. Drop a permission and turn off its input (`comment: "false"`, `upload-sarif: "false"`) and the review still runs |
+| Fix on a label (`fix-on-label.yml`) | `contents: write`, `pull-requests: write`, `issues: read` | push the run's branch; open the draft pull request; read the issue |
+
+- **Secrets.** The provider key is a **repository secret** handed to the step through `env`
+  (`${{ secrets.OPENAI_API_KEY }}`); it is never an action input, never in the file and never in a script. The action
+  and the tool print no key, and the review is read-only: it changes nothing in the checkout and cannot push.
+  A workflow run triggered by a **fork's** pull request gets no secrets and a read-only token, so the examples skip it
+  (the review could neither call the model nor comment). Do not switch such a workflow to `pull_request_target` to
+  work around that: it would run with your secrets on code a stranger wrote.
+- **What the provider sees.** The reviewers read the pull request's files and diff and send what they read to your
+  model provider ([Model providers and OpenRouter](#model-providers-and-openrouter-data-flow)): anything in the
+  repository, including content a pull request's author chose. The review is data, not authority: the author's text
+  changes no permission, budget or verdict, and a finding is a claim to check.
+- **Untrusted text never becomes script.** The action and the examples pass every input, issue number and name
+  through `env`, never `${{ }}` inside a `run:` script, so a branch name, title or issue body cannot run commands (a
+  test lints every workflow in the repository for this).
+- **Pinning.** `uses:` a release tag or, better, a commit SHA you have read: the action runs with the permissions
+  above and with your key.
+- **The fix workflow.** Anyone with triage access can apply the label, so that is who can spend your model budget;
+  the issue text is untrusted like any request. Every command runs in the [Docker sandbox](#docker-backend) (no
+  network but for dependency setup, no secrets inside); the push and `gh pr create` are the controller's own steps
+  with the workflow's token, after a passing run, as [above](#github). The pull request is a draft and nothing is
+  merged. GitHub does not start your other workflows on a pull request opened with the workflow's token.
+- **Cost.** Every run bills your provider account: a review typically cents to a few tens of cents, a fix typically
+  tens of cents to a few dollars. Both stop themselves at their budget (`max-cost-usd`, `ENGINEERING_BUDGET_MAX_COST_USD`);
+  set a spending limit on the provider's side as well.
+
 ### Docker backend
 
 `--sandbox docker` (or `execution.backend = "docker"`, `ENGINEERING_EXECUTION_BACKEND=docker`) runs

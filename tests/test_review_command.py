@@ -168,3 +168,102 @@ def test_a_review_that_cannot_start_is_a_usage_error(
     assert unknown.exit_code == 2 and "'no-such-branch' is not a branch" in unknown.stderr
     assert no_repo.exit_code == 2 and "needs one" in no_repo.stderr
     assert missing.exit_code == 2 and "is not a directory" in missing.stderr
+
+
+def test_format_sarif_writes_findings_sarif_beside_the_other_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _ = topic_branch(tmp_path)
+    out = tmp_path / "artifacts"
+    fake = FakeRunner(reviews={"code_reviewer": ReviewReport(findings=[HIGH, LOW])})
+
+    result, _ = review(
+        monkeypatch, repo, "--base", "main", "--format", "sarif", "--out-dir", str(out), fake=fake,
+        before=("--json",),
+    )  # fmt: skip
+
+    assert result.exit_code == 3, result.output
+    sarif = json.loads((latest().run_dir / "findings.sarif").read_text())
+    assert sarif["version"] == "2.1.0"
+    assert [r["level"] for r in sarif["runs"][0]["results"]] == ["error", "note"]
+    assert json.loads((out / "findings.sarif").read_text()) == sarif
+    assert json.loads(result.stdout)["findings_sarif"].endswith("findings.sarif")
+
+
+def test_without_format_no_sarif_is_written(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _ = topic_branch(tmp_path)
+
+    result, _ = review(monkeypatch, repo, "--base", "main", fake=FakeRunner())
+
+    assert result.exit_code == 0, result.output
+    assert not (latest().run_dir / "findings.sarif").exists()
+
+
+def test_an_unknown_format_is_a_usage_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _ = topic_branch(tmp_path)
+
+    result, _ = review(monkeypatch, repo, "--format", "xml", fake=FakeRunner())
+
+    assert result.exit_code == 2 and "sarif" in result.output
+
+
+def test_fail_on_and_max_cost_override_the_settings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _ = topic_branch(tmp_path)
+    fake = FakeRunner(reviews={"code_reviewer": ReviewReport(findings=[LOW])})
+
+    result, fake = review(
+        monkeypatch, repo, "--base", "main", "--fail-on", "low", "--max-cost-usd", "0.25", fake=fake
+    )
+
+    assert result.exit_code == 3, result.output
+    assert json.loads((latest().run_dir / "findings.json").read_text())["fail_on"] == "low"
+    assert fake.requests[0].ctx.settings.budget.max_cost_usd == 0.25
+
+
+def test_an_unknown_fail_on_is_a_usage_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _ = topic_branch(tmp_path)
+
+    result, _ = review(monkeypatch, repo, "--fail-on", "urgent", fake=FakeRunner())
+
+    assert result.exit_code == 2 and "critical" in result.output
+
+
+def test_fake_reviews_offline_without_a_key_and_finds_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``--fake`` runs the real stage runner on a scripted model: no key, no provider call."""
+
+    repo, _ = topic_branch(tmp_path)
+    for name in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "")  # nothing to read, and an empty key is no key
+    out = tmp_path / "artifacts"
+
+    result, _ = run_cli(
+        monkeypatch,
+        "review",
+        "--repo",
+        str(repo),
+        "--base",
+        "main",
+        "--fake",
+        "--format",
+        "sarif",
+        "--out-dir",
+        str(out),
+    )  # fmt: skip  (no FakeRunner is installed: the controller builds the scripted one)
+
+    assert result.exit_code == 0, result.output + result.stderr
+    ref = latest()
+    assert ref.manifest.verdict == "verified"
+    data = json.loads((ref.run_dir / "findings.json").read_text())
+    assert data["passed"] is True and data["findings"] == []
+    assert json.loads((out / "findings.sarif").read_text())["runs"][0]["results"] == []

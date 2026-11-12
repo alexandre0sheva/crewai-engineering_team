@@ -1,0 +1,192 @@
+name: Engineering Team review
+description: >-
+  Review a pull request with the engineering-team reviewers (read-only): findings go to GitHub code
+  scanning as SARIF, to one summary comment and to the job summary, and the job fails at the
+  chosen severity.
+author: engineering-team
+branding:
+  icon: search
+  color: blue
+
+inputs:
+  provider:
+    description: Model provider preset (openai, anthropic, google, openrouter, ollama, value). Empty means the configured one.
+    required: false
+    default: ""
+  profile:
+    description: Quality/cost routing preset (the model preset). Empty means the configured one.
+    required: false
+    default: ""
+  max-cost-usd:
+    description: The most the review may spend, in US dollars; the run stops itself at this budget.
+    required: false
+    default: "2"
+  fail-on:
+    description: Fail the job when a finding has this severity or above (low, medium, high, critical).
+    required: false
+    default: high
+  base:
+    description: The branch, tag or commit the change is reviewed against. Empty means the pull request's base branch.
+    required: false
+    default: ""
+  focus:
+    description: What the reviewers should look at hardest.
+    required: false
+    default: ""
+  fake:
+    description: Offline run with a scripted model that finds nothing. No key, no spend; checks the wiring only.
+    required: false
+    default: "false"
+  upload-sarif:
+    description: >-
+      Upload findings.sarif to GitHub code scanning (needs the permission security-events write,
+      and code scanning to be available: public repositories, or GitHub Code Security).
+    required: false
+    default: "true"
+  comment:
+    description: >-
+      Post (or update) one summary comment on the pull request (needs the permission
+      pull-requests write).
+    required: false
+    default: "true"
+  github-token:
+    description: Token for the comment and the SARIF upload. The workflow's own token is enough.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  exit-code:
+    description: >-
+      The review's exit code: 0 passed, 3 a finding reached the threshold, 2 bad input, 1 a failure.
+    value: ${{ steps.review.outputs.exit-code }}
+  passed:
+    description: "true when no finding reached the threshold."
+    value: ${{ steps.review.outputs.passed }}
+  findings-dir:
+    description: Directory with findings.json, findings.md and findings.sarif.
+    value: ${{ steps.review.outputs.findings-dir }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@v10.3.2
+      with:
+        enable-cache: false
+
+    - name: Fetch the base branch (the review needs its merge base)
+      shell: bash
+      env:
+        BASE_INPUT: ${{ inputs.base }}
+        BASE_REF: ${{ github.base_ref }}
+      run: |
+        set -euo pipefail
+        base="${BASE_INPUT:-}"
+        if [ -z "$base" ] && [ -n "${BASE_REF:-}" ]; then
+          git fetch --no-tags --quiet origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+        fi
+        if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+          git fetch --no-tags --quiet --unshallow origin
+        fi
+
+    - name: Review the change
+      id: review
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        PROVIDER: ${{ inputs.provider }}
+        PROFILE: ${{ inputs.profile }}
+        MAX_COST: ${{ inputs.max-cost-usd }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        BASE_INPUT: ${{ inputs.base }}
+        BASE_REF: ${{ github.base_ref }}
+        FOCUS: ${{ inputs.focus }}
+        FAKE: ${{ inputs.fake }}
+        CREWAI_DISABLE_TELEMETRY: "true"
+        OTEL_SDK_DISABLED: "true"
+      run: |
+        set -uo pipefail
+        out="$RUNNER_TEMP/engineering-team-review"
+        mkdir -p "$out"
+        base="${BASE_INPUT:-}"
+        if [ -z "$base" ] && [ -n "${BASE_REF:-}" ]; then base="origin/${BASE_REF}"; fi
+        args=(review --repo "$GITHUB_WORKSPACE" --format sarif --out-dir "$out" --fail-on "$FAIL_ON")
+        [ -n "$base" ] && args+=(--base "$base")
+        [ -n "${MAX_COST:-}" ] && args+=(--max-cost-usd "$MAX_COST")
+        [ -n "${PROVIDER:-}" ] && args+=(--provider "$PROVIDER")
+        [ -n "${PROFILE:-}" ] && args+=(--profile "$PROFILE")
+        [ -n "${FOCUS:-}" ] && args+=(--focus "$FOCUS")
+        [ "$FAKE" = "true" ] && args+=(--fake)
+        # The controller's run state goes to the runner's temp directory, not into the workspace.
+        uv run --project "$ACTION_PATH" --locked --no-dev engineering-team \
+          --workspace-root "$RUNNER_TEMP/engineering-team-workspace" "${args[@]}"
+        code=$?
+        {
+          echo "exit-code=$code"
+          if [ -f "$out/findings.json" ]; then echo "findings-dir=$out"; fi
+          if [ "$code" -eq 0 ]; then echo "passed=true"; else echo "passed=false"; fi
+        } >> "$GITHUB_OUTPUT"
+        if [ -f "$out/findings.md" ]; then
+          cat "$out/findings.md" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+        fi
+        exit 0
+
+    - name: Comment on the pull request
+      if: always() && inputs.comment == 'true' && github.event_name == 'pull_request' && steps.review.outputs.findings-dir != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ github.repository }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        FINDINGS_DIR: ${{ steps.review.outputs.findings-dir }}
+      run: |
+        set -uo pipefail
+        marker='<!-- engineering-team:review -->'
+        file="$RUNNER_TEMP/engineering-team-comment.md"
+        if [ ! -f "$FINDINGS_DIR/findings.md" ]; then exit 0; fi
+        {
+          echo "$marker"
+          head -c 60000 "$FINDINGS_DIR/findings.md"
+          if [ "$(wc -c < "$FINDINGS_DIR/findings.md")" -gt 60000 ]; then
+            printf '\n\n_The summary is cut here; the full findings are in the job summary and the `engineering-team-review` artifact._\n'
+          fi
+        } > "$file"
+        id="$(gh api --paginate "repos/$REPO/issues/$PR_NUMBER/comments" \
+          --jq "[.[] | select(.body | startswith(\"$marker\")) | .id] | first // empty" | head -n 1)"
+        if [ -n "$id" ]; then
+          gh api --method PATCH "repos/$REPO/issues/comments/$id" -F "body=@$file" > /dev/null \
+            || echo "::warning::Could not update the review comment (a pull request from a fork has a read-only token)."
+        else
+          gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file "$file" > /dev/null \
+            || echo "::warning::Could not post the review comment (a pull request from a fork has a read-only token)."
+        fi
+
+    - name: Upload findings to code scanning
+      if: always() && inputs.upload-sarif == 'true' && steps.review.outputs.findings-dir != ''
+      uses: github/codeql-action/upload-sarif@v4
+      continue-on-error: true
+      with:
+        sarif_file: ${{ steps.review.outputs.findings-dir }}/findings.sarif
+        category: engineering-team-review
+        token: ${{ inputs.github-token }}
+
+    - name: Keep the findings as an artifact
+      if: always() && steps.review.outputs.findings-dir != ''
+      uses: actions/upload-artifact@v7
+      continue-on-error: true
+      with:
+        name: engineering-team-review
+        path: ${{ steps.review.outputs.findings-dir }}
+        if-no-files-found: ignore
+
+    - name: Fail when the review did
+      if: always()
+      shell: bash
+      env:
+        CODE: ${{ steps.review.outputs.exit-code }}
+      run: |
+        code="${CODE:-1}"
+        if [ "$code" != "0" ]; then
+          echo "::error::The engineering-team review ended with exit code $code (3: a finding reached the threshold; 2: bad input or setup; 1: a failure)."
+        fi
+        exit "$code"

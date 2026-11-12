@@ -17,6 +17,9 @@ measured, not guessed: see the [results](../benchmarks/results/2026-10-04/). Run
 model provider and costs real money (the measured cost per success of the default strategy on tasks
 this size was about $0.21 with the OpenAI models of that evaluation; yours will differ).
 
+The [`github-actions/`](github-actions/) folder is different: two workflows for CI, not scenarios (a pull-request
+review and a fix on a label).
+
 ## About the committed reports
 
 The reports are real reports from real runs of the controller (board, checks, verification, cost,
