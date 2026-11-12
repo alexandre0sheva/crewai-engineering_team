@@ -223,6 +223,18 @@ def test_mode_analyze_still_maps_the_project(
     assert plan["route"] == "analyze" and plan["recipe"] == "adopt"
 
 
+def test_mode_answer_forces_the_read_only_answer_route(
+    project: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    no_triage_model(monkeypatch)  # the signals alone would not call this request a question
+
+    assert do("Add a delete endpoint", "--repo", str(project), "--mode", "answer", "--dry-run",
+              "--json") == 0  # fmt: skip
+
+    plan = json.loads(capsys.readouterr().out)["plan"]
+    assert plan["route"] == "answer" and plan["profile"]["intents"][0] == "question"
+
+
 def test_the_report_shows_the_answer_and_which_citations_held(
     project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

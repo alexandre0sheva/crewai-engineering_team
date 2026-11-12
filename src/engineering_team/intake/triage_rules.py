@@ -37,6 +37,7 @@ MODE_INTENTS: dict[str, Intent] = {
     "fix": "bugfix",
     "review": "review",
     "analyze": "question",
+    "answer": "question",
     "add-tests": "tests",
     "refactor": "refactor",
     "upgrade-deps": "upgrade_deps",

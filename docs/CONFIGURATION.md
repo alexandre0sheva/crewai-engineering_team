@@ -629,6 +629,25 @@ Limits of `engineering-team ui` ([USAGE.md](USAGE.md#web-ui)). The server's own 
 | `ui.max_upload_bytes` | `2000000` | The most bytes of uploaded request and reference files in one start request (HTTP 413 beyond it). |
 | `ui.max_request_bytes` | `200000` | The most bytes of any other request body (HTTP 413 beyond it). |
 
+### MCP server (`[mcp_serve]`)
+
+Limits of `engineering-team mcp serve` ([USAGE.md](USAGE.md#delegating-from-another-agent-mcp)), the server other
+agents delegate work to. Not to be confused with `[mcp.<name>]`, the MCP servers the team itself uses. `--repo DIR`
+(repeatable) adds to `mcp_serve.repos`; the server's transport has no other options.
+
+| Key (TOML) | Default | Meaning |
+|---|---|---|
+| `mcp_serve.repos` | `[]` | Directories the server may act in (a project inside one counts). Every other path is refused, so an empty list with no `--repo` refuses every start. A directory that does not exist is an error at start-up. |
+| `mcp_serve.max_concurrent_runs` | `2` | Runs the server keeps going at once (each is a process of its own); another start is refused until one ends. |
+| `mcp_serve.max_cost_usd` | `5.0` | The most one delegated run may spend (every run has a cost limit). A caller may ask for less, never more; `budget.max_cost_usd`, when lower, wins. Provisional until the 0.3.0 evaluation measures delegated runs. |
+| `mcp_serve.answer_wait_seconds` | `600` | How long `answer` waits for its run before it returns the run id to poll instead. |
+
+```toml
+[mcp_serve]
+repos = ["~/work/shop", "~/work/api"]
+max_cost_usd = 2.0
+```
+
 ### Lean team (`[lean]` and `tools.lazy`)
 
 A `pipeline` run is sized before any model is called, and the size decides what it leaves out

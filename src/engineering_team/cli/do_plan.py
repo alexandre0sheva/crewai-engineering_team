@@ -102,7 +102,7 @@ def check_mode(mode: str | None, signals: Signals) -> None:
             f"--mode new makes a new project, but {signals.repo} already has code. Run it "
             "elsewhere, or use --mode feature to add to this project."
         )
-    if mode != "new" and not signals.existing_code:
+    if mode not in ("new", "answer") and not signals.existing_code:
         where = signals.repo or "here"
         raise ValueError(
             f"--mode {mode} works on an existing project and {where} has no project files. "

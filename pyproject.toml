@@ -39,6 +39,8 @@ google = ["crewai[google-genai]>=1.15.31,<1.16"]
 azure = ["crewai[azure-ai-inference]>=1.15.31,<1.16"]
 # Headless-browser tools for UI verification (then `playwright install chromium`).
 browser = ["playwright>=1.64.1,<2"]
+# The MCP server (`engineering-team mcp serve`): other agents delegate work to the team.
+mcp = ["mcp>=1.30,<2"]
 # The local web UI's API server (`engineering-team ui`).
 ui = [
     "fastapi>=0.162",

@@ -338,6 +338,21 @@ class UiSettings(_Frozen):
     max_request_bytes: int = Field(default=200_000, ge=1_000, le=5_000_000)
 
 
+class McpServeSettings(_Frozen):
+    """The MCP server (``engineering-team mcp serve``): where other agents may send work."""
+
+    # Directories the server may act in (a repository passed with ``--repo`` adds to these). A
+    # project outside every one of them is refused, whatever the calling agent asks for.
+    repos: list[str] = []
+    # Runs the server keeps going at once; another start is refused until one ends.
+    max_concurrent_runs: int = Field(default=2, ge=1, le=16)
+    # The most one delegated run may spend; a caller can ask for less, never for more. Provisional
+    # until T33 measures delegated runs.
+    max_cost_usd: float = Field(default=5.0, gt=0)
+    # The longest ``answer`` waits for its run before returning the run id to poll.
+    answer_wait_seconds: int = Field(default=600, ge=10, le=3600)
+
+
 TEAM_KEY = re.compile(r"[a-z][a-z0-9_]*")
 
 

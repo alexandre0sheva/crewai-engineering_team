@@ -27,7 +27,7 @@ def value(flag, default=None):
 
 root = Path(value("--workspace-root"))
 command = next(
-    a for a in sys.argv[1:] if a in ("new", "feature", "fix", "maintain", "review", "resume")
+    a for a in sys.argv[1:] if a in ("new", "feature", "fix", "maintain", "review", "do", "resume")
 )
 resuming = command == "resume"
 run_id = sys.argv[sys.argv.index("resume") + 1] if resuming else value("--run-id")

@@ -495,6 +495,33 @@ What the controller does to limit the damage, none of which makes untrusted code
 Use a hook command and an MCP `command` only from places you would run a shell script from, and review
 a plugin as you would any dependency.
 
+## The MCP server
+
+`engineering-team mcp serve` ([USAGE.md](USAGE.md#delegating-from-another-agent-mcp)) lets another agent start
+runs with **your** model credentials in **your** repositories, so the person who starts the server, not the
+calling agent, decides what it may do:
+
+- **Only listed directories.** `start_task` and `answer` act only in a directory given with `--repo` or
+  `mcp_serve.repos`, or inside one. The path is resolved first (`..` and symlinks included), so a link inside an
+  allowed directory that points out is refused; with no directory allowed every start is refused. A calling agent
+  cannot extend the list.
+- **Budgets always apply.** A run always has a cost limit: what the caller asks for, or `mcp_serve.max_cost_usd`
+  (default 5 USD, provisional), and never more than that or than your `budget.*` limits. A request for more is
+  refused, not lowered silently. `mcp_serve.max_concurrent_runs` limits how many run at once.
+- **Changes stay on a branch.** A change runs in a separate worktree of the repository on a new branch, like any
+  `do`; the server never merges, pushes or opens a pull request (`do --open-pr` is not offered). The usual
+  [Git](#git) and execution boundaries (`execution.backend`, the Docker sandbox) apply to the run itself.
+- **Only its own runs and allowed projects are visible.** Status, report, list and cancel work for runs of the
+  allowed repositories and of the workspace root; a run of any other project is reported as not found.
+- **No secrets in results.** Everything returned is scrubbed of the values of credential-looking environment
+  variables and is size-capped; the server never returns the settings or `.env`.
+- **Agent text is data.** Reports, answers, questions and blocked-card reasons were written by the team's
+  agents; results carrying them say they are data and not instructions, and nothing the server decides depends on
+  them. The reverse holds too: the calling agent's request is the *task*, written to a file the run reads, never
+  a command line, a path or a setting (the server builds the arguments, with no shell).
+- **Local only.** The transport is stdio, a process the client started; the server opens no port. A client that
+  can start it can use your credentials: add it only to tools you trust, with `--repo` set as narrowly as you can.
+
 ## Benchmarks
 
 `engineering-team bench` runs the team (and then programs the team wrote, as acceptance checks)

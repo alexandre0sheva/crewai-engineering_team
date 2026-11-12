@@ -70,6 +70,7 @@ from engineering_team.settings.sections import (
     LeanSettings,
     LearningSettings,
     MaintainSettings,
+    McpServeSettings,
     MemorySettings,
     NetworkSettings,
     ParallelSettings,
@@ -134,6 +135,7 @@ class Settings(_Frozen):
     acceptance: AcceptanceSettings = AcceptanceSettings()
     maintain: MaintainSettings = MaintainSettings()
     ui: UiSettings = UiSettings()
+    mcp_serve: McpServeSettings = McpServeSettings()
     team_profile: Literal["full", "minimal"] = "full"  # minimal: no review, DevOps, or docs stage
     team: dict[str, TeamOverride] = {}
     team_file: str | None = None  # default: ./.engineering-team/team.yaml when it exists

@@ -839,6 +839,9 @@ browser = [
 google = [
     { name = "crewai", extra = ["google-genai"] },
 ]
+mcp = [
+    { name = "mcp" },
+]
 ui = [
     { name = "fastapi" },
     { name = "python-multipart" },
@@ -862,6 +865,7 @@ requires-dist = [
     { name = "crewai", extras = ["google-genai"], marker = "extra == 'google'", specifier = ">=1.15.31,<1.16" },
     { name = "crewai", extras = ["tools"], specifier = ">=1.15.31,<1.16" },
     { name = "fastapi", marker = "extra == 'ui'", specifier = ">=0.162" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.30,<2" },
     { name = "playwright", marker = "extra == 'browser'", specifier = ">=1.64.1,<2" },
     { name = "pydantic", specifier = ">=2.12.5,<3" },
     { name = "python-multipart", marker = "extra == 'ui'", specifier = ">=0.0.32" },
@@ -870,7 +874,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.27.3,<1" },
     { name = "uvicorn", marker = "extra == 'ui'", specifier = ">=0.54" },
 ]
-provides-extras = ["anthropic", "google", "azure", "browser", "ui"]
+provides-extras = ["anthropic", "google", "azure", "browser", "mcp", "ui"]
 
 [package.metadata.requires-dev]
 dev = [

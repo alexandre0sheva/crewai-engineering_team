@@ -11,6 +11,13 @@ renames that section and dates it.
 
 ### Added
 
+- MCP server ([docs/USAGE.md](docs/USAGE.md#delegating-from-another-agent-mcp)): `engineering-team mcp serve`
+  (stdio; optional `mcp` extra) lets Claude Code, Cursor, Codex and other MCP clients hand work to the team with
+  `start_task`, `task_status`, `task_report`, `answer`, `cancel` and `list_runs`; each run is a `do` subprocess, as
+  with the web UI. It acts only in repositories passed with `--repo` or `mcp_serve.repos`, always under a cost limit
+  (`mcp_serve.max_cost_usd`) the caller cannot raise, changes only a worktree branch, and returns scrubbed,
+  size-capped results ([docs/SAFETY.md](docs/SAFETY.md#the-mcp-server)). `do --mode answer` forces a read-only,
+  cited answer.
 - GitHub Action for pull-request review ([docs/USAGE.md](docs/USAGE.md#in-ci-github-actions)): the root `action.yml`
   runs the read-only `review` on the pull request's diff, uploads the findings to code scanning as SARIF, posts or
   updates one summary comment and fails the job at the chosen severity (inputs: provider, model preset, budget,

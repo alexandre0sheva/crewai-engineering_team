@@ -30,6 +30,7 @@ uv run engineering-team <command> --help # its options
 | `profile [RUN] [--format text|json]` | Where a run's time and money went: sessions by cost and time, prompt parts, critical path, re-read files, tool failures ([Profiling a run](#profiling-a-run-profile)). |
 | `trace [RUN] [--stage S] [--format text|json]` | What a run's agents did and saw: each tool call with its output and what the models said ([Reading what the agents did](#reading-what-the-agents-did-trace)). |
 | `ui [--host H] [--port P] [--demo]` | Serve the web UI and its API on localhost ([Web UI](#web-ui)). Needs `uv sync --extra ui`. |
+| `mcp serve [--repo DIR]` | Serve the team to other agents (Claude Code, Cursor, Codex) as MCP tools over stdio ([Delegating from another agent](#delegating-from-another-agent-mcp)). Needs `uv sync --extra mcp`. |
 | `bench list` / `bench run` / `bench report` / `bench spend` / `bench triage` | Run the benchmark suite against the team (filtered by split, intent, language, size, difficulty) and report pass rates with confidence intervals and cost per success; `bench spend` shows the release's live spend per allocation; `bench triage` scores how requests are classified (`--fake` validates the harness offline; `--agent` runs Claude Code, Codex, OpenCode or Aider on the same tasks and checks; source checkout only). See [BENCHMARKS.md](BENCHMARKS.md). |
 | `status [RUN]` | Where a run stands: stages, progress, cost, blocked cards. |
 | `runs [--thread RUN]` | List runs (of every project, or one with `--project-name`), newest last; `--thread` lists only the thread a run is in. |
@@ -80,8 +81,8 @@ uv run engineering-team do "Why is the cart total wrong?" --dry-run             
 Then, before anything is changed:
 
 1. **Triage** works out what the request is (one cheap model call plus what code can read from the
-   repository: [What kind of work it is](#what-kind-of-work-it-is-triage)). `--mode feature|fix|new|review|analyze|add-tests|refactor|upgrade-deps|docs|security-audit`
-   forces the intent instead; a mode that needs a project refuses to run without one, and `--mode new`
+   repository: [What kind of work it is](#what-kind-of-work-it-is-triage)). `--mode feature|fix|new|review|analyze|answer|add-tests|refactor|upgrade-deps|docs|security-audit`
+   forces the intent instead (`answer` forces a read-only, cited answer, whatever the wording); a mode that needs a project refuses to run without one, and `--mode new`
    refuses a directory that has code. Questions the triage cannot do without are asked at the terminal with
    `--interactive`; otherwise it records its assumptions, and a request it could not classify at all ends
    with exit 4 and its questions (nothing is changed).
@@ -957,6 +958,68 @@ model credentials and read the files of any project you can name, so treat it li
 private keys and other credential-looking files, `.git`, and the controller's state directory; paths cannot leave the
 project (symlinks included), uploads are text files with a size cap, and request bodies are capped
 ([CONFIGURATION.md](CONFIGURATION.md#web-ui-ui)).
+
+## Delegating from another agent (MCP)
+
+```bash
+uv sync --extra mcp                                  # the MCP SDK
+uv run engineering-team mcp serve --repo ~/work/shop # stdio server; acts only inside --repo (repeatable)
+```
+
+`mcp serve` lets a coding agent hand long, verified work to the team without leaving its tool: the agent
+starts a run, goes on with its own work, and reads the report when the run has ended. The server is a stdio
+[MCP](https://modelcontextprotocol.io) server; stdout carries the protocol, so it prints nothing else there
+(its one-line notice goes to stderr). Like the web UI it never runs a team itself: each run is a
+`engineering-team do` process of its own that keeps going if the client or the server stops, and shows up in
+`runs`, `status`, `board`, `report` and the web UI.
+
+| Tool | What it does |
+|---|---|
+| `start_task(request, repo, mode?, budget?)` | Start a run on `repo` and return its `run_id` at once. `mode` is any `do --mode` (omit it to let the team triage the request); `budget` is `max_cost_usd`, `max_tokens`, `max_wall_seconds` or `max_tool_calls`, never above the server's caps. |
+| `task_status(run_id)` | Status, whether it is done, progress, cost against budget, checks, what needs attention. |
+| `task_report(run_id, format)` | `md` (the report text, cut at 40 000 characters), `html` (the file's path) or `json` (status, checks and the answer). |
+| `answer(question, repo)` | A read-only question about the code (`--mode answer`): waits for the cited answer (up to `mcp_serve.answer_wait_seconds`, or `wait_seconds`) and returns it with the report; past the wait it returns the `run_id` to poll. |
+| `cancel(run_id)` | Ask the run to stop at its next safe point (work so far stays on its branch). |
+| `list_runs(limit?)` | The latest runs this server may show. |
+
+A change is always made on a branch in a separate worktree (`do --worktree`), so the checkout the calling agent
+is editing is not touched; a review or an answer only reads. The server cannot ask the person questions, so
+runs record their assumptions instead (`--non-interactive`). To start a **new** project rather than change one,
+run `do` yourself; the server needs an existing project directory.
+
+**Claude Code** (`.mcp.json` in the project, or `claude mcp add`):
+
+```json
+{
+  "mcpServers": {
+    "engineering-team": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/engineering-team", "engineering-team",
+               "mcp", "serve", "--repo", "/path/to/your/project"]
+    }
+  }
+}
+```
+
+```bash
+claude mcp add engineering-team -- uv run --directory /path/to/engineering-team \
+  engineering-team mcp serve --repo /path/to/your/project
+```
+
+**Cursor** (`.cursor/mcp.json`, or `~/.cursor/mcp.json` for every project) takes the same entry; **Codex**
+(`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.engineering-team]
+command = "uv"
+args = ["run", "--directory", "/path/to/engineering-team", "engineering-team", "mcp", "serve",
+        "--repo", "/path/to/your/project"]
+```
+
+Provider credentials are read from the environment of the server process like any run (the client's `env`
+entry, or your shell); put no key in these files. The caps and the allowed directories can also live in your
+config file ([CONFIGURATION.md](CONFIGURATION.md#mcp-server-mcp_serve)). What the server will and will not do,
+and why a calling agent's text is never trusted: [SAFETY.md](SAFETY.md#the-mcp-server).
 
 ## Exit codes
 
