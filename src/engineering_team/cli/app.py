@@ -47,9 +47,9 @@ from engineering_team.runtime.context import reserve_run_id
 
 COMMANDS = (
     "do", "new", "resume", "continue", "status", "runs", "board", "cancel", "note", "pause",
-    "unpause", "config", "doctor", "init", "examples", "team", "analyze", "feature", "fix",
-    "maintain", "review", "recipes", "diff", "export-patch", "report", "trace", "profile", "ui",
-    "bench", "plugins", "harness", "memory", "lessons", "mcp",
+    "unpause", "config", "doctor", "models", "init", "examples", "team", "analyze", "feature",
+    "fix", "maintain", "review", "recipes", "diff", "export-patch", "report", "trace", "profile",
+    "ui", "bench", "plugins", "harness", "memory", "lessons", "mcp",
 )  # fmt: skip
 HELP_FLAGS = ("-h", "--help")
 FLAGS = ("--json", "--quiet", "-q", "--verbose", "-v", "--no-color", "--answers-via-inbox")

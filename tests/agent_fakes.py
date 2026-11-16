@@ -28,7 +28,8 @@ prompt = {
 }[dialect]()
 cwd = Path.cwd()
 if os.environ.get("FAKE_AGENT_LOG"):
-    entry = {"dialect": dialect, "argv": argv, "cwd": str(cwd), "listing": sorted(os.listdir(cwd))}
+    entry = {"dialect": dialect, "argv": argv, "cwd": str(cwd), "listing": sorted(os.listdir(cwd)),
+             "keys": sorted(name for name in os.environ if name.endswith("_API_KEY"))}
     with open(os.environ["FAKE_AGENT_LOG"], "a") as log:
         log.write(json.dumps(entry) + "\n")
 mode = os.environ.get("FAKE_AGENT_MODE", "pass")

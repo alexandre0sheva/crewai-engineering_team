@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the team's branch starts from the default branch's history
-      - uses: astral-sh/setup-uv@v10.3.2
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: false
       - name: Fix the issue and open a draft pull request

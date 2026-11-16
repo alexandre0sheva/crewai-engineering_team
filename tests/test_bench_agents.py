@@ -239,6 +239,27 @@ def test_the_billing_can_be_overridden(tmp_path: Path) -> None:
     assert agent.billing() == "api"
 
 
+@pytest.mark.parametrize(
+    ("name", "key"), [("claude-code", "ANTHROPIC_API_KEY"), ("codex", "OPENAI_API_KEY")]
+)
+def test_a_run_billed_to_a_plan_never_sees_the_api_key(
+    name: str, key: str, bin_dir: Path, tmp_path: Path
+) -> None:
+    """The bench process usually holds the team's keys (CrewAI loads ``.env``): a run labelled
+    ``subscription`` must not bill them, or the ledger would count a paid run as free."""
+
+    extra = {key: "sk-test-not-real", "GOOGLE_API_KEY": "kept"}
+    plan, workspace = make(name, bin_dir, tmp_path, billing="subscription", extra_env=extra)
+    plan.run(workspace, "Do the task.", timeout=30)
+    paid, workspace = make(name, bin_dir, tmp_path, extra_env=extra)
+    assert paid.billing() == "api"
+    paid.run(workspace, "Do the task.", timeout=30)
+
+    plan_call, paid_call = calls(tmp_path)
+    assert key not in plan_call["keys"] and "GOOGLE_API_KEY" in plan_call["keys"]
+    assert key in paid_call["keys"]
+
+
 def test_probe_reports_version_billing_and_availability(bin_dir: Path, tmp_path: Path) -> None:
     env = environment(bin_dir, tmp_path)
 

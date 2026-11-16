@@ -137,6 +137,7 @@ def run_checks(
     checks.append(_docker_check(settings, docker))
     checks.extend(_runtime_checks(settings, which, probe))
     checks.extend(_provider_checks(settings))
+    checks.extend(_price_check(settings))
     checks.append(_browser_check(settings))
     checks.append(_ui_check())
     checks.append(_team_check(settings))
@@ -189,6 +190,26 @@ def _provider_checks(settings: Settings) -> list[Check]:
             "Credentials",
             "ok",
             f"present for {', '.join(sorted(settings.used_providers())) or settings.provider}",
+        )
+    ]
+
+
+def _price_check(settings: Settings) -> list[Check]:
+    """A model with no price makes ``budget.max_cost_usd`` unenforceable (a run's spend on it is
+    unknown, so the cost limit never trips) and every cost estimate unknown."""
+
+    from engineering_team.bench.estimate import unpriced_models
+
+    unpriced = unpriced_models(settings)
+    if not unpriced:
+        return []
+    return [
+        Check(
+            "Model prices",
+            "warn",
+            f"no price for {', '.join(unpriced)}: the cost limit cannot stop a run on it",
+            "Check ENGINEERING_*_MODEL variables (also in .env) and [models] settings, or add a "
+            "price row (docs/CONFIGURATION.md, 'Override or add a price').",
         )
     ]
 

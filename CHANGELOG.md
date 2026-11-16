@@ -243,6 +243,11 @@ renames that section and dates it.
 
 ### Changed
 
+- `doctor` warns when a configured model has no price (its spend is unknown, so `budget.max_cost_usd` cannot stop
+  the run), naming the model and pointing at `ENGINEERING_*_MODEL` variables, also those in `.env`.
+- Benchmark cost estimates (`bench run --dry-run`, the ledger, the ladder's rung estimates, the `do` preview) use
+  token priors refitted to the committed live runs and price half the prompt as cache reads where the model has a
+  cached-input price: a `single` run on the `openai` preset is estimated at $0.025 instead of $0.085.
 - The web UI's new-run page no longer starts with a choice of mode: describe the work in one box and the team
   works out the kind of work (the mode tabs and their extra fields are the per-mode form at `#/classic`).
 - Presets from the model screen ([docs/CONFIGURATION.md](docs/CONFIGURATION.md#provider-presets)): Anthropic's
@@ -297,9 +302,9 @@ renames that section and dates it.
 - Recipes carry their `mode`, so a teammate's `modes` filter now applies in real runs.
 - A run whose model is known not to call tools stops at the first writing stage with a hint, instead of retrying.
 
-- CrewAI 1.15.31 (`crewai[tools]>=1.15.31,<1.16`; its changelog from 1.15.24 shows no breaking change for us). The
-  dependency floors in `pyproject.toml` and `uv.lock` are refreshed: Typer 0.27, Playwright 1.64, FastAPI 0.162,
-  pytest 9.2, Ruff 0.17. Rich stays below 15 and Pydantic below 2.13, which CrewAI's own dependencies require.
+- CrewAI 1.15.41 (`crewai[tools]>=1.15.41,<1.16`; its changelog from 1.15.24 shows no breaking change for us). The
+  dependency floors in `pyproject.toml` and `uv.lock` are refreshed: Typer 0.29, Playwright 1.65, FastAPI 0.163,
+  python-multipart 0.0.34, pytest 9.2, Ruff 0.17.5, mypy 2.4.1; `astral-sh/setup-uv` v10.3.3 in the workflows and the action. Rich stays below 15 and Pydantic below 2.13, which CrewAI's own dependencies require.
 - The default Docker images are current: `astral/uv:python3.13-bookworm-slim`, `node:24-slim`, `golang:1.27`,
   `eclipse-temurin:25-jdk`, `mcr.microsoft.com/dotnet/sdk:10.0`, `ruby:4.0-slim`, `php:8.5-cli`.
 - The package description and keywords match the README pitch.
@@ -307,6 +312,18 @@ renames that section and dates it.
 
 ### Fixed
 
+- `engineering-team models` exited 2 ("needs a command or a request") when run as a program; only the
+  in-process CLI tests reached it. A test now checks that every registered command is known to the entry point.
+- `bench run --agent claude-code|codex` with `--agent-billing AGENT=subscription` now starts the agent without
+  its API-key variables (which the bench process holds from `.env`), so a run labelled as a plan is billed to the
+  plan and not, uncounted, to the API key.
+- `ui --demo`: a change request climbed solo → team but stopped before the pipeline rung whenever the configured
+  models had prices (the rung's prior-based estimate exceeded the demo's cost limit); the demo now prices each rung
+  at its scripted cost, so it climbs the same way on every machine.
+- `ui --demo` runs started from the one-textbox page failed at once without an API key (the `do` path checked
+  credentials although the demo calls no model); the demo needs no key again.
+- The terminal demo tape (`docs/assets/demo.tape`) used `do --trace-file`, which `do` does not have; it now hands
+  the trace inside the request file.
 - Best-of-N attempts (`do --attempts N`) on an existing repository failed every attempt at the `summary` stage ("no
   base commit") and left no patch or change summary; attempts now skip that stage and the run writes
   `changes.patch` and `CHANGE_SUMMARY.md` for the chosen attempt.

@@ -21,9 +21,10 @@ def _usage_in(event: dict[str, object]) -> dict[str, object] | None:
 class Codex(CliAgent):
     name = "codex"
     binary = "codex"
+    api_env = API_ENV
 
     def detect_billing(self, env: Mapping[str, str]) -> Billing:
-        return "api" if any(env.get(name) for name in API_ENV) else "subscription"
+        return "api" if any(env.get(name) for name in self.api_env) else "subscription"
 
     def arguments(self, request: str, workspace: Path) -> list[str]:
         args = [

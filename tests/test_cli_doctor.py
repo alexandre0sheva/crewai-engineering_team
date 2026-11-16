@@ -217,3 +217,16 @@ def test_a_broken_plugin_fails_the_plugins_check() -> None:
     checks = run(load_settings(overrides={"allow_project_plugins": True}))
 
     assert checks["Plugins"].status == "fail" and "boom" in checks["Plugins"].detail
+
+
+def test_a_model_without_a_price_is_a_warning_naming_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An unpriced model makes the cost limit unenforceable: say so before a run spends money."""
+
+    kwargs = {"which": fake_which(set()), "probe": fake_probe, "docker": docker_ok}
+    assert not [c for c in run_checks(load_settings(), **kwargs) if c.name == "Model prices"]
+
+    monkeypatch.setenv("ENGINEERING_WORKER_MODEL", "openai/gpt-0-unpriced")
+    prices = [c for c in run_checks(load_settings(), **kwargs) if c.name == "Model prices"]
+
+    assert len(prices) == 1 and prices[0].status == "warn"
+    assert "openai/gpt-0-unpriced" in prices[0].detail and "ENGINEERING_" in prices[0].hint

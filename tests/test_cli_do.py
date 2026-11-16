@@ -548,3 +548,22 @@ def test_a_review_and_a_map_use_the_commands_that_already_do_them(
 def test_the_older_commands_are_still_commands() -> None:
     for name in ("new", "feature", "fix", "maintain", "review", "analyze", "do"):
         assert name in cli_app.COMMANDS
+
+
+def test_every_registered_command_is_known_to_the_entry_point() -> None:
+    """``main`` decides from ``COMMANDS`` whether an argument names a command (else it is a request
+    or the removed 0.1.0 form): a command missing there exits 2 when called through the program."""
+
+    registered = {command.name for command in cli_app.app.registered_commands} | {
+        group.name for group in cli_app.app.registered_groups
+    }
+    registered |= {
+        command.callback.__name__.replace("_", "-")
+        for command in cli_app.app.registered_commands
+        if command.name is None and command.callback is not None
+    }
+    assert registered - {None} == set(cli_app.COMMANDS)
+
+
+def test_the_models_command_runs_through_the_program_entry_point() -> None:
+    assert main.run(["--json", "models"]) == 0

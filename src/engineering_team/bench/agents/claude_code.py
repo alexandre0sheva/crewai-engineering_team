@@ -15,12 +15,13 @@ class ClaudeCode(CliAgent):
     name = "claude-code"
     binary = "claude"
     caps_cost = True  # --max-budget-usd
+    api_env = API_ENV
 
     def detect_billing(self, env: Mapping[str, str]) -> Billing:
         """An API key (or a cloud provider) means per-token billing; without one Claude Code is
         signed in with a plan."""
 
-        return "api" if any(env.get(name) for name in API_ENV) else "subscription"
+        return "api" if any(env.get(name) for name in self.api_env) else "subscription"
 
     def arguments(self, request: str, workspace: Path) -> list[str]:
         args = [

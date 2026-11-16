@@ -17,12 +17,15 @@ Set WaitTimeout 15m
 Hide
 Type "rm -rf /tmp/shop-demo && cp -R examples/bugfix/repo /tmp/shop-demo" Enter
 Type "git -C /tmp/shop-demo init -q -b main && git -C /tmp/shop-demo add -A && git -C /tmp/shop-demo commit -qm Initial" Enter
+Type `{ cat examples/bugfix/request.md; printf '\n~~~text\n'; cat examples/bugfix/trace.txt; printf '~~~\n'; } > /tmp/shop-bug.md` Enter
 Type "clear" Enter
 Show
 
 Type "# A crash on an empty cart, reported with its stack trace" Enter
 Sleep 1s
-Type `engineering-team do "Fix the ZeroDivisionError in 'shop report' on an empty cart. Expected: Items: 0, total: 0.00, average: n/a" --repo /tmp/shop-demo --trace-file examples/bugfix/trace.txt --yes` Enter
+Type "head -5 /tmp/shop-bug.md" Enter
+Sleep 3s
+Type "engineering-team do --request-file /tmp/shop-bug.md --repo /tmp/shop-demo --yes" Enter
 
 # The run ends with the verdict line and the report path.
 Wait+Screen@15m /[Vv]erdict/

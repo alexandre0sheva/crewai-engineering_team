@@ -1,9 +1,10 @@
 """``bench run --dry-run``: what a batch would cost, from the price table, before spending.
 
-The token counts are *priors*, not measurements: a typical run's prompt and completion tokens per
-strategy at task scale 1.0 (see ``scale`` in ``task.yaml``). They are deliberately generous, and the
-answer is a range. Task 34 replaces them with measured values; until then treat the figure as an
-order of magnitude and set ``--budget-usd`` as the hard cap.
+The token counts are *priors* fitted to the committed live runs (``benchmarks/results/``): about
+the 75th percentile of a run's prompt and completion tokens per strategy at task scale 1.0 (see
+``scale`` in ``task.yaml``), and half the prompt priced at the model's cached-input rate when it
+has one (measured cache shares were 0.30-0.95). The answer is a range; treat it as an order of
+magnitude and set ``--budget-usd`` as the hard cap.
 """
 
 from __future__ import annotations
@@ -18,12 +19,18 @@ from engineering_team.pricing import estimate_cost
 from engineering_team.settings import Settings
 
 # (prompt tokens, completion tokens) of one run at scale 1.0. Agent loops re-send the context,
-# so prompt tokens dominate.
+# so prompt tokens dominate. Fitted 2026-11-16 to the live runs committed so far: `single` and
+# `auto` (whose first rung is `solo`) 61 runs, 75th percentile 274k / 16k; `pipeline` 32 runs of
+# 0.2.0 (before the lean team), median 1.7M / 31k, 90th percentile completion 39k. `team` has no
+# measured run yet and stays between them (provisional until the 0.3.0 evaluation).
 TOKEN_PRIORS: dict[str, tuple[int, int]] = {
-    "pipeline": (1_200_000, 150_000),
-    "single": (500_000, 70_000),
-    "team": (800_000, 100_000),  # a lead and a few delegated jobs (the escalation ladder's rung)
+    "pipeline": (1_200_000, 40_000),
+    "single": (275_000, 20_000),
+    "team": (800_000, 40_000),  # a lead and a few delegated jobs (the escalation ladder's rung)
 }
+# The share of a run's prompt tokens assumed to be cache reads, for models with a cached-input
+# price. Measured: 0.30-0.67 on Anthropic (writes are explicit there), 0.79-0.95 elsewhere.
+CACHED_SHARE = 0.5
 # Which share of a run's tokens each model tier handles.
 TIER_MIX: dict[str, dict[str, float]] = {
     "pipeline": {"lead": 0.25, "reviewer": 0.15, "worker": 0.60},
@@ -81,10 +88,14 @@ def per_run_cost(settings: Settings, strategy: str, scale: float) -> tuple[float
     unpriced: set[str] = set()
     for tier, share in TIER_MIX[strategy].items():
         model = settings.resolve_model("bench-estimate", tier=tier).model
+        price = prices.lookup(model)
+        prompt_tokens = round(prompt * scale * share)
+        cached = 0 if price is None or price.cached_input is None else prompt_tokens * CACHED_SHARE
         cost = estimate_cost(
-            prices.lookup(model),
-            prompt_tokens=round(prompt * scale * share),
+            price,
+            prompt_tokens=prompt_tokens,
             completion_tokens=round(completion * scale * share),
+            cached_prompt_tokens=round(cached),
         )
         if cost is None:
             unpriced.add(model)

@@ -274,7 +274,9 @@ counted. `bench spend` (or `--json`) prints allocated, spent and left per alloca
 `budget.toml`; going over one needs the user's explicit OK, never a flag.
 
 `--dry-run` prices the batch from the price table without running anything. The token counts behind
-it are **priors** (typical tokens per strategy and task `scale`), not measurements; `auto` is priced
+it are **priors**: about the 75th percentile of the committed live runs' tokens per strategy at task
+`scale` 1.0, with half the prompt priced as cache reads where the model has a cached-input price
+(refitted on 2026-11-16; `team` has no measured run yet); `auto` is priced
 as the rung it starts on for the task's `size` (`ladder.start_*`), and an escalation is bounded by
 `--run-budget-usd`, not priced. Read the figure as an order of magnitude and set `--budget-usd` as the real limit. `--resume --batch NAME` continues
 an interrupted batch, keeping runs that finished (passed, failed, or timed out) and repeating the
@@ -434,7 +436,10 @@ documentation and is unchecked.
 (OpenCode can be either), or `none` (the offline team). It is detected from the environment (an
 `ANTHROPIC_API_KEY`, a cloud-provider switch, `OPENAI_API_KEY` or `CODEX_API_KEY` means `api`;
 without one Claude Code and Codex are taken to be signed in with a plan) and overridden with
-`--agent-billing AGENT=api|subscription`. A plan's runs have **no `cost_usd`** and the report shows
+`--agent-billing AGENT=api|subscription`. The bench process usually holds the team's keys (CrewAI
+loads `.env`), so a plan run needs `--agent-billing claude-code=subscription` (or `codex=…`); such
+a run is started without the agent's API-key variables, so it really uses the signed-in plan. A
+plan's runs have **no `cost_usd`** and the report shows
 `plan (≈$x)` with the API-equivalent figure the agent reported, never `$0`; they are written to
 `spend.jsonl` as `billing: subscription` with their token counts and are not charged. API and
 `unknown` runs are charged like the team's: a batch needs `--budget-usd`, `--allocation`, and an
@@ -551,6 +556,9 @@ Two harness lessons: a run cap below the ladder's own estimate of its first rung
 token priors of [`bench/estimate.py`](../src/engineering_team/bench/estimate.py), 10–50× the measured
 cost of these runs) makes `auto` refuse to start (those batches cost nothing and were discarded); and
 the ledger checks a batch against the same priors, so expensive models were run one task at a time.
+The priors were refitted to these runs afterwards (75th percentile tokens, cache reads priced): Luna
+`single` on `notes-cli` is now estimated at $0.025 (was $0.085; measured $0.003-0.005), Sonnet at
+$0.49 (measured $0.20).
 
 ## Harness tuning (`harness tune`)
 

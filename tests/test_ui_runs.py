@@ -115,9 +115,9 @@ def test_a_live_stream_follows_the_run_and_ends_when_it_does() -> None:
         for line in response.iter_lines():
             if line.startswith("data: "):
                 seen.append(json.loads(line[6:])["type"])
-            if len(seen) == 3:  # events arrive while the run is still going
-                assert status_of(client, run_id) == "running"
-                live.post(f"{API}/runs/{run_id}/cancel")
+                if len(seen) == 3:  # events arrive while the run is still going (checked once)
+                    assert status_of(client, run_id) == "running"
+                    live.post(f"{API}/runs/{run_id}/cancel")
             if line.startswith("event: end"):
                 break
 
@@ -251,9 +251,13 @@ def test_the_run_view_carries_live_state(tmp_path: Path) -> None:
     run_id = start(client, "SLOW")
     wait_status(client, run_id, "running")
 
-    view = wait_for(
-        lambda: (v := client.get(f"{API}/runs/{run_id}").json())["last_seq"] > 3 and v,
-        "events to arrive",
+    view = wait_for(  # the first tool call can land a few events after the run starts
+        lambda: (
+            (v := client.get(f"{API}/runs/{run_id}").json())["last_seq"] > 3
+            and v["usage"]["tool_calls"] >= 1
+            and v
+        ),
+        "events and the first tool call to arrive",
     )
 
     assert view["project"] == "demo" and view["manifest"]["mode"] == "new"

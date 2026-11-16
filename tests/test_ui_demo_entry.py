@@ -144,3 +144,16 @@ def test_best_of_n_attempts_on_the_sample_repository_pass_and_leave_a_patch(demo
     assert results["views"]["attempts"]["chosen"] == "a1"
     assert results["diff"]["files"], "the chosen attempt's change is the run's diff"
     assert results["merge"]["branch"]
+
+
+@pytest.mark.git
+def test_the_demo_needs_no_api_key(demo, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: ANN001
+    """``ui --demo`` is how a person tries the team before they have a key: its runs (started as
+    processes that inherit this environment) must not stop at the credentials check."""
+
+    monkeypatch.delenv("OPENAI_API_KEY")
+    client, repo = demo
+
+    results = run_do(client, "Add a notes search command.", repo=str(repo), options=AUTO)
+
+    assert results["status"] == "succeeded" and results["verdict"] == "verified"

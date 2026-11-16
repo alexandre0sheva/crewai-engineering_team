@@ -104,12 +104,17 @@ def test_the_demo_takes_away_every_model_call_the_controller_makes(
         (do_plan, "build_triage_llm"),
         (select, "build_judge_llm"),
         (reflect, "build_reflection_llm"),
+        (Settings, "missing_credentials"),
+        (Settings, "missing_embedder_credentials"),
     ):
         monkeypatch.setattr(module, name, getattr(module, name))  # restored after the test
+    monkeypatch.delenv("OPENAI_API_KEY")
     settings = Settings()
+    assert settings.missing_credentials()
 
     without_models()
 
+    assert settings.missing_credentials() == []  # a demo run needs no key
     assert reflect.build_reflection_llm(settings) is None
     for build in (do_plan.build_triage_llm, select.build_judge_llm):
         with pytest.raises(DemoNoModel):

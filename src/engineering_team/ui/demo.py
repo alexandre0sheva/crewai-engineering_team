@@ -40,6 +40,7 @@ DEMO_DIR = "engineering_team_demo"
 DEMO_MODEL = "openai/gpt-6.1-sol"
 DEMO_BUDGET_USD = 1.0  # the cost limit ``ui --demo`` sets, so the run shows a budget warning
 TARGET_SPEND = 0.82  # what the demo tops its spending up to (82% of the limit)
+DEMO_RUNG_ESTIMATE_USD = 0.15  # one rung of scripted stages at DEMO_MODEL's price (about $0.13)
 ASK_TIMEOUT = 90.0  # seconds the demo waits for a person to answer its question
 FINAL_STAGES = ("review", "build")
 PAUSE = 0.35  # seconds between a teammate's tool calls (``--demo-pause`` changes it)
@@ -354,7 +355,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     patched: Any = strategies
     patched.CrewStageRunner = DemoRunner
     without_models()
+    scripted_estimates()
     return int(engine.run(args) or 0)
+
+
+def _demo_estimate(settings: Any, rung: str, size: str) -> float:
+    return DEMO_RUNG_ESTIMATE_USD
+
+
+def scripted_estimates() -> None:
+    """Price every rung of the ladder at what the scripted runner spends on one, instead of the
+    token priors of the configured models: those depend on the person's model settings (an
+    unpriced model makes every rung "affordable", a priced one can put the full team's rung over
+    the demo's cost limit), and the demo must climb the same way on every machine."""
+
+    from engineering_team.cli import do_plan
+    from engineering_team.pipeline import ladder_run
+
+    patched: Any = ladder_run
+    patched.estimate_usd = _demo_estimate
+    patched = do_plan
+    patched.estimate_usd = _demo_estimate
 
 
 class DemoNoModel(RuntimeError):
@@ -363,6 +384,10 @@ class DemoNoModel(RuntimeError):
 
 def _no_model(settings: Any) -> Any:
     raise DemoNoModel("the demo calls no model")
+
+
+def _no_credentials_needed(settings: Any) -> list[str]:
+    return []
 
 
 def without_models() -> None:
@@ -375,8 +400,13 @@ def without_models() -> None:
     from engineering_team.cli import do_plan
     from engineering_team.learning import reflect
     from engineering_team.pipeline import select
+    from engineering_team.settings import Settings
 
-    patched: Any = do_plan
+    # No model is ever called, so no key is needed: a person trying the demo has none yet.
+    patched: Any = Settings
+    patched.missing_credentials = _no_credentials_needed
+    patched.missing_embedder_credentials = _no_credentials_needed
+    patched = do_plan
     patched.build_triage_llm = _no_model
     patched = select
     patched.build_judge_llm = _no_model

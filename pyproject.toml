@@ -25,27 +25,27 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
 ]
 dependencies = [
-    "crewai[tools]>=1.15.31,<1.16",
+    "crewai[tools]>=1.15.41,<1.16",
     "pyyaml>=6.0.3,<7",  # recipes and stage prompts (also a CrewAI dependency; declared, not assumed)
     "pydantic>=2.12.5,<3",  # settings and contracts (also a CrewAI dependency; declared, not assumed)
-    "typer>=0.27.3,<1",  # the command-line interface
+    "typer>=0.29.1,<1",  # the command-line interface
     "rich>=14.3.4,<15",  # its live progress view, tables, and panels (<15: CrewAI's `instructor` caps it)
 ]
 
 [project.optional-dependencies]
 # Native CrewAI provider SDKs; install only what you use, e.g. `uv sync --extra anthropic`.
-anthropic = ["crewai[anthropic]>=1.15.31,<1.16"]
-google = ["crewai[google-genai]>=1.15.31,<1.16"]
-azure = ["crewai[azure-ai-inference]>=1.15.31,<1.16"]
+anthropic = ["crewai[anthropic]>=1.15.41,<1.16"]
+google = ["crewai[google-genai]>=1.15.41,<1.16"]
+azure = ["crewai[azure-ai-inference]>=1.15.41,<1.16"]
 # Headless-browser tools for UI verification (then `playwright install chromium`).
-browser = ["playwright>=1.64.1,<2"]
+browser = ["playwright>=1.65.2,<2"]
 # The MCP server (`engineering-team mcp serve`): other agents delegate work to the team.
 mcp = ["mcp>=1.30,<2"]
 # The local web UI's API server (`engineering-team ui`).
 ui = [
-    "fastapi>=0.162",
+    "fastapi>=0.163.1",
     "uvicorn>=0.54",
-    "python-multipart>=0.0.32",  # file uploads when starting a run
+    "python-multipart>=0.0.34",  # file uploads when starting a run
 ]
 
 [project.urls]
@@ -62,12 +62,12 @@ run_crew = "engineering_team.main:run_crew"
 
 [dependency-groups]
 dev = [
-    "fastapi>=0.162",  # the web UI's tests (also the [ui] extra)
+    "fastapi>=0.163.1",  # the web UI's tests (also the [ui] extra)
     "httpx>=0.28.1",  # FastAPI's TestClient
-    "python-multipart>=0.0.32",
-    "mypy>=2.4.0",
+    "python-multipart>=0.0.34",
+    "mypy>=2.4.1",
     "pytest>=9.2.0",
-    "ruff>=0.17.3",
+    "ruff>=0.17.5",
 ]
 site = [
     "mkdocs-material>=9.7,<10",

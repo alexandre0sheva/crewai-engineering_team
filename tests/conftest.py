@@ -18,6 +18,10 @@ import pytest
 # ``.env`` (API keys, ENGINEERING_* settings) into every test. Neutralise it before
 # crewai is imported anywhere; pytest imports this conftest first.
 dotenv.load_dotenv = lambda *args, **kwargs: False  # type: ignore[assignment]
+# The same for every process a test starts (the UI's run launcher, the demo, `bench` subprocesses):
+# they import CrewAI afresh, and without this they would read the repository's ``.env``, so a test
+# could pass on a developer's machine only because of its local settings (python-dotenv >= 1.1).
+os.environ["PYTHON_DOTENV_DISABLED"] = "1"
 
 if TYPE_CHECKING:
     from engineering_team.runtime.context import RunContext
@@ -31,7 +35,11 @@ PROVIDER_KEY_NAMES = (
     "GOOGLE_API_KEY",
     "GEMINI_API_KEY",
     "AZURE_API_KEY",
+    "OPENROUTER_API_KEY",
 )
+# Rich forces coloured output when one of these is set (GitHub Actions sets the first), which puts
+# escape codes into the help text tests read; the tests expect what a plain terminal shows.
+COLOR_FORCING = ("GITHUB_ACTIONS", "FORCE_COLOR", "TTY_COMPATIBLE", "TTY_INTERACTIVE")
 
 
 def playwright_browsers_path() -> str:
@@ -151,7 +159,7 @@ def hermetic_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pat
     monkeypatch.setenv("CREWAI_DISABLE_TELEMETRY", "true")
     monkeypatch.setenv("OTEL_SDK_DISABLED", "true")
     monkeypatch.setenv("OPENAI_API_KEY", TEST_API_KEY)
-    for name in PROVIDER_KEY_NAMES[1:]:
+    for name in (*PROVIDER_KEY_NAMES[1:], *COLOR_FORCING):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", REAL_PLAYWRIGHT_BROWSERS_PATH)
     monkeypatch.setenv("HOME", str(sandbox / "home"))

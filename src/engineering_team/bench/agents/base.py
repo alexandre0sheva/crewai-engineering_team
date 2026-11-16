@@ -118,6 +118,10 @@ class CliAgent:
     binary: ClassVar[str]
     version_args: ClassVar[tuple[str, ...]] = ("--version",)
     caps_cost: ClassVar[bool] = False  # whether its command line can stop a run at a spend cap
+    # Variables that make the agent bill per token instead of its signed-in plan. A run labelled
+    # ``subscription`` gets an environment without them, so the label is what is billed (the
+    # bench process usually has them: CrewAI loads ``.env`` for the team's own runs).
+    api_env: ClassVar[tuple[str, ...]] = ()
 
     def __init__(
         self,
@@ -164,7 +168,7 @@ class CliAgent:
                 CommandSpec(
                     argv=(exe, *self.version_args),
                     cwd=Path.cwd(),
-                    env=self.env,
+                    env=self.process_env(),
                     timeout=VERSION_TIMEOUT,
                     label=f"{self.name} --version",
                 )  # fmt: skip
@@ -178,6 +182,14 @@ class CliAgent:
 
     def billing(self) -> Billing:
         return self._billing or self.detect_billing(self.env)
+
+    def process_env(self) -> dict[str, str]:
+        """The environment the agent's process gets: without the per-token switches when the run
+        is billed to a plan."""
+
+        if self.billing() != "subscription":
+            return dict(self.env)
+        return {name: value for name, value in self.env.items() if name not in self.api_env}
 
     def detect_billing(self, env: Mapping[str, str]) -> Billing:
         return "unknown"
@@ -197,7 +209,7 @@ class CliAgent:
                 error=f"`{self.binary}` is not on PATH: install {self.name} or fix PATH.",
             )  # fmt: skip
         spec = CommandSpec(
-            argv=(exe, *self.arguments(request, workspace)), cwd=workspace, env=self.env,
+            argv=(exe, *self.arguments(request, workspace)), cwd=workspace, env=self.process_env(),
             timeout=timeout, label=self.name, network=True,
         )  # fmt: skip
         try:
