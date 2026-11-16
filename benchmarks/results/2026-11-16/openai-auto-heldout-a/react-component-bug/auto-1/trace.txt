@@ -1,0 +1,17 @@
+Uncaught TypeError: Cannot assign to read only property '0' of object '[object Array]'
+    at Array.sort (<anonymous>)
+    at OrderSummary (src/OrderSummary.tsx:12:46)
+    at renderWithHooks (node_modules/react-dom/cjs/react-dom-client.development.js:7003:22)
+    at updateFunctionComponent (node_modules/react-dom/cjs/react-dom-client.development.js:9244:19)
+    at beginWork (node_modules/react-dom/cjs/react-dom-client.development.js:10755:18)
+    at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:871:30)
+    at performUnitOfWork (node_modules/react-dom/cjs/react-dom-client.development.js:15258:22)
+    at workLoopSync (node_modules/react-dom/cjs/react-dom-client.development.js:15078:41)
+    at renderRootSync (node_modules/react-dom/cjs/react-dom-client.development.js:15058:11)
+    at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:14526:44)
+
+The above error occurred in the <OrderSummary> component.
+    at OrderSummary (src/OrderSummary.tsx:11:30)
+    at main
+    at CartPage (src/CartPage.tsx:5:28)
+    at CheckoutRoute (src/routes/checkout.tsx:22:5)

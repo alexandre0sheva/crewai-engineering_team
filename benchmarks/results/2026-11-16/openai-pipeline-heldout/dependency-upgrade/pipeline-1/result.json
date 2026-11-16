@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "openai-pipeline-heldout",
+  "task": "dependency-upgrade",
+  "strategy": "pipeline",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "upgrade_deps",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: tests-pass",
+  "run_id": "20261116-200833-b340d0",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 592.9,
+  "tokens": 558442,
+  "prompt_tokens": 494627,
+  "completion_tokens": 63815,
+  "model_calls": 46,
+  "sessions": 8,
+  "cached_prompt_tokens": 400365,
+  "tool_calls": 59,
+  "cost_usd": 0.07176044999999999,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 14,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "upgraded",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    },
+    {
+      "id": "invoices-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.34
+    },
+    {
+      "id": "errors-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.23
+    },
+    {
+      "id": "no-removed-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "tests-pass",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: test_totals.py was changed",
+      "duration": 0.08
+    }
+  ],
+  "started": "2026-11-16T20:08:33+00:00",
+  "finished": "2026-11-16T20:18:27+00:00",
+  "run_dir": "dependency-upgrade/pipeline-1",
+  "workspace": "dependency-upgrade/pipeline-1/repo"
+}

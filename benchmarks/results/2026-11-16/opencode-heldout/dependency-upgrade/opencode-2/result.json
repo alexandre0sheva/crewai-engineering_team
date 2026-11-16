@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "opencode-heldout",
+  "task": "dependency-upgrade",
+  "strategy": "opencode",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "upgrade_deps",
+  "agent": "opencode",
+  "agent_version": "1.19.4",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: tests-pass",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 106.61,
+  "tokens": 443059,
+  "prompt_tokens": 426051,
+  "completion_tokens": 17008,
+  "model_calls": 20,
+  "sessions": 1,
+  "cached_prompt_tokens": 404357,
+  "tool_calls": 0,
+  "cost_usd": 0.009762127500000002,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "upgraded",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    },
+    {
+      "id": "invoices-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.14
+    },
+    {
+      "id": "errors-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.55
+    },
+    {
+      "id": "no-removed-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.16
+    },
+    {
+      "id": "tests-pass",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: test_totals.py was changed",
+      "duration": 0.14
+    }
+  ],
+  "started": "2026-11-16T20:38:17+00:00",
+  "finished": "2026-11-16T20:40:07+00:00",
+  "run_dir": "dependency-upgrade/opencode-2",
+  "workspace": "dependency-upgrade/opencode-2/repo"
+}

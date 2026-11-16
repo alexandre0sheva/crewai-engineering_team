@@ -1,0 +1,210 @@
+{
+  "export_version": 1,
+  "batch": "openai-attempts3-dependency",
+  "created": "2026-11-16T22:01:23+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "auto",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "openai/gpt-6-luna",
+        "openai/gpt-6.1-terra"
+      ],
+      "runs": 2,
+      "counted": 2,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "wilson_low": 0.0,
+      "wilson_high": 0.6576197724933469,
+      "cost_total_usd": 0.21511097,
+      "cost_per_success_usd": null,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 268.07000000000005
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "openai-attempts3-dependency",
+      "task": "dependency-upgrade",
+      "strategy": "auto",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "maintain",
+      "split": "heldout",
+      "intent": "upgrade_deps",
+      "agent": null,
+      "agent_version": null,
+      "provider": "openai",
+      "profile": null,
+      "fake": false,
+      "outcome": "failed",
+      "reason": "criteria not met: tests-pass",
+      "run_id": "20261116-220123-5b7231",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 257.6,
+      "tokens": 827365,
+      "prompt_tokens": 792502,
+      "completion_tokens": 34863,
+      "model_calls": 139,
+      "sessions": 0,
+      "cached_prompt_tokens": 653214,
+      "tool_calls": 189,
+      "cost_usd": 0.10793673999999999,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna",
+        "openai/gpt-6.1-terra"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 29,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "upgraded",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.23
+        },
+        {
+          "id": "invoices-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.41
+        },
+        {
+          "id": "errors-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.27
+        },
+        {
+          "id": "no-removed-api",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.09
+        },
+        {
+          "id": "tests-pass",
+          "passed": false,
+          "error": false,
+          "required": true,
+          "detail": "FAILED: test_totals.py was changed",
+          "duration": 0.11
+        }
+      ],
+      "started": "2026-11-16T22:01:23+00:00",
+      "finished": "2026-11-16T22:05:42+00:00",
+      "run_dir": "dependency-upgrade/auto-1",
+      "workspace": "dependency-upgrade/auto-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "openai-attempts3-dependency",
+      "task": "dependency-upgrade",
+      "strategy": "auto",
+      "repeat": 2,
+      "kind": "brownfield",
+      "mode": "maintain",
+      "split": "heldout",
+      "intent": "upgrade_deps",
+      "agent": null,
+      "agent_version": null,
+      "provider": "openai",
+      "profile": null,
+      "fake": false,
+      "outcome": "failed",
+      "reason": "criteria not met: tests-pass",
+      "run_id": "20261116-220542-89aafc",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 278.54,
+      "tokens": 907827,
+      "prompt_tokens": 871477,
+      "completion_tokens": 36350,
+      "model_calls": 147,
+      "sessions": 0,
+      "cached_prompt_tokens": 740805,
+      "tool_calls": 205,
+      "cost_usd": 0.10717423000000001,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna",
+        "openai/gpt-6.1-terra"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 42,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "upgraded",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.47
+        },
+        {
+          "id": "invoices-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.58
+        },
+        {
+          "id": "errors-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.41
+        },
+        {
+          "id": "no-removed-api",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.14
+        },
+        {
+          "id": "tests-pass",
+          "passed": false,
+          "error": false,
+          "required": true,
+          "detail": "FAILED: test_totals.py was changed",
+          "duration": 0.12
+        }
+      ],
+      "started": "2026-11-16T22:05:42+00:00",
+      "finished": "2026-11-16T22:10:22+00:00",
+      "run_dir": "dependency-upgrade/auto-2",
+      "workspace": "dependency-upgrade/auto-2/repo"
+    }
+  ]
+}

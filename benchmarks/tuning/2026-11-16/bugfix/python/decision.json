@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "created": "2026-11-16T20:22:59+00:00",
+  "domain": "bugfix/python",
+  "pack": "bugfix+python",
+  "mode": "parallel",
+  "k": 1,
+  "dev_tasks": [
+    "seeded-bug"
+  ],
+  "heldout_tasks": [
+    "ledger-misleading-trace"
+  ],
+  "decision": "keep_base",
+  "files": [],
+  "rates": {
+    "base_dev": {
+      "passed": 1,
+      "counted": 1
+    }
+  },
+  "notes": [
+    "[seeded-bug:1] keep_base: controller: the composer gave no decision; keep_base (base 1/1, inv 1/1, dom 1/1)",
+    "KEEP_BASE: no slot's choice beat the base on its own probe"
+  ],
+  "stopped": null,
+  "identity_problems": [],
+  "cost_usd": 0.0625715,
+  "unknown_cost_entries": 1,
+  "base_packs": [
+    {
+      "name": "base",
+      "sha256": "4d82107b9075"
+    },
+    {
+      "name": "python",
+      "sha256": "47437fee3039"
+    },
+    {
+      "name": "bugfix",
+      "sha256": "74ae73c78d7c"
+    }
+  ],
+  "ledger": "ledger.jsonl",
+  "rollouts": "/Users/alexander/apps/app-coder/crewai-engineering_team/benchmarks/.runs/tune-20261116-220718-bugfix-python",
+  "fake": false,
+  "model": "openrouter/moonshotai/kimi-k2.7-code"
+}

@@ -1,0 +1,3 @@
+# Best-of-3 attempts (plan T23/T33): every run is three verified attempts, one chosen blind.
+[attempts]
+count = 3

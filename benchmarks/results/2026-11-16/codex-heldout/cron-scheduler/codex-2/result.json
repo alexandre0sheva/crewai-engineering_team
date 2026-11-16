@@ -1,0 +1,91 @@
+{
+  "schema_version": 3,
+  "batch": "codex-heldout",
+  "task": "cron-scheduler",
+  "strategy": "codex",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "heldout",
+  "intent": "new_project",
+  "agent": "codex",
+  "agent_version": "codex-cli 0.162.1",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 146.45,
+  "tokens": 81356,
+  "prompt_tokens": 75479,
+  "completion_tokens": 5877,
+  "model_calls": 1,
+  "sessions": 1,
+  "cached_prompt_tokens": 70784,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": null,
+  "models": [],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "simple-schedules",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "ranges-steps-lists",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "calendar-rollover",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "dom-dow-rule",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "validation",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.06
+    },
+    {
+      "id": "cli",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.31
+    }
+  ],
+  "started": "2026-11-16T20:09:53+00:00",
+  "finished": "2026-11-16T20:12:20+00:00",
+  "run_dir": "cron-scheduler/codex-2",
+  "workspace": "cron-scheduler/codex-2/ws/app"
+}

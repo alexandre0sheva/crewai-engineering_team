@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "batch": "openrouter-auto-heldout-b",
+  "created": "2026-11-16T19:22:41+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openrouter",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "auto"
+  ],
+  "agents": {},
+  "repeat": 2,
+  "parallel": 2,
+  "budget_usd": 0.8,
+  "run_budget_usd": 0.4,
+  "planned_runs": 2,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "answer-questions": {
+      "split": "heldout",
+      "intent": "question",
+      "digest": "2a1daef9def9a0d3"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "answer-questions",
+    "--strategy",
+    "auto",
+    "--repeat",
+    "2",
+    "--parallel",
+    "2",
+    "--provider",
+    "openrouter",
+    "--budget-usd",
+    "0.8",
+    "--run-budget-usd",
+    "0.4",
+    "--allocation",
+    "T33",
+    "--out",
+    "benchmarks/results/2026-11-16",
+    "--batch",
+    "openrouter-auto-heldout-b",
+    "--allow-failures"
+  ]
+}

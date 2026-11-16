@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "anthropic-auto-heldout-b",
+  "task": "dependency-upgrade",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "upgrade_deps",
+  "agent": null,
+  "agent_version": null,
+  "provider": "anthropic",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: tests-pass",
+  "run_id": "20261116-200538-e69ec5",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 230.38,
+  "tokens": 301996,
+  "prompt_tokens": 265929,
+  "completion_tokens": 36067,
+  "model_calls": 24,
+  "sessions": 7,
+  "cached_prompt_tokens": 156587,
+  "tool_calls": 29,
+  "cost_usd": 0.081845035,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "anthropic/claude-haiku-5-5",
+    "anthropic/claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "upgraded",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    },
+    {
+      "id": "invoices-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.33
+    },
+    {
+      "id": "errors-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.23
+    },
+    {
+      "id": "no-removed-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "tests-pass",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: test_totals.py was changed",
+      "duration": 0.11
+    }
+  ],
+  "started": "2026-11-16T20:05:38+00:00",
+  "finished": "2026-11-16T20:09:29+00:00",
+  "run_dir": "dependency-upgrade/auto-1",
+  "workspace": "dependency-upgrade/auto-1/repo"
+}

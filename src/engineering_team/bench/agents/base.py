@@ -209,7 +209,10 @@ class CliAgent:
                 error=f"`{self.binary}` is not on PATH: install {self.name} or fix PATH.",
             )  # fmt: skip
         spec = CommandSpec(
-            argv=(exe, *self.arguments(request, workspace)), cwd=workspace, env=self.process_env(),
+            argv=(exe, *self.arguments(request, workspace)), cwd=workspace,
+            # PWD too: OpenCode (Bun) takes its project directory from $PWD, which the bench
+            # process's own environment points at the checkout; the agent then edited the suite.
+            env={**self.process_env(), "PWD": str(workspace)},
             timeout=timeout, label=self.name, network=True,
         )  # fmt: skip
         try:

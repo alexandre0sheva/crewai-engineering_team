@@ -1,0 +1,83 @@
+{
+  "schema_version": 3,
+  "batch": "codex-dev",
+  "task": "url-shortener",
+  "strategy": "codex",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": "codex",
+  "agent_version": "codex-cli 0.162.1",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 235.22,
+  "tokens": 279297,
+  "prompt_tokens": 271219,
+  "completion_tokens": 8078,
+  "model_calls": 1,
+  "sessions": 1,
+  "cached_prompt_tokens": 244224,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": null,
+  "models": [],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "shorten-and-redirect",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.19
+    },
+    {
+      "id": "same-url-same-code",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    },
+    {
+      "id": "validation",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    },
+    {
+      "id": "stats",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    },
+    {
+      "id": "persistence",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.28
+    }
+  ],
+  "started": "2026-11-16T20:50:50+00:00",
+  "finished": "2026-11-16T20:54:46+00:00",
+  "run_dir": "url-shortener/codex-2",
+  "workspace": "url-shortener/codex-2/ws/app"
+}

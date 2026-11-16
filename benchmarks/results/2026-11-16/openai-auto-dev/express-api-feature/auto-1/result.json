@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "openai-auto-dev",
+  "task": "express-api-feature",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "feature",
+  "split": "dev",
+  "intent": "feature",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-205746-cdeafd",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 194.85,
+  "tokens": 410985,
+  "prompt_tokens": 400000,
+  "completion_tokens": 10985,
+  "model_calls": 34,
+  "sessions": 3,
+  "cached_prompt_tokens": 336203,
+  "tool_calls": 48,
+  "cost_usd": 0.07598051,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 6,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "lend-and-return",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.82
+    },
+    {
+      "id": "loan-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.67
+    },
+    {
+      "id": "availability-filter",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.66
+    },
+    {
+      "id": "existing-endpoints",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.62
+    },
+    {
+      "id": "tests-added",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.75
+    }
+  ],
+  "started": "2026-11-16T20:57:46+00:00",
+  "finished": "2026-11-16T21:01:05+00:00",
+  "run_dir": "express-api-feature/auto-1",
+  "workspace": "express-api-feature/auto-1/repo"
+}

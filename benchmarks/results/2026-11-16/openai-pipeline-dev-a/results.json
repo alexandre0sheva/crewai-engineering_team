@@ -1,0 +1,194 @@
+{
+  "export_version": 1,
+  "batch": "openai-pipeline-dev-a",
+  "created": "2026-11-16T20:31:17+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "pipeline",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "openai/gpt-6-luna",
+        "openai/gpt-6.1-terra"
+      ],
+      "runs": 2,
+      "counted": 2,
+      "passed": 1,
+      "pass_rate": 0.5,
+      "wilson_low": 0.09453120573423074,
+      "wilson_high": 0.9054687942657693,
+      "cost_total_usd": 0.04181485,
+      "cost_per_success_usd": 0.04181485,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 163.185
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "openai-pipeline-dev-a",
+      "task": "add-tests",
+      "strategy": "pipeline",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "maintain",
+      "split": "dev",
+      "intent": "tests",
+      "agent": null,
+      "agent_version": null,
+      "provider": "openai",
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261116-203117-5ece30",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 163.57,
+      "tokens": 177086,
+      "prompt_tokens": 170242,
+      "completion_tokens": 6844,
+      "model_calls": 35,
+      "sessions": 5,
+      "cached_prompt_tokens": 144187,
+      "tool_calls": 43,
+      "cost_usd": 0.01858325,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna",
+        "openai/gpt-6.1-terra"
+      ],
+      "repair_rounds": 1,
+      "tool_failures": 5,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "tests-pass",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.12
+        },
+        {
+          "id": "source-untouched",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "catches-defects",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.42
+        }
+      ],
+      "started": "2026-11-16T20:31:17+00:00",
+      "finished": "2026-11-16T20:34:02+00:00",
+      "run_dir": "add-tests/pipeline-1",
+      "workspace": "add-tests/pipeline-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "openai-pipeline-dev-a",
+      "task": "docs-cli-reference",
+      "strategy": "pipeline",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "maintain",
+      "split": "dev",
+      "intent": "docs",
+      "agent": null,
+      "agent_version": null,
+      "provider": "openai",
+      "profile": null,
+      "fake": false,
+      "outcome": "failed",
+      "reason": "criteria not met: defaults-stated",
+      "run_id": "20261116-203117-c884b7",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 162.8,
+      "tokens": 225646,
+      "prompt_tokens": 218212,
+      "completion_tokens": 7434,
+      "model_calls": 40,
+      "sessions": 6,
+      "cached_prompt_tokens": 177372,
+      "tool_calls": 44,
+      "cost_usd": 0.023231599999999998,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna",
+        "openai/gpt-6.1-terra"
+      ],
+      "repair_rounds": 1,
+      "tool_failures": 7,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "every-command",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.09
+        },
+        {
+          "id": "every-option",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.18
+        },
+        {
+          "id": "defaults-stated",
+          "passed": false,
+          "error": false,
+          "required": true,
+          "detail": "FAILED: global --file: the default 'tasks.json' is not stated",
+          "duration": 0.09
+        },
+        {
+          "id": "examples-run",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.53
+        },
+        {
+          "id": "code-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        }
+      ],
+      "started": "2026-11-16T20:31:17+00:00",
+      "finished": "2026-11-16T20:34:01+00:00",
+      "run_dir": "docs-cli-reference/pipeline-1",
+      "workspace": "docs-cli-reference/pipeline-1/repo"
+    }
+  ]
+}

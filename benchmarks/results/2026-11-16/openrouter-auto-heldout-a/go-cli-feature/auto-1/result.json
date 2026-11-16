@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "openrouter-auto-heldout-a",
+  "task": "go-cli-feature",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "feature",
+  "split": "heldout",
+  "intent": "feature",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openrouter",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-191056-ee53bf",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 124.67,
+  "tokens": 181500,
+  "prompt_tokens": 165517,
+  "completion_tokens": 15983,
+  "model_calls": 17,
+  "sessions": 1,
+  "cached_prompt_tokens": 136960,
+  "tool_calls": 25,
+  "cost_usd": 0.01592775,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 5,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "json-format",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.83
+    },
+    {
+      "id": "min-length",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.09
+    },
+    {
+      "id": "flag-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.21
+    },
+    {
+      "id": "defaults-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.62
+    },
+    {
+      "id": "table-tests",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.36
+    }
+  ],
+  "started": "2026-11-16T19:10:56+00:00",
+  "finished": "2026-11-16T19:13:17+00:00",
+  "run_dir": "go-cli-feature/auto-1",
+  "workspace": "go-cli-feature/auto-1/repo"
+}

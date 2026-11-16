@@ -1,0 +1,377 @@
+{
+  "export_version": 1,
+  "batch": "openai-single-heldout",
+  "created": "2026-11-16T20:05:00+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "single",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "runs": 4,
+      "counted": 4,
+      "passed": 2,
+      "pass_rate": 0.5,
+      "wilson_low": 0.15003898915214947,
+      "wilson_high": 0.8499610108478506,
+      "cost_total_usd": 0.01112302,
+      "cost_per_success_usd": 0.00556151,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 67.215
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "openai-single-heldout",
+      "task": "ambiguous-export",
+      "strategy": "single",
+      "repeat": 1,
+      "kind": "greenfield",
+      "mode": "new",
+      "split": "heldout",
+      "intent": "new_project",
+      "agent": null,
+      "agent_version": null,
+      "provider": "openai",
+      "profile": null,
+      "fake": false,
+      "outcome": "failed",
+      "reason": "criteria not met: assumption-recorded, behaviour-matches-assumption",
+      "run_id": "20261116-200500-0225d7",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": null,
+      "duration_seconds": 62.06,
+      "tokens": 57067,
+      "prompt_tokens": 53732,
+      "completion_tokens": 3335,
+      "model_calls": 13,
+      "sessions": 1,
+      "cached_prompt_tokens": 50247,
+      "tool_calls": 12,
+      "cost_usd": 0.00251847,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "sort-command",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.13
+        },
+        {
+          "id": "errors",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.21
+        },
+        {
+          "id": "assumption-recorded",
+          "passed": false,
+          "error": false,
+          "required": true,
+          "detail": "FAILED: no document says whether the sort is by first or by last name",
+          "duration": 0.07
+        },
+        {
+          "id": "behaviour-matches-assumption",
+          "passed": false,
+          "error": false,
+          "required": true,
+          "detail": "FAILED: no single stated reading to compare with",
+          "duration": 0.07
+        }
+      ],
+      "started": "2026-11-16T20:05:00+00:00",
+      "finished": "2026-11-16T20:06:03+00:00",
+      "run_dir": "ambiguous-export/single-1",
+      "workspace": "ambiguous-export/single-1/ws/app"
+    },
+    {
+      "schema_version": 3,
+      "batch": "openai-single-heldout",
+      "task": "ambiguous-export",
+      "strategy": "single",
+      "repeat": 2,
+      "kind": "greenfield",
+      "mode": "new",
+      "split": "heldout",
+      "intent": "new_project",
+      "agent": null,
+      "agent_version": null,
+      "provider": "openai",
+      "profile": null,
+      "fake": false,
+      "outcome": "failed",
+      "reason": "criteria not met: sort-command, assumption-recorded, behaviour-matches-assumption",
+      "run_id": "20261116-200500-8cd8c3",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": null,
+      "duration_seconds": 64.68,
+      "tokens": 50196,
+      "prompt_tokens": 46976,
+      "completion_tokens": 3220,
+      "model_calls": 12,
+      "sessions": 1,
+      "cached_prompt_tokens": 43558,
+      "tool_calls": 11,
+      "cost_usd": 0.00238738,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "sort-command",
+          "passed": false,
+          "error": false,
+          "required": true,
+          "detail": "FAILED: exit 2: usage: __main__.py [-h] input output\n__main__.py: error: unrecognized arguments: out.csv",
+          "duration": 0.21
+        },
+        {
+          "id": "errors",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.24
+        },
+        {
+          "id": "assumption-recorded",
+          "passed": false,
+          "error": false,
+          "required": true,
+          "detail": "FAILED: no document says whether the sort is by first or by last name",
+          "duration": 0.1
+        },
+        {
+          "id": "behaviour-matches-assumption",
+          "passed": false,
+          "error": false,
+          "required": true,
+          "detail": "FAILED: no single stated reading to compare with",
+          "duration": 0.1
+        }
+      ],
+      "started": "2026-11-16T20:05:00+00:00",
+      "finished": "2026-11-16T20:06:06+00:00",
+      "run_dir": "ambiguous-export/single-2",
+      "workspace": "ambiguous-export/single-2/ws/app"
+    },
+    {
+      "schema_version": 3,
+      "batch": "openai-single-heldout",
+      "task": "cron-scheduler",
+      "strategy": "single",
+      "repeat": 1,
+      "kind": "greenfield",
+      "mode": "new",
+      "split": "heldout",
+      "intent": "new_project",
+      "agent": null,
+      "agent_version": null,
+      "provider": "openai",
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261116-200603-b37a60",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": null,
+      "duration_seconds": 69.75,
+      "tokens": 58259,
+      "prompt_tokens": 53277,
+      "completion_tokens": 4982,
+      "model_calls": 11,
+      "sessions": 1,
+      "cached_prompt_tokens": 48961,
+      "tool_calls": 12,
+      "cost_usd": 0.00341221,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 1,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "simple-schedules",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.09
+        },
+        {
+          "id": "ranges-steps-lists",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.13
+        },
+        {
+          "id": "calendar-rollover",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "dom-dow-rule",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "validation",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "cli",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.27
+        }
+      ],
+      "started": "2026-11-16T20:06:03+00:00",
+      "finished": "2026-11-16T20:07:13+00:00",
+      "run_dir": "cron-scheduler/single-1",
+      "workspace": "cron-scheduler/single-1/ws/app"
+    },
+    {
+      "schema_version": 3,
+      "batch": "openai-single-heldout",
+      "task": "cron-scheduler",
+      "strategy": "single",
+      "repeat": 2,
+      "kind": "greenfield",
+      "mode": "new",
+      "split": "heldout",
+      "intent": "new_project",
+      "agent": null,
+      "agent_version": null,
+      "provider": "openai",
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261116-200606-aeb6b2",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": null,
+      "duration_seconds": 83.29,
+      "tokens": 76390,
+      "prompt_tokens": 73086,
+      "completion_tokens": 3304,
+      "model_calls": 14,
+      "sessions": 1,
+      "cached_prompt_tokens": 68396,
+      "tool_calls": 13,
+      "cost_usd": 0.00280496,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 1,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "simple-schedules",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "ranges-steps-lists",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "calendar-rollover",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "dom-dow-rule",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "validation",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "cli",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.33
+        }
+      ],
+      "started": "2026-11-16T20:06:06+00:00",
+      "finished": "2026-11-16T20:07:30+00:00",
+      "run_dir": "cron-scheduler/single-2",
+      "workspace": "cron-scheduler/single-2/ws/app"
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "schema_version": 3,
+  "batch": "codex-dev",
+  "task": "csv-validator",
+  "strategy": "codex",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": "codex",
+  "agent_version": "codex-cli 0.162.1",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 263.65,
+  "tokens": 195769,
+  "prompt_tokens": 185811,
+  "completion_tokens": 9958,
+  "model_calls": 1,
+  "sessions": 1,
+  "cached_prompt_tokens": 163840,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": null,
+  "models": [],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "valid-file",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.2
+    },
+    {
+      "id": "type-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.31
+    },
+    {
+      "id": "required-and-unique",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "constraints",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.16
+    },
+    {
+      "id": "header-and-usage",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.37
+    },
+    {
+      "id": "quoted-fields",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    }
+  ],
+  "started": "2026-11-16T20:27:54+00:00",
+  "finished": "2026-11-16T20:32:19+00:00",
+  "run_dir": "csv-validator/codex-2",
+  "workspace": "csv-validator/codex-2/ws/app"
+}

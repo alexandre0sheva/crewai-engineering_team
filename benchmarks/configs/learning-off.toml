@@ -1,0 +1,3 @@
+# Learning off (plan T33): no lessons are read into prompts or kept.
+[learning]
+enabled = false

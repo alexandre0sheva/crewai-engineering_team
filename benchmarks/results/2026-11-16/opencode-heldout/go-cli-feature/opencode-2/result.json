@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "opencode-heldout",
+  "task": "go-cli-feature",
+  "strategy": "opencode",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "feature",
+  "split": "heldout",
+  "intent": "feature",
+  "agent": "opencode",
+  "agent_version": "1.19.4",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 113.71,
+  "tokens": 348629,
+  "prompt_tokens": 334518,
+  "completion_tokens": 14111,
+  "model_calls": 18,
+  "sessions": 1,
+  "cached_prompt_tokens": 282712,
+  "tool_calls": 0,
+  "cost_usd": 0.01023909,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "json-format",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 4.7
+    },
+    {
+      "id": "min-length",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 4.1
+    },
+    {
+      "id": "flag-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 4.26
+    },
+    {
+      "id": "defaults-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 4.39
+    },
+    {
+      "id": "table-tests",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 4.4
+    }
+  ],
+  "started": "2026-11-16T20:43:55+00:00",
+  "finished": "2026-11-16T20:46:10+00:00",
+  "run_dir": "go-cli-feature/opencode-2",
+  "workspace": "go-cli-feature/opencode-2/repo"
+}

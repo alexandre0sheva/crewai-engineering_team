@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "learning-off",
+  "task": "react-component-bug",
+  "strategy": "auto",
+  "repeat": 3,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "heldout",
+  "intent": "bugfix",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openrouter",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-210417-a4b02c",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 345.83,
+  "tokens": 873603,
+  "prompt_tokens": 832579,
+  "completion_tokens": 41024,
+  "model_calls": 62,
+  "sessions": 2,
+  "cached_prompt_tokens": 752273,
+  "tool_calls": 80,
+  "cost_usd": 0.0367784025,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 9,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "frozen-lines",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.97
+    },
+    {
+      "id": "props-untouched",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.79
+    },
+    {
+      "id": "summary-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.37
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 2.32
+    }
+  ],
+  "started": "2026-11-16T21:04:17+00:00",
+  "finished": "2026-11-16T21:10:11+00:00",
+  "run_dir": "react-component-bug/auto-3",
+  "workspace": "react-component-bug/auto-3/repo"
+}

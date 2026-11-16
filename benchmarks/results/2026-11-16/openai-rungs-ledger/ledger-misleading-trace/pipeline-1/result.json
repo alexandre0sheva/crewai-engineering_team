@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "openai-rungs-ledger",
+  "task": "ledger-misleading-trace",
+  "strategy": "pipeline",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "heldout",
+  "intent": "bugfix",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: unreadable-stops-import, others-unchanged",
+  "run_id": "20261116-220235-f833e9",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 86.69,
+  "tokens": 217480,
+  "prompt_tokens": 214741,
+  "completion_tokens": 2739,
+  "model_calls": 22,
+  "sessions": 3,
+  "cached_prompt_tokens": 179411,
+  "tool_calls": 26,
+  "cost_usd": 0.00669661,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 4,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "march-report",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.4
+    },
+    {
+      "id": "signed-amounts",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    },
+    {
+      "id": "unreadable-stops-import",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: the import must stop with status 2, got 0",
+      "duration": 0.24
+    },
+    {
+      "id": "others-unchanged",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: tests/test_import.py changed",
+      "duration": 0.53
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.33
+    }
+  ],
+  "started": "2026-11-16T22:02:35+00:00",
+  "finished": "2026-11-16T22:04:04+00:00",
+  "run_dir": "ledger-misleading-trace/pipeline-1",
+  "workspace": "ledger-misleading-trace/pipeline-1/repo"
+}

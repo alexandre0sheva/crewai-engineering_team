@@ -1,0 +1,101 @@
+{
+  "schema_version": 3,
+  "batch": "claude-code-dev",
+  "task": "markdown-html",
+  "strategy": "claude-code",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": "claude-code",
+  "agent_version": "2.1.287 (Claude Code)",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 44.17,
+  "tokens": 51664,
+  "prompt_tokens": 46202,
+  "completion_tokens": 5462,
+  "model_calls": 2,
+  "sessions": 1,
+  "cached_prompt_tokens": 30998,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": 0.09882759999999999,
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "headings-and-paragraphs",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.06
+    },
+    {
+      "id": "inline-formatting",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.06
+    },
+    {
+      "id": "lists",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "code-blocks",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.06
+    },
+    {
+      "id": "quotes-and-rules",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.06
+    },
+    {
+      "id": "escaping",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.06
+    },
+    {
+      "id": "cli",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    }
+  ],
+  "started": "2026-11-16T20:31:40+00:00",
+  "finished": "2026-11-16T20:32:24+00:00",
+  "run_dir": "markdown-html/claude-code-1",
+  "workspace": "markdown-html/claude-code-1/ws/app"
+}

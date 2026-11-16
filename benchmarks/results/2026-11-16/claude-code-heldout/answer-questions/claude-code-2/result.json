@@ -1,0 +1,93 @@
+{
+  "schema_version": 3,
+  "batch": "claude-code-heldout",
+  "task": "answer-questions",
+  "strategy": "claude-code",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "question",
+  "agent": "claude-code",
+  "agent_version": "2.1.287 (Claude Code)",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 26.84,
+  "tokens": 92966,
+  "prompt_tokens": 90168,
+  "completion_tokens": 2798,
+  "model_calls": 4,
+  "sessions": 1,
+  "cached_prompt_tokens": 74807,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": 0.08133989999999999,
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "q1-free-shipping",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "q2-heavy-orders",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.17
+    },
+    {
+      "id": "q3-carrier",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    },
+    {
+      "id": "q4-delivery",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "citations-real",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "code-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    }
+  ],
+  "started": "2026-11-16T20:06:54+00:00",
+  "finished": "2026-11-16T20:07:22+00:00",
+  "run_dir": "answer-questions/claude-code-2",
+  "workspace": "answer-questions/claude-code-2/repo"
+}

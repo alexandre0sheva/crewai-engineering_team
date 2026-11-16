@@ -1,0 +1,83 @@
+{
+  "schema_version": 3,
+  "batch": "codex-dev",
+  "task": "notes-cli",
+  "strategy": "codex",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": "codex",
+  "agent_version": "codex-cli 0.162.1",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 121.1,
+  "tokens": 78588,
+  "prompt_tokens": 73907,
+  "completion_tokens": 4681,
+  "model_calls": 1,
+  "sessions": 1,
+  "cached_prompt_tokens": 69248,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": null,
+  "models": [],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "add-and-list",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.23
+    },
+    {
+      "id": "ids-not-reused",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    },
+    {
+      "id": "tag-filter-and-search",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.37
+    },
+    {
+      "id": "delete-and-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.3
+    },
+    {
+      "id": "storage-file",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.16
+    }
+  ],
+  "started": "2026-11-16T20:44:45+00:00",
+  "finished": "2026-11-16T20:46:48+00:00",
+  "run_dir": "notes-cli/codex-2",
+  "workspace": "notes-cli/codex-2/ws/app"
+}

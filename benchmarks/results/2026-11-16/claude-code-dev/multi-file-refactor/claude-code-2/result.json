@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "claude-code-dev",
+  "task": "multi-file-refactor",
+  "strategy": "claude-code",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "dev",
+  "intent": "refactor",
+  "agent": "claude-code",
+  "agent_version": "2.1.287 (Claude Code)",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 29.66,
+  "tokens": 98947,
+  "prompt_tokens": 95792,
+  "completion_tokens": 3155,
+  "model_calls": 4,
+  "sessions": 1,
+  "cached_prompt_tokens": 78244,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": 0.0910648,
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "behaviour-preserved",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.44
+    },
+    {
+      "id": "one-home",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "public-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.15
+    },
+    {
+      "id": "tests-intact",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    }
+  ],
+  "started": "2026-11-16T20:32:51+00:00",
+  "finished": "2026-11-16T20:33:22+00:00",
+  "run_dir": "multi-file-refactor/claude-code-2",
+  "workspace": "multi-file-refactor/claude-code-2/repo"
+}

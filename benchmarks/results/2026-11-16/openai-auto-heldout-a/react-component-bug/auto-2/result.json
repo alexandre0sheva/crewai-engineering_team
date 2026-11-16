@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "openai-auto-heldout-a",
+  "task": "react-component-bug",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "heldout",
+  "intent": "bugfix",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-193705-a63a4a",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 102.35,
+  "tokens": 134520,
+  "prompt_tokens": 131217,
+  "completion_tokens": 3303,
+  "model_calls": 22,
+  "sessions": 2,
+  "cached_prompt_tokens": 117748,
+  "tool_calls": 26,
+  "cost_usd": 0.00417588,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 6,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "frozen-lines",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.39
+    },
+    {
+      "id": "props-untouched",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.3
+    },
+    {
+      "id": "summary-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.26
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 2.11
+    }
+  ],
+  "started": "2026-11-16T19:37:05+00:00",
+  "finished": "2026-11-16T19:38:54+00:00",
+  "run_dir": "react-component-bug/auto-2",
+  "workspace": "react-component-bug/auto-2/repo"
+}

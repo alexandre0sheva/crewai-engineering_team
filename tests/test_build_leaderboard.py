@@ -107,6 +107,35 @@ def test_enough_runs_first_then_the_interval_floor_then_cost(board: ModuleType, 
     assert [row.small for row in rows] == [False, False, True]
 
 
+def test_held_out_rows_come_before_dev_rows_and_a_variant_is_named(
+    board: ModuleType, tmp_path: Path
+) -> None:
+    root = tmp_path / "results"
+    dev = make_batch(
+        root, "2026-11-16/dev", runs("auto", 10, 10, split="dev"), with_results_json=True
+    )
+    held = make_batch(
+        root, "2026-11-16/held", runs("auto", 6, 10, split="heldout"), with_results_json=True
+    )
+    manifest = json.loads((held / "batch.json").read_text(encoding="utf-8"))
+    manifest["command"] = [
+        "engineering-team",
+        "bench",
+        "run",
+        "--config",
+        "benchmarks/configs/attempts3.toml",
+    ]
+    (held / "batch.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    rows = board.collect(root)
+
+    assert [row.batch for row in rows] == ["2026-11-16/held", "2026-11-16/dev"]  # 6/10 beats 10/10
+    assert [row.split for row in rows] == ["held-out", "dev"]
+    assert rows[0].variant == "attempts3" and rows[0].label == "auto (attempts3)"
+    assert dev.exists() and "attempts3" in board.page(rows) and "<th" in board.page(rows)
+    assert "| Split |" in board.readme_block(rows, "https://site/")
+
+
 def test_the_order_does_not_depend_on_the_disk(board: ModuleType, results: Path):
     rows = board.collect(results)
     assert board.ordered(reversed(rows)) == rows

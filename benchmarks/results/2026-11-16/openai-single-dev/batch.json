@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "batch": "openai-single-dev",
+  "created": "2026-11-16T21:21:58+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openai",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "single"
+  ],
+  "agents": {},
+  "repeat": 2,
+  "parallel": 2,
+  "budget_usd": 0.6,
+  "run_budget_usd": 0.2,
+  "planned_runs": 10,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "csv-validator": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "8c820a978ee48cc7"
+    },
+    "markdown-html": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "bd9d6324a217b2e8"
+    },
+    "notes-cli": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "3aa304eccdb5e497"
+    },
+    "todo-web": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "ff3da2033cc03696"
+    },
+    "url-shortener": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "211692f5d841fb1a"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--provider",
+    "openai",
+    "--allocation",
+    "T33-openai",
+    "--out",
+    "benchmarks/results/2026-11-16",
+    "--batch",
+    "openai-single-dev",
+    "--allow-failures",
+    "--resume",
+    "--tasks",
+    "csv-validator,markdown-html,notes-cli,todo-web,url-shortener",
+    "--strategy",
+    "single",
+    "--repeat",
+    "2",
+    "--parallel",
+    "2",
+    "--budget-usd",
+    "0.6",
+    "--run-budget-usd",
+    "0.2"
+  ]
+}

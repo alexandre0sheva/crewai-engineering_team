@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "anthropic-auto-heldout-a",
+  "task": "ambiguous-export",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "heldout",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": "anthropic",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: behaviour-matches-assumption",
+  "run_id": "20261116-194510-f0cbb0",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 136.42,
+  "tokens": 168000,
+  "prompt_tokens": 150884,
+  "completion_tokens": 17116,
+  "model_calls": 17,
+  "sessions": 3,
+  "cached_prompt_tokens": 74636,
+  "tool_calls": 22,
+  "cost_usd": 0.01724056,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "anthropic/claude-haiku-5-5"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 2,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "sort-command",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    },
+    {
+      "id": "errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.17
+    },
+    {
+      "id": "assumption-recorded",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "behaviour-matches-assumption",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: the documents say by last name, but the order is ['Ada Lovelace', 'Alan Turing', 'Barbara Liskov', 'Edsger Dijkstra', 'Grace Hopper']",
+      "duration": 0.11
+    }
+  ],
+  "started": "2026-11-16T19:45:10+00:00",
+  "finished": "2026-11-16T19:47:27+00:00",
+  "run_dir": "ambiguous-export/auto-2",
+  "workspace": "ambiguous-export/auto-2/ws/app"
+}

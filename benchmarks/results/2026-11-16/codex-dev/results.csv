@@ -1,0 +1,25 @@
+batch,task,strategy,repeat,kind,mode,intent,split,agent,agent_version,billing,provider,profile,fake,outcome,reason,failed_criteria,exit_code,team_status,team_verdict,duration_seconds,tokens,prompt_tokens,cached_prompt_tokens,completion_tokens,model_calls,sessions,tool_calls,cost_usd,equivalent_cost_usd,repair_rounds,tool_failures,setup_failures,run_id,run_dir
+codex-dev,add-tests,codex,1,brownfield,maintain,tests,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,160.75,179364,174237,167040,5127,1,1,0,,,0,0,0,,add-tests/codex-1
+codex-dev,add-tests,codex,2,brownfield,maintain,tests,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,120.88,148112,143728,137088,4384,1,1,0,,,0,0,0,,add-tests/codex-2
+codex-dev,csv-validator,codex,1,greenfield,new,new_project,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,247.72,165930,157421,135936,8509,1,1,0,,,0,0,0,,csv-validator/codex-1
+codex-dev,csv-validator,codex,2,greenfield,new,new_project,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,263.65,195769,185811,163840,9958,1,1,0,,,0,0,0,,csv-validator/codex-2
+codex-dev,docs-cli-reference,codex,1,brownfield,maintain,docs,dev,codex,codex-cli 0.162.1,subscription,,,False,failed,criteria not met: defaults-stated,defaults-stated,0,,,85.61,138579,135680,125952,2899,1,1,0,,,0,0,0,,docs-cli-reference/codex-1
+codex-dev,docs-cli-reference,codex,2,brownfield,maintain,docs,dev,codex,codex-cli 0.162.1,subscription,,,False,failed,criteria not met: defaults-stated,defaults-stated,0,,,82.95,103582,100792,85120,2790,1,1,0,,,0,0,0,,docs-cli-reference/codex-2
+codex-dev,express-api-feature,codex,1,brownfield,feature,feature,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,198.48,328346,321615,307968,6731,1,1,0,,,0,0,0,,express-api-feature/codex-1
+codex-dev,express-api-feature,codex,2,brownfield,feature,feature,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,150.38,232397,226802,216704,5595,1,1,0,,,0,0,0,,express-api-feature/codex-2
+codex-dev,legacy-feature,codex,1,brownfield,feature,feature,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,79.27,101224,99187,83968,2037,1,1,0,,,0,0,0,,legacy-feature/codex-1
+codex-dev,legacy-feature,codex,2,brownfield,feature,feature,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,69.76,101974,99807,92416,2167,1,1,0,,,0,0,0,,legacy-feature/codex-2
+codex-dev,markdown-html,codex,1,greenfield,new,new_project,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,209.02,89194,81751,64000,7443,1,1,0,,,0,0,0,,markdown-html/codex-1
+codex-dev,markdown-html,codex,2,greenfield,new,new_project,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,211.71,116955,109627,95488,7328,1,1,0,,,0,0,0,,markdown-html/codex-2
+codex-dev,multi-file-refactor,codex,1,brownfield,maintain,refactor,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,117.63,158663,154558,136320,4105,1,1,0,,,0,0,0,,multi-file-refactor/codex-1
+codex-dev,multi-file-refactor,codex,2,brownfield,maintain,refactor,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,114.97,152642,148234,138240,4408,1,1,0,,,0,0,0,,multi-file-refactor/codex-2
+codex-dev,node-cli-bugfix,codex,1,brownfield,fix,bugfix,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,68.77,122929,120621,112640,2308,1,1,0,,,0,0,0,,node-cli-bugfix/codex-1
+codex-dev,node-cli-bugfix,codex,2,brownfield,fix,bugfix,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,56.34,106531,104600,87040,1931,1,1,0,,,0,0,0,,node-cli-bugfix/codex-2
+codex-dev,notes-cli,codex,1,greenfield,new,new_project,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,104.78,81542,77661,71680,3881,1,1,0,,,0,0,0,,notes-cli/codex-1
+codex-dev,notes-cli,codex,2,greenfield,new,new_project,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,121.1,78588,73907,69248,4681,1,1,0,,,0,0,0,,notes-cli/codex-2
+codex-dev,seeded-bug,codex,1,brownfield,fix,bugfix,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,58.89,93797,92132,80000,1665,1,1,0,,,0,0,0,,seeded-bug/codex-1
+codex-dev,seeded-bug,codex,2,brownfield,fix,bugfix,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,53.47,95270,93670,76032,1600,1,1,0,,,0,0,0,,seeded-bug/codex-2
+codex-dev,todo-web,codex,1,greenfield,new,new_project,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,197.48,246038,239233,216832,6805,1,1,0,,,0,0,0,,todo-web/codex-1
+codex-dev,todo-web,codex,2,greenfield,new,new_project,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,186.77,206766,199896,185728,6870,1,1,0,,,0,0,0,,todo-web/codex-2
+codex-dev,url-shortener,codex,1,greenfield,new,new_project,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,231.64,317934,309458,292480,8476,1,1,0,,,0,0,0,,url-shortener/codex-1
+codex-dev,url-shortener,codex,2,greenfield,new,new_project,dev,codex,codex-cli 0.162.1,subscription,,,False,passed,,,0,,,235.22,279297,271219,244224,8078,1,1,0,,,0,0,0,,url-shortener/codex-2

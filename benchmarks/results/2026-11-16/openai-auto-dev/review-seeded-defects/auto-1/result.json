@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "openai-auto-dev",
+  "task": "review-seeded-defects",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "review",
+  "split": "dev",
+  "intent": "review",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-211540-d76318",
+  "exit_code": 3,
+  "team_status": "failed",
+  "team_verdict": "failed",
+  "duration_seconds": 65.84,
+  "tokens": 85330,
+  "prompt_tokens": 79956,
+  "completion_tokens": 5374,
+  "model_calls": 11,
+  "sessions": 2,
+  "cached_prompt_tokens": 56652,
+  "tool_calls": 32,
+  "cost_usd": 0.0530066,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "findings-written",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    },
+    {
+      "id": "recall",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "recall 1.00; missed: none\npassed",
+      "duration": 0.2
+    },
+    {
+      "id": "serious-rated",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    },
+    {
+      "id": "precision",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "precision 1.00 over 10 finding(s)\npassed",
+      "duration": 0.11
+    }
+  ],
+  "started": "2026-11-16T21:15:40+00:00",
+  "finished": "2026-11-16T21:16:46+00:00",
+  "run_dir": "review-seeded-defects/auto-1",
+  "workspace": "review-seeded-defects/auto-1/repo"
+}

@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "anthropic-auto-heldout-a",
+  "task": "review-auth-change",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "review",
+  "split": "heldout",
+  "intent": "review",
+  "agent": null,
+  "agent_version": null,
+  "provider": "anthropic",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-195302-d9654d",
+  "exit_code": 3,
+  "team_status": "failed",
+  "team_verdict": "failed",
+  "duration_seconds": 28.08,
+  "tokens": 33967,
+  "prompt_tokens": 29441,
+  "completion_tokens": 4526,
+  "model_calls": 4,
+  "sessions": 2,
+  "cached_prompt_tokens": 12197,
+  "tool_calls": 7,
+  "cost_usd": 0.08706620000000001,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "anthropic/claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "findings-written",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "recall",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "recall 1.00; missed: none\npassed",
+      "duration": 0.06
+    },
+    {
+      "id": "serious-rated",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.06
+    },
+    {
+      "id": "precision",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "precision 0.83 over 12 finding(s)\npassed",
+      "duration": 0.06
+    }
+  ],
+  "started": "2026-11-16T19:53:02+00:00",
+  "finished": "2026-11-16T19:53:31+00:00",
+  "run_dir": "review-auth-change/auto-1",
+  "workspace": "review-auth-change/auto-1/repo"
+}

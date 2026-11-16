@@ -49,7 +49,7 @@ def results_document(batch: dict[str, Any], records: list[RunRecord]) -> dict[st
         "contenders": contenders,
         "paired": [
             {"a": p.a, "b": p.b, "tasks": p.tasks, "a_wins": p.a_wins, "b_wins": p.b_wins,
-             "ties": p.ties}
+             "ties": p.ties, "p_value": round(p.p_value, 4)}
             for p in pairings(task_rates(records))
         ],
         "runs": [r.model_dump(mode="json") for r in records],

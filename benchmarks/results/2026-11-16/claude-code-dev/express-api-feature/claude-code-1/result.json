@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "claude-code-dev",
+  "task": "express-api-feature",
+  "strategy": "claude-code",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "feature",
+  "split": "dev",
+  "intent": "feature",
+  "agent": "claude-code",
+  "agent_version": "2.1.287 (Claude Code)",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 38.65,
+  "tokens": 154745,
+  "prompt_tokens": 150994,
+  "completion_tokens": 3751,
+  "model_calls": 6,
+  "sessions": 1,
+  "cached_prompt_tokens": 132951,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": 0.10920170000000001,
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "lend-and-return",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.23
+    },
+    {
+      "id": "loan-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.92
+    },
+    {
+      "id": "availability-filter",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.71
+    },
+    {
+      "id": "existing-endpoints",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.72
+    },
+    {
+      "id": "tests-added",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.71
+    }
+  ],
+  "started": "2026-11-16T20:30:19+00:00",
+  "finished": "2026-11-16T20:31:04+00:00",
+  "run_dir": "express-api-feature/claude-code-1",
+  "workspace": "express-api-feature/claude-code-1/repo"
+}

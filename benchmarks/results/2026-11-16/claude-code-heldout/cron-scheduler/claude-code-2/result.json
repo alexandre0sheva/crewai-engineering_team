@@ -1,0 +1,93 @@
+{
+  "schema_version": 3,
+  "batch": "claude-code-heldout",
+  "task": "cron-scheduler",
+  "strategy": "claude-code",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "heldout",
+  "intent": "new_project",
+  "agent": "claude-code",
+  "agent_version": "2.1.287 (Claude Code)",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 43.0,
+  "tokens": 79164,
+  "prompt_tokens": 73449,
+  "completion_tokens": 5715,
+  "model_calls": 3,
+  "sessions": 1,
+  "cached_prompt_tokens": 57347,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": 0.1088714,
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "simple-schedules",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "ranges-steps-lists",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "calendar-rollover",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "dom-dow-rule",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "validation",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "cli",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.33
+    }
+  ],
+  "started": "2026-11-16T20:07:51+00:00",
+  "finished": "2026-11-16T20:08:35+00:00",
+  "run_dir": "cron-scheduler/claude-code-2",
+  "workspace": "cron-scheduler/claude-code-2/ws/app"
+}

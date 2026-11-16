@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "claude-code-dev",
+  "task": "todo-web",
+  "strategy": "claude-code",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": "claude-code",
+  "agent_version": "2.1.287 (Claude Code)",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 55.45,
+  "tokens": 51886,
+  "prompt_tokens": 46609,
+  "completion_tokens": 5277,
+  "model_calls": 5,
+  "sessions": 1,
+  "cached_prompt_tokens": 30517,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": 0.09910139999999999,
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "page-renders",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.5
+    },
+    {
+      "id": "add-via-form",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.26
+    },
+    {
+      "id": "toggle-and-delete",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.37
+    },
+    {
+      "id": "json-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.25
+    },
+    {
+      "id": "escaping",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.19
+    }
+  ],
+  "started": "2026-11-16T20:34:46+00:00",
+  "finished": "2026-11-16T20:35:43+00:00",
+  "run_dir": "todo-web/claude-code-2",
+  "workspace": "todo-web/claude-code-2/ws/app"
+}

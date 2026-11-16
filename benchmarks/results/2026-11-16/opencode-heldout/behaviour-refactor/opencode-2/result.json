@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "opencode-heldout",
+  "task": "behaviour-refactor",
+  "strategy": "opencode",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "refactor",
+  "agent": "opencode",
+  "agent_version": "1.19.4",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 75.07,
+  "tokens": 314404,
+  "prompt_tokens": 301068,
+  "completion_tokens": 13336,
+  "model_calls": 16,
+  "sessions": 1,
+  "cached_prompt_tokens": 287872,
+  "tool_calls": 0,
+  "cost_usd": 0.00714954,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "behaviour-preserved",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "existing-tests-intact",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    },
+    {
+      "id": "functions-are-small",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "public-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.06
+    }
+  ],
+  "started": "2026-11-16T20:30:18+00:00",
+  "finished": "2026-11-16T20:31:33+00:00",
+  "run_dir": "behaviour-refactor/opencode-2",
+  "workspace": "behaviour-refactor/opencode-2/repo"
+}

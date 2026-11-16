@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "claude-code-heldout",
+  "task": "ledger-misleading-trace",
+  "strategy": "claude-code",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "heldout",
+  "intent": "bugfix",
+  "agent": "claude-code",
+  "agent_version": "2.1.287 (Claude Code)",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: others-unchanged",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 31.57,
+  "tokens": 178655,
+  "prompt_tokens": 175663,
+  "completion_tokens": 2992,
+  "model_calls": 7,
+  "sessions": 1,
+  "cached_prompt_tokens": 150245,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": 0.123507,
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "march-report",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.28
+    },
+    {
+      "id": "signed-amounts",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "unreadable-stops-import",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.27
+    },
+    {
+      "id": "others-unchanged",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: tests/test_import.py changed",
+      "duration": 0.45
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.26
+    }
+  ],
+  "started": "2026-11-16T20:10:05+00:00",
+  "finished": "2026-11-16T20:10:38+00:00",
+  "run_dir": "ledger-misleading-trace/claude-code-1",
+  "workspace": "ledger-misleading-trace/claude-code-1/repo"
+}

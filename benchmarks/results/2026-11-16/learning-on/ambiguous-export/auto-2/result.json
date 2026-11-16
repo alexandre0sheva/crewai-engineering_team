@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "learning-on",
+  "task": "ambiguous-export",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "heldout",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openrouter",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: assumption-recorded, behaviour-matches-assumption",
+  "run_id": "20261116-203557-f8a354",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 545.84,
+  "tokens": 634883,
+  "prompt_tokens": 576032,
+  "completion_tokens": 58851,
+  "model_calls": 42,
+  "sessions": 2,
+  "cached_prompt_tokens": 509184,
+  "tool_calls": 67,
+  "cost_usd": 0.039966765,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 7,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "sort-command",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.21
+    },
+    {
+      "id": "errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.21
+    },
+    {
+      "id": "assumption-recorded",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: no document says whether the sort is by first or by last name",
+      "duration": 0.17
+    },
+    {
+      "id": "behaviour-matches-assumption",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: no single stated reading to compare with",
+      "duration": 0.11
+    }
+  ],
+  "started": "2026-11-16T20:35:57+00:00",
+  "finished": "2026-11-16T20:45:03+00:00",
+  "run_dir": "ambiguous-export/auto-2",
+  "workspace": "ambiguous-export/auto-2/ws/app"
+}

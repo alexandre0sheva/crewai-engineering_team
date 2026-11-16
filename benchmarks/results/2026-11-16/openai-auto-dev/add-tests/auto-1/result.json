@@ -1,0 +1,70 @@
+{
+  "schema_version": 3,
+  "batch": "openai-auto-dev",
+  "task": "add-tests",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "dev",
+  "intent": "tests",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-202458-bc2692",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 236.22,
+  "tokens": 198882,
+  "prompt_tokens": 190602,
+  "completion_tokens": 8280,
+  "model_calls": 39,
+  "sessions": 5,
+  "cached_prompt_tokens": 161360,
+  "tool_calls": 46,
+  "cost_usd": 0.01841894,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 2,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "tests-pass",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.2
+    },
+    {
+      "id": "source-untouched",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.42
+    },
+    {
+      "id": "catches-defects",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.76
+    }
+  ],
+  "started": "2026-11-16T20:24:58+00:00",
+  "finished": "2026-11-16T20:28:58+00:00",
+  "run_dir": "add-tests/auto-1",
+  "workspace": "add-tests/auto-1/repo"
+}

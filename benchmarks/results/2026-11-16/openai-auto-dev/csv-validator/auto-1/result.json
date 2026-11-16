@@ -1,0 +1,93 @@
+{
+  "schema_version": 3,
+  "batch": "openai-auto-dev",
+  "task": "csv-validator",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-205608-c29d4f",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 97.6,
+  "tokens": 105408,
+  "prompt_tokens": 100965,
+  "completion_tokens": 4443,
+  "model_calls": 21,
+  "sessions": 3,
+  "cached_prompt_tokens": 86246,
+  "tool_calls": 25,
+  "cost_usd": 0.00455586,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 1,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "valid-file",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "type-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "required-and-unique",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "constraints",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "header-and-usage",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.26
+    },
+    {
+      "id": "quoted-fields",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    }
+  ],
+  "started": "2026-11-16T20:56:08+00:00",
+  "finished": "2026-11-16T20:57:46+00:00",
+  "run_dir": "csv-validator/auto-1",
+  "workspace": "csv-validator/auto-1/ws/app"
+}

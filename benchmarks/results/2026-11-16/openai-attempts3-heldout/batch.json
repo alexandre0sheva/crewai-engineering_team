@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "batch": "openai-attempts3-heldout",
+  "created": "2026-11-16T21:32:25+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openai",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": "291ce8eef03341b7",
+  "strategies": [
+    "auto"
+  ],
+  "agents": {},
+  "repeat": 2,
+  "parallel": 1,
+  "budget_usd": 2.3,
+  "run_budget_usd": 1.9,
+  "planned_runs": 6,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "ambiguous-export": {
+      "split": "heldout",
+      "intent": "new_project",
+      "digest": "23a7fccdb6d45a3a"
+    },
+    "cron-scheduler": {
+      "split": "heldout",
+      "intent": "new_project",
+      "digest": "5877a7ad3919f76c"
+    },
+    "dependency-upgrade": {
+      "split": "heldout",
+      "intent": "upgrade_deps",
+      "digest": "190cf33964dc5af5"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--provider",
+    "openai",
+    "--allocation",
+    "T33-openai",
+    "--out",
+    "benchmarks/results/2026-11-16",
+    "--batch",
+    "openai-attempts3-heldout",
+    "--allow-failures",
+    "--resume",
+    "--tasks",
+    "ambiguous-export,cron-scheduler,dependency-upgrade",
+    "--strategy",
+    "auto",
+    "--repeat",
+    "2",
+    "--parallel",
+    "1",
+    "--config",
+    "benchmarks/configs/attempts3.toml",
+    "--budget-usd",
+    "2.3",
+    "--run-budget-usd",
+    "1.9"
+  ]
+}

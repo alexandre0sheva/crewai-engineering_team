@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "openai-pipeline-dev-a",
+  "task": "docs-cli-reference",
+  "strategy": "pipeline",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "dev",
+  "intent": "docs",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: defaults-stated",
+  "run_id": "20261116-203117-c884b7",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 162.8,
+  "tokens": 225646,
+  "prompt_tokens": 218212,
+  "completion_tokens": 7434,
+  "model_calls": 40,
+  "sessions": 6,
+  "cached_prompt_tokens": 177372,
+  "tool_calls": 44,
+  "cost_usd": 0.023231599999999998,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 7,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "every-command",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "every-option",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    },
+    {
+      "id": "defaults-stated",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: global --file: the default 'tasks.json' is not stated",
+      "duration": 0.09
+    },
+    {
+      "id": "examples-run",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.53
+    },
+    {
+      "id": "code-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    }
+  ],
+  "started": "2026-11-16T20:31:17+00:00",
+  "finished": "2026-11-16T20:34:01+00:00",
+  "run_dir": "docs-cli-reference/pipeline-1",
+  "workspace": "docs-cli-reference/pipeline-1/repo"
+}

@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "openai-auto-dev-b",
+  "task": "docs-cli-reference",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "dev",
+  "intent": "docs",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-214532-2af5f2",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 170.79,
+  "tokens": 254463,
+  "prompt_tokens": 246401,
+  "completion_tokens": 8062,
+  "model_calls": 44,
+  "sessions": 6,
+  "cached_prompt_tokens": 208742,
+  "tool_calls": 50,
+  "cost_usd": 0.025789899999999998,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 4,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "every-command",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "every-option",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "defaults-stated",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "examples-run",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.33
+    },
+    {
+      "id": "code-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    }
+  ],
+  "started": "2026-11-16T21:45:32+00:00",
+  "finished": "2026-11-16T21:48:24+00:00",
+  "run_dir": "docs-cli-reference/auto-2",
+  "workspace": "docs-cli-reference/auto-2/repo"
+}

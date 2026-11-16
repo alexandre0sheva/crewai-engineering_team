@@ -1,0 +1,101 @@
+{
+  "schema_version": 3,
+  "batch": "openai-auto-dev",
+  "task": "markdown-html",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-210156-768b13",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 731.31,
+  "tokens": 137109,
+  "prompt_tokens": 131078,
+  "completion_tokens": 6031,
+  "model_calls": 28,
+  "sessions": 4,
+  "cached_prompt_tokens": 113636,
+  "tool_calls": 33,
+  "cost_usd": 0.00589606,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "repair_rounds": 2,
+  "tool_failures": 1,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "headings-and-paragraphs",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "inline-formatting",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "lists",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "code-blocks",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "quotes-and-rules",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "escaping",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "cli",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    }
+  ],
+  "started": "2026-11-16T21:01:56+00:00",
+  "finished": "2026-11-16T21:14:08+00:00",
+  "run_dir": "markdown-html/auto-2",
+  "workspace": "markdown-html/auto-2/ws/app"
+}

@@ -1,0 +1,15 @@
+$ python -m shop report --file cart.json
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/runpy.py", line 198, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.12/runpy.py", line 88, in _run_code
+    exec(code, run_globals)
+  File "/home/dev/shop/shop/__main__.py", line 34, in <module>
+    main()
+  File "/home/dev/shop/shop/__main__.py", line 30, in main
+    print(report(load(args.file)))
+  File "/home/dev/shop/shop/report.py", line 5, in report
+    average = cart.average_price()
+  File "/home/dev/shop/shop/cart.py", line 22, in average_price
+    return round(self.total() / self.count(), 2)
+ZeroDivisionError: division by zero

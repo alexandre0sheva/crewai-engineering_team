@@ -72,6 +72,20 @@ def test_an_agent_runs_in_the_workspace_and_reports_its_cost(
     assert agent.version() == f"{NAMES[name]} 9.9.9 (fake)"
 
 
+@pytest.mark.parametrize("name", AGENT_NAMES)
+def test_an_agent_is_told_the_workspace_is_its_working_directory(
+    name: str, bin_dir: Path, tmp_path: Path
+) -> None:
+    """Regression (T33): OpenCode takes its project directory from $PWD, which the bench process
+    inherits from the checkout, so it edited the suite's own fixture instead of its workspace."""
+
+    agent, workspace = make(name, bin_dir, tmp_path, extra_env={"PWD": str(tmp_path / "checkout")})
+
+    agent.run(workspace, "Write a thing.", timeout=30)
+
+    assert Path(str(calls(tmp_path)[0]["pwd"])) == workspace
+
+
 def test_claude_code_reports_its_own_cost_tokens_and_model(bin_dir: Path, tmp_path: Path) -> None:
     agent, workspace = make("claude-code", bin_dir, tmp_path, model="sonnet", max_cost_usd=1.5)
 

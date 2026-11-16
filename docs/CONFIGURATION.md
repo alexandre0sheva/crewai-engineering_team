@@ -36,7 +36,7 @@ a profile.
 |---|---|---|---|
 | `provider` | `ENGINEERING_PROVIDER` | `openai` | Model preset: `openai`, `anthropic`, `google`, `openrouter`, `ollama`, or `value` (a mix of providers, by the keys you have); `azure` needs `enable_azure`. See [Provider presets](#provider-presets) |
 | `profile` | `ENGINEERING_RUN_PROFILE` | `standard` | `standard`, `smoke` (cheap end-to-end check), `max-quality` |
-| `strategy` | `ENGINEERING_STRATEGY` | `auto` | How the team is orchestrated: `auto` (the [escalation ladder](#escalation-ladder-ladder): start on the cheapest rung the task's size and risk allow and escalate while verification fails), `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)), `single` (one agent with every tool, the benchmark baseline) or `team` (a lead agent that does the work and calls teammates on demand; see [Team strategy](#team-strategy-delegation)). `--strategy` overrides it for `new`. The default is provisional until the 0.3.0 live evaluation. The repository modes follow `auto`, `team` and `pipeline` and use `pipeline` instead of `single`; under `auto`, `maintain` tasks and recipes of your own run as written (the ladder climbs for `new`, `feature` and `fix`). |
+| `strategy` | `ENGINEERING_STRATEGY` | `auto` | How the team is orchestrated: `auto` (the [escalation ladder](#escalation-ladder-ladder): start on the cheapest rung the task's size and risk allow and escalate while verification fails), `pipeline` (staged, resumable [Flow pipeline](ARCHITECTURE.md#pipeline-recipes-and-resume)), `single` (one agent with every tool, the benchmark baseline) or `team` (a lead agent that does the work and calls teammates on demand; see [Team strategy](#team-strategy-delegation)). `--strategy` overrides it for `new`. The default was measured in the 0.3.0 evaluation and kept ([BENCHMARKS.md](BENCHMARKS.md#results-2026-11-16-the-030-evaluation)). The repository modes follow `auto`, `team` and `pipeline` and use `pipeline` instead of `single`; under `auto`, `maintain` tasks and recipes of your own run as written (the ladder climbs for `new`, `feature` and `fix`). |
 | `team_profile` | `ENGINEERING_TEAM_PROFILE` | `full` | `full` runs every stage of the `new` recipe that the task's size and request call for ([Lean team](#lean-team-lean-and-toolslazy)); `minimal` leaves out the optional ones (review, DevOps, docs), as `--profile smoke` does. To drop only one, disable its teammates instead (`[team.code_reviewer] enabled = false`; a stage is skipped when none of its teammates is enabled). See [Review](#review-review-and-team_profile) |
 | `project_name` | `ENGINEERING_PROJECT_NAME` | `mvp-app` | Workspace directory name |
 | `workspace_root` | `ENGINEERING_WORKSPACE_ROOT` | `workspace` | Parent of generated projects (relative → current directory) |
@@ -210,7 +210,8 @@ max_mb = 20
 Verified facts about a repository (the command that runs its tests, a setup step that worked, a test
 that flips on its own) are kept in `.engineering-team/memory/` and shown to later runs
 ([HARNESS.md](HARNESS.md#repo-memory)); read and edit them with `engineering-team memory`
-([USAGE.md](USAGE.md#repo-memory-memory)). The defaults are provisional until the 0.3.0 evaluation.
+([USAGE.md](USAGE.md#repo-memory-memory)). The 0.3.0 evaluation kept the defaults: learning on and off made no measurable
+difference ([BENCHMARKS.md](BENCHMARKS.md#results-2026-11-16-the-030-evaluation)).
 
 | Key (TOML) | Default | Meaning |
 |---|---|---|
@@ -233,7 +234,8 @@ library; later runs of the same kind of work are shown the lessons that fit thei
 ([HARNESS.md](HARNESS.md#lessons)); read and review them with `engineering-team lessons`
 ([USAGE.md](USAGE.md#lessons-lessons)). `learning.reflect` and `learning.review` are in the
 [settings reference](#settings-reference) (they have environment variables); `learning.reflect = false` still shows
-the lessons there are. The defaults are provisional until the 0.3.0 evaluation.
+the lessons there are. The 0.3.0 evaluation kept the defaults: learning on and off made no measurable
+difference ([BENCHMARKS.md](BENCHMARKS.md#results-2026-11-16-the-030-evaluation)).
 
 | Key (TOML) | Default | Meaning |
 |---|---|---|
@@ -639,7 +641,7 @@ agents delegate work to. Not to be confused with `[mcp.<name>]`, the MCP servers
 |---|---|---|
 | `mcp_serve.repos` | `[]` | Directories the server may act in (a project inside one counts). Every other path is refused, so an empty list with no `--repo` refuses every start. A directory that does not exist is an error at start-up. |
 | `mcp_serve.max_concurrent_runs` | `2` | Runs the server keeps going at once (each is a process of its own); another start is refused until one ends. |
-| `mcp_serve.max_cost_usd` | `5.0` | The most one delegated run may spend (every run has a cost limit). A caller may ask for less, never more; `budget.max_cost_usd`, when lower, wins. Provisional until the 0.3.0 evaluation measures delegated runs. |
+| `mcp_serve.max_cost_usd` | `5.0` | The most one delegated run may spend (every run has a cost limit). A caller may ask for less, never more; `budget.max_cost_usd`, when lower, wins. A ceiling, kept after the 0.3.0 evaluation: the dearest of its 155 priced runs cost $0.19 (delegated runs were not measured separately). |
 | `mcp_serve.answer_wait_seconds` | `600` | How long `answer` waits for its run before it returns the run id to poll instead. |
 
 ```toml
@@ -656,8 +658,8 @@ at most 40 files, a plan of one or two packages) gets one design session that wr
 the plan, one implementer for the whole plan and one reviewer; a **medium** one (more files, or
 three to five packages) keeps the design session but runs the packages, foundation, integration and
 both reviewers; a **large** one (a request over 600 words, over 400 files, or six packages) runs
-every stage with the spec and the plan apart. The thresholds are provisional until the 0.3.0 live
-evaluation measures them. Every skipped stage is recorded with its reason (`skipped: small_task`,
+every stage with the spec and the plan apart. The thresholds are provisional (the 0.3.0 evaluation did
+not measure them; a 2,013-line, 37-file project is sized `small`). Every skipped stage is recorded with its reason (`skipped: small_task`,
 `skipped: docs_not_requested`, ...).
 
 The keys (`lean.size`, `lean.ceremony`, `tools.lazy`) are in the [reference](#settings-reference).
@@ -681,8 +683,8 @@ itself with every tool and calls teammates only for bounded jobs ([Dynamic team]
 The controller caps how much it delegates: `delegation.max_delegations` jobs per run (by the task's
 [size](#lean-team-lean-and-toolslazy) unless set), each limited to `delegation.max_iter` model
 calls and to the paths the lead gave it; a teammate cannot delegate further. The run's
-[budgets](#budgets) cover every job. The defaults are provisional until the 0.3.0 live evaluation
-measures them.
+[budgets](#budgets) cover every job. The defaults are provisional: only one `team` run was
+measured in the 0.3.0 evaluation.
 
 ```toml
 strategy = "team"
@@ -702,7 +704,7 @@ teammates on demand) and `pipeline` (every stage of the mode's recipe). The task
 deliver, the run escalates to the next rung on the same workspace, up to `max_rung`. A rung whose
 estimated cost is more than [`budget.max_cost_usd`](#budgets) has left is not started: the first rung
 steps down to one the budget can pay for, and an escalation stops the run with that reason. The
-defaults are provisional until the 0.3.0 live evaluation measures them. The ladder climbs for
+defaults are kept: no run escalated in the 0.3.0 evaluation ([BENCHMARKS.md](BENCHMARKS.md#results-2026-11-16-the-030-evaluation)). The ladder climbs for
 `new`, `feature` and `fix`; a `maintain` task, a review and a recipe of your own run as written.
 
 ```toml
@@ -729,7 +731,8 @@ same as the ladder's last rung: `ladder_count` attempts of the `team` rung after
 rung's checks still fail. Attempts cost about N runs plus the judge: the run is refused before any
 attempt starts when that estimate is more than [`budget.max_cost_usd`](#budgets) has left, each
 attempt gets an equal share of what is left, and the run's own budget stops them all. The values
-are provisional until the 0.3.0 live evaluation measures them; a run with attempts cannot be
+are kept, with best-of-3 off by default: it passed 1 of 8 held-out runs at about twelve times the cost of one
+attempt ([BENCHMARKS.md](BENCHMARKS.md#results-2026-11-16-the-030-evaluation)); a run with attempts cannot be
 resumed.
 
 ```toml
@@ -827,9 +830,11 @@ a tool-calling probe and real tasks (greenfield, bugfix, brownfield feature). Pe
 `cheap` and `worker` tiers take the cheapest model that passed, `reviewer` and `lead` the best value
 that passed, `max` the strongest; a tier never costs less than the tier below it. **The cheapest
 preset that passed is `openai`'s `cheap`/`worker` model, `openai/gpt-6-luna`: 6/6 tasks at
-$0.0025 per success** (Haiku 5.5 next at $0.014). The presets are provisional until the 0.3.0
-evaluation (plan T33): the screen ran each model alone, so it measures doing the work, not planning
-or reviewing it. `engineering-team models` prints every preset as your configuration and keys
+$0.0025 per success** (Haiku 5.5 next at $0.014). The 0.3.0 evaluation ran every
+preset's team on the held-out tasks ([BENCHMARKS.md](BENCHMARKS.md#results-2026-11-16-the-030-evaluation)): `openai` $0.025, `anthropic` $0.088 and
+`openrouter` $0.13 per success at 50–57 % (intervals overlap), `value` $0.0074 on five easier tasks, so the
+presets are kept; Google's was not measured. The screen ran each model alone, so it measures doing the work, not
+planning or reviewing it. `engineering-team models` prints every preset as your configuration and keys
 resolve it, with prices.
 
 | Tier | `openai` | `anthropic` | `google` | `openrouter` | `ollama` |

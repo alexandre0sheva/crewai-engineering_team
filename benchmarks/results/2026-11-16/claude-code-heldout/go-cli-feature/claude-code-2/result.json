@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "claude-code-heldout",
+  "task": "go-cli-feature",
+  "strategy": "claude-code",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "feature",
+  "split": "heldout",
+  "intent": "feature",
+  "agent": "claude-code",
+  "agent_version": "2.1.287 (Claude Code)",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 32.38,
+  "tokens": 120707,
+  "prompt_tokens": 117057,
+  "completion_tokens": 3650,
+  "model_calls": 5,
+  "sessions": 1,
+  "cached_prompt_tokens": 100844,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": 0.09719629999999999,
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "json-format",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 5.83
+    },
+    {
+      "id": "min-length",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 4.58
+    },
+    {
+      "id": "flag-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 4.67
+    },
+    {
+      "id": "defaults-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 4.84
+    },
+    {
+      "id": "table-tests",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 4.14
+    }
+  ],
+  "started": "2026-11-16T20:09:10+00:00",
+  "finished": "2026-11-16T20:10:06+00:00",
+  "run_dir": "go-cli-feature/claude-code-2",
+  "workspace": "go-cli-feature/claude-code-2/repo"
+}

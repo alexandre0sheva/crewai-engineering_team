@@ -50,6 +50,8 @@ class Row:
     provider: str
     billing: str
     tasks: int
+    split: str  # held-out, dev, or dev + held-out: only held-out rows are fresh evidence
+    variant: str  # what the batch changed besides the strategy: a --config file, a shared library
     runs: int  # counted runs: passed, failed or timed out
     passed: int
     rate: float
@@ -67,6 +69,10 @@ class Row:
     @property
     def small(self) -> bool:
         return self.runs < MIN_RUNS
+
+    @property
+    def label(self) -> str:
+        return f"{self.contender} ({self.variant})" if self.variant else self.contender
 
 
 def batch_directories(results: Path) -> list[Path]:
@@ -90,6 +96,24 @@ def document_for(batch_dir: Path) -> dict[str, Any] | None:
         return stored
     records = collect_results(batch_dir)
     return results_document(read_batch(batch_dir), records) if records else None
+
+
+def variant_of(batch_dir: Path) -> str:
+    """What a batch changed besides its strategy and provider, from the command it records."""
+
+    command = [str(part) for part in read_batch(batch_dir).get("command") or []]
+    parts = []
+    if "--config" in command and command.index("--config") + 1 < len(command):
+        parts.append(Path(command[command.index("--config") + 1]).stem)
+    if "--library" in command:
+        parts.append("shared library")
+    return ", ".join(parts)
+
+
+def split_of(runs: Sequence[dict[str, Any]]) -> str:
+    found = {str(r.get("split") or "") for r in runs if r.get("outcome") in COUNTED}
+    names = {"heldout": "held-out", "dev": "dev"}
+    return " + ".join(sorted(names[x] for x in found if x in names)) or "–"
 
 
 def rows_for(batch_dir: Path, results: Path, link_base: str = REPOSITORY) -> list[Row]:
@@ -119,6 +143,8 @@ def rows_for(batch_dir: Path, results: Path, link_base: str = REPOSITORY) -> lis
                 provider="/".join(providers),
                 billing=str(entry.get("billing") or ""),
                 tasks=len({r["task"] for r in own if r.get("outcome") in COUNTED}),
+                split=split_of(own),
+                variant=variant_of(batch_dir),
                 runs=counted,
                 passed=int(entry["passed"]),
                 rate=float(entry["pass_rate"]),
@@ -142,8 +168,9 @@ def rows_for(batch_dir: Path, results: Path, link_base: str = REPOSITORY) -> lis
 
 
 def ordered(rows: Iterable[Row]) -> list[Row]:
-    """Enough runs first, then the interval's lower bound (a 3/3 does not beat 9/10), then the
-    price of a success; ties go to the newer batch, then by name, so the order never depends on
+    """Enough runs first, then held-out rows (the dev tasks chose the defaults, so they are not
+    fresh evidence), then the interval's lower bound (a 3/3 does not beat 9/10), then the price of
+    a success; ties go to the newer batch, then by name, so the order never depends on
     the disk (each sort is stable)."""
 
     rows = sorted(rows, key=lambda r: (r.batch, r.contender))
@@ -152,6 +179,7 @@ def ordered(rows: Iterable[Row]) -> list[Row]:
         rows,
         key=lambda r: (
             r.small,
+            r.split != "held-out",
             -r.low,
             -r.rate,
             r.cost_per_success is None,
@@ -186,7 +214,8 @@ def what_text(row: Row) -> str:
 HEADERS = [
     ("Contender", "text"), ("Model", "text"), ("Pass rate (95 % interval)", "number"),
     ("Passed", "number"), ("Cost / success", "number"), ("Median time", "number"),
-    ("Tasks", "number"), ("Date", "text"), ("Version", "text"), ("Batch", "text"),
+    ("Tasks", "number"), ("Split", "text"), ("Date", "text"), ("Version", "text"),
+    ("Batch", "text"),
 ]  # fmt: skip
 
 
@@ -195,8 +224,10 @@ def html_row(row: Row) -> str:
     cost = 1e9 if row.cost_per_success is None else row.cost_per_success  # unknown sorts last
     cells = [
         (
-            escape(row.contender) + (" <small>(agent)</small>" if row.kind == "agent" else ""),
-            row.contender,
+            escape(row.contender)
+            + (" <small>(agent)</small>" if row.kind == "agent" else "")
+            + (f" <small>({escape(row.variant)})</small>" if row.variant else ""),
+            row.label,
         ),
         (escape(what_text(row)), what_text(row)),
         (escape(rate_text(row)), f"{row.rate:.6f}"),
@@ -204,6 +235,7 @@ def html_row(row: Row) -> str:
         (escape(cost_text(row)), f"{cost:.6f}"),
         (escape(seconds(row.median_seconds)), f"{row.median_seconds or 0:.1f}"),
         (str(row.tasks), f"{row.tasks:04d}"),
+        (escape(row.split), row.split),
         (row.date, row.date),
         (escape(row.version), row.version),
         (f'<a href="{escape(row.link)}">{escape(row.batch)}</a>', row.batch),
@@ -227,7 +259,12 @@ column to sort. The tasks are judged by hidden behavioural checks the agents nev
 means the behaviour held, not that the agent said so.
 
 **How to read it.** The interval is the 95 % Wilson interval of the pass rate: with {MIN_RUNS} runs
-it is wide, and two rows whose intervals overlap are not shown to differ. *Cost / success* is all
+it is wide, and two rows whose intervals overlap are not shown to differ: "better" or "worse" than
+another agent is claimed only where the intervals do not overlap, or where the paired per-task
+comparison on the held-out tasks is significant (an exact sign test, p below 0.05); otherwise
+the pair is *not distinguishable at this sample size*, and the cost and time differences, which
+usually are clear, are what to read. *Split*: the dev tasks chose 0.2.0's defaults, so
+held-out rows come first; a dev row is not fresh evidence. *Cost / success* is all
 the money a batch spent (failed runs included) divided by its successes. Rows with fewer than
 {MIN_RUNS} counted runs are greyed and marked *n &lt; {MIN_RUNS}*: they are probes and screens, kept
 for the record, not evidence. Runs billed by a subscription show *plan*, never $0. Rows before
@@ -250,19 +287,19 @@ for the record, not evidence. Runs billed by a subscription show *plan*, never $
 
 
 def readme_block(rows: Sequence[Row], site: str) -> str:
-    """The three best rows, enough-runs rows first (``ordered`` already puts them there)."""
+    """The three best rows: enough runs first, held-out before dev (``ordered`` puts them there)."""
 
     top = list(rows)[:README_ROWS]
     lines = [
         README_START,
-        "| Contender | Model | Pass rate (95 % interval) | Cost / success | Runs | Date |",
-        "|-----------|-------|---------------------------|----------------|------|------|",
+        "| Contender | Model | Split | Pass rate (95 % interval) | Cost / success | Runs | Date |",
+        "|-----------|-------|-------|---------------------------|----------------|------|------|",
     ]
     for row in top:
         runs = f"{row.runs}" + (" (n < 10)" if row.small else "")
         lines.append(
-            f"| `{row.contender}` | {what_text(row)} | {rate_text(row)} | {cost_text(row)} "
-            f"| {runs} | [{row.date}]({row.link}) |"
+            f"| `{row.label}` | {what_text(row)} | {row.split} | {rate_text(row)} "
+            f"| {cost_text(row)} | {runs} | [{row.date}]({row.link}) |"
         )
     lines += [
         "",

@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "openai-auto-dev",
+  "task": "seeded-bug",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "dev",
+  "intent": "bugfix",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-211754-dc559c",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 70.92,
+  "tokens": 53457,
+  "prompt_tokens": 52023,
+  "completion_tokens": 1434,
+  "model_calls": 12,
+  "sessions": 2,
+  "cached_prompt_tokens": 43588,
+  "tool_calls": 16,
+  "cost_usd": 0.00199638,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 1,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "empty-cart-report",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.15
+    },
+    {
+      "id": "empty-cart-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "reports-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.28
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.24
+    }
+  ],
+  "started": "2026-11-16T21:17:54+00:00",
+  "finished": "2026-11-16T21:19:06+00:00",
+  "run_dir": "seeded-bug/auto-2",
+  "workspace": "seeded-bug/auto-2/repo"
+}

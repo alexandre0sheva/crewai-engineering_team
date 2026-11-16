@@ -1,0 +1,83 @@
+{
+  "schema_version": 3,
+  "batch": "codex-dev",
+  "task": "express-api-feature",
+  "strategy": "codex",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "feature",
+  "split": "dev",
+  "intent": "feature",
+  "agent": "codex",
+  "agent_version": "codex-cli 0.162.1",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 150.38,
+  "tokens": 232397,
+  "prompt_tokens": 226802,
+  "completion_tokens": 5595,
+  "model_calls": 1,
+  "sessions": 1,
+  "cached_prompt_tokens": 216704,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": null,
+  "models": [],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "lend-and-return",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 8.48
+    },
+    {
+      "id": "loan-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.47
+    },
+    {
+      "id": "availability-filter",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 6.56
+    },
+    {
+      "id": "existing-endpoints",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 4.28
+    },
+    {
+      "id": "tests-added",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 5.42
+    }
+  ],
+  "started": "2026-11-16T20:33:43+00:00",
+  "finished": "2026-11-16T20:36:42+00:00",
+  "run_dir": "express-api-feature/codex-2",
+  "workspace": "express-api-feature/codex-2/repo"
+}

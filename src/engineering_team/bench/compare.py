@@ -10,6 +10,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import combinations
+from math import comb
 
 from engineering_team.bench.results import RunRecord
 
@@ -24,6 +25,20 @@ class Pairing:
     a_wins: int
     b_wins: int
     ties: int
+    p_value: float = 1.0  # exact two-sided sign test on the tasks one side won (ties dropped)
+
+
+def sign_test(a_wins: int, b_wins: int) -> float:
+    """Two-sided exact sign test: how likely a split at least this uneven is when neither
+    contender is better and each decided task goes either way with equal chance. 1.0 when no
+    task was decided. Small by construction for few tasks: eight tasks cannot reach 0.05 unless
+    one side wins all eight."""
+
+    decided = a_wins + b_wins
+    if decided == 0:
+        return 1.0
+    tail = sum(comb(decided, k) for k in range(min(a_wins, b_wins) + 1))
+    return min(1.0, 2 * tail / 2**decided)
 
 
 def task_rates(records: Iterable[RunRecord]) -> Rates:
@@ -48,7 +63,8 @@ def pairings(rates: Rates) -> list[Pairing]:
             left, right = pa * nb, pb * na  # compare pa/na with pb/nb without dividing
             a_wins += left > right
             b_wins += right > left
-        found.append(Pairing(a, b, len(shared), a_wins, b_wins, len(shared) - a_wins - b_wins))
+        ties = len(shared) - a_wins - b_wins
+        found.append(Pairing(a, b, len(shared), a_wins, b_wins, ties, sign_test(a_wins, b_wins)))
     return found
 
 
@@ -65,9 +81,16 @@ def render_comparison(records: list[RunRecord]) -> list[str]:
         return []
     lines = ["## Paired comparison, per task", ""]
     lines += _table(
-        ["Pair", "Tasks compared", "First wins", "Second wins", "Ties"],
+        ["Pair", "Tasks compared", "First wins", "Second wins", "Ties", "Sign test p"],
         [
-            [f"{p.a} vs {p.b}", str(p.tasks), str(p.a_wins), str(p.b_wins), str(p.ties)]
+            [
+                f"{p.a} vs {p.b}",
+                str(p.tasks),
+                str(p.a_wins),
+                str(p.b_wins),
+                str(p.ties),
+                f"{p.p_value:.3f}",
+            ]
             for p in pairings(rates)
         ],
     )
@@ -84,7 +107,10 @@ def render_comparison(records: list[RunRecord]) -> list[str]:
     lines += [
         "",
         "A contender wins a task when its pass rate there is higher. With one run per task a win "
-        "is one pass against one failure; read the counts, not the order.",
+        "is one pass against one failure; read the counts, not the order. *Sign test p* is the "
+        'exact two-sided probability of a split this uneven if neither were better; "better" '
+        'or "worse" is claimed only below 0.05 (or when the pass-rate intervals do not '
+        "overlap), otherwise the pair is not distinguishable at this sample size.",
         "",
     ]
     return lines

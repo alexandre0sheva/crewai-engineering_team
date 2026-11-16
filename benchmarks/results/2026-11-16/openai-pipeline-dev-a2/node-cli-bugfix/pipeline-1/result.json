@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "openai-pipeline-dev-a2",
+  "task": "node-cli-bugfix",
+  "strategy": "pipeline",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "dev",
+  "intent": "bugfix",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-215753-dc498c",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 72.59,
+  "tokens": 87775,
+  "prompt_tokens": 85887,
+  "completion_tokens": 1888,
+  "model_calls": 17,
+  "sessions": 3,
+  "cached_prompt_tokens": 67022,
+  "tool_calls": 30,
+  "cost_usd": 0.0035007199999999997,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "carry-rounding",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.75
+    },
+    {
+      "id": "cli-output",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.99
+    },
+    {
+      "id": "unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.7
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.01
+    }
+  ],
+  "started": "2026-11-16T21:57:53+00:00",
+  "finished": "2026-11-16T21:59:12+00:00",
+  "run_dir": "node-cli-bugfix/pipeline-1",
+  "workspace": "node-cli-bugfix/pipeline-1/repo"
+}

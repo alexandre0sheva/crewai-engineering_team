@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "batch": "claude-code-heldout",
+  "created": "2026-11-16T20:06:09+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": null,
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "claude-code"
+  ],
+  "agents": {
+    "claude-code": {
+      "version": "2.1.287 (Claude Code)",
+      "model": null,
+      "billing": "subscription"
+    }
+  },
+  "repeat": 2,
+  "parallel": 2,
+  "budget_usd": 0.5,
+  "run_budget_usd": null,
+  "planned_runs": 16,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "ambiguous-export": {
+      "split": "heldout",
+      "intent": "new_project",
+      "digest": "23a7fccdb6d45a3a"
+    },
+    "answer-questions": {
+      "split": "heldout",
+      "intent": "question",
+      "digest": "2a1daef9def9a0d3"
+    },
+    "behaviour-refactor": {
+      "split": "heldout",
+      "intent": "refactor",
+      "digest": "f378c76750a1cc94"
+    },
+    "cron-scheduler": {
+      "split": "heldout",
+      "intent": "new_project",
+      "digest": "5877a7ad3919f76c"
+    },
+    "dependency-upgrade": {
+      "split": "heldout",
+      "intent": "upgrade_deps",
+      "digest": "190cf33964dc5af5"
+    },
+    "go-cli-feature": {
+      "split": "heldout",
+      "intent": "feature",
+      "digest": "f23326748d4fc0a8"
+    },
+    "ledger-misleading-trace": {
+      "split": "heldout",
+      "intent": "bugfix",
+      "digest": "8d4bd5193c2e1d4d"
+    },
+    "react-component-bug": {
+      "split": "heldout",
+      "intent": "bugfix",
+      "digest": "584392db24d2e62e"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "ambiguous-export,answer-questions,behaviour-refactor,cron-scheduler,dependency-upgrade,go-cli-feature,ledger-misleading-trace,react-component-bug",
+    "--agent",
+    "claude-code",
+    "--agent-billing",
+    "claude-code=subscription",
+    "--repeat",
+    "2",
+    "--parallel",
+    "2",
+    "--budget-usd",
+    "0.5",
+    "--allocation",
+    "T33",
+    "--out",
+    "/private/tmp/claude-502/-Users-alexander--claude-spares-spare-IwZtqC/50e3bfb1-34ed-4585-ad26-c678e31a5e93/scratchpad/agents-out",
+    "--batch",
+    "claude-code-heldout",
+    "--allow-failures"
+  ]
+}

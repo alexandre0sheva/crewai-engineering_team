@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "claude-code-heldout",
+  "task": "behaviour-refactor",
+  "strategy": "claude-code",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "refactor",
+  "agent": "claude-code",
+  "agent_version": "2.1.287 (Claude Code)",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 27.74,
+  "tokens": 69313,
+  "prompt_tokens": 66418,
+  "completion_tokens": 2895,
+  "model_calls": 4,
+  "sessions": 1,
+  "cached_prompt_tokens": 52462,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": 0.0743294,
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "behaviour-preserved",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "existing-tests-intact",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    },
+    {
+      "id": "functions-are-small",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "public-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    }
+  ],
+  "started": "2026-11-16T20:07:11+00:00",
+  "finished": "2026-11-16T20:07:40+00:00",
+  "run_dir": "behaviour-refactor/claude-code-1",
+  "workspace": "behaviour-refactor/claude-code-1/repo"
+}

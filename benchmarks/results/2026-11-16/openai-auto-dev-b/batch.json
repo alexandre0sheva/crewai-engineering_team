@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "batch": "openai-auto-dev-b",
+  "created": "2026-11-16T21:42:56+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openai",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "auto"
+  ],
+  "agents": {},
+  "repeat": 2,
+  "parallel": 2,
+  "budget_usd": 2.5,
+  "run_budget_usd": 1.0,
+  "planned_runs": 6,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "add-tests": {
+      "split": "dev",
+      "intent": "tests",
+      "digest": "42e74aa024cca64b"
+    },
+    "docs-cli-reference": {
+      "split": "dev",
+      "intent": "docs",
+      "digest": "d62196cc9a0078ed"
+    },
+    "multi-file-refactor": {
+      "split": "dev",
+      "intent": "refactor",
+      "digest": "94c7a83f848d68bb"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--provider",
+    "openai",
+    "--allocation",
+    "T33-openai",
+    "--out",
+    "benchmarks/results/2026-11-16",
+    "--batch",
+    "openai-auto-dev-b",
+    "--allow-failures",
+    "--tasks",
+    "add-tests,docs-cli-reference,multi-file-refactor",
+    "--strategy",
+    "auto",
+    "--repeat",
+    "2",
+    "--parallel",
+    "2",
+    "--budget-usd",
+    "2.5",
+    "--run-budget-usd",
+    "1.0"
+  ]
+}

@@ -621,9 +621,183 @@ between every two) and `runs` (every `result.json`); the site's leaderboard read
   successes. A strategy that is cheap per run but rarely succeeds is not cheap.
 - Tables by strategy or agent, by kind and split (dev against held out), and by task, with median
   time, repairs per run, tool failures and setup failures. With two or more contenders, a **paired
-  comparison**: per pair, the tasks where one has the higher pass rate, and a task-by-contender grid
-  of passed over counted runs.
+  comparison**: per pair, the tasks where one has the higher pass rate, an exact two-sided **sign test**
+  on those tasks (`p`), and a task-by-contender grid of passed over counted runs. "Better" or "worse" than
+  another contender is claimed only where the intervals do not overlap or `p` is below 0.05; otherwise the pair
+  is *not distinguishable at this sample size*, and cost and time are what to read. `scripts/compare_batches.py DIR`
+  pools batches (a contender is a strategy and provider, or an agent; a batch run with `--config` or `--library` is a
+  variant of its own) and prints the same tables across them.
 - **Every failure is listed** with the criteria it missed and why. Nothing is averaged away.
+
+## Results (2026-11-16): the 0.3.0 evaluation
+
+One evaluation, on one developer laptop (macOS, Apple silicon), `engineering_team` 0.3.0 (development
+version), `crewai` 1.15.41, Python 3.12.12, Docker for the TypeScript and Go checks. The files behind every
+number are committed in [`benchmarks/results/2026-11-16/`](../benchmarks/results/2026-11-16/): 28 batches,
+each with `report.md`, `results.csv`, `results.json`, `batch.json` (versions, commands, task digests) and one
+`result.json` per run. **Costs are what the providers reported or the price table gives, not invoices.** The
+whole evaluation made 235 counted runs: 155 billed to the API for **$4.12** (the release's live spend is $6.22
+of its $15 cap; `bench spend`) and 80 by Claude Code and Codex on subscription plans, which cost no API money
+(Claude Code reports an API-equivalent of $4.09 for its 40 runs; Codex reports tokens only).
+
+**Who ran what.** The team's `auto` strategy on the four presets
+([CONFIGURATION.md](CONFIGURATION.md#provider-presets)): `openai` (the work on `gpt-6-luna`, reviewer
+`gpt-6.1-terra`), `anthropic` (Sonnet 5.5 and Haiku 5.5), `openrouter` (MiniMax-M3.1-flash, DeepSeek-V4.1-flash)
+and `value` (the cheapest model per tier). A few runs of `single`, `pipeline` and `team` on `openai`, and best-of-3
+(`attempts.count = 3`). External agents on their **own default settings and models** (Claude Code 2.1.287 on
+Sonnet 5.5, Codex 0.162.1, both on a plan) and OpenCode 1.19.4 pinned to the OpenRouter model of the
+`openrouter` preset's worker tier (API-billed). Aider is not installed on this machine: it was not measured.
+Google's preset was not measured either (no key in this evaluation's budget). Because the agents were not
+pinned to one model with the team, **this compares products, not harnesses**: Claude Code ran Sonnet 5.5, the
+team's `openai` preset ran `gpt-6-luna`.
+
+**The sample.** Held out: 8 of the 9 tasks, two repeats (the review task is left out because external agents
+do not run reviews), 13–25 counted runs per contender, so a rate has an interval of about ±20 points. Dev: 12
+tasks (the dev review task is left out the same way). The dev tasks chose 0.2.0's defaults, so they are not
+independent evidence; the held-out ones are. Pooled by `scripts/compare_batches.py`.
+
+### Held-out split (8 tasks)
+
+| Contender | Passed | Pass rate (Wilson 95 %) | Cost / success | Median time |
+|-----------|--------|-------------------------|----------------|-------------|
+| `auto`, preset `openai` | 8/16 | 50 % (28–72 %) | $0.025 | 81 s |
+| `auto`, preset `anthropic` | 8/14 | 57 % (33–79 %) | $0.088 | 2.2 min |
+| `auto`, preset `openrouter` | 7/13 | 54 % (29–77 %) | $0.13 | 7.1 min |
+| `auto`, preset `value` (5 easier tasks) | 8/10 | 80 % (49–94 %) | $0.0074 | 101 s |
+| Claude Code (plan) | 10/16 | 62 % (39–82 %) | plan (about $0.10 a run) | 33 s |
+| Codex (plan) | 10/16 | 62 % (39–82 %) | plan | 98 s |
+| OpenCode (OpenRouter MiniMax) | 11/16 | 69 % (44–86 %) | $0.019 | 2.2 min |
+| `pipeline`, `openai` | 2/7 | 29 % (8–64 %) | $0.071 | 107 s |
+| `single`, `openai` (greenfield only) | 2/4 | 50 % (15–85 %) | $0.0056 | 67 s |
+
+Passed over counted runs per task (the same numbers, split):
+
+| Task | `auto` openai | `auto` anthropic | `auto` openrouter | Claude Code | Codex | OpenCode |
+|------|---------------|------------------|-------------------|-------------|-------|----------|
+| `ambiguous-export` | 0/2 | 0/2 | 0/2 | 0/2 | 0/2 | 0/2 |
+| `answer-questions` | 1/2 | 0/2 | 0/2 | 2/2 | 2/2 | 2/2 |
+| `behaviour-refactor` | 2/2 | 2/2 | 1/1 | 2/2 | 2/2 | 2/2 |
+| `cron-scheduler` | 1/2 | 2/2 | 2/2 | 2/2 | 2/2 | 2/2 |
+| `dependency-upgrade` | 0/2 | 0/2 | 0/1 | 0/2 | 0/2 | 1/2 |
+| `go-cli-feature` | 2/2 | 2/2 | 2/2 | 2/2 | 2/2 | 2/2 |
+| `ledger-misleading-trace` | 0/2 | – | 0/1 | 0/2 | 0/2 | 0/2 |
+| `react-component-bug` | 2/2 | 2/2 | 2/2 | 2/2 | 2/2 | 2/2 |
+
+**Dev split (12 tasks, two repeats):** `auto` on `openai` 24/25 (96 %, 80–99 %) at $0.016 a success; Claude
+Code 22/24 and Codex 22/24 (92 %, 74–98 %); `single` 9/10 at $0.004 (greenfield only); `pipeline` 7/12 (58 %,
+32–81 %) at $0.024.
+
+### What the numbers support
+
+- **No contender is distinguishable from another on pass rate.** Every pair's intervals overlap and no
+  paired sign test comes below 0.05 (the closest on held-out: `auto`/`openai` against OpenCode, 0 wins to 3,
+  p = 0.25; on dev: `auto` against `pipeline`, 5 wins to 0, p = 0.062). With eight tasks a pair has to differ on
+  almost every task to be significant, which a suite with three tasks nobody passes cannot show. **The team is
+  not shown to be better or worse than Claude Code, Codex or OpenCode at this sample size.**
+- **Cost and time do differ, and not in the team's favour on time.** On the cheapest preset the team's
+  successes cost $0.007–0.025 each, an order of magnitude below a run of Claude Code (about $0.10 in API terms),
+  but those are different models, so it is the price of the models as much as of the harness. At the same model,
+  OpenCode on MiniMax cost $0.019 a success with 11/16 passing, against $0.13 a success and 7/13 for the team on
+  the `openrouter` preset (which uses MiniMax for its worker tier and DeepSeek for review): **the team is not
+  cheaper than a plain agent on the same model.** On time the team is slower: Claude Code's median is 33 s, the
+  team's 81 s on `openai` and 7 minutes on `openrouter`.
+- **The staged `pipeline` did not help on small tasks and cost more** (dev: 58 % against 96 % for `auto`,
+  `auto` winning five tasks and losing none; held-out 2/7). Starting small and escalating is the better default;
+  a `pipeline` run failed for reasons the cheaper rung did not meet: `markdown-html`'s own `tests` check could
+  not run in the generated project (the 0.2.0 `.venv` problem again), and `csv-validator`, `express-api-feature`
+  and `legacy-feature` stopped at the controller's verification.
+- **Everything the checks cannot see is not measured here:** budget caps, the verification report, review,
+  resumability, isolation. A team that reaches the same pass rate with those is not worth less; it is not shown
+  to be worth more by this table.
+
+### Every failure and its cause
+
+| Task | Contenders | Cause |
+|------|-----------|-------|
+| `ambiguous-export` | **All** (26 of 26 runs: every preset, every agent, `single`, `pipeline`, best-of-3) | 24 runs recorded no document that says which reading of "sorted by name" they chose (`assumption-recorded`; the team's own verification passes, so nothing reaches the ladder); two Anthropic runs stated one but the tool sorted the other way. The task scores a stated assumption that the tool follows; no contender did it unprompted |
+| `ledger-misleading-trace` | All, including `pipeline` and `team` probes | Every fix put its regression test into the existing `tests/test_import.py`, and the check `others-unchanged` demands that file stays byte-identical. **This looks stricter than the request**, which asks for a regression test "in the suite" without saying where; both subscription agents failed it the same way. The task is kept as is until it is amended in 0.3.x, with every contender's run re-judged; it is reported, not corrected after the fact. (`unreadable-stops-import` also failed in one `pipeline` run: the genuine bug.) The ladder also sized it `small` (37 files, under the 40 that make a project `medium`), so `auto` started on `solo` and never escalated |
+| `dependency-upgrade` | 14 of 15 runs (`auto`, `pipeline`, best-of-3 and the agents; OpenCode passed once) | `tests-pass` failed because `test_totals.py` was changed (the same shape as the row above: the upgrade needs the existing tests adapted, or a new test placed there) |
+| `answer-questions` | `auto` (5 of 6 runs; all six agent runs passed) | All four answers and their citations were right; `code-unchanged` failed because the `maintain docs` route the task runs through also edited `README.md`. The route the team has for questions (`do --mode answer`, read-only) is not what this task exercises yet |
+| `docs-cli-reference` | `auto` 1 of 2, Claude Code 2 of 2, Codex 2 of 2, `pipeline` 1 of 1 | `defaults-stated`: the global `--file` option's default `tasks.json` is not stated |
+| `cron-scheduler` | `auto`/`openai` once, best-of-3 once | `dom-dow-rule` and `validation`: day-of-month/day-of-week and input validation misses in the generated scheduler |
+| `csv-validator`, `markdown-html`, `express-api-feature`, `legacy-feature` | `pipeline` (one run each) | See above; `single` also failed one `markdown-html` run on `inline-formatting` |
+
+### Harness runs of the evaluation
+
+- **Learning on and off** (`learning-on`, `learning-off`; `auto` on `openrouter`, `ambiguous-export` and
+  `react-component-bug`, three repeats each, one shared library for the *on* arm): 3/6 and 3/6, $0.205 and
+  $0.210. **No effect is measurable, and the check could not have shown one on `ambiguous-export`**: the team's
+  own verification passes there, so reflection stores no lesson (a lesson needs evidence of a failure). One lesson
+  was stored (a tool-argument convention, from the first `react-component-bug` run) and the next two runs
+  received it; they passed in both arms at the same cost. The domain it was filed under is `bugfix/python` for a
+  TypeScript project, which is a stack-detection gap, not a measurement.
+- **Harness tuning** (`harness tune --domain bugfix/python --k 1`, `openrouter`): **KEEP_BASE**, $0.08. The only
+  dev task of the domain (`seeded-bug`) already passes, so no variant could beat the base, and the composer's
+  reply hit the 4,000-token output cap on a reasoning model (`LengthFinishReasonError`); the decision did not
+  depend on it, but the cap needs raising for reasoning models. Its ledger line said "unknown" and counted as the
+  $2.03 estimate until corrected to the measured cost.
+- **Best-of-3** (`attempts.count = 3`, `openai`): 1/6 on `ambiguous-export`, `cron-scheduler` and
+  `dependency-upgrade` (plus 0/2 more on `dependency-upgrade` in its own batch) at $0.30 a success, against
+  $0.025 for a single attempt. The attempts do not fix what the controller cannot see failing, and they cost
+  about twelve times as much.
+- **Ladder:** of the 104 `auto` runs, 90 went through the ladder (the other 14 are reviews and best-of-3, which do
+  not climb it) and **none escalated**: each stayed on the rung it started on (`solo` for small tasks, `team` for
+  `express-api-feature`, `pipeline` for medium ones), and the controller's own verification passed on all 29 that then
+  failed a hidden check. The thresholds could not be tuned from this
+  data, and the ladder's value as an *escalation* mechanism is not shown; its value as a *starting* rung is
+  (see `pipeline` above).
+
+### Decisions
+
+Each default is kept or changed on a batch; "kept" means the evaluation gave no reason to move it.
+
+| Setting | Before | Now | Evidence |
+|---------|--------|-----|----------|
+| `strategy` | `auto` (provisional) | **`auto`** | Dev: `auto` 24/25 against `pipeline` 7/12 (`openai-auto-dev`, `openai-pipeline-dev-a`, `-a2`, `-b`), five task wins to none, p = 0.062, at lower cost; held-out `pipeline` 2/7 (`openai-pipeline-heldout`, `openai-rungs-ledger`) |
+| `ladder.start_*`, `max_rung` | provisional | **kept** (`solo`, `team`, `pipeline`; `pipeline`) | No run escalated in any batch; on dev `auto` never lost a task to `pipeline` (five wins); on held-out `pipeline` won one (`cron-scheduler`, 2/2 against 1/2); `ledger-misleading-trace` was passed by no rung (`pipeline`, `team`: `openai-rungs-ledger`) or agent |
+| `lean` size thresholds (`MEDIUM_REPO_FILES = 40`) | provisional | **kept, with a known gap** | A 2,013-line, 37-file project is sized `small`; changing a size rule on one task that every contender fails would be tuning on the held-out split |
+| `attempts.count`, `ladder_count`, `max_rung = "attempts"` | 1, 3, off | **kept** (off unless asked) | `openai-attempts3-heldout`, `openai-attempts3-dependency`: 1/8 at about twelve times the cost |
+| `learning.enabled`, `learning.review` | on, `auto` | **kept** | `learning-on` against `learning-off`: 3/6 each; reflection added no measurable cost ($0.032 against $0.034 a run on `react-component-bug`); nothing here shows a gain either, so `review = "manual"` stays an option for teams that want to read a lesson before it is used |
+| Presets (`openai`, `anthropic`, `openrouter`, `value`), default provider `openai` | provisional | **kept; costs per success above** | Held-out table. `value` was run on 5 easier tasks (8/10 at $0.0074) and is not comparable with the others on pass rate; on the same five tasks `openai` passed 7/10 |
+| `mcp_serve.max_cost_usd` | 5.0 (provisional) | **5.0 kept as a ceiling** | The dearest of the 155 priced runs cost $0.19; delegated runs were not measured separately |
+| Always-on text cap (1,000 characters), `acceptance.max_attempts`, `context.*`, `openrouter.quantizations`, the tune output cap | provisional | **still provisional** | Not measured by this evaluation; the tune cap needs raising (above) |
+
+### Problems this evaluation found
+
+- **OpenCode edited the suite's own fixtures.** An external agent inherited `PWD` from the bench process,
+  which points at the checkout, so OpenCode (Bun) worked in the repository instead of its workspace: it fixed
+  `benchmarks/tasks/react-component-bug/fixture/` and installed packages there. Fixed (`PWD` is set to the
+  workspace for every agent; `tests/test_bench_agents.py`), the fixture was restored from Git, and the two
+  affected probes are not in the results.
+- **Never-started runs are not results.** 19 runs were refused at start by their run cap (`No rung fits the
+  budget`, `Not started`, or skipped because `--budget-usd` was below parallelism × `--run-budget-usd`); they cost
+  nothing, were counted as failures by the report, and were removed and rerun in new batches
+  (`openai-auto-dev-b`, `openai-pipeline-dev-a2`, `openai-attempts3-dependency`, the `-b` batches). A batch's
+  budget must be at least `--parallel` × `--run-budget-usd` plus what it has spent.
+- **Cost accounting:** a tuning run's ledger line was `unknown` and counted at its $2.03 estimate; it is corrected
+  to the measured $0.08 in `spend.jsonl`.
+
+### Limits of this evaluation
+
+- Eight held-out tasks, two repeats: the intervals are wide and one failure moves a rate ten points. A claim of
+  "better" or "worse" needs non-overlapping intervals or a significant paired test; this evaluation has neither.
+- Four tasks nobody passes (`ambiguous-export`, `ledger-misleading-trace`, `dependency-upgrade`, and
+  `docs-cli-reference` for most) and two whose check looks stricter than the request: they say little about the
+  contenders and a lot about the suite.
+- External agents ran on their own models and settings and on plans; the team ran on cheap models. A fair
+  harness comparison pins one model for both.
+- One machine, one day, one provider per batch; costs are price-table or provider-reported figures.
+
+### Reproduce
+
+```bash
+uv run engineering-team bench run --split heldout --strategy auto --repeat 2 --provider openai \
+  --budget-usd 2 --run-budget-usd 0.5 --allocation T33-openai --allow-failures
+uv run engineering-team bench run --split heldout --agent claude-code,codex \
+  --agent-billing claude-code=subscription --agent-billing codex=subscription --repeat 2 \
+  --budget-usd 0.5 --allocation T33 --out ../agents-out      # outside the checkout
+uv run python scripts/compare_batches.py benchmarks/results/2026-11-16 --split heldout --exclude-intent review
+```
 
 ## Results (2026-10-04)
 
@@ -821,3 +995,4 @@ runs and every acceptance check get a scrubbed environment with no keys.
 | `src/engineering_team/learning/tuning/`, `learning/ledger.py`, `cli/harness_tune_command.py` | `harness tune` and `harness adopt`: candidate trees and their validation (`tree`), rollouts through this harness (`rollouts`), the proposer and composer prompts and sessions (`prompts`, `sessions`), the loop (`loop`), the controller's composing and acceptance rules (`compose`), the tuning directory and adoption (`output`), the ledger and its identity (`ledger`) |
 | `src/engineering_team/cli/bench_*.py` | `bench list` and `bench run` (`bench_command`), `bench report` and `--dry-run` (`bench_report_command`), `bench spend` (`bench_spend_command`), `bench import-swe` (`bench_swe_command`), `bench triage` (`bench_triage_command`), `--agent` options (`bench_agents`) |
 | `benchmarks/` | the suite (repository only): `tasks/`, `triage/cases.yaml` (labelled requests for `bench triage`), `images/` (Docker images for the Node and Go checks), `budget.toml` and `spend.jsonl` (the release's live spend), `tuning/` ([harness tuning](#harness-tuning-harness-tune) results to review), `configs/` (settings files for the measured variants), `results/` (committed results), `swe-starter.txt` (SWE-bench instances to import), and `.runs/`, `.cache/` and `tasks-swe/` (working results, fetched repositories and imported tasks, git-ignored) |
+| `scripts/compare_batches.py`, `scripts/build_leaderboard.py` | pooled per-contender comparison across batches (sign test); the leaderboard generator |

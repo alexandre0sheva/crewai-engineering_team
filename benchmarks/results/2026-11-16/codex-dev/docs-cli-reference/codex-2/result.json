@@ -1,0 +1,83 @@
+{
+  "schema_version": 3,
+  "batch": "codex-dev",
+  "task": "docs-cli-reference",
+  "strategy": "codex",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "dev",
+  "intent": "docs",
+  "agent": "codex",
+  "agent_version": "codex-cli 0.162.1",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: defaults-stated",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 82.95,
+  "tokens": 103582,
+  "prompt_tokens": 100792,
+  "completion_tokens": 2790,
+  "model_calls": 1,
+  "sessions": 1,
+  "cached_prompt_tokens": 85120,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": null,
+  "models": [],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "every-command",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "every-option",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "defaults-stated",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: global --file: the default 'tasks.json' is not stated",
+      "duration": 0.07
+    },
+    {
+      "id": "examples-run",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.36
+    },
+    {
+      "id": "code-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    }
+  ],
+  "started": "2026-11-16T20:32:19+00:00",
+  "finished": "2026-11-16T20:33:43+00:00",
+  "run_dir": "docs-cli-reference/codex-2",
+  "workspace": "docs-cli-reference/codex-2/repo"
+}

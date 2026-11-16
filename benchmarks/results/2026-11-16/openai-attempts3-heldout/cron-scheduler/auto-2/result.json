@@ -1,0 +1,94 @@
+{
+  "schema_version": 3,
+  "batch": "openai-attempts3-heldout",
+  "task": "cron-scheduler",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "heldout",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: validation",
+  "run_id": "20261116-200641-78950c",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 112.01,
+  "tokens": 260853,
+  "prompt_tokens": 249925,
+  "completion_tokens": 10928,
+  "model_calls": 54,
+  "sessions": 0,
+  "cached_prompt_tokens": 212904,
+  "tool_calls": 52,
+  "cost_usd": 0.023168840000000003,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 3,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "simple-schedules",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "ranges-steps-lists",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "calendar-rollover",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "dom-dow-rule",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.15
+    },
+    {
+      "id": "validation",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: '5/10 * * * *' must raise ValueError",
+      "duration": 0.13
+    },
+    {
+      "id": "cli",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.28
+    }
+  ],
+  "started": "2026-11-16T20:06:41+00:00",
+  "finished": "2026-11-16T20:08:34+00:00",
+  "run_dir": "cron-scheduler/auto-2",
+  "workspace": "cron-scheduler/auto-2/ws/app"
+}

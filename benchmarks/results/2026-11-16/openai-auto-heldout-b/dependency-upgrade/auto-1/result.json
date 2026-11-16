@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "openai-auto-heldout-b",
+  "task": "dependency-upgrade",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "upgrade_deps",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: tests-pass",
+  "run_id": "20261116-194804-a2a610",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 250.56,
+  "tokens": 350987,
+  "prompt_tokens": 336628,
+  "completion_tokens": 14359,
+  "model_calls": 55,
+  "sessions": 8,
+  "cached_prompt_tokens": 277460,
+  "tool_calls": 71,
+  "cost_usd": 0.041297839999999995,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 20,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "upgraded",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    },
+    {
+      "id": "invoices-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.32
+    },
+    {
+      "id": "errors-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.22
+    },
+    {
+      "id": "no-removed-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "tests-pass",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: test_totals.py was changed",
+      "duration": 0.09
+    }
+  ],
+  "started": "2026-11-16T19:48:04+00:00",
+  "finished": "2026-11-16T19:52:15+00:00",
+  "run_dir": "dependency-upgrade/auto-1",
+  "workspace": "dependency-upgrade/auto-1/repo"
+}

@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "openai-auto-dev-b",
+  "task": "docs-cli-reference",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "dev",
+  "intent": "docs",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: defaults-stated",
+  "run_id": "20261116-214527-3a1f55",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 172.94,
+  "tokens": 261649,
+  "prompt_tokens": 252996,
+  "completion_tokens": 8653,
+  "model_calls": 43,
+  "sessions": 6,
+  "cached_prompt_tokens": 208993,
+  "tool_calls": 52,
+  "cost_usd": 0.02680581,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 3,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "every-command",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "every-option",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "defaults-stated",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: export --delimiter: the default ',' is not stated",
+      "duration": 0.08
+    },
+    {
+      "id": "examples-run",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.42
+    },
+    {
+      "id": "code-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    }
+  ],
+  "started": "2026-11-16T21:45:27+00:00",
+  "finished": "2026-11-16T21:48:20+00:00",
+  "run_dir": "docs-cli-reference/auto-1",
+  "workspace": "docs-cli-reference/auto-1/repo"
+}

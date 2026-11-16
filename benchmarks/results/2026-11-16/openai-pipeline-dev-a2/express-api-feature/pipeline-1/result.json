@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "openai-pipeline-dev-a2",
+  "task": "express-api-feature",
+  "strategy": "pipeline",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "feature",
+  "split": "dev",
+  "intent": "feature",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: tests-added (the team ended: Stage 'verify' failed: Not verified (failed): Required check 'acceptance-1' failed: exit code 1. See reports/verification.md (in the run directory).)",
+  "run_id": "20261116-215054-27cd2c",
+  "exit_code": 3,
+  "team_status": "failed",
+  "team_verdict": "failed",
+  "duration_seconds": 420.66,
+  "tokens": 779180,
+  "prompt_tokens": 755389,
+  "completion_tokens": 23791,
+  "model_calls": 73,
+  "sessions": 8,
+  "cached_prompt_tokens": 657890,
+  "tool_calls": 88,
+  "cost_usd": 0.04602142,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 3,
+  "tool_failures": 15,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "lend-and-return",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.89
+    },
+    {
+      "id": "loan-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.97
+    },
+    {
+      "id": "availability-filter",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.41
+    },
+    {
+      "id": "existing-endpoints",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.23
+    },
+    {
+      "id": "tests-added",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: the project's suite must pass:\node: 'ERR_ASSERTION',\n    actual: 'Ada',\n    expected: null,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }\n\ntest at tests/loans.acceptance.test.ts:100:1\n\u2716 AC-10 creation retains status, trimming, sequential ids and validation (1.907458ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  5 !== 4\n  \n      at TestContext.<anonymous> (file:///opt/bench/app/tests/loans.acceptance.test.ts:103:10)\n      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n      at async Test.run (node:internal/test_runner/test:1409:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {\n    generatedMessage: true,\n    code: 'ERR_ASSERTION',\n    actual: 5,\n    expected: 4,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }",
+      "duration": 1.9
+    }
+  ],
+  "started": "2026-11-16T21:50:54+00:00",
+  "finished": "2026-11-16T21:58:05+00:00",
+  "run_dir": "express-api-feature/pipeline-1",
+  "workspace": "express-api-feature/pipeline-1/repo"
+}

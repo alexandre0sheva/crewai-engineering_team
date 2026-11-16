@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "batch": "openrouter-auto-heldout-c",
+  "created": "2026-11-16T20:04:02+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openrouter",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "auto"
+  ],
+  "agents": {},
+  "repeat": 1,
+  "parallel": 2,
+  "budget_usd": 1.6,
+  "run_budget_usd": 0.7,
+  "planned_runs": 3,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "behaviour-refactor": {
+      "split": "heldout",
+      "intent": "refactor",
+      "digest": "f378c76750a1cc94"
+    },
+    "dependency-upgrade": {
+      "split": "heldout",
+      "intent": "upgrade_deps",
+      "digest": "190cf33964dc5af5"
+    },
+    "ledger-misleading-trace": {
+      "split": "heldout",
+      "intent": "bugfix",
+      "digest": "8d4bd5193c2e1d4d"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "ledger-misleading-trace,behaviour-refactor,dependency-upgrade",
+    "--strategy",
+    "auto",
+    "--repeat",
+    "1",
+    "--parallel",
+    "2",
+    "--provider",
+    "openrouter",
+    "--budget-usd",
+    "1.6",
+    "--run-budget-usd",
+    "0.7",
+    "--allocation",
+    "T33",
+    "--out",
+    "benchmarks/results/2026-11-16",
+    "--batch",
+    "openrouter-auto-heldout-c",
+    "--resume",
+    "--allow-failures"
+  ]
+}

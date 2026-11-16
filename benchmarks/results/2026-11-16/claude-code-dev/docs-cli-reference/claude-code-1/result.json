@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "claude-code-dev",
+  "task": "docs-cli-reference",
+  "strategy": "claude-code",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "dev",
+  "intent": "docs",
+  "agent": "claude-code",
+  "agent_version": "2.1.287 (Claude Code)",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: defaults-stated",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 104.86,
+  "tokens": 120372,
+  "prompt_tokens": 117237,
+  "completion_tokens": 3135,
+  "model_calls": 5,
+  "sessions": 1,
+  "cached_prompt_tokens": 101125,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": 0.09185,
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "every-command",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    },
+    {
+      "id": "every-option",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "defaults-stated",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: global --file: the default 'tasks.json' is not stated",
+      "duration": 0.12
+    },
+    {
+      "id": "examples-run",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.76
+    },
+    {
+      "id": "code-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    }
+  ],
+  "started": "2026-11-16T20:28:32+00:00",
+  "finished": "2026-11-16T20:30:19+00:00",
+  "run_dir": "docs-cli-reference/claude-code-1",
+  "workspace": "docs-cli-reference/claude-code-1/repo"
+}

@@ -1,0 +1,236 @@
+{
+  "export_version": 1,
+  "batch": "openai-rungs-ledger",
+  "created": "2026-11-16T22:02:35+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "pipeline",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "runs": 1,
+      "counted": 1,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "wilson_low": 0.0,
+      "wilson_high": 0.7934506856227626,
+      "cost_total_usd": 0.00669661,
+      "cost_per_success_usd": null,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 86.69
+    },
+    {
+      "name": "team",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "runs": 1,
+      "counted": 1,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "wilson_low": 0.0,
+      "wilson_high": 0.7934506856227626,
+      "cost_total_usd": 0.00734468,
+      "cost_per_success_usd": null,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 105.21
+    }
+  ],
+  "paired": [
+    {
+      "a": "pipeline",
+      "b": "team",
+      "tasks": 1,
+      "a_wins": 0,
+      "b_wins": 0,
+      "ties": 1,
+      "p_value": 1.0
+    }
+  ],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "openai-rungs-ledger",
+      "task": "ledger-misleading-trace",
+      "strategy": "pipeline",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "fix",
+      "split": "heldout",
+      "intent": "bugfix",
+      "agent": null,
+      "agent_version": null,
+      "provider": "openai",
+      "profile": null,
+      "fake": false,
+      "outcome": "failed",
+      "reason": "criteria not met: unreadable-stops-import, others-unchanged",
+      "run_id": "20261116-220235-f833e9",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 86.69,
+      "tokens": 217480,
+      "prompt_tokens": 214741,
+      "completion_tokens": 2739,
+      "model_calls": 22,
+      "sessions": 3,
+      "cached_prompt_tokens": 179411,
+      "tool_calls": 26,
+      "cost_usd": 0.00669661,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 4,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "march-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.4
+        },
+        {
+          "id": "signed-amounts",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.11
+        },
+        {
+          "id": "unreadable-stops-import",
+          "passed": false,
+          "error": false,
+          "required": true,
+          "detail": "FAILED: the import must stop with status 2, got 0",
+          "duration": 0.24
+        },
+        {
+          "id": "others-unchanged",
+          "passed": false,
+          "error": false,
+          "required": true,
+          "detail": "FAILED: tests/test_import.py changed",
+          "duration": 0.53
+        },
+        {
+          "id": "regression-test",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.33
+        }
+      ],
+      "started": "2026-11-16T22:02:35+00:00",
+      "finished": "2026-11-16T22:04:04+00:00",
+      "run_dir": "ledger-misleading-trace/pipeline-1",
+      "workspace": "ledger-misleading-trace/pipeline-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "openai-rungs-ledger",
+      "task": "ledger-misleading-trace",
+      "strategy": "team",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "fix",
+      "split": "heldout",
+      "intent": "bugfix",
+      "agent": null,
+      "agent_version": null,
+      "provider": "openai",
+      "profile": null,
+      "fake": false,
+      "outcome": "failed",
+      "reason": "criteria not met: others-unchanged",
+      "run_id": "20261116-220235-fd748b",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 105.21,
+      "tokens": 224473,
+      "prompt_tokens": 221073,
+      "completion_tokens": 3400,
+      "model_calls": 23,
+      "sessions": 3,
+      "cached_prompt_tokens": 182918,
+      "tool_calls": 26,
+      "cost_usd": 0.00734468,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 4,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "march-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.37
+        },
+        {
+          "id": "signed-amounts",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.15
+        },
+        {
+          "id": "unreadable-stops-import",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.44
+        },
+        {
+          "id": "others-unchanged",
+          "passed": false,
+          "error": false,
+          "required": true,
+          "detail": "FAILED: tests/test_import.py changed",
+          "duration": 1.32
+        },
+        {
+          "id": "regression-test",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.44
+        }
+      ],
+      "started": "2026-11-16T22:02:35+00:00",
+      "finished": "2026-11-16T22:04:23+00:00",
+      "run_dir": "ledger-misleading-trace/team-1",
+      "workspace": "ledger-misleading-trace/team-1/repo"
+    }
+  ]
+}

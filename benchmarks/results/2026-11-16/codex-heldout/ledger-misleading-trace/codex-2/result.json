@@ -1,0 +1,83 @@
+{
+  "schema_version": 3,
+  "batch": "codex-heldout",
+  "task": "ledger-misleading-trace",
+  "strategy": "codex",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "heldout",
+  "intent": "bugfix",
+  "agent": "codex",
+  "agent_version": "codex-cli 0.162.1",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: others-unchanged",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 101.94,
+  "tokens": 192817,
+  "prompt_tokens": 189046,
+  "completion_tokens": 3771,
+  "model_calls": 1,
+  "sessions": 1,
+  "cached_prompt_tokens": 167936,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": null,
+  "models": [],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "march-report",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.28
+    },
+    {
+      "id": "signed-amounts",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "unreadable-stops-import",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.27
+    },
+    {
+      "id": "others-unchanged",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: tests/test_import.py changed",
+      "duration": 0.46
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.3
+    }
+  ],
+  "started": "2026-11-16T20:16:55+00:00",
+  "finished": "2026-11-16T20:18:39+00:00",
+  "run_dir": "ledger-misleading-trace/codex-2",
+  "workspace": "ledger-misleading-trace/codex-2/repo"
+}

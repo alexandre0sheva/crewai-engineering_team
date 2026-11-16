@@ -1,0 +1,93 @@
+{
+  "schema_version": 3,
+  "batch": "claude-code-dev",
+  "task": "csv-validator",
+  "strategy": "claude-code",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": "claude-code",
+  "agent_version": "2.1.287 (Claude Code)",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 225.28,
+  "tokens": 119074,
+  "prompt_tokens": 109862,
+  "completion_tokens": 9212,
+  "model_calls": 4,
+  "sessions": 1,
+  "cached_prompt_tokens": 90218,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": 0.1592696,
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "valid-file",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.2
+    },
+    {
+      "id": "type-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.3
+    },
+    {
+      "id": "required-and-unique",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.36
+    },
+    {
+      "id": "constraints",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.64
+    },
+    {
+      "id": "header-and-usage",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.93
+    },
+    {
+      "id": "quoted-fields",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 2.27
+    }
+  ],
+  "started": "2026-11-16T20:25:39+00:00",
+  "finished": "2026-11-16T20:29:31+00:00",
+  "run_dir": "csv-validator/claude-code-2",
+  "workspace": "csv-validator/claude-code-2/ws/app"
+}

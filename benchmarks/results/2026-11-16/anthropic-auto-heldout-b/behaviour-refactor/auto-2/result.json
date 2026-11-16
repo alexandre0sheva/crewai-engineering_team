@@ -1,0 +1,78 @@
+{
+  "schema_version": 3,
+  "batch": "anthropic-auto-heldout-b",
+  "task": "behaviour-refactor",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "refactor",
+  "agent": null,
+  "agent_version": null,
+  "provider": "anthropic",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-200402-d8007d",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 95.67,
+  "tokens": 144634,
+  "prompt_tokens": 127895,
+  "completion_tokens": 16739,
+  "model_calls": 15,
+  "sessions": 5,
+  "cached_prompt_tokens": 77826,
+  "tool_calls": 12,
+  "cost_usd": 0.038347675,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "anthropic/claude-haiku-5-5",
+    "anthropic/claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 1,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "behaviour-preserved",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "existing-tests-intact",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    },
+    {
+      "id": "functions-are-small",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "public-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    }
+  ],
+  "started": "2026-11-16T20:04:02+00:00",
+  "finished": "2026-11-16T20:05:38+00:00",
+  "run_dir": "behaviour-refactor/auto-2",
+  "workspace": "behaviour-refactor/auto-2/repo"
+}

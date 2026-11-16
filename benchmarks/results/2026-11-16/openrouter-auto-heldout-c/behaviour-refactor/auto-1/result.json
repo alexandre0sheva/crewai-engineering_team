@@ -1,0 +1,78 @@
+{
+  "schema_version": 3,
+  "batch": "openrouter-auto-heldout-c",
+  "task": "behaviour-refactor",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "refactor",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openrouter",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-195532-6f9bb7",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 428.25,
+  "tokens": 1028406,
+  "prompt_tokens": 951666,
+  "completion_tokens": 76740,
+  "model_calls": 93,
+  "sessions": 5,
+  "cached_prompt_tokens": 847104,
+  "tool_calls": 138,
+  "cost_usd": 0.061987343099999995,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/deepseek/deepseek-v4.1-flash",
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 56,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "behaviour-preserved",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.16
+    },
+    {
+      "id": "existing-tests-intact",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    },
+    {
+      "id": "functions-are-small",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "public-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    }
+  ],
+  "started": "2026-11-16T19:55:32+00:00",
+  "finished": "2026-11-16T20:02:41+00:00",
+  "run_dir": "behaviour-refactor/auto-1",
+  "workspace": "behaviour-refactor/auto-1/repo"
+}

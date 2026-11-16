@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "batch": "openai-auto-dev",
+  "created": "2026-11-16T20:56:08+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openai",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "auto"
+  ],
+  "agents": {},
+  "repeat": 2,
+  "parallel": 2,
+  "budget_usd": 2.2,
+  "run_budget_usd": 0.5,
+  "planned_runs": 26,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "add-tests": {
+      "split": "dev",
+      "intent": "tests",
+      "digest": "42e74aa024cca64b"
+    },
+    "csv-validator": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "8c820a978ee48cc7"
+    },
+    "docs-cli-reference": {
+      "split": "dev",
+      "intent": "docs",
+      "digest": "d62196cc9a0078ed"
+    },
+    "express-api-feature": {
+      "split": "dev",
+      "intent": "feature",
+      "digest": "7e42212c99ef77d3"
+    },
+    "legacy-feature": {
+      "split": "dev",
+      "intent": "feature",
+      "digest": "a5179fb4cd8425cb"
+    },
+    "markdown-html": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "bd9d6324a217b2e8"
+    },
+    "multi-file-refactor": {
+      "split": "dev",
+      "intent": "refactor",
+      "digest": "94c7a83f848d68bb"
+    },
+    "node-cli-bugfix": {
+      "split": "dev",
+      "intent": "bugfix",
+      "digest": "e3af5e58280cb8f3"
+    },
+    "notes-cli": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "3aa304eccdb5e497"
+    },
+    "review-seeded-defects": {
+      "split": "dev",
+      "intent": "review",
+      "digest": "85e0ab6aec691bcd"
+    },
+    "seeded-bug": {
+      "split": "dev",
+      "intent": "bugfix",
+      "digest": "1eff09c48c8febde"
+    },
+    "todo-web": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "ff3da2033cc03696"
+    },
+    "url-shortener": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "211692f5d841fb1a"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--provider",
+    "openai",
+    "--allocation",
+    "T33-openai",
+    "--out",
+    "benchmarks/results/2026-11-16",
+    "--batch",
+    "openai-auto-dev",
+    "--allow-failures",
+    "--resume",
+    "--split",
+    "dev",
+    "--strategy",
+    "auto",
+    "--repeat",
+    "2",
+    "--parallel",
+    "2",
+    "--budget-usd",
+    "2.2",
+    "--run-budget-usd",
+    "0.5"
+  ]
+}

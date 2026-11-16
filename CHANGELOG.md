@@ -11,6 +11,13 @@ renames that section and dates it.
 
 ### Added
 
+- Live evaluation of 0.3.0 ([docs/BENCHMARKS.md](docs/BENCHMARKS.md#results-2026-11-16-the-030-evaluation)): 235
+  counted runs (28 batches in `benchmarks/results/2026-11-16/`) of the team on the `openai`, `anthropic`,
+  `openrouter` and `value` presets next to Claude Code, Codex and OpenCode on the same hidden checks, with every
+  failure and its cause. The team is not distinguishable from the external agents on pass rate at this sample size;
+  the README table and the leaderboard say so. `bench` reports and `results.json` gain an exact paired sign test
+  (`p`), and `scripts/compare_batches.py` pools batches by contender.
+
 - Public website on GitHub Pages ([CONTRIBUTING.md](CONTRIBUTING.md#the-website)): MkDocs Material over the existing
   `docs/`, with a landing page, an examples gallery that hosts each example's run report, and a **leaderboard**
   that `scripts/build_leaderboard.py` generates from every committed benchmark batch (pass rate with interval,
@@ -243,6 +250,11 @@ renames that section and dates it.
 
 ### Changed
 
+- Defaults after the evaluation: `strategy = auto` (24/25 dev runs against 7/12 for `pipeline`), the ladder
+  thresholds, best-of-N off by default, learning on, the provider presets and `mcp_serve.max_cost_usd = 5.0` are kept
+  with their measurements cited; nothing changed value. The leaderboard states when a pair is "not distinguishable at
+  this sample size".
+
 - `doctor` warns when a configured model has no price (its spend is unknown, so `budget.max_cost_usd` cannot stop
   the run), naming the model and pointing at `ENGINEERING_*_MODEL` variables, also those in `.env`.
 - Benchmark cost estimates (`bench run --dry-run`, the ledger, the ladder's rung estimates, the `do` preview) use
@@ -311,6 +323,10 @@ renames that section and dates it.
 - `crewai run` starts `engineering-team new` with the options you pass (the `run_crew` script).
 
 ### Fixed
+
+- Benchmark runs of an external agent started in the checkout instead of their workspace (OpenCode took its
+  project directory from the inherited `PWD` and edited the suite's own task fixtures): every agent now gets the
+  workspace as `PWD`.
 
 - `engineering-team models` exited 2 ("needs a command or a request") when run as a program; only the
   in-process CLI tests reached it. A test now checks that every registered command is known to the entry point.

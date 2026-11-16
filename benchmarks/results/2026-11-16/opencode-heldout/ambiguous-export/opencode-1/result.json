@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "opencode-heldout",
+  "task": "ambiguous-export",
+  "strategy": "opencode",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "heldout",
+  "intent": "new_project",
+  "agent": "opencode",
+  "agent_version": "1.19.4",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: assumption-recorded, behaviour-matches-assumption",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 51.78,
+  "tokens": 128379,
+  "prompt_tokens": 121991,
+  "completion_tokens": 6388,
+  "model_calls": 10,
+  "sessions": 1,
+  "cached_prompt_tokens": 104960,
+  "tool_calls": 0,
+  "cost_usd": 0.003980925,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "sort-command",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.59
+    },
+    {
+      "id": "errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.21
+    },
+    {
+      "id": "assumption-recorded",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: no document says whether the sort is by first or by last name",
+      "duration": 1.53
+    },
+    {
+      "id": "behaviour-matches-assumption",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: no single stated reading to compare with",
+      "duration": 0.51
+    }
+  ],
+  "started": "2026-11-16T20:26:09+00:00",
+  "finished": "2026-11-16T20:27:07+00:00",
+  "run_dir": "ambiguous-export/opencode-1",
+  "workspace": "ambiguous-export/opencode-1/ws/app"
+}

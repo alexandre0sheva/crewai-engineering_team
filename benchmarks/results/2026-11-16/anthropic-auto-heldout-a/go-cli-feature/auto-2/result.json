@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "anthropic-auto-heldout-a",
+  "task": "go-cli-feature",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "feature",
+  "split": "heldout",
+  "intent": "feature",
+  "agent": null,
+  "agent_version": null,
+  "provider": "anthropic",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-194939-4ead32",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 174.59,
+  "tokens": 360117,
+  "prompt_tokens": 340055,
+  "completion_tokens": 20062,
+  "model_calls": 22,
+  "sessions": 1,
+  "cached_prompt_tokens": 124190,
+  "tool_calls": 32,
+  "cost_usd": 0.032897300000000004,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "anthropic/claude-haiku-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 4,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "json-format",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.68
+    },
+    {
+      "id": "min-length",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.41
+    },
+    {
+      "id": "flag-errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.22
+    },
+    {
+      "id": "defaults-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.43
+    },
+    {
+      "id": "table-tests",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 3.24
+    }
+  ],
+  "started": "2026-11-16T19:49:39+00:00",
+  "finished": "2026-11-16T19:52:51+00:00",
+  "run_dir": "go-cli-feature/auto-2",
+  "workspace": "go-cli-feature/auto-2/repo"
+}

@@ -13,9 +13,10 @@ recorder, so every one leaves a manifest, an event log, and usage:
 | `single` | One agent (`generalist_engineer`) with every tool and one task: the baseline for the benchmarks. It runs through the pipeline machinery as a one-stage recipe, so it has a board card, a stage record, resume, and cancellation too | yes |
 | `team` | A lead agent that does the work and calls teammates on demand for bounded, typed jobs; the recipe's controller skeleton and verification stay ([below](#dynamic-team-the-team-strategy)). Also through the pipeline machinery, as a recipe derived from the mode's | yes |
 
-The default is `auto`, provisional until the 0.3.0 live evaluation (T33) measures it: in the 0.2.0
-benchmark ([BENCHMARKS.md](BENCHMARKS.md#results-2026-10-04)) one agent matched the pipeline's pass
-rate at a small fraction of its cost, so the team is spent only where verification says it is needed.
+The default is `auto`: in the 0.3.0 evaluation ([BENCHMARKS.md](BENCHMARKS.md#results-2026-11-16-the-030-evaluation)) it passed 24 of 25 dev
+runs against 7 of 12 for the forced `pipeline` (five tasks won, none lost, p = 0.062) at a lower cost per success, so
+the team is spent only where verification says it is needed. No `auto` run escalated in that evaluation: the
+ladder is measured as a starting rung, not yet as an escalation.
 `single`, `team` and `pipeline` stay forceable with `--strategy`. The 0.1.0 manager-led crew (`hierarchical`) was removed in 0.3.0 after it hit the time limit on all three measured runs; a run it recorded stays viewable but cannot be resumed.
 
 ## Filesystem model
@@ -617,8 +618,9 @@ is called and the `new`, `feature` and `fix` recipes skip what that size does no
   large), the existing project's file count (over 40: medium, over 400: large) and `lean.size`.
   Once the plan exists, `refine` makes the task larger, never smaller (3+ packages: medium, 6+:
   large). The result (`LeanProfile`: size, high risk, requested ceremony, reasons) is in
-  `pipeline.json` and the `lean.profile` event; a resume keeps it. The thresholds are provisional
-  until the live evaluation (T33) measures them.
+  `pipeline.json` and the `lean.profile` event; a resume keeps it. The thresholds are
+  provisional: the 0.3.0 evaluation did not measure them, and found that a 2,013-line project in 37 files is sized
+  `small` ([BENCHMARKS.md](BENCHMARKS.md#results-2026-11-16-the-030-evaluation)).
 - **One design session** (`design`, `design_change` for a feature) returns a `Design` (the spec
   and the plan together) for small and medium tasks, on the worker tier; the controller splits it,
   checks both as before, and writes `docs/spec.md` and `docs/plan.md` itself. Large tasks keep a
@@ -764,7 +766,8 @@ Flow machinery:
   (`team`), and nothing starts above `ladder.max_rung`. The ladder climbs for the bundled (or
   composed) `new`, `feature` and `fix` recipes only: a maintenance task (grouped upgrades, a
   tests-only or docs-only policy), a review and a recipe of your own run as written, on the
-  `pipeline` rung alone. The thresholds are provisional until T33.
+  `pipeline` rung alone. The thresholds are kept: no run escalated in the 0.3.0 evaluation, so
+  there was nothing to tune them on ([BENCHMARKS.md](BENCHMARKS.md#results-2026-11-16-the-030-evaluation)).
 - **Escalation.** A rung escalates when the controller's evidence says it failed: its verification
   still fails after the rung's repair rounds (`budget.max_repair_rounds` per rung: each rung starts
   a fresh verification record), or a work stage could not deliver after its retries (the agent is

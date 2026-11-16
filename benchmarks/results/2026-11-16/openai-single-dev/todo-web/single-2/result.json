@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "openai-single-dev",
+  "task": "todo-web",
+  "strategy": "single",
+  "repeat": 2,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "dev",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-212428-c4b79e",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": null,
+  "duration_seconds": 88.79,
+  "tokens": 125145,
+  "prompt_tokens": 121224,
+  "completion_tokens": 3921,
+  "model_calls": 19,
+  "sessions": 1,
+  "cached_prompt_tokens": 114746,
+  "tool_calls": 18,
+  "cost_usd": 0.0037557600000000003,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 1,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "page-renders",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.21
+    },
+    {
+      "id": "add-via-form",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.21
+    },
+    {
+      "id": "toggle-and-delete",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.21
+    },
+    {
+      "id": "json-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.22
+    },
+    {
+      "id": "escaping",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.2
+    }
+  ],
+  "started": "2026-11-16T21:24:28+00:00",
+  "finished": "2026-11-16T21:25:58+00:00",
+  "run_dir": "todo-web/single-2",
+  "workspace": "todo-web/single-2/ws/app"
+}

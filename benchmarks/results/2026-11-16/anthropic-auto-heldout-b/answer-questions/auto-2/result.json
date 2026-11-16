@@ -1,0 +1,94 @@
+{
+  "schema_version": 3,
+  "batch": "anthropic-auto-heldout-b",
+  "task": "answer-questions",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "question",
+  "agent": null,
+  "agent_version": null,
+  "provider": "anthropic",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: code-unchanged",
+  "run_id": "20261116-195532-f2c5fa",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 235.36,
+  "tokens": 264029,
+  "prompt_tokens": 219637,
+  "completion_tokens": 44392,
+  "model_calls": 17,
+  "sessions": 5,
+  "cached_prompt_tokens": 90951,
+  "tool_calls": 20,
+  "cost_usd": 0.187344235,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "anthropic/claude-haiku-5-5",
+    "anthropic/claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "q1-free-shipping",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "q2-heavy-orders",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.06
+    },
+    {
+      "id": "q3-carrier",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.06
+    },
+    {
+      "id": "q4-delivery",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "citations-real",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.06
+    },
+    {
+      "id": "code-unchanged",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: README.md was changed",
+      "duration": 0.07
+    }
+  ],
+  "started": "2026-11-16T19:55:32+00:00",
+  "finished": "2026-11-16T19:59:28+00:00",
+  "run_dir": "answer-questions/auto-2",
+  "workspace": "answer-questions/auto-2/repo"
+}

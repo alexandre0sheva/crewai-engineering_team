@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "batch": "codex-dev",
+  "created": "2026-11-16T20:24:58+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": null,
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "codex"
+  ],
+  "agents": {
+    "codex": {
+      "version": "codex-cli 0.162.1",
+      "model": null,
+      "billing": "subscription"
+    }
+  },
+  "repeat": 2,
+  "parallel": 2,
+  "budget_usd": 0.5,
+  "run_budget_usd": null,
+  "planned_runs": 24,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "add-tests": {
+      "split": "dev",
+      "intent": "tests",
+      "digest": "42e74aa024cca64b"
+    },
+    "csv-validator": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "8c820a978ee48cc7"
+    },
+    "docs-cli-reference": {
+      "split": "dev",
+      "intent": "docs",
+      "digest": "d62196cc9a0078ed"
+    },
+    "express-api-feature": {
+      "split": "dev",
+      "intent": "feature",
+      "digest": "7e42212c99ef77d3"
+    },
+    "legacy-feature": {
+      "split": "dev",
+      "intent": "feature",
+      "digest": "a5179fb4cd8425cb"
+    },
+    "markdown-html": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "bd9d6324a217b2e8"
+    },
+    "multi-file-refactor": {
+      "split": "dev",
+      "intent": "refactor",
+      "digest": "94c7a83f848d68bb"
+    },
+    "node-cli-bugfix": {
+      "split": "dev",
+      "intent": "bugfix",
+      "digest": "e3af5e58280cb8f3"
+    },
+    "notes-cli": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "3aa304eccdb5e497"
+    },
+    "seeded-bug": {
+      "split": "dev",
+      "intent": "bugfix",
+      "digest": "1eff09c48c8febde"
+    },
+    "todo-web": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "ff3da2033cc03696"
+    },
+    "url-shortener": {
+      "split": "dev",
+      "intent": "new_project",
+      "digest": "211692f5d841fb1a"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "add-tests,csv-validator,docs-cli-reference,express-api-feature,legacy-feature,markdown-html,multi-file-refactor,node-cli-bugfix,notes-cli,seeded-bug,todo-web,url-shortener",
+    "--agent",
+    "codex",
+    "--agent-billing",
+    "codex=subscription",
+    "--repeat",
+    "2",
+    "--parallel",
+    "2",
+    "--budget-usd",
+    "0.5",
+    "--allocation",
+    "T33",
+    "--out",
+    "/private/tmp/claude-502/-Users-alexander--claude-spares-spare-IwZtqC/50e3bfb1-34ed-4585-ad26-c678e31a5e93/scratchpad/agents-out",
+    "--batch",
+    "codex-dev",
+    "--allow-failures"
+  ]
+}

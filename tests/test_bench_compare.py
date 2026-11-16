@@ -10,7 +10,7 @@ from agent_fakes import install_fake_agents
 from bench_helpers import SUITE, record
 
 from engineering_team.bench.agents import build_agent
-from engineering_team.bench.compare import pairings, render_comparison, task_rates
+from engineering_team.bench.compare import pairings, render_comparison, sign_test, task_rates
 from engineering_team.bench.plan import RunOptions, applies, plan_runs
 from engineering_team.bench.report import aggregate, cost_cell
 from engineering_team.bench.tasks import load_suite
@@ -39,6 +39,28 @@ def test_a_contender_wins_a_task_when_its_pass_rate_is_higher() -> None:
     # a: tie; b: codex wins; c: pipeline wins; d and e are not shared and are not compared
     assert (pair.a, pair.b) == ("codex", "pipeline")
     assert (pair.tasks, pair.a_wins, pair.b_wins, pair.ties) == (3, 1, 1, 1)
+
+
+def test_the_sign_test_is_exact_and_two_sided() -> None:
+    assert sign_test(0, 0) == 1.0  # nothing decided
+    assert sign_test(3, 3) == 1.0
+    assert sign_test(8, 0) == pytest.approx(2 / 256)  # eight of eight: p = 0.0078
+    assert sign_test(0, 8) == sign_test(8, 0)
+    assert sign_test(7, 1) == pytest.approx(2 * 9 / 256)  # 0.070: seven of eight is not enough
+    assert sign_test(1, 0) == 1.0  # one decided task can never be significant
+
+
+def test_the_paired_table_says_when_a_pair_is_not_distinguishable() -> None:
+    records = [
+        *runs("pipeline", a="passed", b="failed", c="passed"),
+        *runs("codex", a="failed", b="failed", c="passed"),
+    ]
+
+    (pair,) = pairings(task_rates(records))
+    text = "\n".join(render_comparison(records))
+
+    assert pair.p_value == 1.0 and (pair.a_wins, pair.b_wins) == (0, 1)
+    assert "Sign test p" in text and "1.000" in text and "not distinguishable" in text
 
 
 def test_runs_that_did_not_count_are_not_compared() -> None:

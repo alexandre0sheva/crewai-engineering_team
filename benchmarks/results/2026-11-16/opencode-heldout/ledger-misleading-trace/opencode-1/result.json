@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "opencode-heldout",
+  "task": "ledger-misleading-trace",
+  "strategy": "opencode",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "heldout",
+  "intent": "bugfix",
+  "agent": "opencode",
+  "agent_version": "1.19.4",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: others-unchanged",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 291.14,
+  "tokens": 1197120,
+  "prompt_tokens": 1181680,
+  "completion_tokens": 15440,
+  "model_calls": 27,
+  "sessions": 1,
+  "cached_prompt_tokens": 1112576,
+  "tool_calls": 0,
+  "cost_usd": 0.018159119999999997,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "march-report",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.31
+    },
+    {
+      "id": "signed-amounts",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "unreadable-stops-import",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.32
+    },
+    {
+      "id": "others-unchanged",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: tests/test_import.py changed",
+      "duration": 0.48
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.39
+    }
+  ],
+  "started": "2026-11-16T20:46:10+00:00",
+  "finished": "2026-11-16T20:51:03+00:00",
+  "run_dir": "ledger-misleading-trace/opencode-1",
+  "workspace": "ledger-misleading-trace/opencode-1/repo"
+}

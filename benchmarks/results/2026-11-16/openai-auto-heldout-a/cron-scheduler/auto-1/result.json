@@ -1,0 +1,93 @@
+{
+  "schema_version": 3,
+  "batch": "openai-auto-heldout-a",
+  "task": "cron-scheduler",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "heldout",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-193401-c7b21a",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 68.47,
+  "tokens": 67792,
+  "prompt_tokens": 64702,
+  "completion_tokens": 3090,
+  "model_calls": 15,
+  "sessions": 2,
+  "cached_prompt_tokens": 56067,
+  "tool_calls": 16,
+  "cost_usd": 0.00296917,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "simple-schedules",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "ranges-steps-lists",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "calendar-rollover",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "dom-dow-rule",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "validation",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "cli",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.21
+    }
+  ],
+  "started": "2026-11-16T19:34:01+00:00",
+  "finished": "2026-11-16T19:35:10+00:00",
+  "run_dir": "cron-scheduler/auto-1",
+  "workspace": "cron-scheduler/auto-1/ws/app"
+}

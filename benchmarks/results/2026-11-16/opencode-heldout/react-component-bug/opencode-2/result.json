@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "opencode-heldout",
+  "task": "react-component-bug",
+  "strategy": "opencode",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "heldout",
+  "intent": "bugfix",
+  "agent": "opencode",
+  "agent_version": "1.19.4",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 72.03,
+  "tokens": 420659,
+  "prompt_tokens": 408722,
+  "completion_tokens": 11937,
+  "model_calls": 21,
+  "sessions": 1,
+  "cached_prompt_tokens": 392320,
+  "tool_calls": 0,
+  "cost_usd": 0.007753650000000002,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "frozen-lines",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.26
+    },
+    {
+      "id": "props-untouched",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.03
+    },
+    {
+      "id": "summary-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.13
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 1.99
+    }
+  ],
+  "started": "2026-11-16T20:51:03+00:00",
+  "finished": "2026-11-16T20:52:21+00:00",
+  "run_dir": "react-component-bug/opencode-2",
+  "workspace": "react-component-bug/opencode-2/repo"
+}

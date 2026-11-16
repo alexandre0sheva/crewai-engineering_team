@@ -1,0 +1,78 @@
+{
+  "schema_version": 3,
+  "batch": "openai-attempts3-heldout",
+  "task": "ambiguous-export",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "greenfield",
+  "mode": "new",
+  "split": "heldout",
+  "intent": "new_project",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: assumption-recorded, behaviour-matches-assumption",
+  "run_id": "20261116-200500-dfc2d9",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 96.97,
+  "tokens": 213260,
+  "prompt_tokens": 205537,
+  "completion_tokens": 7723,
+  "model_calls": 55,
+  "sessions": 0,
+  "cached_prompt_tokens": 170156,
+  "tool_calls": 59,
+  "cost_usd": 0.017000460000000002,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 3,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "sort-command",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    },
+    {
+      "id": "errors",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    },
+    {
+      "id": "assumption-recorded",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: no document says whether the sort is by first or by last name",
+      "duration": 0.07
+    },
+    {
+      "id": "behaviour-matches-assumption",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: no single stated reading to compare with",
+      "duration": 0.08
+    }
+  ],
+  "started": "2026-11-16T20:05:00+00:00",
+  "finished": "2026-11-16T20:06:38+00:00",
+  "run_dir": "ambiguous-export/auto-1",
+  "workspace": "ambiguous-export/auto-1/ws/app"
+}

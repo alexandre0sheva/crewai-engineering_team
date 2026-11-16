@@ -1,0 +1,94 @@
+{
+  "schema_version": 3,
+  "batch": "openai-auto-heldout-b",
+  "task": "answer-questions",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "question",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "failed",
+  "reason": "criteria not met: code-unchanged",
+  "run_id": "20261116-194431-95c0ec",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 174.7,
+  "tokens": 276234,
+  "prompt_tokens": 265507,
+  "completion_tokens": 10727,
+  "model_calls": 42,
+  "sessions": 5,
+  "cached_prompt_tokens": 221999,
+  "tool_calls": 54,
+  "cost_usd": 0.027699429999999997,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 11,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "q1-free-shipping",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "q2-heavy-orders",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "q3-carrier",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "q4-delivery",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "citations-real",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "code-unchanged",
+      "passed": false,
+      "error": false,
+      "required": true,
+      "detail": "FAILED: README.md was changed",
+      "duration": 0.08
+    }
+  ],
+  "started": "2026-11-16T19:44:31+00:00",
+  "finished": "2026-11-16T19:47:26+00:00",
+  "run_dir": "answer-questions/auto-2",
+  "workspace": "answer-questions/auto-2/repo"
+}

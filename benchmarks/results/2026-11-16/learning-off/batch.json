@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "batch": "learning-off",
+  "created": "2026-11-16T20:56:08+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openrouter",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": "a1541d36ac0e640e",
+  "strategies": [
+    "auto"
+  ],
+  "agents": {},
+  "repeat": 3,
+  "parallel": 1,
+  "budget_usd": 0.7,
+  "run_budget_usd": 0.3,
+  "planned_runs": 6,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "ambiguous-export": {
+      "split": "heldout",
+      "intent": "new_project",
+      "digest": "23a7fccdb6d45a3a"
+    },
+    "react-component-bug": {
+      "split": "heldout",
+      "intent": "bugfix",
+      "digest": "584392db24d2e62e"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    "/Users/alexander/apps/app-coder/crewai-engineering_team/.venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "ambiguous-export,react-component-bug",
+    "--strategy",
+    "auto",
+    "--repeat",
+    "3",
+    "--parallel",
+    "1",
+    "--provider",
+    "openrouter",
+    "--config",
+    "benchmarks/configs/learning-off.toml",
+    "--budget-usd",
+    "0.7",
+    "--run-budget-usd",
+    "0.3",
+    "--allocation",
+    "T33",
+    "--out",
+    "benchmarks/results/2026-11-16",
+    "--batch",
+    "learning-off",
+    "--resume",
+    "--allow-failures"
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "batch": "openrouter-auto-heldout-a",
+  "task": "review-auth-change",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "review",
+  "split": "heldout",
+  "intent": "review",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openrouter",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261116-192025-573502",
+  "exit_code": 3,
+  "team_status": "failed",
+  "team_verdict": "failed",
+  "duration_seconds": 74.07,
+  "tokens": 186821,
+  "prompt_tokens": 172017,
+  "completion_tokens": 14804,
+  "model_calls": 22,
+  "sessions": 2,
+  "cached_prompt_tokens": 142208,
+  "tool_calls": 32,
+  "cost_usd": 0.01352260116,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/deepseek/deepseek-v4.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 20,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "findings-written",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "recall",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "recall 1.00; missed: none\npassed",
+      "duration": 0.07
+    },
+    {
+      "id": "serious-rated",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "precision",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "precision 0.78 over 9 finding(s)\npassed",
+      "duration": 0.07
+    }
+  ],
+  "started": "2026-11-16T19:20:25+00:00",
+  "finished": "2026-11-16T19:21:40+00:00",
+  "run_dir": "review-auth-change/auto-2",
+  "workspace": "review-auth-change/auto-2/repo"
+}
