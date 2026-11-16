@@ -273,6 +273,10 @@ counted. `bench spend` (or `--json`) prints allocated, spent and left per alloca
 `--dry-run` never touch the ledger. Moving unspent money to a later allocation is an edit to
 `budget.toml`; going over one needs the user's explicit OK, never a flag.
 
+An allocation can be split by the provider its batches bill (`T33-openai`, `T33-anthropic`, `T33`)
+when one provider's balance is smaller than the rest: each batch is charged to its provider's
+bucket, and as `--budget-usd` must fit it, that provider is never billed more than its bucket.
+
 `--dry-run` prices the batch from the price table without running anything. The token counts behind
 it are **priors**: about the 75th percentile of the committed live runs' tokens per strategy at task
 `scale` 1.0, with half the prompt priced as cache reads where the model has a cached-input price

@@ -7,10 +7,16 @@ release = "0.3.0"
 total_usd = 15.00
 
 [allocations]
-T3 = 0.10       # doctor --probe-tools
-T5 = 0.50       # performance baseline (T6's before/after rerun is charged here too)
-T10 = 0.40      # bench triage --live
-T25 = 2.90      # model screen (+$0.10 from the reserve, the user's OK on 2026-11-02, for the Sonnet run)
-T32 = 1.00      # live example reports and the demo recording
-T33 = 9.70      # final evaluation, T21's live tuning, learning on/off
-reserve = 0.40  # reruns after a harness bug: only with the user's OK in chat
+T3 = 0.00       # doctor --probe-tools (unspent $0.10 moved to T33 on 2026-11-16)
+T5 = 0.04       # performance baseline (T6's before/after rerun is charged here too; rest moved to T33)
+T10 = 0.02      # bench triage --live (rest moved to T33)
+T25 = 1.99      # model screen (+$0.10 from the reserve, the user's OK on 2026-11-02; rest moved to T33)
+T32 = 0.06      # live example reports (rest moved to T33, which also records the demo GIF)
+# T33 (final evaluation, T21's live tuning, learning on/off: $9.70, plus $3.19 of leftovers, $12.89 in all) is split by the
+# provider a batch bills, so no provider's balance can be overdrawn (the user's OK on 2026-11-16;
+# balances then: OpenAI $7, Anthropic $17, OpenRouter $102). Charge every batch to its bucket.
+# The $3.19 the earlier tasks left went to T33-anthropic and T33 only, never to OpenAI (same OK).
+T33-openai = 3.70     # presets `openai` and `value` (its lead, worker and cheap tiers are OpenAI)
+T33-anthropic = 4.79  # preset `anthropic` (+$1.99 of the leftovers)
+T33 = 4.40            # preset `openrouter`, harness tuning, learning on/off, API-billed agents, demo GIF (+$1.20)
+reserve = 0.00  # moved to T33 with the user's OK on 2026-11-16
