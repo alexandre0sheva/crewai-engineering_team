@@ -1,0 +1,94 @@
+{
+  "schema_version": 3,
+  "batch": "probe-openai-answer",
+  "task": "answer-questions",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "question",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261117-123424-e9b1ee",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 170.79,
+  "tokens": 308789,
+  "prompt_tokens": 299994,
+  "completion_tokens": 8795,
+  "model_calls": 44,
+  "sessions": 6,
+  "cached_prompt_tokens": 250073,
+  "tool_calls": 50,
+  "cost_usd": 0.02589395,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 1,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "q1-free-shipping",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    },
+    {
+      "id": "q2-heavy-orders",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "q3-carrier",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.2
+    },
+    {
+      "id": "q4-delivery",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.19
+    },
+    {
+      "id": "citations-real",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.12
+    },
+    {
+      "id": "code-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.15
+    }
+  ],
+  "started": "2026-11-17T12:34:24+00:00",
+  "finished": "2026-11-17T12:37:16+00:00",
+  "run_dir": "answer-questions/auto-1",
+  "workspace": "answer-questions/auto-1/repo"
+}

@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "amend-anthropic-auto-ledger",
+  "task": "ledger-misleading-trace",
+  "strategy": "auto",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "heldout",
+  "intent": "bugfix",
+  "agent": null,
+  "agent_version": null,
+  "provider": "anthropic",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261117-102233-e64774",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 345.92,
+  "tokens": 1184795,
+  "prompt_tokens": 1102858,
+  "completion_tokens": 81937,
+  "model_calls": 58,
+  "sessions": 19,
+  "cached_prompt_tokens": 500915,
+  "tool_calls": 73,
+  "cost_usd": 0.4029304,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "anthropic/claude-haiku-5-5",
+    "anthropic/claude-sonnet-5-5"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 2,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "march-report",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.48
+    },
+    {
+      "id": "signed-amounts",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "unreadable-stops-import",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.81
+    },
+    {
+      "id": "others-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.69
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.32
+    }
+  ],
+  "started": "2026-11-17T10:22:33+00:00",
+  "finished": "2026-11-17T10:28:22+00:00",
+  "run_dir": "ledger-misleading-trace/auto-1",
+  "workspace": "ledger-misleading-trace/auto-1/repo"
+}

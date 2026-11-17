@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from engineering_team.contracts import Plan, WorkPackage
 from engineering_team.pipeline.lean import (
+    LARGE_REPO_LINES,
     LARGE_REQUEST_WORDS,
     LEAN_CONDITIONS,
+    MEDIUM_REPO_LINES,
     LeanProfile,
     assess,
+    assess_workspace,
     collapse_plan,
+    measure,
     refine,
     reviewers,
     tier_for,
@@ -18,6 +24,7 @@ from engineering_team.pipeline.lean import (
 from engineering_team.pipeline.recipes import CONDITIONS, load_recipe
 from engineering_team.pipeline.state import PipelineState
 from engineering_team.settings import load_settings
+from engineering_team.tools.workspace import ProjectWorkspace
 
 
 def plan_of(count: int) -> Plan:
@@ -53,6 +60,31 @@ def test_a_long_request_or_a_big_repository_makes_the_task_larger() -> None:
     assert assess("Add a flag.", settings, 41).size == "medium"
     assert assess("Add a flag.", settings, 401).size == "large"
     assert assess("Add a flag.", settings, 40).size == "small"
+
+
+def test_a_repository_of_few_files_but_much_code_is_not_small() -> None:
+    settings = load_settings()
+
+    # the benchmark's 2,013-line project in 37 files: under the file thresholds, over the lines
+    assert assess("Fix it.", settings, 37, 2_013).size == "medium"
+    assert assess("Fix it.", settings, 37, MEDIUM_REPO_LINES).size == "small"
+    assert assess("Fix it.", settings, 37, LARGE_REPO_LINES + 1).size == "large"
+    assert "repository: 37 files, 2013 lines" in assess("Fix it.", settings, 37, 2_013).reasons
+
+
+def test_the_project_is_measured_in_files_and_lines(tmp_path: Path) -> None:
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "a.py").write_text("one\ntwo\nthree\n", encoding="utf-8")
+    (tmp_path / "b.py").write_text("x = 1", encoding="utf-8")
+    (tmp_path / "blob.bin").write_bytes(b"\x00\x01" * 50)  # a binary file is a file, not lines
+    (tmp_path / "node_modules").mkdir()
+    (tmp_path / "node_modules" / "skipped.js").write_text("x\n" * 99, encoding="utf-8")
+
+    repo = measure(ProjectWorkspace(tmp_path))
+
+    assert (repo.files, repo.lines) == (3, 5)
+    profile = assess_workspace("Fix it.", load_settings(), ProjectWorkspace(tmp_path))
+    assert profile.reasons[-1] == "repository: 3 files, 5 lines"
 
 
 def test_the_request_asks_for_ceremony_and_the_setting_can_force_it() -> None:

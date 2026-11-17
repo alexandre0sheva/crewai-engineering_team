@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "amend-opencode",
+  "task": "ledger-misleading-trace",
+  "strategy": "opencode",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "heldout",
+  "intent": "bugfix",
+  "agent": "opencode",
+  "agent_version": "1.19.4",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 884.78,
+  "tokens": 5020657,
+  "prompt_tokens": 4970004,
+  "completion_tokens": 50653,
+  "model_calls": 73,
+  "sessions": 1,
+  "cached_prompt_tokens": 4631296,
+  "tool_calls": 0,
+  "cost_usd": 0.15066744000000004,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "march-report",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.36
+    },
+    {
+      "id": "signed-amounts",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.1
+    },
+    {
+      "id": "unreadable-stops-import",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    },
+    {
+      "id": "others-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.49
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.31
+    }
+  ],
+  "started": "2026-11-17T11:25:52+00:00",
+  "finished": "2026-11-17T11:40:39+00:00",
+  "run_dir": "ledger-misleading-trace/opencode-2",
+  "workspace": "ledger-misleading-trace/opencode-2/repo",
+  "rejudged": "others-unchanged re-run on the kept workspace after the check was amended on 2026-11-17 to let an existing test gain assertions (it failed: AmountTest.test_decimal_comma was changed); every other criterion was judged live and passed. The run itself was not repeated."
+}

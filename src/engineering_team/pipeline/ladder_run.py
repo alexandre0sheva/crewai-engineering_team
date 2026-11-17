@@ -38,7 +38,7 @@ from engineering_team.pipeline.ladder import (
 )
 from engineering_team.pipeline.ladder_brief import escalation_brief, failing_checks, trace_entries
 from engineering_team.pipeline.ladder_contracts import LadderRecord, RungRecord
-from engineering_team.pipeline.lean import assess, count_files
+from engineering_team.pipeline.lean import assess_workspace
 from engineering_team.pipeline.recipes import Recipe
 from engineering_team.pipeline.state import STATE_FILENAME, PipelineState, RunBundle, RungSeed
 from engineering_team.runtime.context import RunContext
@@ -137,7 +137,7 @@ def _plan(ctx: RunContext, base: Recipe, bundle: RunBundle) -> LadderRecord:
     """The ladder of a fresh run, with its first rung: the planned start, or the highest rung
     below it the budget can pay for. Without one, ``stopped`` says why."""
 
-    lean = assess(bundle.requirements, ctx.settings, count_files(ctx.workspace))
+    lean = assess_workspace(bundle.requirements, ctx.settings, ctx.workspace)
     ctx.events.emit("lean.profile", **lean.model_dump(exclude={"schema_version"}))
     record = plan_ladder(ctx.settings, lean, base)
     ctx.events.emit(

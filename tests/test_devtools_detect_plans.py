@@ -79,6 +79,16 @@ def test_a_typescript_project(tmp_path: Path) -> None:
     assert stack.build == ("pnpm", "run", "build") and stack.audit == "pnpm"
 
 
+def test_a_tests_directory_without_python_files_is_not_a_python_project(tmp_path: Path) -> None:
+    # T33: a React project's tests/ made it "python", so its lessons were filed under bugfix/python
+    package = json.dumps({"scripts": {"test": "vitest run"}})
+    project(tmp_path / "js", {"package.json": package, "tests/cart.test.ts": ""})
+    assert [s.language for s in find_stacks(tmp_path / "js")] == ["javascript"]
+
+    project(tmp_path / "py", {"tests/test_cart.py": "import unittest\n"})
+    assert detect_stack(tmp_path / "py") is not None
+
+
 def test_a_js_project_with_an_unknown_test_runner_says_so(tmp_path: Path) -> None:
     project(tmp_path, {"package.json": json.dumps({"scripts": {"test": "mocha"}})})
 

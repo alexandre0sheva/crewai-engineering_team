@@ -654,12 +654,13 @@ max_cost_usd = 2.0
 
 A `pipeline` run is sized before any model is called, and the size decides what it leaves out
 ([The lean team](ARCHITECTURE.md#the-lean-team)): a **small** task (a short request, a project of
-at most 40 files, a plan of one or two packages) gets one design session that writes the spec and
-the plan, one implementer for the whole plan and one reviewer; a **medium** one (more files, or
+at most 40 files and 1,500 lines, a plan of one or two packages) gets one design session that writes the spec and
+the plan, one implementer for the whole plan and one reviewer; a **medium** one (more files or lines, or
 three to five packages) keeps the design session but runs the packages, foundation, integration and
-both reviewers; a **large** one (a request over 600 words, over 400 files, or six packages) runs
-every stage with the spec and the plan apart. The thresholds are provisional (the 0.3.0 evaluation did
-not measure them; a 2,013-line, 37-file project is sized `small`). Every skipped stage is recorded with its reason (`skipped: small_task`,
+both reviewers; a **large** one (a request over 600 words, over 400 files or 20,000 lines, or six packages) runs
+every stage with the spec and the plan apart. The thresholds are provisional: the 0.3.0 evaluation did
+not tune them, and the first pass found that file count alone sized a 2,013-line, 37-file project `small`, so
+lines count too (a project over 1,500 lines is at least `medium`). Every skipped stage is recorded with its reason (`skipped: small_task`,
 `skipped: docs_not_requested`, ...).
 
 The keys (`lean.size`, `lean.ceremony`, `tools.lazy`) are in the [reference](#settings-reference).

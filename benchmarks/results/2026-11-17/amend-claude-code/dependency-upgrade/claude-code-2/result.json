@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "amend-claude-code",
+  "task": "dependency-upgrade",
+  "strategy": "claude-code",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "upgrade_deps",
+  "agent": "claude-code",
+  "agent_version": "2.1.287 (Claude Code)",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 34.43,
+  "tokens": 121345,
+  "prompt_tokens": 117852,
+  "completion_tokens": 3493,
+  "model_calls": 5,
+  "sessions": 1,
+  "cached_prompt_tokens": 101595,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": 0.0958865,
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "upgraded",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "invoices-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.34
+    },
+    {
+      "id": "errors-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.22
+    },
+    {
+      "id": "no-removed-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "tests-pass",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.32
+    }
+  ],
+  "started": "2026-11-17T11:14:25+00:00",
+  "finished": "2026-11-17T11:15:01+00:00",
+  "run_dir": "dependency-upgrade/claude-code-2",
+  "workspace": "dependency-upgrade/claude-code-2/repo"
+}

@@ -1,0 +1,29 @@
+$ python -m ledgerly report income 2026-03
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/sam/src/ledgerly/ledgerly/__main__.py", line 162, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/sam/src/ledgerly/ledgerly/__main__.py", line 155, in main
+    return run(sys.argv[1:])
+           ^^^^^^^^^^^^^^^^^
+  File "/home/sam/src/ledgerly/ledgerly/__main__.py", line 113, in run
+    statement = income_statement(
+                ^^^^^^^^^^^^^^^^^
+  File "/home/sam/src/ledgerly/ledgerly/reports/income.py", line 73, in income_statement
+    current = category_totals(journal, period, rates)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sam/src/ledgerly/ledgerly/reports/income.py", line 65, in category_totals
+    converted = convert_all(transactions, rates)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sam/src/ledgerly/ledgerly/fx/convert.py", line 25, in convert_all
+    return [transaction_in_home(t, table) for t in transactions]
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sam/src/ledgerly/ledgerly/fx/convert.py", line 20, in transaction_in_home
+    value = to_home(transaction.amount, transaction.currency, table, transaction.booked)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sam/src/ledgerly/ledgerly/fx/convert.py", line 16, in to_home
+    return round_cents(amount * rate)
+                       ~~~~~~~^~~~~~
+TypeError: unsupported operand type(s) for *: 'NoneType' and 'decimal.Decimal'

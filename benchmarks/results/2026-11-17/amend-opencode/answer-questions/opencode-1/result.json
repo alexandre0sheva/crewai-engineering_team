@@ -1,0 +1,94 @@
+{
+  "schema_version": 3,
+  "batch": "amend-opencode",
+  "task": "answer-questions",
+  "strategy": "opencode",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "question",
+  "agent": "opencode",
+  "agent_version": "1.19.4",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 69.15,
+  "tokens": 143869,
+  "prompt_tokens": 138533,
+  "completion_tokens": 5336,
+  "model_calls": 9,
+  "sessions": 1,
+  "cached_prompt_tokens": 121216,
+  "tool_calls": 0,
+  "cost_usd": 0.0038086950000000004,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "q1-free-shipping",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    },
+    {
+      "id": "q2-heavy-orders",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "q3-carrier",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "q4-delivery",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "citations-real",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "code-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    }
+  ],
+  "started": "2026-11-17T11:21:16+00:00",
+  "finished": "2026-11-17T11:22:26+00:00",
+  "run_dir": "answer-questions/opencode-1",
+  "workspace": "answer-questions/opencode-1/repo",
+  "rejudged": "q2-heavy-orders re-run on the kept workspace after answers.json was amended on 2026-11-17 to accept 'divided' for 'split' and 'the same calculated weight' for 'the same weight' (the answer was correct: it failed on wording alone); the other criteria were judged live. The run itself was not repeated."
+}

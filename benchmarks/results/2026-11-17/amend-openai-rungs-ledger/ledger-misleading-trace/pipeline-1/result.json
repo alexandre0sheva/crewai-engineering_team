@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "amend-openai-rungs-ledger",
+  "task": "ledger-misleading-trace",
+  "strategy": "pipeline",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "heldout",
+  "intent": "bugfix",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261117-121340-ba7223",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 884.9,
+  "tokens": 795965,
+  "prompt_tokens": 775504,
+  "completion_tokens": 20461,
+  "model_calls": 68,
+  "sessions": 13,
+  "cached_prompt_tokens": 605153,
+  "tool_calls": 90,
+  "cost_usd": 0.08787977,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 9,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "march-report",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.42
+    },
+    {
+      "id": "signed-amounts",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.11
+    },
+    {
+      "id": "unreadable-stops-import",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.44
+    },
+    {
+      "id": "others-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.62
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.3
+    }
+  ],
+  "started": "2026-11-17T12:13:40+00:00",
+  "finished": "2026-11-17T12:28:27+00:00",
+  "run_dir": "ledger-misleading-trace/pipeline-1",
+  "workspace": "ledger-misleading-trace/pipeline-1/repo"
+}

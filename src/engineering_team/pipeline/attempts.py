@@ -51,7 +51,7 @@ from engineering_team.pipeline.attempts_tree import (
 )
 from engineering_team.pipeline.checkpoints import Checkpoints
 from engineering_team.pipeline.ladder import SIZE_SCALE, affordable, budget_left, money, spent_usd
-from engineering_team.pipeline.lean import assess, count_files
+from engineering_team.pipeline.lean import assess_workspace
 from engineering_team.pipeline.parallel import _fan_out
 from engineering_team.pipeline.recipes import Recipe
 from engineering_team.pipeline.select import (
@@ -116,7 +116,7 @@ def run_attempts(
         source=source,  # type: ignore[arg-type]
         recipe=recipe.name,
     )
-    size = assess(bundle.requirements, settings, count_files(ctx.workspace)).size
+    size = assess_workspace(bundle.requirements, settings, ctx.workspace).size
     record.estimate_usd = estimate_attempts(settings, kind, size, count)
     left = budget_left(ctx)
     if not affordable(record.estimate_usd, left):

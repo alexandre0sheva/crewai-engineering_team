@@ -1,0 +1,398 @@
+{
+  "export_version": 1,
+  "batch": "amend-anthropic-auto",
+  "created": "2026-11-17T10:28:25+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {},
+  "contenders": [
+    {
+      "name": "auto",
+      "kind": "strategy",
+      "version": null,
+      "billing": "api",
+      "models": [
+        "anthropic/claude-haiku-5-5",
+        "anthropic/claude-sonnet-5-5"
+      ],
+      "runs": 4,
+      "counted": 4,
+      "passed": 4,
+      "pass_rate": 1.0,
+      "wilson_low": 0.5101091635454027,
+      "wilson_high": 1.0,
+      "cost_total_usd": 0.40733856,
+      "cost_per_success_usd": 0.10183464,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 210.7
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "amend-anthropic-auto",
+      "task": "answer-questions",
+      "strategy": "auto",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "maintain",
+      "split": "heldout",
+      "intent": "question",
+      "agent": null,
+      "agent_version": null,
+      "provider": "anthropic",
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261117-102825-7adc2f",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 210.01,
+      "tokens": 274613,
+      "prompt_tokens": 229943,
+      "completion_tokens": 44670,
+      "model_calls": 18,
+      "sessions": 5,
+      "cached_prompt_tokens": 107900,
+      "tool_calls": 21,
+      "cost_usd": 0.13677547,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "anthropic/claude-haiku-5-5",
+        "anthropic/claude-sonnet-5-5"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 1,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "q1-free-shipping",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.13
+        },
+        {
+          "id": "q2-heavy-orders",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "q3-carrier",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "q4-delivery",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "citations-real",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "code-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        }
+      ],
+      "started": "2026-11-17T10:28:25+00:00",
+      "finished": "2026-11-17T10:31:56+00:00",
+      "run_dir": "answer-questions/auto-1",
+      "workspace": "answer-questions/auto-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "amend-anthropic-auto",
+      "task": "answer-questions",
+      "strategy": "auto",
+      "repeat": 2,
+      "kind": "brownfield",
+      "mode": "maintain",
+      "split": "heldout",
+      "intent": "question",
+      "agent": null,
+      "agent_version": null,
+      "provider": "anthropic",
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261117-102825-f7647f",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 211.39,
+      "tokens": 266885,
+      "prompt_tokens": 219525,
+      "completion_tokens": 47360,
+      "model_calls": 18,
+      "sessions": 5,
+      "cached_prompt_tokens": 112496,
+      "tool_calls": 20,
+      "cost_usd": 0.1178141,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "anthropic/claude-haiku-5-5",
+        "anthropic/claude-sonnet-5-5"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 1,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "q1-free-shipping",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "q2-heavy-orders",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "q3-carrier",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "q4-delivery",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "citations-real",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "code-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        }
+      ],
+      "started": "2026-11-17T10:28:25+00:00",
+      "finished": "2026-11-17T10:31:57+00:00",
+      "run_dir": "answer-questions/auto-2",
+      "workspace": "answer-questions/auto-2/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "amend-anthropic-auto",
+      "task": "dependency-upgrade",
+      "strategy": "auto",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "maintain",
+      "split": "heldout",
+      "intent": "upgrade_deps",
+      "agent": null,
+      "agent_version": null,
+      "provider": "anthropic",
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261117-103156-643d64",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 153.25,
+      "tokens": 283301,
+      "prompt_tokens": 252087,
+      "completion_tokens": 31214,
+      "model_calls": 23,
+      "sessions": 7,
+      "cached_prompt_tokens": 144073,
+      "tool_calls": 32,
+      "cost_usd": 0.06760558,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "anthropic/claude-haiku-5-5",
+        "anthropic/claude-sonnet-5-5"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 1,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "upgraded",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.15
+        },
+        {
+          "id": "invoices-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.34
+        },
+        {
+          "id": "errors-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.26
+        },
+        {
+          "id": "no-removed-api",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.1
+        },
+        {
+          "id": "tests-pass",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.16
+        }
+      ],
+      "started": "2026-11-17T10:31:56+00:00",
+      "finished": "2026-11-17T10:34:30+00:00",
+      "run_dir": "dependency-upgrade/auto-1",
+      "workspace": "dependency-upgrade/auto-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "amend-anthropic-auto",
+      "task": "dependency-upgrade",
+      "strategy": "auto",
+      "repeat": 2,
+      "kind": "brownfield",
+      "mode": "maintain",
+      "split": "heldout",
+      "intent": "upgrade_deps",
+      "agent": null,
+      "agent_version": null,
+      "provider": "anthropic",
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "20261117-103157-be104c",
+      "exit_code": 0,
+      "team_status": "succeeded",
+      "team_verdict": "verified",
+      "duration_seconds": 220.58,
+      "tokens": 359065,
+      "prompt_tokens": 313517,
+      "completion_tokens": 45548,
+      "model_calls": 26,
+      "sessions": 7,
+      "cached_prompt_tokens": 170541,
+      "tool_calls": 37,
+      "cost_usd": 0.08514341,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "anthropic/claude-haiku-5-5",
+        "anthropic/claude-sonnet-5-5"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 2,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "upgraded",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.15
+        },
+        {
+          "id": "invoices-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.34
+        },
+        {
+          "id": "errors-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.26
+        },
+        {
+          "id": "no-removed-api",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        },
+        {
+          "id": "tests-pass",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.14
+        }
+      ],
+      "started": "2026-11-17T10:31:57+00:00",
+      "finished": "2026-11-17T10:35:39+00:00",
+      "run_dir": "dependency-upgrade/auto-2",
+      "workspace": "dependency-upgrade/auto-2/repo"
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "schema_version": 3,
+  "batch": "amend-opencode",
+  "task": "answer-questions",
+  "strategy": "opencode",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "question",
+  "agent": "opencode",
+  "agent_version": "1.19.4",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 102.2,
+  "tokens": 310237,
+  "prompt_tokens": 289751,
+  "completion_tokens": 20486,
+  "model_calls": 15,
+  "sessions": 1,
+  "cached_prompt_tokens": 271264,
+  "tool_calls": 0,
+  "cost_usd": 0.009566805000000001,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "q1-free-shipping",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "q2-heavy-orders",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "q3-carrier",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "q4-delivery",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "citations-real",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "code-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    }
+  ],
+  "started": "2026-11-17T11:21:16+00:00",
+  "finished": "2026-11-17T11:22:59+00:00",
+  "run_dir": "answer-questions/opencode-2",
+  "workspace": "answer-questions/opencode-2/repo"
+}

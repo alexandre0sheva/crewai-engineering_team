@@ -2,7 +2,7 @@ import ast
 import re
 from pathlib import Path
 
-from engineering_team.bench.checklib import expect, main, python
+from engineering_team.bench.checklib import expect, expect_tests_kept, main, python
 
 TASK = Path(__file__).resolve().parents[1]
 FIXTURE = TASK / "fixture"
@@ -89,9 +89,7 @@ def check_no_removed_api(ws):
 
 
 def check_tests_pass(ws):
-    for path in (FIXTURE / "tests").rglob("*.py"):
-        mine = ws / "tests" / path.relative_to(FIXTURE / "tests")
-        expect(mine.is_file() and mine.read_text() == path.read_text(), f"{mine.name} was changed")
+    expect_tests_kept(FIXTURE / "tests", ws / "tests")  # new tests may share these files
     result = python(ws, "-m", "unittest", "discover", "-s", "tests", timeout=60)
     expect(result.returncode == 0, f"the tests fail:\n{result.stderr[-600:]}")
     ran = re.search(r"Ran (\d+) tests?", result.stderr)

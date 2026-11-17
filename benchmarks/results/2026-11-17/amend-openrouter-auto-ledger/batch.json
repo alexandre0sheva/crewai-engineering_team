@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "batch": "amend-openrouter-auto-ledger",
+  "created": "2026-11-17T10:35:43+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openrouter",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "auto"
+  ],
+  "agents": {},
+  "repeat": 2,
+  "parallel": 2,
+  "budget_usd": 1.6,
+  "run_budget_usd": 0.7,
+  "planned_runs": 2,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "ledger-misleading-trace": {
+      "split": "heldout",
+      "intent": "bugfix",
+      "digest": "e19e4443f6df83b1"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    ".venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "ledger-misleading-trace",
+    "--strategy",
+    "auto",
+    "--repeat",
+    "2",
+    "--parallel",
+    "2",
+    "--provider",
+    "openrouter",
+    "--budget-usd",
+    "1.6",
+    "--run-budget-usd",
+    "0.7",
+    "--allocation",
+    "T33",
+    "--out",
+    "benchmarks/results/2026-11-17",
+    "--batch",
+    "amend-openrouter-auto-ledger",
+    "--allow-failures"
+  ]
+}

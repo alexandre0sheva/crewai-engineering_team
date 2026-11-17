@@ -1,0 +1,567 @@
+{
+  "export_version": 1,
+  "batch": "amend-opencode",
+  "created": "2026-11-17T11:21:16+00:00",
+  "fake": false,
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "agents": {
+    "opencode": {
+      "version": "1.19.4"
+    }
+  },
+  "contenders": [
+    {
+      "name": "opencode",
+      "kind": "agent",
+      "version": "1.19.4",
+      "billing": "api",
+      "models": [
+        "openrouter/minimax/minimax-m3.1-flash"
+      ],
+      "runs": 6,
+      "counted": 6,
+      "passed": 6,
+      "pass_rate": 1.0,
+      "wilson_low": 0.6096657120978346,
+      "wilson_high": 1.0,
+      "cost_total_usd": 0.28218498000000003,
+      "cost_per_success_usd": 0.04703083,
+      "equivalent_cost_total_usd": null,
+      "median_duration_seconds": 162.38
+    }
+  ],
+  "paired": [],
+  "runs": [
+    {
+      "schema_version": 3,
+      "batch": "amend-opencode",
+      "task": "answer-questions",
+      "strategy": "opencode",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "maintain",
+      "split": "heldout",
+      "intent": "question",
+      "agent": "opencode",
+      "agent_version": "1.19.4",
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "",
+      "exit_code": 0,
+      "team_status": null,
+      "team_verdict": null,
+      "duration_seconds": 69.15,
+      "tokens": 143869,
+      "prompt_tokens": 138533,
+      "completion_tokens": 5336,
+      "model_calls": 9,
+      "sessions": 1,
+      "cached_prompt_tokens": 121216,
+      "tool_calls": 0,
+      "cost_usd": 0.0038086950000000004,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openrouter/minimax/minimax-m3.1-flash"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "q1-free-shipping",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.14
+        },
+        {
+          "id": "q2-heavy-orders",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "q3-carrier",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "q4-delivery",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "citations-real",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "code-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        }
+      ],
+      "started": "2026-11-17T11:21:16+00:00",
+      "finished": "2026-11-17T11:22:26+00:00",
+      "run_dir": "answer-questions/opencode-1",
+      "workspace": "answer-questions/opencode-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "amend-opencode",
+      "task": "answer-questions",
+      "strategy": "opencode",
+      "repeat": 2,
+      "kind": "brownfield",
+      "mode": "maintain",
+      "split": "heldout",
+      "intent": "question",
+      "agent": "opencode",
+      "agent_version": "1.19.4",
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "",
+      "exit_code": 0,
+      "team_status": null,
+      "team_verdict": null,
+      "duration_seconds": 102.2,
+      "tokens": 310237,
+      "prompt_tokens": 289751,
+      "completion_tokens": 20486,
+      "model_calls": 15,
+      "sessions": 1,
+      "cached_prompt_tokens": 271264,
+      "tool_calls": 0,
+      "cost_usd": 0.009566805000000001,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openrouter/minimax/minimax-m3.1-flash"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "q1-free-shipping",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.09
+        },
+        {
+          "id": "q2-heavy-orders",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "q3-carrier",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "q4-delivery",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "citations-real",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "code-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.08
+        }
+      ],
+      "started": "2026-11-17T11:21:16+00:00",
+      "finished": "2026-11-17T11:22:59+00:00",
+      "run_dir": "answer-questions/opencode-2",
+      "workspace": "answer-questions/opencode-2/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "amend-opencode",
+      "task": "dependency-upgrade",
+      "strategy": "opencode",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "maintain",
+      "split": "heldout",
+      "intent": "upgrade_deps",
+      "agent": "opencode",
+      "agent_version": "1.19.4",
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "",
+      "exit_code": 0,
+      "team_status": null,
+      "team_verdict": null,
+      "duration_seconds": 152.45,
+      "tokens": 940662,
+      "prompt_tokens": 916822,
+      "completion_tokens": 23840,
+      "model_calls": 31,
+      "sessions": 1,
+      "cached_prompt_tokens": 890317,
+      "tool_calls": 0,
+      "cost_usd": 0.031634505,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openrouter/minimax/minimax-m3.1-flash"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "upgraded",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.16
+        },
+        {
+          "id": "invoices-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.33
+        },
+        {
+          "id": "errors-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.23
+        },
+        {
+          "id": "no-removed-api",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "tests-pass",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.29
+        }
+      ],
+      "started": "2026-11-17T11:22:26+00:00",
+      "finished": "2026-11-17T11:24:59+00:00",
+      "run_dir": "dependency-upgrade/opencode-1",
+      "workspace": "dependency-upgrade/opencode-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "amend-opencode",
+      "task": "dependency-upgrade",
+      "strategy": "opencode",
+      "repeat": 2,
+      "kind": "brownfield",
+      "mode": "maintain",
+      "split": "heldout",
+      "intent": "upgrade_deps",
+      "agent": "opencode",
+      "agent_version": "1.19.4",
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "",
+      "exit_code": 0,
+      "team_status": null,
+      "team_verdict": null,
+      "duration_seconds": 172.31,
+      "tokens": 1167234,
+      "prompt_tokens": 1141969,
+      "completion_tokens": 25265,
+      "model_calls": 35,
+      "sessions": 1,
+      "cached_prompt_tokens": 1113601,
+      "tool_calls": 0,
+      "cost_usd": 0.036118214999999995,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openrouter/minimax/minimax-m3.1-flash"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "upgraded",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.16
+        },
+        {
+          "id": "invoices-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.35
+        },
+        {
+          "id": "errors-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.22
+        },
+        {
+          "id": "no-removed-api",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.07
+        },
+        {
+          "id": "tests-pass",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.27
+        }
+      ],
+      "started": "2026-11-17T11:22:59+00:00",
+      "finished": "2026-11-17T11:25:52+00:00",
+      "run_dir": "dependency-upgrade/opencode-2",
+      "workspace": "dependency-upgrade/opencode-2/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "amend-opencode",
+      "task": "ledger-misleading-trace",
+      "strategy": "opencode",
+      "repeat": 1,
+      "kind": "brownfield",
+      "mode": "fix",
+      "split": "heldout",
+      "intent": "bugfix",
+      "agent": "opencode",
+      "agent_version": "1.19.4",
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "",
+      "exit_code": 0,
+      "team_status": null,
+      "team_verdict": null,
+      "duration_seconds": 257.4,
+      "tokens": 1362380,
+      "prompt_tokens": 1339884,
+      "completion_tokens": 22496,
+      "model_calls": 31,
+      "sessions": 1,
+      "cached_prompt_tokens": 1215488,
+      "tool_calls": 0,
+      "cost_usd": 0.05038931999999999,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openrouter/minimax/minimax-m3.1-flash"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "march-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.35
+        },
+        {
+          "id": "signed-amounts",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.1
+        },
+        {
+          "id": "unreadable-stops-import",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.29
+        },
+        {
+          "id": "others-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.48
+        },
+        {
+          "id": "regression-test",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.31
+        }
+      ],
+      "started": "2026-11-17T11:24:59+00:00",
+      "finished": "2026-11-17T11:29:18+00:00",
+      "run_dir": "ledger-misleading-trace/opencode-1",
+      "workspace": "ledger-misleading-trace/opencode-1/repo"
+    },
+    {
+      "schema_version": 3,
+      "batch": "amend-opencode",
+      "task": "ledger-misleading-trace",
+      "strategy": "opencode",
+      "repeat": 2,
+      "kind": "brownfield",
+      "mode": "fix",
+      "split": "heldout",
+      "intent": "bugfix",
+      "agent": "opencode",
+      "agent_version": "1.19.4",
+      "provider": null,
+      "profile": null,
+      "fake": false,
+      "outcome": "passed",
+      "reason": "",
+      "run_id": "",
+      "exit_code": 0,
+      "team_status": null,
+      "team_verdict": null,
+      "duration_seconds": 884.78,
+      "tokens": 5020657,
+      "prompt_tokens": 4970004,
+      "completion_tokens": 50653,
+      "model_calls": 73,
+      "sessions": 1,
+      "cached_prompt_tokens": 4631296,
+      "tool_calls": 0,
+      "cost_usd": 0.15066744000000004,
+      "billing": "api",
+      "equivalent_cost_usd": null,
+      "models": [
+        "openrouter/minimax/minimax-m3.1-flash"
+      ],
+      "repair_rounds": 0,
+      "tool_failures": 0,
+      "setup_failures": 0,
+      "criteria": [
+        {
+          "id": "march-report",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.36
+        },
+        {
+          "id": "signed-amounts",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.1
+        },
+        {
+          "id": "unreadable-stops-import",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.29
+        },
+        {
+          "id": "others-unchanged",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.49
+        },
+        {
+          "id": "regression-test",
+          "passed": true,
+          "error": false,
+          "required": true,
+          "detail": "passed",
+          "duration": 0.31
+        }
+      ],
+      "started": "2026-11-17T11:25:52+00:00",
+      "finished": "2026-11-17T11:40:39+00:00",
+      "run_dir": "ledger-misleading-trace/opencode-2",
+      "workspace": "ledger-misleading-trace/opencode-2/repo"
+    }
+  ]
+}

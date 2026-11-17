@@ -194,7 +194,7 @@ and leaves out what the size does not need ([The lean team](ARCHITECTURE.md#the-
 request ("Build a CLI that stores and lists notes.") gets one session that writes the spec and the plan,
 one engineer who builds the whole plan (README included), the controller's checks, one reviewer, and
 release notes written by the controller: three agent sessions. A medium task (a plan of three to five
-packages, or an existing project of more than 40 files) runs the packages side by side between a
+packages, or an existing project of more than 40 files or 1,500 lines) runs the packages side by side between a
 foundation and an integration stage and has both reviewers; a large one (a request of more than 600
 words, six packages or more) also gets a separate analyst for the spec. DevOps and documentation stages
 run only when the request asks for them ("with GitHub Actions CI", "a Dockerfile", "a user guide").
@@ -487,7 +487,7 @@ uv run engineering-team export-patch --out search.patch
 `feature` takes the request like `new` does (`--request`, `--request-file`, `--context-dir`, stdin,
 `--interactive`) and the options `--provider`, `--profile`, `--sandbox`, `--checks`, `--allow-web`. The team is isolated
 first ([above](#adopting-an-existing-project)), then the `feature` recipe runs: **profile, baseline, map** (the
-adopt stages; a small project of at most 40 files skips the map), **design** (the architect writes the criteria for the
+adopt stages; a small project of at most 40 files and 1,500 lines skips the map), **design** (the architect writes the criteria for the
 new behaviour and for the existing behaviour the change must keep, and plans the smallest change as work packages,
 each owning exact paths, in one session; a large task has a separate **spec** by the analyst and **impact** by the
 architect instead; a small one's plan becomes one package), **acceptance** (tests for the criteria, written first and
@@ -545,7 +545,7 @@ become the suspects, even when the trace came from another machine), and a **com
 `--allow-dirty`, `--squash`) and for the models, sandbox, and checks are those of
 [`feature`](#feature-mode). The recipe: **profile, baseline, map** (the adopt stages), **triage** (the `debugger`
 reads the report, the parsed trace, and the code, and ranks hypotheses; it changes nothing), **reproduce**, **fix**,
-**verify**, **review**, **summary**. A small fix (a project of at most 40 files and a short report) skips the map
+**verify**, **review**, **summary**. A small fix (a project of at most 40 files and 1,500 lines, and a short report) skips the map
 and the triage: the reproduce session finds the cause itself, and one reviewer reads the change.
 
 **Red, then green.** Nothing is fixed until the bug has been seen. In `reproduce` the debugger writes a failing test

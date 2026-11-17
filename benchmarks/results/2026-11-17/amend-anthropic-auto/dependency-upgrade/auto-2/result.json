@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "amend-anthropic-auto",
+  "task": "dependency-upgrade",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "upgrade_deps",
+  "agent": null,
+  "agent_version": null,
+  "provider": "anthropic",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261117-103157-be104c",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 220.58,
+  "tokens": 359065,
+  "prompt_tokens": 313517,
+  "completion_tokens": 45548,
+  "model_calls": 26,
+  "sessions": 7,
+  "cached_prompt_tokens": 170541,
+  "tool_calls": 37,
+  "cost_usd": 0.08514341,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "anthropic/claude-haiku-5-5",
+    "anthropic/claude-sonnet-5-5"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 2,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "upgraded",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.15
+    },
+    {
+      "id": "invoices-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.34
+    },
+    {
+      "id": "errors-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.26
+    },
+    {
+      "id": "no-removed-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "tests-pass",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.14
+    }
+  ],
+  "started": "2026-11-17T10:31:57+00:00",
+  "finished": "2026-11-17T10:35:39+00:00",
+  "run_dir": "dependency-upgrade/auto-2",
+  "workspace": "dependency-upgrade/auto-2/repo"
+}

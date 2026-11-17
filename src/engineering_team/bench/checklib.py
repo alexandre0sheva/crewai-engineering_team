@@ -16,7 +16,9 @@ Tasks that need Node or Go run those tools through :func:`toolchain`: in a Docke
 
 from __future__ import annotations
 
+import ast
 import contextlib
+import copy
 import http.client
 import json
 import os
@@ -30,7 +32,7 @@ import traceback
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 from urllib.parse import urlsplit
 
 DEFAULT_TIMEOUT = 20.0
@@ -65,6 +67,71 @@ def python(
     """Run ``python *args`` in the workspace (stdout and stderr captured as text)."""
 
     return run([sys.executable, *args], workspace, input=input, timeout=timeout, env=env)
+
+
+class Definition(NamedTuple):
+    """A function or class of a test file: its header and, for a function, its statements."""
+
+    header: str  # a normalized AST dump (a class without its methods, a function without its body)
+    statements: tuple[str, ...]  # the dumps of a function's body statements, in order
+
+
+def definitions(path: Path) -> dict[str, Definition]:
+    """Every function and class of a Python file by dotted name.
+
+    A class is dumped without its methods and nested classes (they have entries of their own), so
+    a class that gained a method is the same class."""
+
+    found: dict[str, Definition] = {}
+    nested = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+
+    def visit(node: ast.AST, prefix: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            if not isinstance(child, nested):
+                continue
+            name = f"{prefix}{child.name}"
+            if isinstance(child, ast.ClassDef):
+                shell = copy.copy(child)
+                shell.body = [item for item in child.body if not isinstance(item, nested)]
+                found[name] = Definition(ast.dump(shell), ())
+            else:
+                bare = copy.copy(child)
+                bare.body = [ast.Pass()]
+                found[name] = Definition(
+                    ast.dump(bare), tuple(ast.dump(item) for item in child.body)
+                )
+            visit(child, f"{name}.")
+
+    visit(ast.parse(path.read_text(encoding="utf-8")), "")
+    return found
+
+
+def is_subsequence(wanted: Sequence[str], found: Sequence[str]) -> bool:
+    remaining = iter(found)
+    return all(any(item == other for other in remaining) for item in wanted)
+
+
+def expect_tests_kept(original: Path, workspace: Path) -> None:
+    """Fail unless every Python file under ``original`` (a task's fixture tests) is still in
+    ``workspace`` with each of its functions and classes: none was removed, renamed or weakened.
+
+    A test may gain statements (an assertion for the case that was fixed): every statement it had
+    must still be there, in order, with the same header. A changed value, a dropped assertion or a
+    skipped test fails. New tests may sit in the same files: a request to "add a test" does not say
+    where, and a check that demanded untouched files would fail correct work."""
+
+    for path in sorted(original.rglob("*.py")):
+        relative = path.relative_to(original).as_posix()
+        mine = workspace / path.relative_to(original)
+        expect(mine.is_file(), f"{relative} was deleted")
+        after = definitions(mine)
+        for name, before in definitions(path).items():
+            expect(name in after, f"{relative}: {name} was removed")
+            expect(after[name].header == before.header, f"{relative}: {name} was changed")
+            expect(
+                is_subsequence(before.statements, after[name].statements),
+                f"{relative}: {name} was changed (a statement of it was altered or removed)",
+            )
 
 
 def run(

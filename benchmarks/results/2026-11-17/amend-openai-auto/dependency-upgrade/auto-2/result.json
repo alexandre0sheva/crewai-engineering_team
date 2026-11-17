@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "batch": "amend-openai-auto",
+  "task": "dependency-upgrade",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "upgrade_deps",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openai",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261117-095247-aa1370",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 829.72,
+  "tokens": 289942,
+  "prompt_tokens": 278672,
+  "completion_tokens": 11270,
+  "model_calls": 50,
+  "sessions": 8,
+  "cached_prompt_tokens": 236528,
+  "tool_calls": 65,
+  "cost_usd": 0.03718794,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openai/gpt-6-luna",
+    "openai/gpt-6.1-terra"
+  ],
+  "repair_rounds": 1,
+  "tool_failures": 8,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "upgraded",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.18
+    },
+    {
+      "id": "invoices-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.34
+    },
+    {
+      "id": "errors-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.22
+    },
+    {
+      "id": "no-removed-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "tests-pass",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    }
+  ],
+  "started": "2026-11-17T09:52:47+00:00",
+  "finished": "2026-11-17T10:06:37+00:00",
+  "run_dir": "dependency-upgrade/auto-2",
+  "workspace": "dependency-upgrade/auto-2/repo"
+}

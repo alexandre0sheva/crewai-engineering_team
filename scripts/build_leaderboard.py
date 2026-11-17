@@ -269,7 +269,11 @@ the money a batch spent (failed runs included) divided by its successes. Rows wi
 {MIN_RUNS} counted runs are greyed and marked *n &lt; {MIN_RUNS}*: they are probes and screens, kept
 for the record, not evidence. Runs billed by a subscription show *plan*, never $0. Rows before
 0.3.0 carry the version that produced them; method, limits and caveats are in
-[Benchmarks](BENCHMARKS.md#limits-of-this-evaluation).
+[Benchmarks](BENCHMARKS.md#limits-of-this-evaluation). Each row is one batch as it ran: three
+held-out tasks (`answer-questions`, `dependency-upgrade`, `ledger-misleading-trace`) were judged by
+stricter checks in the 2026-11-16 batches and repeated after the checks were amended in the
+2026-11-17 ones, so the pooled comparison, which counts only the repeats, is the one in
+[Benchmarks](BENCHMARKS.md#the-amendment-of-2026-11-17).
 
 <div class="md-typeset__scrollwrap"><div class="md-typeset__table">
 <table class="leaderboard sortable">

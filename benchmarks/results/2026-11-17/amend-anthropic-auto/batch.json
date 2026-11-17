@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "batch": "amend-anthropic-auto",
+  "created": "2026-11-17T10:28:25+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "anthropic",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "auto"
+  ],
+  "agents": {},
+  "repeat": 2,
+  "parallel": 2,
+  "budget_usd": 3.0,
+  "run_budget_usd": 1.2,
+  "planned_runs": 4,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "answer-questions": {
+      "split": "heldout",
+      "intent": "question",
+      "digest": "ab0ed8431101e1e5"
+    },
+    "dependency-upgrade": {
+      "split": "heldout",
+      "intent": "upgrade_deps",
+      "digest": "669e6e5a5304fd06"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    ".venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "dependency-upgrade,answer-questions",
+    "--strategy",
+    "auto",
+    "--repeat",
+    "2",
+    "--parallel",
+    "2",
+    "--provider",
+    "anthropic",
+    "--budget-usd",
+    "3.0",
+    "--run-budget-usd",
+    "1.2",
+    "--allocation",
+    "T33-anthropic",
+    "--out",
+    "benchmarks/results/2026-11-17",
+    "--batch",
+    "amend-anthropic-auto",
+    "--allow-failures"
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "batch": "amend-openai-rungs-ledger",
+  "created": "2026-11-17T12:13:40+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openai",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "pipeline",
+    "team"
+  ],
+  "agents": {},
+  "repeat": 1,
+  "parallel": 2,
+  "budget_usd": 1.4,
+  "run_budget_usd": 0.7,
+  "planned_runs": 2,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "ledger-misleading-trace": {
+      "split": "heldout",
+      "intent": "bugfix",
+      "digest": "e19e4443f6df83b1"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    ".venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "ledger-misleading-trace",
+    "--strategy",
+    "pipeline,team",
+    "--repeat",
+    "1",
+    "--parallel",
+    "2",
+    "--provider",
+    "openai",
+    "--budget-usd",
+    "1.4",
+    "--run-budget-usd",
+    "0.7",
+    "--allocation",
+    "T33-openai",
+    "--out",
+    "benchmarks/results/2026-11-17",
+    "--batch",
+    "amend-openai-rungs-ledger",
+    "--allow-failures"
+  ]
+}

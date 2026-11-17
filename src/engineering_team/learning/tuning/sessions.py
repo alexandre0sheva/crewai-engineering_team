@@ -27,7 +27,10 @@ if TYPE_CHECKING:
 
 TUNE_ROLE = "tune"
 TUNE_TIER = "lead"
-MAX_OUTPUT_TOKENS = 4_000
+# The cap counts a reasoning model's thinking as well as its JSON answer (a few hundred tokens):
+# 4,000 ended T33's composer session with ``LengthFinishReasonError`` on such a model, so it is
+# doubled. Provisional: the next live tuning run measures what the sessions really use.
+MAX_OUTPUT_TOKENS = 8_000
 CHARS_PER_TOKEN = 3  # conservative, as reflection's
 ATTEMPTS = 2  # an invalid proposal gets one retry
 

@@ -142,8 +142,9 @@ CI builds the site on every pull request (`site` job in `ci.yml`). `.github/work
 from `main` when `docs/`, `examples/`, `benchmarks/results/` or `mkdocs.yml` change. One-time setup by the
 repository owner: **Settings → Pages → Source: GitHub Actions**; the site is then at
 <https://alexandre0sheva.github.io/crewai-engineering_team/>. The terminal recording is
-`docs/assets/demo.tape`; render it with `vhs docs/assets/demo.tape` (needs `vhs`, `ttyd` and `ffmpeg`; it
-makes a live run, so it costs a few cents).
+`docs/assets/demo.tape` and `docs/assets/demo.gif` is its output; render it again with
+`vhs docs/assets/demo.tape` (needs `vhs`, `ttyd`, `ffmpeg` and a Chromium; it makes a live run, so it costs a
+few cents, and takes about three minutes).
 
 ## Releasing
 

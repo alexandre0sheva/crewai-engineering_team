@@ -35,7 +35,7 @@ from engineering_team.pipeline.ladder import ESTIMATE_AS, plan_ladder, rung_reci
 from engineering_team.pipeline.ladder_contracts import LadderRecord
 from engineering_team.pipeline.ladder_run import current_recipe, run_ladder
 from engineering_team.pipeline.lead import lead_recipe
-from engineering_team.pipeline.lean import assess, count_files
+from engineering_team.pipeline.lean import assess_workspace
 from engineering_team.pipeline.recipes import Recipe, StageSpec, load_recipe
 from engineering_team.pipeline.stages import CrewStageRunner, StageRunner
 from engineering_team.pipeline.state import PipelineState, RunBundle, RungSeed, RunResult
@@ -166,7 +166,7 @@ class AutoStrategy(PipelineStrategy):
     def run(self, ctx: RunContext, recipe: Recipe | None, bundle: RunBundle) -> RunResult:
         base = self.recipe_for(recipe)
         if wants_attempts(ctx.settings):  # N attempts of the rung the ladder would start on
-            lean = assess(bundle.requirements, ctx.settings, count_files(ctx.workspace))
+            lean = assess_workspace(bundle.requirements, ctx.settings, ctx.workspace)
             start = plan_ladder(ctx.settings, lean, base).start
             seed = RungSeed(rung=start, carried={"lean": lean.model_dump(mode="json")})
             status, error = self._attempts(

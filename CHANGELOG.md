@@ -11,12 +11,14 @@ renames that section and dates it.
 
 ### Added
 
-- Live evaluation of 0.3.0 ([docs/BENCHMARKS.md](docs/BENCHMARKS.md#results-2026-11-16-the-030-evaluation)): 235
-  counted runs (28 batches in `benchmarks/results/2026-11-16/`) of the team on the `openai`, `anthropic`,
-  `openrouter` and `value` presets next to Claude Code, Codex and OpenCode on the same hidden checks, with every
-  failure and its cause. The team is not distinguishable from the external agents on pass rate at this sample size;
-  the README table and the leaderboard say so. `bench` reports and `results.json` gain an exact paired sign test
-  (`p`), and `scripts/compare_batches.py` pools batches by contender.
+- Live evaluation of 0.3.0 ([docs/BENCHMARKS.md](docs/BENCHMARKS.md#results-2026-11-16-the-030-evaluation)): 276
+  counted runs (28 batches in `benchmarks/results/2026-11-16/`, 13 in `benchmarks/results/2026-11-17/`, which repeats
+  three tasks after their checks were amended) of the team on the `openai`, `anthropic`, `openrouter` and `value`
+  presets next to Claude Code, Codex and OpenCode on the same hidden checks, with every failure and its cause. The
+  team is not distinguishable from the external agents on pass rate at this sample size; the README table and the
+  leaderboard say so, and BENCHMARKS.md discloses that three held-out tasks were amended after their first results.
+  `bench` reports and `results.json` gain an exact paired sign test (`p`), and `scripts/compare_batches.py` pools
+  batches by contender (several directories; `--supersede DATE:TASK` drops the runs an amended check replaced).
 
 - Public website on GitHub Pages ([CONTRIBUTING.md](CONTRIBUTING.md#the-website)): MkDocs Material over the existing
   `docs/`, with a landing page, an examples gallery that hosts each example's run report, and a **leaderboard**
@@ -24,7 +26,8 @@ renames that section and dates it.
   cost per success, time, tasks, version, a link to the raw batch; runs below ten are greyed as "n < 10"; the
   0.2.0 results included). `pages.yml` deploys from `main`, a `site` CI job builds it with `mkdocs build --strict`,
   `check_docs.py` checks `mkdocs.yml`, and the README shows a three-row summary of the leaderboard. A `vhs` tape
-  (`docs/assets/demo.tape`) records `do` fixing a bug.
+  (`docs/assets/demo.tape`) records `do` fixing a bug; its GIF (`docs/assets/demo.gif`, a live run on the
+  `openai` preset, about $0.003) is in the README and on the landing page.
 
 - Web UI v2 ([docs/USAGE.md](docs/USAGE.md#web-ui)): the new-run page is one box (plus file upload and a project
   folder) with a live plan beside it from the new `POST /triage` (what the team understood, the starting rung, the
@@ -254,6 +257,11 @@ renames that section and dates it.
   thresholds, best-of-N off by default, learning on, the provider presets and `mcp_serve.max_cost_usd = 5.0` are kept
   with their measurements cited; nothing changed value. The leaderboard states when a pair is "not distinguishable at
   this sample size".
+- Task sizing counts lines as well as files: an existing project of more than 1,500 lines (20,000 for `large`) is
+  at least `medium`, so a 2,013-line project in 37 files no longer starts `auto` on `solo`
+  ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-lean-team)).
+- The output cap of the `harness tune` composer is 8,000 tokens (was 4,000, which a reasoning model overran with
+  `LengthFinishReasonError`); provisional.
 
 - `doctor` warns when a configured model has no price (its spend is unknown, so `budget.max_cost_usd` cannot stop
   the run), naming the model and pointing at `ENGINEERING_*_MODEL` variables, also those in `.env`.
@@ -324,6 +332,13 @@ renames that section and dates it.
 
 ### Fixed
 
+- Stack detection took a project with only a `tests/` directory of non-Python files for a Python one, so lessons
+  of a TypeScript project were filed under `bugfix/python`.
+- Three held-out benchmark checks were stricter than their requests and failed correct work: they demanded
+  byte-identical test files (`ledger-misleading-trace`, `dependency-upgrade`; now `checklib.expect_tests_kept`: a
+  test may gain assertions, never lose or change one), that no prose file changed, and the words "split" and "the
+  same weight" in an answer (`answer-questions`). The affected runs were repeated or re-judged, and the evaluation
+  says so.
 - Benchmark runs of an external agent started in the checkout instead of their workspace (OpenCode took its
   project directory from the inherited `PWD` and edited the suite's own task fixtures): every agent now gets the
   workspace as `PWD`.

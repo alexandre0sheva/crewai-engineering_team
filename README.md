@@ -13,11 +13,14 @@ counts as done.
 **[Example run reports](https://alexandre0sheva.github.io/crewai-engineering_team/examples/)** ·
 [Docs](docs/USAGE.md)
 
+![The terminal: engineering-team do fixing a bug in a small shop project, ending verified](docs/assets/demo.gif)
+
+*`do` on a bug (a live run on the `openai` preset, recorded from a [`vhs` tape](docs/assets/demo.tape): 148 s,
+about $0.003). See [Try it without a key](#try-it-without-a-key).*
+
 ![A tour of the web UI in demo mode: new run, task board, swimlanes, timeline, results](docs/assets/ui-tour.gif)
 
-*The web UI on a scripted run (`ui --demo`: the real pipeline and board, no model, no key). The terminal
-recording of `do` on a bug is a [`vhs` tape](docs/assets/demo.tape); see
-[Try it without a key](#try-it-without-a-key).*
+*The web UI on a scripted run (`ui --demo`: the real pipeline and board, no model, no key).*
 
 ## What it does
 
@@ -155,20 +158,23 @@ same tasks and hidden checks (held-out split, eight tasks, two repeats):
 
 | Contender | Passed | Pass rate (95 % interval) | Cost / success | Median time |
 |-----------|--------|---------------------------|----------------|-------------|
-| Team (`auto`), preset `openai` | 8/16 | 50 % (28–72 %) | $0.025 | 81 s |
-| Team (`auto`), preset `anthropic` | 8/14 | 57 % (33–79 %) | $0.088 | 2.2 min |
-| Team (`auto`), preset `openrouter` | 7/13 | 54 % (29–77 %) | $0.13 | 7.1 min |
-| Claude Code (plan, its own model) | 10/16 | 62 % (39–82 %) | plan, about $0.10 a run | 33 s |
-| Codex (plan, its own model) | 10/16 | 62 % (39–82 %) | plan | 98 s |
-| OpenCode (same model as the `openrouter` worker) | 11/16 | 69 % (44–86 %) | $0.019 | 2.2 min |
+| Team (`auto`), preset `openai` | 11/16 | 69 % (44–86 %) | $0.027 | 102 s |
+| Team (`auto`), preset `anthropic` | 14/16 | 88 % (64–97 %) | $0.10 | 2.3 min |
+| Team (`auto`), preset `openrouter` | 12/15 | 80 % (55–93 %) | $0.11 | 8.9 min |
+| Claude Code (plan, its own model) | 14/16 | 88 % (64–97 %) | plan, about $0.11 a run | 34 s |
+| Codex (plan, its own model) | 13/16 | 81 % (57–93 %) | plan | 94 s |
+| OpenCode (same model as the `openrouter` worker) | 14/16 | 88 % (64–97 %) | $0.030 | 2.2 min |
 
 **What it shows, honestly:** the team is **not distinguishable** from the external agents on pass rate at this
 sample size (every interval overlaps; the paired sign tests are all above 0.05), and it is **not shown to be
-better**. Its successes on the cheapest preset cost an order of magnitude less than a Claude Code run, but on
-a different model; against OpenCode on the *same* model the team was not cheaper and was slower. Three of the
-eight tasks were failed by every contender, two of them on checks that look stricter than their request. What
-the checks cannot see (budget caps, the verification report, review, resumability) is not measured. Costs for
-the plan-billed agents are not API money; Aider was not available.
+better**. Its successes on the cheapest preset cost a quarter of a Claude Code run, but on a different model;
+against OpenCode on the *same* model the team was about four times dearer per success and four times slower.
+One of the eight tasks was failed by every contender. Three held-out tasks had checks stricter than their
+requests; they were amended after the first results were seen and rerun, so on them the benchmark is not blind
+(the first pass and the amendment are both committed and explained in
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md#the-amendment-of-2026-11-17)). What the checks cannot see (budget caps,
+the verification report, review, resumability) is not measured. Costs for the plan-billed agents are not API
+money; Aider was not available.
 
 The leaderboard lists each batch as it ran. The rows below are single batches (the six easier held-out tasks,
 ten runs, no external agents), so they read higher than the pooled table above: compare contenders only in that table.

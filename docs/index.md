@@ -4,11 +4,15 @@
 pipeline in which a controller, not the agents, runs the checks, moves the task board and decides what
 counts as done.
 
+![The terminal: engineering-team do fixing a bug in a small shop project, ending verified](assets/demo.gif)
+
+*`do` on a bug: a live run on the `openai` preset, about $0.003, recorded from
+[a tape](https://github.com/alexandre0sheva/crewai-engineering_team/blob/main/docs/assets/demo.tape)
+(`vhs docs/assets/demo.tape`).*
+
 ![A tour of the web UI in demo mode: new run, task board, swimlanes, timeline, results](assets/ui-tour.gif)
 
-*The web UI on a scripted run (`ui --demo`: the real pipeline and board, no model, no key). A terminal
-recording of `do` on a bug is [recorded from a tape](https://github.com/alexandre0sheva/crewai-engineering_team/blob/main/docs/assets/demo.tape)
-(`vhs docs/assets/demo.tape`).*
+*The web UI on a scripted run (`ui --demo`: the real pipeline and board, no model, no key).*
 
 ## Say what you want
 

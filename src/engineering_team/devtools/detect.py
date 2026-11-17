@@ -82,7 +82,9 @@ def _python(directory: Path, relative: str) -> Stack | None:
     pyproject = _toml(directory / "pyproject.toml")
     manifests = ("pyproject.toml", "setup.py", "setup.cfg", "Pipfile", "tox.ini", "pytest.ini")
     requirements = sorted(directory.glob("requirements*.txt"))
-    loose = any(directory.glob("*.py")) or (directory / "tests").is_dir()
+    # No manifest: Python files, or a tests/ directory that holds some (a JavaScript project's
+    # tests/ is not a Python project: the first stack found names the domain of its lessons).
+    loose = any(directory.glob("*.py")) or any((directory / "tests").glob("**/*.py"))
     if not (_any(directory, *manifests) or requirements or loose):
         return None
     tool = pyproject.get("tool", {}) if isinstance(pyproject.get("tool"), dict) else {}

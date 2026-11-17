@@ -1,0 +1,94 @@
+{
+  "schema_version": 3,
+  "batch": "amend-openrouter-auto",
+  "task": "answer-questions",
+  "strategy": "auto",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "question",
+  "agent": null,
+  "agent_version": null,
+  "provider": "openrouter",
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "20261117-105410-686ff3",
+  "exit_code": 0,
+  "team_status": "succeeded",
+  "team_verdict": "verified",
+  "duration_seconds": 547.7,
+  "tokens": 1153980,
+  "prompt_tokens": 1038888,
+  "completion_tokens": 115092,
+  "model_calls": 56,
+  "sessions": 5,
+  "cached_prompt_tokens": 891052,
+  "tool_calls": 119,
+  "cost_usd": 0.11606853,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/deepseek/deepseek-v4.1-flash",
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 9,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "q1-free-shipping",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.13
+    },
+    {
+      "id": "q2-heavy-orders",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "q3-carrier",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "q4-delivery",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    },
+    {
+      "id": "citations-real",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "code-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.08
+    }
+  ],
+  "started": "2026-11-17T10:54:10+00:00",
+  "finished": "2026-11-17T11:03:18+00:00",
+  "run_dir": "answer-questions/auto-2",
+  "workspace": "answer-questions/auto-2/repo"
+}

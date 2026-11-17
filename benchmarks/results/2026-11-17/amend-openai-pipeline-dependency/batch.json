@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "batch": "amend-openai-pipeline-dependency",
+  "created": "2026-11-17T11:40:42+00:00",
+  "fake": false,
+  "fake_solution": null,
+  "provider": "openai",
+  "profile": null,
+  "sandbox": null,
+  "config_sha256": null,
+  "strategies": [
+    "pipeline"
+  ],
+  "agents": {},
+  "repeat": 2,
+  "parallel": 2,
+  "budget_usd": 1.5,
+  "run_budget_usd": 0.6,
+  "planned_runs": 2,
+  "not_applicable": [],
+  "acceptance_sandbox": "docker",
+  "tasks": {
+    "dependency-upgrade": {
+      "split": "heldout",
+      "intent": "upgrade_deps",
+      "digest": "669e6e5a5304fd06"
+    }
+  },
+  "versions": {
+    "engineering_team": "0.2.0",
+    "crewai": "1.15.41",
+    "python": "3.12.12",
+    "platform": "Darwin arm64"
+  },
+  "command": [
+    ".venv/bin/engineering-team",
+    "bench",
+    "run",
+    "--tasks",
+    "dependency-upgrade",
+    "--strategy",
+    "pipeline",
+    "--repeat",
+    "2",
+    "--parallel",
+    "2",
+    "--provider",
+    "openai",
+    "--budget-usd",
+    "1.5",
+    "--run-budget-usd",
+    "0.6",
+    "--allocation",
+    "T33-openai",
+    "--out",
+    "benchmarks/results/2026-11-17",
+    "--batch",
+    "amend-openai-pipeline-dependency",
+    "--allow-failures"
+  ]
+}

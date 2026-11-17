@@ -1,0 +1,83 @@
+{
+  "schema_version": 3,
+  "batch": "amend-codex",
+  "task": "ledger-misleading-trace",
+  "strategy": "codex",
+  "repeat": 1,
+  "kind": "brownfield",
+  "mode": "fix",
+  "split": "heldout",
+  "intent": "bugfix",
+  "agent": "codex",
+  "agent_version": "codex-cli 0.162.1",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 89.67,
+  "tokens": 191724,
+  "prompt_tokens": 188725,
+  "completion_tokens": 2999,
+  "model_calls": 1,
+  "sessions": 1,
+  "cached_prompt_tokens": 167680,
+  "tool_calls": 0,
+  "cost_usd": null,
+  "billing": "subscription",
+  "equivalent_cost_usd": null,
+  "models": [],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "march-report",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.36
+    },
+    {
+      "id": "signed-amounts",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.09
+    },
+    {
+      "id": "unreadable-stops-import",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.29
+    },
+    {
+      "id": "others-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.72
+    },
+    {
+      "id": "regression-test",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.33
+    }
+  ],
+  "started": "2026-11-17T11:18:04+00:00",
+  "finished": "2026-11-17T11:19:36+00:00",
+  "run_dir": "ledger-misleading-trace/codex-1",
+  "workspace": "ledger-misleading-trace/codex-1/repo"
+}

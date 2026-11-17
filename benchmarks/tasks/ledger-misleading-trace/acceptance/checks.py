@@ -6,7 +6,7 @@ import tempfile
 from decimal import Decimal
 from pathlib import Path
 
-from engineering_team.bench.checklib import expect, main, python
+from engineering_team.bench.checklib import expect, expect_tests_kept, main, python
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixture"
 RABO = """Datum,Bedrag,Munt,Naam tegenpartij,Tegenrekening IBAN/BBAN,Omschrijving-1
@@ -98,11 +98,7 @@ def check_others_unchanged(ws):
     expect(line_of(may, "Net") == "1,201.17", f"May's net:\n{may}")
     again = imported(ws, "may.csv", ING, "ing")
     expect("0 added, 3 already there" in again.stdout, f"re-import: {again.stdout!r}")
-    for path in (FIXTURE / "tests").rglob("*.py"):
-        mine = ws / "tests" / path.relative_to(FIXTURE / "tests")
-        expect(
-            mine.is_file() and mine.read_text() == path.read_text(), f"tests/{mine.name} changed"
-        )
+    expect_tests_kept(FIXTURE / "tests", ws / "tests")  # new tests may share these files
     original = sorted(f"tests.{p.stem}" for p in (FIXTURE / "tests").glob("test_*.py"))
     suite = python(ws, "-m", "unittest", *original, timeout=120)
     expect(suite.returncode == 0, f"the original tests fail:\n{suite.stderr[-600:]}")

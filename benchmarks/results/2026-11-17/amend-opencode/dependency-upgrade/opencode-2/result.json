@@ -1,0 +1,85 @@
+{
+  "schema_version": 3,
+  "batch": "amend-opencode",
+  "task": "dependency-upgrade",
+  "strategy": "opencode",
+  "repeat": 2,
+  "kind": "brownfield",
+  "mode": "maintain",
+  "split": "heldout",
+  "intent": "upgrade_deps",
+  "agent": "opencode",
+  "agent_version": "1.19.4",
+  "provider": null,
+  "profile": null,
+  "fake": false,
+  "outcome": "passed",
+  "reason": "",
+  "run_id": "",
+  "exit_code": 0,
+  "team_status": null,
+  "team_verdict": null,
+  "duration_seconds": 172.31,
+  "tokens": 1167234,
+  "prompt_tokens": 1141969,
+  "completion_tokens": 25265,
+  "model_calls": 35,
+  "sessions": 1,
+  "cached_prompt_tokens": 1113601,
+  "tool_calls": 0,
+  "cost_usd": 0.036118214999999995,
+  "billing": "api",
+  "equivalent_cost_usd": null,
+  "models": [
+    "openrouter/minimax/minimax-m3.1-flash"
+  ],
+  "repair_rounds": 0,
+  "tool_failures": 0,
+  "setup_failures": 0,
+  "criteria": [
+    {
+      "id": "upgraded",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.16
+    },
+    {
+      "id": "invoices-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.35
+    },
+    {
+      "id": "errors-unchanged",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.22
+    },
+    {
+      "id": "no-removed-api",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.07
+    },
+    {
+      "id": "tests-pass",
+      "passed": true,
+      "error": false,
+      "required": true,
+      "detail": "passed",
+      "duration": 0.27
+    }
+  ],
+  "started": "2026-11-17T11:22:59+00:00",
+  "finished": "2026-11-17T11:25:52+00:00",
+  "run_dir": "dependency-upgrade/opencode-2",
+  "workspace": "dependency-upgrade/opencode-2/repo"
+}

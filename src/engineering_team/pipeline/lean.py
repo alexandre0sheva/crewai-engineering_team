@@ -1,8 +1,8 @@
 """The lean team: how big a task is, and what that lets the controller leave out.
 
 The size decides the structure of a run before any model is called, from deterministic signals
-only (the request's length, how much code the repository already has, the plan's packages once
-it exists; ``lean.size`` overrides them):
+only (the request's length, how much code the repository already has, counted in files and in
+lines, the plan's packages once it exists; ``lean.size`` overrides them):
 
 * ``small``: one design session writes the spec and the plan, the plan collapses into one work
   package (so one implementer does foundation, packages and integration), a fix skips triage and
@@ -13,13 +13,15 @@ it exists; ``lean.size`` overrides them):
 
 Ceremony (``devops``, ``docs``) runs only when the request asks for it or ``lean.ceremony`` says
 ``always``. A skipped stage is recorded with the condition that skipped it. The thresholds are
-provisional until the live evaluation (T33) measures them.
+provisional: no benchmark run escalated, so the live evaluation (T33) could not tune them; the
+repository's lines count beside its files because a 2,000-line project in 37 files is not small.
 """
 
 from __future__ import annotations
 
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from engineering_team.contracts import Contract, Plan, WorkPackage
@@ -39,6 +41,9 @@ LARGE_REPO_FILES = 400
 MEDIUM_PACKAGES = 3  # a plan with this many packages is at least medium
 LARGE_PACKAGES = 6
 REPO_SCAN_LIMIT = LARGE_REPO_FILES + 1
+MEDIUM_REPO_LINES = 1_500  # about the lines of MEDIUM_REPO_FILES files in a typical project
+LARGE_REPO_LINES = 20_000
+LINE_SCAN_LIMIT = LARGE_REPO_LINES + 1
 
 CEREMONY: dict[str, re.Pattern[str]] = {
     "devops": re.compile(
@@ -81,20 +86,43 @@ def _larger(a: TaskSize, b: TaskSize) -> TaskSize:
     return a if SIZES.index(a) >= SIZES.index(b) else b
 
 
-def count_files(workspace: ProjectWorkspace, limit: int = REPO_SCAN_LIMIT) -> int:
-    """Files in the project (ignored paths left out), counted up to ``limit``."""
+@dataclass(frozen=True)
+class RepoSize:
+    """How much code a project has: its files and the lines of its text files (both counted up to
+    a limit, so a huge repository is not read to the end)."""
 
-    from engineering_team.tools.ignore import iter_files
+    files: int = 0
+    lines: int = 0
 
-    count = 0
-    for _ in iter_files(workspace):
-        count += 1
-        if count >= limit:
+
+def measure(workspace: ProjectWorkspace) -> RepoSize:
+    """The project's files and lines (ignored paths, binaries and very large files left out)."""
+
+    from engineering_team.tools.ignore import iter_files, read_text_or_none
+
+    files = lines = 0
+    for path in iter_files(workspace):
+        files += 1
+        if lines < LINE_SCAN_LIMIT:
+            text = read_text_or_none(path)
+            lines += text.count("\n") + 1 if text else 0
+        if files >= REPO_SCAN_LIMIT and lines >= LINE_SCAN_LIMIT:
             break
-    return count
+    return RepoSize(files=files, lines=lines)
 
 
-def assess(requirements: str, settings: Settings, existing_files: int) -> LeanProfile:
+def assess_workspace(
+    requirements: str, settings: Settings, workspace: ProjectWorkspace
+) -> LeanProfile:
+    """:func:`assess` for the project in ``workspace``."""
+
+    repo = measure(workspace)
+    return assess(requirements, settings, repo.files, repo.lines)
+
+
+def assess(
+    requirements: str, settings: Settings, existing_files: int, existing_lines: int = 0
+) -> LeanProfile:
     """The profile before any model is called: request, repository, settings."""
 
     lean = settings.lean
@@ -104,12 +132,14 @@ def assess(requirements: str, settings: Settings, existing_files: int) -> LeanPr
     if words > LARGE_REQUEST_WORDS:
         size = "large"
     if existing_files:
+        more_files = "+" if existing_files >= REPO_SCAN_LIMIT else ""
+        more_lines = "+" if existing_lines >= LINE_SCAN_LIMIT else ""
         reasons.append(
-            f"repository: {existing_files}{'+' if existing_files >= REPO_SCAN_LIMIT else ''} files"
+            f"repository: {existing_files}{more_files} files, {existing_lines}{more_lines} lines"
         )
-        if existing_files > LARGE_REPO_FILES:
+        if existing_files > LARGE_REPO_FILES or existing_lines > LARGE_REPO_LINES:
             size = _larger(size, "large")
-        elif existing_files > MEDIUM_REPO_FILES:
+        elif existing_files > MEDIUM_REPO_FILES or existing_lines > MEDIUM_REPO_LINES:
             size = _larger(size, "medium")
     if lean.size != "auto":
         size = lean.size

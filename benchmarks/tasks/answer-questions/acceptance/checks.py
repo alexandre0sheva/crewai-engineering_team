@@ -9,6 +9,7 @@ FIXTURE = TASK / "fixture"
 KEY = json.loads((TASK / "acceptance" / "answers.json").read_text())
 CITATION = re.compile(r"([\w./-]+\.\w+):(\d+)(?:\s*[-–]\s*(\d+))?")
 SLACK = 2
+PROSE = {".md", ".rst", ".txt"}
 
 
 def sections(ws):
@@ -76,7 +77,9 @@ def check_citations_real(ws):
 
 def check_code_unchanged(ws):
     for path in FIXTURE.rglob("*"):
-        if path.is_file() and "__pycache__" not in path.parts:
+        # "Do not change any code": the README and other prose may be touched (the team's
+        # documentation route does), code, tests and configuration may not.
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix not in PROSE:
             mine = ws / path.relative_to(FIXTURE)
             expect(mine.is_file(), f"{mine.relative_to(ws)} was deleted")
             expect(mine.read_bytes() == path.read_bytes(), f"{mine.relative_to(ws)} was changed")

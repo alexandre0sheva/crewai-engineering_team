@@ -615,12 +615,13 @@ is called and the `new`, `feature` and `fix` recipes skip what that size does no
 `skipped: <condition>` and a cancelled card, so the report says what was left out and why.
 
 - **Size.** `assess` reads deterministic signals only: the request's length (over 600 words:
-  large), the existing project's file count (over 40: medium, over 400: large) and `lean.size`.
+  large), the existing project's size (over 40 files or 1,500 lines: medium; over 400 files or 20,000 lines: large;
+  `measure` counts the lines of the project's text files up to a scan limit) and `lean.size`.
   Once the plan exists, `refine` makes the task larger, never smaller (3+ packages: medium, 6+:
   large). The result (`LeanProfile`: size, high risk, requested ceremony, reasons) is in
   `pipeline.json` and the `lean.profile` event; a resume keeps it. The thresholds are
-  provisional: the 0.3.0 evaluation did not measure them, and found that a 2,013-line project in 37 files is sized
-  `small` ([BENCHMARKS.md](BENCHMARKS.md#results-2026-11-16-the-030-evaluation)).
+  provisional: the 0.3.0 evaluation did not tune them, and found that a 2,013-line project in 37 files was sized
+  `small`, so the line count was added ([BENCHMARKS.md](BENCHMARKS.md#results-2026-11-16-the-030-evaluation)).
 - **One design session** (`design`, `design_change` for a feature) returns a `Design` (the spec
   and the plan together) for small and medium tasks, on the worker tier; the controller splits it,
   checks both as before, and writes `docs/spec.md` and `docs/plan.md` itself. Large tasks keep a

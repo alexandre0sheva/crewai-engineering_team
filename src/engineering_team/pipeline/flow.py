@@ -19,7 +19,7 @@ from engineering_team.modes.needs_info import NeedsInfo
 from engineering_team.modes.run_options import read_run_options
 from engineering_team.pipeline.board_sync import StageBoard
 from engineering_team.pipeline.executor import StageExecutor, reset_for
-from engineering_team.pipeline.lean import assess, count_files
+from engineering_team.pipeline.lean import assess_workspace
 from engineering_team.pipeline.no_retry import NoRetry
 from engineering_team.pipeline.recipes import CONDITIONS, Recipe
 from engineering_team.pipeline.resume import ResumeError, StagePlan, plan_resume
@@ -91,7 +91,7 @@ class PipelineFlow(Flow[PipelineState]):
         state.request_head = self._bundle.requirements[:600]
         state.options = read_run_options(ctx.run_dir)
         if state.lean is None:  # sized once, before any model is called; a resume keeps it
-            state.lean = assess(self._bundle.requirements, ctx.settings, count_files(ctx.workspace))
+            state.lean = assess_workspace(self._bundle.requirements, ctx.settings, ctx.workspace)
             ctx.events.emit("lean.profile", **state.lean.model_dump(exclude={"schema_version"}))
         ctx.team.mode = (
             recipe.mode
