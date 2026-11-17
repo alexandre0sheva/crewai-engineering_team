@@ -47,7 +47,7 @@ You need Python 3.11–3.13, [uv](https://docs.astral.sh/uv/) and an API key for
 default; Anthropic, Google, Ollama and Azure are presets).
 
 ```bash
-uv tool install --python 3.13 git+https://github.com/alexandre0sheva/crewai-engineering_team
+uv tool install --python 3.13 engineering_team
 engineering-team doctor                       # is this machine ready?
 engineering-team do --example tiny-notes      # a cheap bundled example
 ```

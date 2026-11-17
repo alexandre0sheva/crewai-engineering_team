@@ -102,8 +102,7 @@ The order is fixed:
 A teammate's role, goal and backstory are its **always-on** text: they go with every model call it
 makes. `engineering-team team show KEY` and `harness show` print the size; a test keeps every
 bundled teammate under a cap in every bundled domain: 1,000 characters, down from 0.2.0's longest
-(1,075) since the long checklists moved into skills. The cap is provisional until the 0.3.0
-evaluation measures it.
+(1,075) since the long checklists moved into skills. The cap is provisional: the 0.3.0 evaluation did not measure it.
 
 The files are checked when they are loaded: an unknown front-matter field or section, a missing
 `## Role`, an unknown placeholder or insert, text that is not UTF-8. Each problem is one line naming
@@ -364,7 +363,7 @@ accepted are in [BENCHMARKS.md](BENCHMARKS.md#harness-tuning-harness-tune).
 ```bash
 engineering-team harness tune --domain bugfix/python --split dev --k 1 --fake      # offline: no model, no spend
 engineering-team harness tune --domain bugfix/python --k 1 --dry-run               # the plan and its estimate
-engineering-team harness tune --domain bugfix/python --k 1 --budget-usd 1.50       # live (charged to T33)
+engineering-team harness tune --domain bugfix/python --k 1 --budget-usd 1.50       # live (`--allocation` names the ledger line)
 engineering-team harness adopt benchmarks/tuning/2026-11-01/bugfix/python          # into your user harness
 engineering-team harness adopt DIR --to bundled                                    # into harness/data/ (a checkout)
 ```

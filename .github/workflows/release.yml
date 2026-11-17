@@ -2,7 +2,8 @@ name: Release
 
 # Push a tag `vX.Y.Z` (see "Releasing" in CONTRIBUTING.md) to build the package, check that the
 # wheel installs and runs on Linux and macOS, and publish a GitHub Release whose notes are the
-# version's CHANGELOG section. Publishing to PyPI is off until you enable it (see the last job).
+# version's CHANGELOG section. Publishing to PyPI uses trusted publishing (no token) and is off until
+# you enable it (see the last job and "Releasing" in CONTRIBUTING.md).
 
 on:
   push:
@@ -68,6 +69,7 @@ jobs:
           uv pip install --python "$RUNNER_TEMP/smoke-venv/bin/python" dist/*.whl
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/smoke-venv/bin/engineering-team" --help
+          "$RUNNER_TEMP/smoke-venv/bin/engineering-team" do --help
           "$RUNNER_TEMP/smoke-venv/bin/engineering-team" examples list
           "$RUNNER_TEMP/smoke-venv/bin/engineering-team" team list
 
@@ -96,12 +98,17 @@ jobs:
   pypi:
     name: Publish to PyPI
     needs: [github-release]
-    # Off until you turn it on: create the PyPI project, add this repository and workflow as a
-    # trusted publisher (https://docs.pypi.org/trusted-publishers/), create a `pypi` environment
-    # here, and set the repository variable PUBLISH_TO_PYPI to `true`.
-    if: ${{ vars.PUBLISH_TO_PYPI == 'true' }}
+    # Off until you turn it on: on PyPI add a pending trusted publisher for the project
+    # `engineering_team` (owner alexandre0sheva, repository crewai-engineering_team, workflow
+    # `release.yml`, environment `pypi`; https://docs.pypi.org/trusted-publishers/), create a `pypi`
+    # environment here with yourself as a required reviewer (that is the approval before anything is
+    # uploaded), and set the repository variable PUBLISH_TO_PYPI to `true`. No token is stored.
+    # Pre-release tags (v0.4.0-rc1) are not published to PyPI.
+    if: ${{ vars.PUBLISH_TO_PYPI == 'true' && !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
-    environment: pypi
+    environment:
+      name: pypi
+      url: https://pypi.org/p/engineering_team
     permissions:
       id-token: write
     steps:

@@ -77,8 +77,8 @@ def compose(
     if not claimed:
         raise ComposeError(
             f"No stage applies to a {profile.primary} request on a {profile.target.kind} "
-            "project yet (questions, research and plans without a project come with the answer "
-            "path)."
+            "project (questions, research and plans take the answer path: "
+            "`do --mode answer`)."
         )
     order = sorted(claimed.values(), key=lambda item: rules.position(item[0]))
     stages = tuple(

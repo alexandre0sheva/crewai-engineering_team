@@ -72,9 +72,9 @@ not count against it). The question task asks for `ANSWERS.md` and checks each a
 facts and for a `path:line` citation inside the code that answers it (`acceptance/answers.json`),
 and that every citation exists. The ambiguous task checks that a document (the README,
 `docs/spec.md`, a docstring) states one reading of "sorted by name" more often than the other, and
-that the tool sorts that way. Until the `do` command (task 14) and the answer path (task 15) exist,
-the question task runs as `maintain docs` and the upgrade as `maintain custom` (the `upgrade-deps`
-recipe may only change manifests).
+that the tool sorts that way. The question task runs as `maintain docs` (`do --mode answer` is read-only and the task needs an
+`ANSWERS.md` file) and the upgrade as `maintain custom` (the `upgrade-deps` recipe may only change
+manifests).
 
 ### A task on disk
 
@@ -308,7 +308,7 @@ rest; a Ctrl-C stops every team process and tells you the command.
 
 Where a run's time and tokens go is read with `engineering-team profile RUN`; `bench report` adds a
 "Where the time and money went, by strategy" table (sessions, model calls and prompt tokens per run,
-cached share). This is the "before" for the lean team (T6) and the lead agent (T12).
+cached share). This is the "before" for the lean team and the lead agent.
 
 **Live baseline, 2026-10-28** ([`benchmarks/results/2026-10-28/perf-baseline/`](../benchmarks/results/2026-10-28/perf-baseline/):
 `report.md`, `results.csv`, `batch.json`, one `result.json` and one `profile-*.txt`/`.json` per strategy).
@@ -365,7 +365,7 @@ Per session: `design` 28 s, 6 calls, $0.0013 (before: `spec` and `plan`, 52 s, 1
 73 calls, $0.0264). On this small task the pipeline now costs and takes what `single` does, while keeping the
 controller's verification. The three failed calls were all `Use Tool` calls whose arguments the model put
 beside the tool's name; `Use Tool` accepts that form since. One run on one small task, with the minimal team,
-is a sanity check of the structure, not evidence about pass rates; T33 measures those.
+is a sanity check of the structure, not evidence about pass rates; [the 0.3.0 evaluation](#results-2026-11-16-the-030-evaluation) measures those.
 
 The 0.2.0 standard-profile figures (9× time, 25–39× cost against `single`) mix in the stronger model the
 `pipeline` uses for lead and reviewer work; on the cheap model alone the structure costs 5–6×. Comparing
@@ -383,9 +383,9 @@ and after the lean team, T6):
 | `single`, small new project | 1 | 4 | 12,102 → **3,234** | 0 |
 
 The targets for a small task (3 sessions, 25 calls, 6,000 schema tokens per agent, no ceremony;
-`docs/IMPLEMENTATION_PLAN_0.3.0.md`) are tests in the gate now. The medium target ("sessions only for
-teammates the lead called") is T12's. Whether the leaner structure keeps the pass rate is a live
-question: the scripted proxies measure structure, not quality (T33 measures both).
+[the 0.3.0 plan](IMPLEMENTATION_PLAN_0.3.0.md)) are tests in the gate now. The medium target ("sessions only for
+teammates the lead called") is the `team` strategy's. Whether the leaner structure keeps the pass rate is a live
+question: the scripted proxies measure structure, not quality (the evaluation below measures both).
 
 ## External agent baselines (`--agent`)
 
@@ -553,8 +553,7 @@ What it shows, on a small sample (one to six runs per model, three easy-to-mediu
   `qwen3-coder-next` (19 tool failures, one run stopped by its cap) and `devstral-2512` (dearest of
   the cheap tier, both runs stopped by the cap after the checks passed).
 - The lead models (Sol, Sonnet, Kimi) were screened as workers on greenfield work only; how well
-  they plan and review is for the 0.3.0 evaluation (plan T33), and the presets are provisional
-  until then.
+  they plan and review is what the presets' results in [the 0.3.0 evaluation](#results-2026-11-16-the-030-evaluation) measure.
 
 Two harness lessons: a run cap below the ladder's own estimate of its first rung (built from the
 token priors of [`bench/estimate.py`](../src/engineering_team/bench/estimate.py), 10–50× the measured

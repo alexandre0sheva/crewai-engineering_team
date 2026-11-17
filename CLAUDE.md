@@ -1,7 +1,7 @@
 # CLAUDE.md
 
-Project: `engineering-team` — a CrewAI-based AI engineering team (see `README.md`). Released
-state is **0.2.0** (not tagged yet); all current work targets **0.3.0**.
+Project: `engineering-team` — a CrewAI-based AI engineering team (see `README.md`). Current
+version is **0.3.0** (prepared by task 34; tagged and published by the user, not by the assistant).
 
 ## Implementation plan — "implement task N"
 
@@ -13,7 +13,7 @@ index in §5, rules in §4). When the user says "implement task N" (or "do task 
    `uv run python scripts/plan_task.py list` shows all tasks with statuses.
 2. If a dependency is not `done`, stop and tell the user.
 3. Implement only that task, following the rules (hermetic tests, docs updated per the
-   Documentation map, `CHANGELOG.md` entry under `[Unreleased]`, no duplicated docs).
+   Documentation map, `CHANGELOG.md` entry under `[Unreleased]` (add the section if there is none), no duplicated docs).
 4. Run the gate, then `uv run python scripts/plan_task.py done N`. A task with a live run (plan §4
    *Live spend cap*): make the run yourself as part of the task. Before the first live command, ask
    the user to check the balance of each provider it bills (name them, the estimate and the

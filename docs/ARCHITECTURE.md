@@ -15,8 +15,8 @@ recorder, so every one leaves a manifest, an event log, and usage:
 
 The default is `auto`: in the 0.3.0 evaluation ([BENCHMARKS.md](BENCHMARKS.md#results-2026-11-16-the-030-evaluation)) it passed 24 of 25 dev
 runs against 7 of 12 for the forced `pipeline` (five tasks won, none lost, p = 0.062) at a lower cost per success, so
-the team is spent only where verification says it is needed. No `auto` run escalated in that evaluation: the
-ladder is measured as a starting rung, not yet as an escalation.
+the team is spent only where verification says it is needed. Escalation was rare in that evaluation (two of 108 ladder runs, both passed on the
+next rung), so the ladder is measured mostly as a starting rung.
 `single`, `team` and `pipeline` stay forceable with `--strategy`. The 0.1.0 manager-led crew (`hierarchical`) was removed in 0.3.0 after it hit the time limit on all three measured runs; a run it recorded stays viewable but cannot be resumed.
 
 ## Filesystem model
@@ -61,7 +61,7 @@ The catalogue is data: each `ToolSpec` names a tool, its group (`fs_read`, `sear
 that builds it. `build_tools(ctx, groups=, write_scope=, read_only=)` assembles a run's tools from
 it. Every call passes through `ToolEnv.run`, which applies cancellation, the run's `tool_gate`
 (the hook the budget guard uses to refuse calls), write-scope checks, the `ERROR:` convention, and
-emits a redacted `tool.call` event to the run's event sink (a no-op sink until the run store lands).
+emits a redacted `tool.call` event to the run's event sink.
 
 ### Developer tools
 
@@ -306,7 +306,7 @@ events: their profile has sessions, time, tokens and cost but no prompt parts.
 
 The offline performance proxies (`tests/perf/`) run scripted scenarios through the real stage runner and
 assert ceilings on sessions, model calls, tool-schema tokens per agent and always-on prompt size, plus
-the plan's small-task targets, which the lean team (T6) meets: a small new project and a small fix
+the small-task targets, which the lean team meets: a small new project and a small fix
 each take 3 sessions and 6 model calls, with 3,234 tool-schema tokens per call (0.2.0: 11 sessions,
 19 calls and 12,102 tokens for the same project; 9 sessions for the fix).
 
@@ -559,10 +559,8 @@ package runs. The agent is told its card id, receives the board, notes, and huma
 any pending steering notes at the start of each stage; `pause` is honoured before every stage and
 every tool call. A board move the rules refuse is logged and reported as a
 `pipeline.board_warning` event rather than breaking the run: the manifest is the record, the board
-a view. Stage agents currently get one default tool table (`fs_read`, `fs_write`, `search`,
-`command`, `dev`, `runtime`, `code_intel`, `board`, `notes`, `human`; `web` when enabled, `browser`
-for the frontend and quality roles when its extra is installed); per-teammate groups replace it
-when the team registry lands.
+a view. Stage agents get the tool groups of their teammate ([TEAM.md](TEAM.md#tool-groups)); `web` is
+added when enabled and `browser` for the frontend and quality roles when its extra is installed.
 
 ### Composing a recipe
 
@@ -602,8 +600,8 @@ Runtime conditions stay (`small_task`, `minimal_team`, ...): the lean team still
 `upgrade_deps`, `docs`, `security_audit`, and `custom` from `performance`; `review`; `adopt` from a
 `question`; all medium size, low risk) gives exactly its stages, policies and mode
 (`tests/test_compose.py`). A recipe named explicitly (`--task`, `--recipe`, a user recipe) always wins
-over composition (`compose.choose_recipe`). Questions, research and plans without a project compose
-nothing yet (the answer path is T15).
+over composition (`compose.choose_recipe`). Questions, research and plans are not composed: they take the
+[answer path](#questions-research-and-plans).
 
 ### The lean team
 
@@ -652,7 +650,7 @@ is called and the `new`, `feature` and `fix` recipes skip what that size does no
   (`{handoff}`, the card, steering notes, the retry note) come last, after the request, the
   contracts and the project context, and the tool list never changes during a session, so a
   provider's automatic prefix caching can serve the start of each call; `profile` reports the
-  cached share. (Explicit cache control for Anthropic is T26.)
+  cached share. (Anthropic's explicit cache breakpoints: [CONFIGURATION.md](CONFIGURATION.md#routes-fallbacks-and-prompt-caching).)
 
 ### Context packs and prompt sizes
 
@@ -707,7 +705,7 @@ full toolbelt and works itself, and the controller caps how much it may delegate
   generalist) also writes a fix's reproduction and repairs failing checks, so no teammate works
   unless the lead called it. The lead's prompt (`{lead}`) carries what the skeleton established
   (the baseline, the reproduction seen failing, any criteria), the teammates it can call, and when
-  to call them: guidance kept as harness text (`shared/lead_guidance.md`, tunable in T21).
+  to call them: guidance kept as harness text (`shared/lead_guidance.md`, tunable with `harness tune`).
 - **Delegation tools** (group `team`, the lead only; [TOOLS.md](TOOLS.md#team-tools)): `Delegate`
   (a teammate, a brief, owned paths, criteria, a step budget), `Delegate Parallel` (independent
   briefs with disjoint owned paths), `Ask Reviewer` / `Ask Security Review` (the current change),

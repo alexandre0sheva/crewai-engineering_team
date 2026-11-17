@@ -4,10 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Every user-visible change adds a line to `Unreleased` (see [CONTRIBUTING.md](CONTRIBUTING.md)); a release
-renames that section and dates it.
+Every user-visible change adds a line to an `## [Unreleased]` section at the top (created with the first change after
+a release; see [CONTRIBUTING.md](CONTRIBUTING.md)); a release renames that section and dates it. There is no empty
+`Unreleased` section between releases.
 
-## [Unreleased]
+## [0.3.0] — 2026-11-17
+
+The team now works out what a request is, starts on the cheapest rung that can do it and escalates only when the
+controller's checks say so. *Migration from 0.2.0*, the last subsection of this release, first. The implementation
+plan and its decision log are in [the 0.3.0 implementation plan](https://github.com/alexandre0sheva/crewai-engineering_team/blob/v0.3.0/docs/IMPLEMENTATION_PLAN_0.3.0.md).
 
 ### Added
 
@@ -291,8 +296,7 @@ renames that section and dates it.
   controller's required checks) and, for the repository modes, the branch or copy and the patch; a `do` run adds
   what the task was (`task`: intents, size, risk, rungs climbed).
 - The default strategy is `auto` (it was `pipeline`), for `new` and for the repository modes; `--strategy
-  pipeline`, `team` or `single` still forces one. The starting rungs are provisional until the 0.3.0 live
-  evaluation.
+  pipeline`, `team` or `single` still forces one (measured: see *Defaults after the evaluation* above).
 - A benchmark check that cannot judge (a missing toolchain, Docker not running, a missing check function) is
   recorded as `error`, left out of pass rates and repeated by `--resume`, instead of failing the run. `result.json`
   is schema 2 (`split` instead of `subset`, plus `intent` and a per-criterion `error`); version 1 files still read.
@@ -411,6 +415,22 @@ renames that section and dates it.
 - To keep the 0.2.0 pipeline for every request (all stages, spec and plan apart, DevOps and docs), set
   `[lean] size = "large"` and `ceremony = "always"`. A run of `new`, `feature` or `fix` started under 0.2.0 cannot be
   resumed (its recipe changed); start it again.
+- **Behaviour that changed without a flag.** `auto` is the default strategy (`strategy = "pipeline"` or `--strategy
+  pipeline` gives the 0.2.0 default), the pipeline is lean (small tasks skip stages; see the line above), the
+  Anthropic `worker` and `cheap` tiers use Claude Haiku 5.5 and OpenAI's `reviewer` tier GPT-6.1 Terra (pin the
+  models you want with `ENGINEERING_*_MODEL` or `[models]`), and the Node, Go, Java, .NET, Ruby and PHP Docker
+  images moved to current versions (`execution.docker.image` still overrides them).
+- **Output.** The end-of-run summary and `--json` gain fields (`Proof:`, `task`, the branch and patch); nothing was
+  removed from them. Scripts that parse `--json` keep working. `result.json` of a benchmark run is schema 2 (schema 1
+  still reads); a 0.2.0 task file (`subset`, `language`) still loads.
+- **Kept.** `new`, `feature`, `fix`, `maintain`, `review`, `analyze`, `resume` and `cancel` and their options work as in
+  0.2.0 (they are presets of `do`), and run directories 0.2.0 wrote stay readable by `runs`, `report`, `profile` and
+  the web UI.
+- **New and opt-in.** Learned memory and lessons are on by default but only shape prompts; switch them off with
+  `[memory] enabled = false` and `[learning] enabled = false`. Best-of-N attempts, a draft pull request
+  (`do --open-pr`), the MCP server and the LSP bridge are off until you ask for them.
+- **Install** from PyPI: `uv tool install --python 3.13 engineering_team` (from Git until the release is
+  published: `git+https://github.com/alexandre0sheva/crewai-engineering_team`).
 
 ## [0.2.0] — 2026-10-05
 
@@ -855,6 +875,6 @@ into a tested MVP inside a persistent, normal project directory.
 - Greenfield only: no mode for existing repositories, features, or bug fixes.
 - CLI only, no run history or reports.
 
-[Unreleased]: https://github.com/alexandre0sheva/crewai-engineering_team/compare/v0.2.0...HEAD
+[0.3.0]: https://github.com/alexandre0sheva/crewai-engineering_team/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/alexandre0sheva/crewai-engineering_team/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/alexandre0sheva/crewai-engineering_team/releases/tag/v0.1.0

@@ -1,6 +1,6 @@
 [project]
 name = "engineering_team"
-version = "0.2.0"
+version = "0.3.0"
 description = "A team of AI specialists that builds, changes and fixes software, and proves what it did: a CrewAI pipeline in which a controller, not the agents, runs the checks and decides what counts as done."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"

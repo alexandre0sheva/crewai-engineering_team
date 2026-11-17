@@ -103,4 +103,5 @@ jobs:
           uv pip install --python "$RUNNER_TEMP/smoke-venv/bin/python" dist/*.whl
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/smoke-venv/bin/engineering-team" --help
+          "$RUNNER_TEMP/smoke-venv/bin/engineering-team" do --help
           "$RUNNER_TEMP/smoke-venv/bin/engineering-team" examples list

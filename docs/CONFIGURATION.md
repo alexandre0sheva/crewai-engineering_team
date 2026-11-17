@@ -261,8 +261,8 @@ the run and a ranked excerpt of the repo map (the files most likely to matter fo
 [ARCHITECTURE.md](ARCHITECTURE.md#context-packs-and-prompt-sizes)). `context.stage_tokens` is the most the pack
 may take; facts and lessons take at most a quarter each (and also stay within `memory.inject_chars` and
 `learning.inject_chars`), the map gets the rest. The report lists each session's prompt size and warns when one
-starts above `context.warn_fraction` of its model's context window. The defaults are provisional until the 0.3.0
-evaluation.
+starts above `context.warn_fraction` of its model's context window. The defaults are provisional: the 0.3.0
+evaluation did not measure them.
 
 | Key (TOML) | Default | Meaning |
 |---|---|---|
@@ -787,7 +787,7 @@ run with `--no-acceptance` (`feature`, `do`); `do` leaves it out for a trivial c
 
 | Key (TOML) | Default | Meaning |
 |---|---|---|
-| `acceptance.max_attempts` | `2` | Attempts the quality engineer gets; each after the first rewrites only the tests the controller rejected (with the reason) and the criteria still without one. A test still rejected after them is removed and the run goes on without it. 1 to 4. Provisional until the 0.3.0 evaluation measures it. |
+| `acceptance.max_attempts` | `2` | Attempts the quality engineer gets; each after the first rewrites only the tests the controller rejected (with the reason) and the criteria still without one. A test still rejected after them is removed and the run goes on without it. 1 to 4. Provisional: the 0.3.0 evaluation did not measure it. |
 | `acceptance.timeout` | `120` | Seconds one run of one acceptance test may take (on the baseline and in verification); a hang is not a failure for the right reason. 5 to 1,800. |
 
 ### Maintenance (`[maintain]`)
@@ -968,7 +968,7 @@ different prices and precisions, so the requests carry routing preferences
 | `openrouter.data_collection` | `deny` | `deny`: only hosts that do not store or train on prompts; `allow`: any |
 | `openrouter.require_parameters` | `true` | Only hosts that support every parameter sent (tool calls, structured output) |
 | `openrouter.allow_fallbacks` | `true` | Another host may serve a request when the preferred ones fail |
-| `openrouter.quantizations` | `fp8`, `mxfp8`, `fp16`, `bf16`, `fp32`, `unknown` | Precisions allowed: fp8 or better (`unknown` covers most model makers' own hosts). `[]` allows any, including 4-bit hosts. Provisional until the 0.3.0 evaluation |
+| `openrouter.quantizations` | `fp8`, `mxfp8`, `fp16`, `bf16`, `fp32`, `unknown` | Precisions allowed: fp8 or better (`unknown` covers most model makers' own hosts). `[]` allows any, including 4-bit hosts. Provisional: the 0.3.0 evaluation did not measure it |
 | `openrouter.order`, `openrouter.only`, `openrouter.ignore` | – | Host slugs to try first, the only ones allowed, ones never used (`["deepinfra", "z-ai"]`) |
 | `openrouter.sort` | – | `price`, `throughput` or `latency`; unset: OpenRouter's own balancing |
 | `openrouter.zdr` | `false` | Only zero-data-retention endpoints |

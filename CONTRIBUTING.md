@@ -97,7 +97,8 @@ uv run python scripts/plan_task.py done 7      # mark task 7 done after the gate
 - Imperative, descriptive commit subjects (`feat:`, `fix:`, `docs:`, `chore:`, `test:` prefixes
   are welcome).
 - Add a [CHANGELOG](CHANGELOG.md) entry under `[Unreleased]` for every user-visible change
-  (Added / Changed / Fixed / Security; one line each).
+  (Added / Changed / Fixed / Security; one line each); add the `## [Unreleased]` section at the top, with its
+  compare link at the end, if there is none.
 - Do not commit secrets, `.env`, generated workspaces (`workspace/`), or run records.
 
 ## Documentation map
@@ -152,9 +153,9 @@ Releases are tagged from `main` and published by `.github/workflows/release.yml`
 for you.
 
 1. **Make the release commit.** The version in `pyproject.toml` is the version to ship. In
-   [CHANGELOG.md](CHANGELOG.md) move the `[Unreleased]` entries under `## [X.Y.Z] — YYYY-MM-DD`, add a
-   migration note if users must change something, leave an empty `## [Unreleased]` above it, and update the
-   compare links at the end. `uv run python scripts/release_notes.py --check` says whether the changelog is
+   [CHANGELOG.md](CHANGELOG.md) rename `## [Unreleased]` to `## [X.Y.Z] — YYYY-MM-DD`, add a
+   migration note if users must change something, leave no empty `## [Unreleased]` above it, and update the
+   compare links at the end (the `[Unreleased]` link becomes `[X.Y.Z]`). `uv run python scripts/release_notes.py --check` says whether the changelog is
    ready; `uv run python scripts/release_notes.py X.Y.Z` prints the notes the GitHub Release will carry.
 2. **Run the gate** (above) and wait for CI to be green on that commit, on every platform.
 3. **Tag and push.**
@@ -168,10 +169,15 @@ for you.
    builds the sdist and wheel, installs the wheel in a clean environment on Linux and macOS (Python 3.11 and
    3.13) and runs `engineering-team --help` from an unrelated directory, then creates the GitHub Release with
    the wheel, the sdist and the changelog section.
-4. **PyPI (optional, off by default).** Create the project on PyPI, add this repository's `release.yml` as a
-   [trusted publisher](https://docs.pypi.org/trusted-publishers/) (no token is stored), create a `pypi`
-   environment in the repository settings, and set the repository variable `PUBLISH_TO_PYPI` to `true`. The
-   next tag then also publishes to PyPI; until then the last job is skipped.
+4. **PyPI (trusted publishing, off until you enable it).** Once, before the first tag that should publish:
+   on PyPI, under *Publishing*, add a [pending trusted publisher](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)
+   for the project `engineering_team` (owner `alexandre0sheva`, repository `crewai-engineering_team`, workflow
+   `release.yml`, environment `pypi`); in the repository settings create the environment `pypi` with yourself as
+   a required reviewer; and set the repository variable `PUBLISH_TO_PYPI` to `true`. No token is stored. The tag
+   then also starts the `Publish to PyPI` job, which waits for your approval of the `pypi` environment and
+   uploads the wheel and sdist; until then (and for pre-release tags such as `v0.4.0-rc1`) it is skipped. The
+   upload cannot be undone (PyPI never reuses a version number), so check the GitHub Release first. Afterwards
+   `uv tool install --python 3.13 engineering_team` installs it.
 5. **Widening Python.** Python 3.14 is out of range because CrewAI declares `<3.14`. When a CrewAI release
    supports it, change `requires-python`, the classifiers, `target-version` and `python_version` (Ruff and
    mypy), the CI and release matrices and the README badge in one commit.

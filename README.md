@@ -46,14 +46,14 @@ You need Python 3.11–3.13, [uv](https://docs.astral.sh/uv/) and an API key for
 default; Anthropic, Google, Ollama and Azure are presets).
 
 ```bash
-uv tool install --python 3.13 git+https://github.com/alexandre0sheva/crewai-engineering_team
-# or: pipx install --python python3.13 git+https://github.com/alexandre0sheva/crewai-engineering_team
+uv tool install --python 3.13 engineering_team
+# or: pipx install --python python3.13 engineering_team
 ```
 
 Pin the interpreter (3.11, 3.12 or 3.13): without `--python`, `uv tool install` can pick a newer Python
-that CrewAI does not support yet, and the tool then fails on start. Once the package is on PyPI it will be
-`uv tool install --python 3.13 engineering_team`. To work on the project itself, see
-[CONTRIBUTING.md](CONTRIBUTING.md).
+that CrewAI does not support yet, and the tool then fails on start. For the development version, install from
+Git instead: `uv tool install --python 3.13 git+https://github.com/alexandre0sheva/crewai-engineering_team`.
+To work on the project itself, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Quickstart
 
@@ -75,7 +75,7 @@ your budget. The project appears in `./workspace/my-idea/`. Steer a run from ano
 Prefer a browser?
 
 ```bash
-uv tool install --python 3.13 "engineering_team[ui] @ git+https://github.com/alexandre0sheva/crewai-engineering_team"
+uv tool install --python 3.13 "engineering_team[ui]"
 engineering-team ui                                # http://127.0.0.1:8765/
 ```
 
